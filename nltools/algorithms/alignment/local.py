@@ -221,7 +221,7 @@ def _fit_one_neighborhood(
         from .srm import SRM
 
         feat = n_features if n_features is not None else min(n_local_voxels, n_samples)
-        srm = SRM(n_iter=n_iter, features=feat)
+        srm = SRM(n_iter=n_iter, n_features=feat)
         srm.fit(local_data, parallel=None)
         transforms, template = srm.w_, srm.s_
     elif method == "hyperalignment":
@@ -328,9 +328,9 @@ class LocalAlignment:
         progress_bar (bool): Whether to display tqdm progress bars during fit and
             transform. Defaults to False.
         n_neighborhoods_batch (int | None): Number of neighborhoods to process per
-            batch on the GPU. None auto-calculates a batch size from `max_memory_gb`.
-            Defaults to None.
-        max_memory_gb (float | None): Explicit memory budget (in GB) used to
+            batch on the GPU. None auto-calculates a batch size from
+            `memory_budget_gb`. Defaults to None.
+        memory_budget_gb (float | None): Explicit memory budget (in GB) used to
             auto-size GPU batches when `n_neighborhoods_batch` is None. None
             (default) measures the device's available memory.
 
@@ -381,7 +381,7 @@ class LocalAlignment:
 
     # Batching parameters (Phase 2)
     n_neighborhoods_batch: int | None = None  # None = auto-calculate
-    max_memory_gb: float | None = None  # None = measured device budget
+    memory_budget_gb: float | None = None  # None = measured device budget
 
     # Fitted state (set by fit())
     transforms_: dict[int, list[np.ndarray]] | None = field(default=None, repr=False)
@@ -475,7 +475,9 @@ class LocalAlignment:
         )
 
         budget_gb = device_memory_budget(
-            self.backend_, max_gpu_memory_gb=self.max_memory_gb, cap_for_batching=True
+            self.backend_,
+            max_gpu_memory_gb=self.memory_budget_gb,
+            cap_for_batching=True,
         )
         batch_size, _ = auto_batch_size(
             n_neighborhoods, bytes_per_neighborhood, budget_gb=budget_gb

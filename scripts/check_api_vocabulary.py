@@ -16,12 +16,20 @@ this script walks every public (non-underscore) ``def`` in ``nltools/`` with
   and so on. These catch the drift semgrep patterns cannot express — a
   correctly-named kwarg holding the wrong concept.
 
-The scope model mirrors ``.semgrep/rules.yml``: tests and the
-ridge/alignment/pipelines subsystems are path-excluded because their facades
-translate legacy names at the boundary (CLAUDE.md "Facade translation" rule).
-Suppressions come from the manifest itself — the documented ``exceptions:``
-entries and the ``enforcement.exemptions:`` list — never from inline comments,
-so every carve-out is visible in one file.
+The scope model mirrors ``.semgrep/rules.yml``: tests and the pipelines
+subsystem are path-excluded (``nltools/pipelines/`` forwards to its own
+dispatch layer). The alignment estimators (``SRM``, ``DetSRM``,
+``HyperAlignment``, ``LocalAlignment``) are exported with no facade, so they
+are checked directly like any other public surface — ``n_iter`` and
+``parallel`` are that subsystem's own vocabulary (documented in the manifest's
+``vocabulary:`` table), suppressed from the general ``n_iter``/``parallel``
+bans via per-alias ``banned_kwargs.<name>.exclude_paths`` rather than a
+directory-wide exclusion. The one legacy internal that remains —
+``RoiNeighborhoods.iter_neighborhoods``'s non-keyword-only ``progress_bar`` —
+is recorded as a single named ``enforcement.exemptions`` entry. Suppressions
+come from the manifest itself — the documented ``exceptions:`` entries and the
+``enforcement.exemptions:`` list — never from inline comments, so every
+carve-out is visible in one file.
 
 Wired into ``poe lint-api`` alongside semgrep (result-key and ``**kwargs``
 rules) and ``check_kwonly.py`` (the structural ``*``-marker check).

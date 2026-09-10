@@ -15,8 +15,14 @@ from ..inference.validation import validate_tail_parameter
 from .srm import SRM, DetSRM
 
 
-def align(  # nosemgrep: kwargs-internal-forwarding  # forwards to the SRM/DetSRM algorithm constructors
-    data, method="deterministic_srm", n_features=None, axis=0, *args, **kwargs
+def align(
+    data,
+    method="deterministic_srm",
+    n_features=None,
+    axis=0,
+    *,
+    n_iter=10,
+    random_state=0,
 ):
     """Align subject data into a common response model.
 
@@ -37,10 +43,10 @@ def align(  # nosemgrep: kwargs-internal-forwarding  # forwards to the SRM/DetSR
             None uses the number of voxels. Must be None for `'procrustes'`.
         axis (int): Axis to align on: 0 aligns timepoints (ISC computed per voxel),
             1 aligns voxels (ISC computed per timepoint). Defaults to 0.
-        *args (Any): Positional arguments forwarded to the `SRM`/`DetSRM`
-            constructor.
-        **kwargs (Any): Keyword arguments forwarded to the `SRM`/`DetSRM`
-            constructor.
+        n_iter (int): Number of `SRM`/`DetSRM` iterations; ignored by
+            `method='procrustes'`. Defaults to 10.
+        random_state (int): Seed forwarded to the constructed `SRM`/`DetSRM`;
+            ignored by `method='procrustes'`. Defaults to 0.
 
     Returns:
         dict: Keys `'transformed'` (list of aligned subject data, same type as the
@@ -99,9 +105,11 @@ def align(  # nosemgrep: kwargs-internal-forwarding  # forwards to the SRM/DetSR
         if n_features is None:
             n_features = int(data[0].shape[0])
         if method == "deterministic_srm":
-            srm = DetSRM(features=n_features, *args, **kwargs)
+            srm = DetSRM(
+                n_features=n_features, n_iter=n_iter, random_state=random_state
+            )
         elif method == "probabilistic_srm":
-            srm = SRM(features=n_features, *args, **kwargs)
+            srm = SRM(n_features=n_features, n_iter=n_iter, random_state=random_state)
         srm.fit(data)
         out["transformed"] = list(srm.transform(data))
         out["common_model"] = srm.s_.T

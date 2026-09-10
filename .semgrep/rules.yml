@@ -92,7 +92,6 @@ rules:
     paths:
       exclude:
         - "**/tests/**"
-        - "nltools/algorithms/alignment/"
         - "nltools/pipelines/"
         - "scripts/"
         # Plotting = legitimate matplotlib/seaborn/nilearn passthrough (see note above)

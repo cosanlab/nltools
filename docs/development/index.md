@@ -90,6 +90,7 @@ public signature against in CI. The table below is rendered from it:
 | Subject-level parallelism | `n_jobs: int = -1` |
 | GPU / CPU selection | `device: str = "cpu"` — run-or-raise: explicit `'gpu'` never silently degrades to CPU; `'auto'` is the one graceful-fallback path |
 | Backend (alignment internals) | `parallel: None \| 'cpu' \| 'gpu'` (the inference engine and `Ridge` use `device` as of v0.6.0) |
+| Alignment refinement count | `n_iter` on `SRM`, `DetSRM`, `HyperAlignment`, and `LocalAlignment` — EM iterations, coordinate-descent iterations, or template-refinement rounds, depending on the estimator; everywhere else `n_iter` is a banned alias for `n_permute`/`n_samples`/`search_iterations` |
 | Working-memory budget | `memory_budget_gb: float \| None = None` — device-neutral working-memory budget for internal batching; `None` measures the selected device with headroom |
 | Progress indicator | `progress_bar: bool = False` |
 | Permutation count | `n_permute` |

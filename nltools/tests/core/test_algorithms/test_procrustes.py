@@ -9,6 +9,7 @@ from nltools.algorithms.alignment.procrustes import (
     procrustes_distance,
     align_states,
 )
+from nltools.algorithms.alignment.srm import SRM, DetSRM
 from nltools.data.simulator import Simulator
 from nltools.mask import create_sphere
 
@@ -24,6 +25,42 @@ class TestAlign:
         """
         with pytest.raises(ValueError, match="same type"):
             align([np.zeros((10, 5)), [[1, 2], [3, 4]]])
+
+    def test_n_iter_and_random_state_reach_deterministic_srm(self, monkeypatch):
+        """3by0: n_iter/random_state on align() must reach the constructed DetSRM."""
+        captured = {}
+        real_init = DetSRM.__init__
+
+        def spy_init(self, **kwargs):
+            captured.update(kwargs)
+            real_init(self, **kwargs)
+
+        monkeypatch.setattr(DetSRM, "__init__", spy_init)
+        data = [np.random.randn(30, 5), np.random.randn(30, 5)]
+        align(data, method="deterministic_srm", n_iter=3, random_state=11)
+        assert captured["n_iter"] == 3
+        assert captured["random_state"] == 11
+
+    def test_n_iter_and_random_state_reach_probabilistic_srm(self, monkeypatch):
+        """3by0: n_iter/random_state on align() must reach the constructed SRM."""
+        captured = {}
+        real_init = SRM.__init__
+
+        def spy_init(self, **kwargs):
+            captured.update(kwargs)
+            real_init(self, **kwargs)
+
+        monkeypatch.setattr(SRM, "__init__", spy_init)
+        data = [np.random.randn(30, 5), np.random.randn(30, 5)]
+        align(data, method="probabilistic_srm", n_iter=4, random_state=12)
+        assert captured["n_iter"] == 4
+        assert captured["random_state"] == 12
+
+    def test_unknown_keyword_raises_type_error(self):
+        """3by0: an unknown keyword must raise TypeError, never be swallowed."""
+        data = [np.random.randn(30, 5), np.random.randn(30, 5)]
+        with pytest.raises(TypeError):
+            align(data, method="deterministic_srm", bogus_kwarg=1)
 
     @pytest.fixture
     def simulated_brains(self):

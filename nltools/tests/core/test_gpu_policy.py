@@ -50,21 +50,21 @@ class TestSrmRunOrRaise:
     def test_srm_fit_gpu_raises(self):
         from nltools.algorithms.alignment import SRM
 
-        srm = SRM(n_iter=1, features=2)
+        srm = SRM(n_iter=1, n_features=2)
         with pytest.raises(NotImplementedError, match="gpu"):
             srm.fit(_subjects(), parallel="gpu")
 
     def test_detsrm_fit_gpu_raises(self):
         from nltools.algorithms.alignment import DetSRM
 
-        srm = DetSRM(n_iter=1, features=2)
+        srm = DetSRM(n_iter=1, n_features=2)
         with pytest.raises(NotImplementedError, match="gpu"):
             srm.fit(_subjects(), parallel="gpu")
 
     def test_srm_transform_gpu_raises(self):
         from nltools.algorithms.alignment import SRM
 
-        srm = SRM(n_iter=1, features=2, rand_seed=0)
+        srm = SRM(n_iter=1, n_features=2, random_state=0)
         data = _subjects()
         srm.fit(data, parallel=None)
         with pytest.raises(NotImplementedError, match="gpu"):
@@ -73,7 +73,7 @@ class TestSrmRunOrRaise:
     def test_detsrm_transform_gpu_raises(self):
         from nltools.algorithms.alignment import DetSRM
 
-        srm = DetSRM(n_iter=1, features=2, rand_seed=0)
+        srm = DetSRM(n_iter=1, n_features=2, random_state=0)
         data = _subjects()
         srm.fit(data, parallel=None)
         with pytest.raises(NotImplementedError, match="gpu"):
@@ -83,14 +83,14 @@ class TestSrmRunOrRaise:
         from nltools.algorithms.alignment import SRM, DetSRM
 
         with pytest.raises(TypeError, match="max_gpu_memory_gb"):
-            SRM(n_iter=1, features=2).fit(_subjects(), max_gpu_memory_gb=2.0)
+            SRM(n_iter=1, n_features=2).fit(_subjects(), max_gpu_memory_gb=2.0)
         with pytest.raises(TypeError, match="max_gpu_memory_gb"):
-            DetSRM(n_iter=1, features=2).fit(_subjects(), max_gpu_memory_gb=2.0)
+            DetSRM(n_iter=1, n_features=2).fit(_subjects(), max_gpu_memory_gb=2.0)
 
     def test_cpu_paths_still_work(self):
         from nltools.algorithms.alignment import SRM
 
-        srm = SRM(n_iter=1, features=2, rand_seed=0)
+        srm = SRM(n_iter=1, n_features=2, random_state=0)
         data = _subjects()
         srm.fit(data, parallel=None)
         shared = srm.transform(data, parallel=None)

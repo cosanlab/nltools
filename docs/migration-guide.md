@@ -1827,12 +1827,12 @@ See the [GPU-Accelerated Statistical Inference](#new-feature-gpu-accelerated-sta
 from nltools.algorithms import SRM, DetSRM
 
 # Probabilistic SRM
-model = SRM(features=50, n_iter=10)
+model = SRM(n_features=50, n_iter=10)
 model.fit(subjects)             # List of (n_voxels, n_timepoints) arrays
 aligned = model.transform(subjects)  # Project to shared space
 
 # Deterministic SRM (faster, no noise model)
-det_model = DetSRM(features=50, n_iter=10)
+det_model = DetSRM(n_features=50, n_iter=10)
 det_model.fit(subjects)
 aligned = det_model.transform(subjects)
 

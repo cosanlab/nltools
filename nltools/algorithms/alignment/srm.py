@@ -86,38 +86,38 @@ def _validate_srm_parallel(parallel: str | None) -> None:
 
 
 def _init_w_transforms(
-    data: list[np.ndarray], features: int, random_states: list[Any]
+    data: list[np.ndarray], n_features: int, random_states: list[Any]
 ) -> tuple[list[np.ndarray | None], np.ndarray]:
     """Initialize the mappings $W_i$ for the SRM with random orthogonal matrices.
 
     Each subject's transform is the Q factor of the QR decomposition of a
-    random (voxels_i, features) matrix drawn from that subject's own
+    random (voxels_i, n_features) matrix drawn from that subject's own
     `RandomState`, so the initial transforms are orthogonal and independent
     across subjects. Subjects whose data is None get a None transform and a
     voxel count of 0.
 
     Args:
         data (list[np.ndarray | None]): One (voxels_i, samples) array per subject.
-        features (int): Number of features in the model.
+        n_features (int): Number of features in the model.
         random_states (list[np.random.RandomState]): One generator per subject.
 
     Returns:
         tuple[list[np.ndarray | None], np.ndarray]: `(w, voxels)` — the initial
-            orthogonal transforms, element i of shape (voxels_i, features), and
+            orthogonal transforms, element i of shape (voxels_i, n_features), and
             an integer array with the number of voxels per subject.
     """
     w = []
     subjects = len(data)
     voxels = np.empty(subjects, dtype=int)
 
-    # Set Wi to a random orthogonal voxels by features matrix
+    # Set Wi to a random orthogonal voxels by n_features matrix
     # QR decomposition ensures orthogonality: Q is orthogonal, R is upper triangular
     # This initialization strategy enables efficient Procrustes optimization later
     for subject in range(subjects):
         if data[subject] is not None:
             voxels[subject] = data[subject].shape[0]
             rnd_matrix = random_states[subject].random_sample(
-                (voxels[subject], features)
+                (voxels[subject], n_features)
             )
             q, r = np.linalg.qr(rnd_matrix)
             w.append(q)
@@ -148,20 +148,20 @@ class SRM(BaseEstimator, TransformerMixin):
 
     Args:
         n_iter (int): Number of EM iterations. Defaults to 10.
-        features (int): Number of shared features to compute. Defaults to 50.
-        rand_seed (int): Seed for the random initialization. Defaults to 0.
+        n_features (int): Number of shared features to compute. Defaults to 50.
+        random_state (int): Seed for the random initialization. Defaults to 0.
 
     Attributes:
         w_ (list[np.ndarray]): Per-subject orthogonal transforms, element i of
-            shape (voxels_i, features).
-        s_ (np.ndarray): The shared response, shape (features, samples).
+            shape (voxels_i, n_features).
+        s_ (np.ndarray): The shared response, shape (n_features, samples).
         sigma_s_ (np.ndarray): Covariance of the shared response's Normal
-            distribution, shape (features, features).
+            distribution, shape (n_features, n_features).
         mu_ (list[np.ndarray]): Per-subject voxel means over samples, element i
             of shape (voxels_i,).
         rho2_ (np.ndarray): Estimated noise variance $\\rho_i^2$ per subject,
             shape (subjects,).
-        random_state_ (np.random.RandomState): Generator seeded from `rand_seed`.
+        random_state_ (np.random.RandomState): Generator seeded from `random_state`.
 
     Examples:
         ```python
@@ -170,7 +170,7 @@ class SRM(BaseEstimator, TransformerMixin):
 
         data = [np.random.randn(100, 50) for _ in range(3)]  # 3 subjects
 
-        srm = SRM(n_iter=10, features=50)
+        srm = SRM(n_iter=10, n_features=50)
         srm.fit(data, parallel="cpu", n_jobs=-1)
         shared_responses = srm.transform(data)  # list of (50, 50) arrays
 
@@ -180,11 +180,11 @@ class SRM(BaseEstimator, TransformerMixin):
     """
 
     def __init__(
-        self, *, n_iter: int = 10, features: int = 50, rand_seed: int = 0
+        self, *, n_iter: int = 10, n_features: int = 50, random_state: int = 0
     ) -> None:
         self.n_iter = n_iter
-        self.features = features
-        self.rand_seed = rand_seed
+        self.n_features = n_features
+        self.random_state = random_state
         return
 
     def fit(
@@ -230,10 +230,10 @@ class SRM(BaseEstimator, TransformerMixin):
             )
 
         # Check for input data sizes
-        if X[0].shape[1] < self.features:
+        if X[0].shape[1] < self.n_features:
             raise ValueError(
                 "There are not enough samples to train the model with "
-                f"{self.features:d} features."
+                f"{self.n_features:d} features."
             )
 
         # Handle unequal sample counts via padding
@@ -297,7 +297,7 @@ class SRM(BaseEstimator, TransformerMixin):
 
         Returns:
             list[np.ndarray | None]: Shared responses, element i of shape
-                (features, samples_i).
+                (n_features, samples_i).
         """
 
         _validate_srm_parallel(parallel)
@@ -401,16 +401,16 @@ class SRM(BaseEstimator, TransformerMixin):
 
         Args:
             chol_sigma_s_rhos (np.ndarray): Cholesky factor of
-                $(\\Sigma_S + \\sum_i(1/\\rho_i^2) I)$, shape (features, features).
+                $(\\Sigma_S + \\sum_i(1/\\rho_i^2) I)$, shape (n_features, n_features).
             log_det_psi (float): Log-determinant of the diagonal matrix Psi
                 (each $\\rho_i^2$ repeated voxels_i times).
             chol_sigma_s (np.ndarray): Cholesky factor of $\\Sigma_S$, shape
-                (features, features).
+                (n_features, n_features).
             trace_xt_invsigma2_x (float): $\\sum_i ||X_i||_F^2 / \\rho_i^2$.
             inv_sigma_s_rhos (np.ndarray): Inverse of
-                $(\\Sigma_S + \\sum_i(1/\\rho_i^2) I)$, shape (features, features).
+                $(\\Sigma_S + \\sum_i(1/\\rho_i^2) I)$, shape (n_features, n_features).
             wt_invpsi_x (np.ndarray): $\\sum_i W_i^T X_i / \\rho_i^2$, shape
-                (features, samples).
+                (n_features, samples).
             samples (int): Number of samples in the data.
 
         Returns:
@@ -441,10 +441,10 @@ class SRM(BaseEstimator, TransformerMixin):
 
         Args:
             Xi (np.ndarray): The subject's data $X_i$, shape (voxels, timepoints).
-            S (np.ndarray): The shared response, shape (features, timepoints).
+            S (np.ndarray): The shared response, shape (n_features, timepoints).
 
         Returns:
-            np.ndarray: The orthogonal transform $W_i$, shape (voxels, features).
+            np.ndarray: The orthogonal transform $W_i$, shape (voxels, n_features).
         """
         # Compute cross-covariance: X_i S^T
         A = Xi.dot(S.T)
@@ -464,7 +464,7 @@ class SRM(BaseEstimator, TransformerMixin):
 
         Returns:
             np.ndarray: Orthogonal mapping $W_{new}$ for the new subject, shape
-                (voxels, features).
+                (voxels, n_features).
         """
         # Check if the model exist
         if hasattr(self, "w_") is False:
@@ -494,17 +494,17 @@ class SRM(BaseEstimator, TransformerMixin):
         Returns:
             tuple[np.ndarray, list[np.ndarray], list[np.ndarray], np.ndarray, np.ndarray]:
                 `(sigma_s, w, mu, rho2, s)` — the shared-response covariance
-                $\\Sigma_s$ (shape (features, features)), the per-subject
+                $\\Sigma_s$ (shape (n_features, n_features)), the per-subject
                 orthogonal transforms $W_i$ (element i of shape (voxels_i,
-                features)), the per-subject voxel means $\\mu_i$ (element i of
+                n_features)), the per-subject voxel means $\\mu_i$ (element i of
                 shape (voxels_i,)), the per-subject noise variance $\\rho_i^2$
-                (shape (subjects,)), and the shared response (shape (features,
+                (shape (subjects,)), and the shared response (shape (n_features,
                 samples)).
         """
 
         samples = min([d.shape[1] for d in data if d is not None], default=sys.maxsize)
         subjects = len(data)
-        self.random_state_ = np.random.RandomState(self.rand_seed)
+        self.random_state_ = np.random.RandomState(self.random_state)
         random_states = [
             np.random.RandomState(self.random_state_.randint(2**32 - 1, dtype=np.int64))
             for i in range(len(data))
@@ -513,10 +513,10 @@ class SRM(BaseEstimator, TransformerMixin):
         # Initialization step: initialize the outputs with initial values,
         # voxels with the number of voxels in each subject, and trace_xtx with
         # the ||X_i||_F^2 of each subject.
-        w, voxels = _init_w_transforms(data, self.features, random_states)
+        w, voxels = _init_w_transforms(data, self.n_features, random_states)
         x, mu, rho2, trace_xtx = self._init_structures(data, subjects)
-        shared_response = np.zeros((self.features, samples))
-        sigma_s = np.identity(self.features)
+        shared_response = np.zeros((self.n_features, samples))
+        sigma_s = np.identity(self.n_features)
 
         # Main loop of the algorithm (EM iterations)
         # E-step: Update shared response S given current transforms W_i
@@ -535,24 +535,24 @@ class SRM(BaseEstimator, TransformerMixin):
             )
             inv_sigma_s = scipy.linalg.cho_solve(
                 (chol_sigma_s, lower_sigma_s),
-                np.identity(self.features),
+                np.identity(self.n_features),
                 check_finite=False,
             )
 
             # Invert (Sigma_s + rho_0 * I) using Cholesky factorization
-            sigma_s_rhos = inv_sigma_s + np.identity(self.features) * rho0
+            sigma_s_rhos = inv_sigma_s + np.identity(self.n_features) * rho0
             chol_sigma_s_rhos, lower_sigma_s_rhos = scipy.linalg.cho_factor(
                 sigma_s_rhos, check_finite=False
             )
             inv_sigma_s_rhos = scipy.linalg.cho_solve(
                 (chol_sigma_s_rhos, lower_sigma_s_rhos),
-                np.identity(self.features),
+                np.identity(self.n_features),
                 check_finite=False,
             )
 
             # Compute the sum of W_i^T * rho_i^-2 * X_i, and the sum of traces
             # of X_i^T * rho_i^-2 * X_i
-            wt_invpsi_x = np.zeros((self.features, samples))
+            wt_invpsi_x = np.zeros((self.n_features, samples))
             trace_xt_invsigma2_x = 0.0
             for subject in range(subjects):
                 if data[subject] is not None:
@@ -564,7 +564,7 @@ class SRM(BaseEstimator, TransformerMixin):
             # Update the shared response S (E-step)
             # Weighted average of transformed data: S = Σ_s (I - rho0 * inv(Σ_s + rho0*I)) @ W^T @ Psi^{-1} @ X
             shared_response = sigma_s.dot(
-                np.identity(self.features) - rho0 * inv_sigma_s_rhos
+                np.identity(self.n_features) - rho0 * inv_sigma_s_rhos
             ).dot(wt_invpsi_x)
 
             # M-step: Update transforms W_i and noise variances rho_i^2
@@ -666,14 +666,14 @@ class DetSRM(BaseEstimator, TransformerMixin):
 
     Args:
         n_iter (int): Number of coordinate-descent iterations. Defaults to 10.
-        features (int): Number of shared features to compute. Defaults to 50.
-        rand_seed (int): Seed for the random initialization. Defaults to 0.
+        n_features (int): Number of shared features to compute. Defaults to 50.
+        random_state (int): Seed for the random initialization. Defaults to 0.
 
     Attributes:
         w_ (list[np.ndarray]): Per-subject orthogonal transforms, element i of
-            shape (voxels_i, features).
-        s_ (np.ndarray): The shared response, shape (features, samples).
-        random_state_ (np.random.RandomState): Generator seeded from `rand_seed`.
+            shape (voxels_i, n_features).
+        s_ (np.ndarray): The shared response, shape (n_features, samples).
+        random_state_ (np.random.RandomState): Generator seeded from `random_state`.
 
     Examples:
         ```python
@@ -682,7 +682,7 @@ class DetSRM(BaseEstimator, TransformerMixin):
 
         data = [np.random.randn(100, 50) for _ in range(3)]  # 3 subjects
 
-        detsrm = DetSRM(n_iter=10, features=50)
+        detsrm = DetSRM(n_iter=10, n_features=50)
         detsrm.fit(data, parallel="cpu", n_jobs=-1)
         shared_responses = detsrm.transform(data)  # list of (50, 50) arrays
 
@@ -692,11 +692,11 @@ class DetSRM(BaseEstimator, TransformerMixin):
     """
 
     def __init__(
-        self, *, n_iter: int = 10, features: int = 50, rand_seed: int = 0
+        self, *, n_iter: int = 10, n_features: int = 50, random_state: int = 0
     ) -> None:
         self.n_iter = n_iter
-        self.features = features
-        self.rand_seed = rand_seed
+        self.n_features = n_features
+        self.random_state = random_state
 
     def fit(
         self,
@@ -736,10 +736,10 @@ class DetSRM(BaseEstimator, TransformerMixin):
             )
 
         # Check for input data sizes
-        if X[0].shape[1] < self.features:
+        if X[0].shape[1] < self.n_features:
             raise ValueError(
                 "There are not enough samples to train the model with "
-                f"{self.features:d} features."
+                f"{self.n_features:d} features."
             )
 
         # Check if all subjects have same number of TRs
@@ -779,7 +779,7 @@ class DetSRM(BaseEstimator, TransformerMixin):
 
         Returns:
             list[np.ndarray]: Shared responses, element i of shape
-                (features, samples_i).
+                (n_features, samples_i).
         """
 
         _validate_srm_parallel(parallel)
@@ -826,8 +826,8 @@ class DetSRM(BaseEstimator, TransformerMixin):
         Args:
             data (list[np.ndarray]): One (voxels_i, samples) array per subject.
             w (list[np.ndarray]): Per-subject orthogonal transforms $W_i$, element
-                i of shape (voxels_i, features).
-            s (np.ndarray): The shared response, shape (features, samples).
+                i of shape (voxels_i, n_features).
+            s (np.ndarray): The shared response, shape (n_features, samples).
 
         Returns:
             float: $\\frac{1}{2T} \\sum_i ||X_i - W_i S||_F^2$.
@@ -845,10 +845,10 @@ class DetSRM(BaseEstimator, TransformerMixin):
         Args:
             data (list[np.ndarray]): One (voxels_i, samples) array per subject.
             w (list[np.ndarray]): Per-subject orthogonal transforms $W_i$, element
-                i of shape (voxels_i, features).
+                i of shape (voxels_i, n_features).
 
         Returns:
-            np.ndarray: The shared response, shape (features, samples).
+            np.ndarray: The shared response, shape (n_features, samples).
         """
         s = np.zeros((w[0].shape[1], data[0].shape[1]))
         for m in range(len(w)):
@@ -867,10 +867,10 @@ class DetSRM(BaseEstimator, TransformerMixin):
 
         Args:
             Xi (np.ndarray): The subject's data $X_i$, shape (voxels, timepoints).
-            S (np.ndarray): The shared response, shape (features, timepoints).
+            S (np.ndarray): The shared response, shape (n_features, timepoints).
 
         Returns:
-            np.ndarray: The orthogonal transform $W_i$, shape (voxels, features).
+            np.ndarray: The orthogonal transform $W_i$, shape (voxels, n_features).
         """
         # Compute cross-covariance: X_i S^T
         A = Xi.dot(S.T)
@@ -890,7 +890,7 @@ class DetSRM(BaseEstimator, TransformerMixin):
 
         Returns:
             np.ndarray: Orthogonal mapping $W_{new}$ for the new subject, shape
-                (voxels, features).
+                (voxels, n_features).
         """
         # Check if the model exist
         if hasattr(self, "w_") is False:
@@ -919,12 +919,12 @@ class DetSRM(BaseEstimator, TransformerMixin):
         Returns:
             tuple[list[np.ndarray], np.ndarray]: `(w, s)` — the per-subject
                 orthogonal transforms $W_i$ (element i of shape (voxels_i,
-                features)) and the shared response (shape (features, samples)).
+                n_features)) and the shared response (shape (n_features, samples)).
         """
 
         subjects = len(data)
 
-        self.random_state_ = np.random.RandomState(self.rand_seed)
+        self.random_state_ = np.random.RandomState(self.random_state)
         random_states = [
             np.random.RandomState(self.random_state_.randint(2**32 - 1, dtype=np.int64))
             for i in range(len(data))
@@ -932,7 +932,7 @@ class DetSRM(BaseEstimator, TransformerMixin):
 
         # Initialization step: initialize the outputs with initial values,
         # voxels with the number of voxels in each subject.
-        w, _ = _init_w_transforms(data, self.features, random_states)
+        w, _ = _init_w_transforms(data, self.n_features, random_states)
         shared_response = self._compute_shared_response(data, w)
         if logger.isEnabledFor(logging.INFO):
             # Calculate the current objective function value

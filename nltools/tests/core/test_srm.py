@@ -66,7 +66,7 @@ def fitted_srm(multi_subject_data):
     Module-scoped: expensive fit() runs once, shared across tests.
     Uses n_iter=10 for good convergence.
     """
-    srm = SRM(features=10, n_iter=10, rand_seed=42)
+    srm = SRM(n_features=10, n_iter=10, random_state=42)
     srm.fit(multi_subject_data["data"])
     return srm
 
@@ -77,7 +77,7 @@ def fitted_detsrm(multi_subject_data):
 
     Module-scoped: expensive fit() runs once, shared across tests.
     """
-    detsrm = DetSRM(features=10, n_iter=10, rand_seed=42)
+    detsrm = DetSRM(n_features=10, n_iter=10, random_state=42)
     detsrm.fit(multi_subject_data["data"])
     return detsrm
 
@@ -127,29 +127,29 @@ class TestSRMInitialization:
         """Test SRM initializes with correct defaults."""
         srm = SRM()
         assert srm.n_iter == 10
-        assert srm.features == 50
-        assert srm.rand_seed == 0
+        assert srm.n_features == 50
+        assert srm.random_state == 0
 
     def test_srm_init_custom_params(self):
         """Test SRM accepts custom parameters."""
-        srm = SRM(n_iter=20, features=30, rand_seed=123)
+        srm = SRM(n_iter=20, n_features=30, random_state=123)
         assert srm.n_iter == 20
-        assert srm.features == 30
-        assert srm.rand_seed == 123
+        assert srm.n_features == 30
+        assert srm.random_state == 123
 
     def test_detsrm_init_defaults(self):
         """Test DetSRM initializes with correct defaults."""
         detsrm = DetSRM()
         assert detsrm.n_iter == 10
-        assert detsrm.features == 50
-        assert detsrm.rand_seed == 0
+        assert detsrm.n_features == 50
+        assert detsrm.random_state == 0
 
     def test_detsrm_init_custom_params(self):
         """Test DetSRM accepts custom parameters."""
-        detsrm = DetSRM(n_iter=15, features=25, rand_seed=999)
+        detsrm = DetSRM(n_iter=15, n_features=25, random_state=999)
         assert detsrm.n_iter == 15
-        assert detsrm.features == 25
-        assert detsrm.rand_seed == 999
+        assert detsrm.n_features == 25
+        assert detsrm.random_state == 999
 
 
 # ========== CONTRACT TESTS (Interface/API) ==========
@@ -194,13 +194,13 @@ class TestSRMContract:
             np.random.randn(100, 40),  # 40 samples
             np.random.randn(100, 40),
         ]
-        srm = SRM(features=50)  # More features than samples
+        srm = SRM(n_features=50)  # More features than samples
         with pytest.raises(ValueError, match="not enough samples"):
             srm.fit(data)
 
     def test_fit_sets_attributes(self, multi_subject_data):
         """Test that fit() creates required attributes."""
-        srm = SRM(features=10, n_iter=2)
+        srm = SRM(n_features=10, n_iter=2)
         srm.fit(multi_subject_data["data"])
 
         # Check fitted attributes exist
@@ -217,7 +217,7 @@ class TestSRMContract:
 
     def test_transform_wrong_subject_count(self, multi_subject_data):
         """Test error when transforming different number of subjects."""
-        srm = SRM(features=10, n_iter=2)
+        srm = SRM(n_features=10, n_iter=2)
         srm.fit(multi_subject_data["data"])
 
         # Try to transform different number of subjects
@@ -227,7 +227,7 @@ class TestSRMContract:
 
     def test_transform_subject_wrong_timepoints(self, multi_subject_data):
         """Test error when new subject has different timepoints."""
-        srm = SRM(features=10, n_iter=2)
+        srm = SRM(n_features=10, n_iter=2)
         srm.fit(multi_subject_data["data"])
 
         # New subject with wrong timepoint count
@@ -315,7 +315,7 @@ class TestSRMEdgeCases:
         due to dimensionality reduction (voxels > features) and iterative optimization.
         We just verify the algorithm runs without error.
         """
-        srm = SRM(features=10, n_iter=5)
+        srm = SRM(n_features=10, n_iter=5)
         srm.fit(identical_subjects)
 
         # Algorithm should complete without error
@@ -329,10 +329,10 @@ class TestSRMEdgeCases:
 
     def test_deterministic_with_seed(self, multi_subject_data):
         """Test reproducibility with same random seed."""
-        srm1 = SRM(features=10, n_iter=5, rand_seed=42)
+        srm1 = SRM(n_features=10, n_iter=5, random_state=42)
         srm1.fit(multi_subject_data["data"])
 
-        srm2 = SRM(features=10, n_iter=5, rand_seed=42)
+        srm2 = SRM(n_features=10, n_iter=5, random_state=42)
         srm2.fit(multi_subject_data["data"])
 
         # Should produce identical results
@@ -343,10 +343,10 @@ class TestSRMEdgeCases:
 
     def test_different_seed_different_results(self, multi_subject_data):
         """Test that different seeds produce different initializations."""
-        srm1 = SRM(features=10, n_iter=1, rand_seed=42)
+        srm1 = SRM(n_features=10, n_iter=1, random_state=42)
         srm1.fit(multi_subject_data["data"])
 
-        srm2 = SRM(features=10, n_iter=1, rand_seed=123)
+        srm2 = SRM(n_features=10, n_iter=1, random_state=123)
         srm2.fit(multi_subject_data["data"])
 
         # Should produce different results (due to random init)
@@ -355,7 +355,7 @@ class TestSRMEdgeCases:
 
     def test_transform_subject_new_data(self, multi_subject_data):
         """Test transform_subject() with new subject data."""
-        srm = SRM(features=10, n_iter=5)
+        srm = SRM(n_features=10, n_iter=5)
         srm.fit(multi_subject_data["data"])
 
         # Create new subject with same shared response but different projection
@@ -380,7 +380,7 @@ class TestSRMEdgeCases:
 
     def test_minimal_features(self, minimal_brain_data):
         """Test SRM with very small number of features."""
-        srm = SRM(features=3, n_iter=5)
+        srm = SRM(n_features=3, n_iter=5)
         srm.fit(minimal_brain_data)
 
         # Should still produce valid orthogonal transforms
@@ -392,7 +392,7 @@ class TestSRMEdgeCases:
 
     def test_many_iterations(self, minimal_brain_data):
         """Test SRM with many iterations converges."""
-        srm = SRM(features=10, n_iter=50)
+        srm = SRM(n_features=10, n_iter=50)
         srm.fit(minimal_brain_data)
 
         # Should still maintain orthogonality
@@ -473,10 +473,10 @@ class TestDetSRMMathematicalProperties:
 
         Note: Requires two fits to compare - cannot use fixture.
         """
-        detsrm1 = DetSRM(features=10, n_iter=5, rand_seed=42)
+        detsrm1 = DetSRM(n_features=10, n_iter=5, random_state=42)
         detsrm1.fit(multi_subject_data["data"])
 
-        detsrm2 = DetSRM(features=10, n_iter=5, rand_seed=42)
+        detsrm2 = DetSRM(n_features=10, n_iter=5, random_state=42)
         detsrm2.fit(multi_subject_data["data"])
 
         np.testing.assert_array_almost_equal(detsrm1.s_, detsrm2.s_, decimal=10)
@@ -527,7 +527,7 @@ class TestDetSRMContract:
 
     def test_detsrm_fit_sets_attributes(self, multi_subject_data):
         """Test that DetSRM fit() creates required attributes."""
-        detsrm = DetSRM(features=10, n_iter=2)
+        detsrm = DetSRM(n_features=10, n_iter=2)
         detsrm.fit(multi_subject_data["data"])
 
         # Check fitted attributes exist
@@ -579,7 +579,7 @@ class TestSRMUnequalSamples:
 
     def test_srm_unequal_samples_with_padding(self, unequal_sample_data):
         """Test SRM fits successfully with unequal sample counts when pad_samples=True."""
-        srm = SRM(n_iter=5, features=10)
+        srm = SRM(n_iter=5, n_features=10)
         srm.fit(unequal_sample_data["data"], pad_samples=True, parallel=None)
 
         # Should have fitted successfully
@@ -592,14 +592,14 @@ class TestSRMUnequalSamples:
 
     def test_srm_unequal_samples_without_padding_raises(self, unequal_sample_data):
         """Test SRM raises error with unequal samples when pad_samples=False."""
-        srm = SRM(n_iter=5, features=10)
+        srm = SRM(n_iter=5, n_features=10)
 
         with pytest.raises(ValueError, match="Different number of samples"):
             srm.fit(unequal_sample_data["data"], pad_samples=False, parallel=None)
 
     def test_srm_unequal_samples_transform(self, unequal_sample_data):
         """Test SRM transform works with unequal sample data after fitting."""
-        srm = SRM(n_iter=5, features=10)
+        srm = SRM(n_iter=5, n_features=10)
         srm.fit(unequal_sample_data["data"], pad_samples=True, parallel=None)
 
         # Transform should work on data with original (unequal) sample counts
@@ -614,7 +614,7 @@ class TestSRMUnequalSamples:
 
     def test_srm_equal_samples_default_behavior(self, multi_subject_data):
         """Test SRM still works with equal samples (backward compatibility)."""
-        srm = SRM(n_iter=5, features=10)
+        srm = SRM(n_iter=5, n_features=10)
         # Default pad_samples=True should work fine with equal samples
         srm.fit(multi_subject_data["data"], parallel=None)
 
@@ -623,7 +623,7 @@ class TestSRMUnequalSamples:
 
     def test_srm_unequal_samples_reconstruction_quality(self, unequal_sample_data):
         """Test that padding doesn't significantly degrade reconstruction."""
-        srm = SRM(n_iter=10, features=10)
+        srm = SRM(n_iter=10, n_features=10)
         srm.fit(unequal_sample_data["data"], pad_samples=True, parallel=None)
 
         # Transform and check alignment quality

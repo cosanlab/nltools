@@ -75,6 +75,10 @@ vocabulary:
     kwarg: "parallel"
     tour_note: "`None` · `'cpu'` · `'gpu'` — inference and ridge use `device`"
     index_md: "`parallel: None | 'cpu' | 'gpu'` (the inference engine and `Ridge` use `device` as of v0.6.0)"
+  - concept: "Alignment refinement count"
+    kwarg: "n_iter"
+    tour_note: "SRM/DetSRM/HyperAlignment/LocalAlignment only — elsewhere `n_iter` is a banned alias"
+    index_md: "`n_iter` on `SRM`, `DetSRM`, `HyperAlignment`, and `LocalAlignment` — EM iterations, coordinate-descent iterations, or template-refinement rounds, depending on the estimator; everywhere else `n_iter` is a banned alias for `n_permute`/`n_samples`/`search_iterations`"
   - concept: "Working-memory budget"
     kwarg: "memory_budget_gb"
     tour_note: "device-neutral · `None` measures the device"
@@ -162,12 +166,32 @@ exceptions:
     kwarg: "tail"
     finding: tails-sweep
     text: "`BrainData.bootstrap` and `Adjacency.bootstrap` report a percentile confidence interval and no p-value, so they take no `tail=` knob — a deliberate carve-out from the tails sweep, not an omission."
+  - path: "nltools/algorithms/alignment/srm.py"
+    function: "SRM.__init__"
+    kwarg: "random_state"
+    finding: alignment-random-state
+    text: "`SRM`, `DetSRM`, and `align()` keep `random_state: int = 0` rather than the codebase's otherwise-uniform bare `random_state: int | None = None`: v0.5.1's alignment was deterministic by default via brainiak's `rand_seed=0`, and a `None` default would make alignment nondeterministic by default — a v0.5.1-visible behavior change this rename does not make."
+  - path: "nltools/algorithms/alignment/srm.py"
+    function: "DetSRM.__init__"
+    kwarg: "random_state"
+    finding: alignment-random-state
+    text: "Same `random_state: int = 0` contract as `SRM` (see above), not the bare `int | None = None` used elsewhere."
+  - path: "nltools/algorithms/alignment/procrustes.py"
+    function: "align"
+    kwarg: "random_state"
+    finding: alignment-random-state
+    text: "`align()` forwards the same `random_state: int = 0` default to the constructed `SRM`/`DetSRM` (see above)."
 
 # ── Machine-checkable enforcement rules (scripts/check_api_vocabulary.py) ─────
 #
 # Scope model mirrors .semgrep/rules.yml: rules bind PUBLIC (non-underscore)
-# defs; the alignment/pipelines subsystems keep legacy names because the
-# facades translate at their boundary (CLAUDE.md "Facade translation" rule).
+# defs; the pipelines subsystem is path-excluded (nltools/pipelines/ forwards
+# to its own dispatch layer). The alignment estimators (SRM, DetSRM,
+# HyperAlignment, LocalAlignment) are exported with no facade, so they are
+# checked directly; `n_iter` and `parallel` are that subsystem's own
+# vocabulary (see the "Alignment refinement count" / "Backend (alignment
+# internals)" rows above), suppressed from the general bans via per-alias
+# banned_kwargs.<name>.exclude_paths rather than a directory-wide exclusion.
 #
 #   banned_kwargs   — alias → {canonical, exclude_paths?}: the alias may not
 #                     appear as a parameter name on any public def in scope.
@@ -185,7 +209,6 @@ exceptions:
 enforcement:
   exclude_paths:
     - "nltools/tests/"
-    - "nltools/algorithms/alignment/"
     - "nltools/pipelines/"
   banned_kwargs:
     algorithm: {canonical: "method"}
@@ -202,13 +225,21 @@ enforcement:
       canonical: "n_jobs (CPU workers) or device (cpu/gpu selection)"
       # resolve_backend() is the boundary translator from the alignment
       # layer's `parallel=` vocabulary to a Backend — its param IS the concept.
-      exclude_paths: ["nltools/algorithms/backends.py"]
+      # The alignment estimators (SRM/DetSRM/HyperAlignment/LocalAlignment)
+      # are exported with no facade, so `parallel=` there IS the "Backend
+      # (alignment internals)" concept in the table above, not an alias.
+      exclude_paths:
+        ["nltools/algorithms/backends.py", "nltools/algorithms/alignment/"]
     backend:
       canonical: "device"
       # Home of the Backend abstraction itself — its `backend=` params ARE the concept.
       exclude_paths: ["nltools/algorithms/backends.py"]
     n_perm: {canonical: "n_permute"}
-    n_iter: {canonical: "n_permute (permutations), n_samples (bootstrap), or search_iterations (banded ridge)"}
+    n_iter:
+      canonical: "n_permute (permutations), n_samples (bootstrap), or search_iterations (banded ridge)"
+      # SRM/DetSRM/HyperAlignment/LocalAlignment are exported with no facade;
+      # their n_iter IS the "Alignment refinement count" concept above, not an alias.
+      exclude_paths: ["nltools/algorithms/alignment/"]
     alphas: {canonical: "alpha (a scalar fits it; a sequence selects among the candidates)"}
     concentration: {canonical: "dirichlet_concentration"}
     local_alpha: {canonical: "per_target_alpha"}
@@ -288,6 +319,9 @@ enforcement:
     # Only autoregressive fits reach nilearn's parallel path, so the default
     # OLS fit never spawns workers.
     - {path: "nltools/models/glm.py", function: "Glm.__init__", kwarg: "n_jobs", reason: "nilearn's run_glm parallelizes AR groups only; documented in the docstring"}
+    # Legacy internal predating the progress_bar keyword-only contract; narrowed
+    # out of the old blanket nltools/algorithms/alignment/ exclude_paths (q31x gdzq).
+    - {path: "nltools/algorithms/alignment/local.py", function: "RoiNeighborhoods.iter_neighborhoods", kwarg: "progress_bar", reason: "predates the progress_bar keyword-only contract; no caller passes it positionally"}
   # Keyword-only `*`-marker carve-outs (scripts/check_kwonly.py). These
   # functions deliberately mirror numpy signatures so they are drop-in
   # substitutes inside backend-generic code (numpy accepts

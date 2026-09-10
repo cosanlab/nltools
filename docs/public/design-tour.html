@@ -497,6 +497,7 @@
     <tr><td>Subject-level parallelism</td><td><code>n_jobs</code></td><td>default <code>-1</code></td></tr>
     <tr><td>GPU / CPU selection</td><td><code>device</code></td><td>orthogonal to <code>n_jobs</code> — explicit <code>'gpu'</code> runs or raises</td></tr>
     <tr><td>Backend (alignment internals)</td><td><code>parallel</code></td><td><code>None</code> · <code>'cpu'</code> · <code>'gpu'</code> — inference and ridge use <code>device</code></td></tr>
+    <tr><td>Alignment refinement count</td><td><code>n_iter</code></td><td>SRM/DetSRM/HyperAlignment/LocalAlignment only — elsewhere <code>n_iter</code> is a banned alias</td></tr>
     <tr><td>Working-memory budget</td><td><code>memory_budget_gb</code></td><td>device-neutral · <code>None</code> measures the device</td></tr>
     <tr><td>Progress indicator</td><td><code>progress_bar</code></td><td><code>verbose</code> reserved for log-level</td></tr>
     <tr><td>Permutation count</td><td><code>n_permute</code></td><td>distinct from…</td></tr>
@@ -519,7 +520,7 @@
 
 <div class="callout">
   <!-- AUTOGEN:api-vocabulary:tour-exceptions — generated from docs/_data/api-vocabulary.yml; run `uv run poe docs-generate` to update -->
-  <strong>Three deliberate exceptions.</strong> <code>fit(model='glm'|'ridge')</code> selects an estimator <em>class</em>, not a variant. GLM contrast p-values are <em>one-sided</em> (the nilearn/SPM directional-contrast convention) and take no <code>tail=</code> knob — the one deliberate exception to the two-tailed default. <code>BrainData.bootstrap</code> and <code>Adjacency.bootstrap</code> report a percentile confidence interval and no p-value, so they take no <code>tail=</code> knob — a deliberate carve-out from the tails sweep, not an omission. Each is documented, not an oversight.
+  <strong>Six deliberate exceptions.</strong> <code>fit(model='glm'|'ridge')</code> selects an estimator <em>class</em>, not a variant. GLM contrast p-values are <em>one-sided</em> (the nilearn/SPM directional-contrast convention) and take no <code>tail=</code> knob — the one deliberate exception to the two-tailed default. <code>BrainData.bootstrap</code> and <code>Adjacency.bootstrap</code> report a percentile confidence interval and no p-value, so they take no <code>tail=</code> knob — a deliberate carve-out from the tails sweep, not an omission. <code>SRM</code>, <code>DetSRM</code>, and <code>align()</code> keep <code>random_state: int = 0</code> rather than the codebase's otherwise-uniform bare <code>random_state: int | None = None</code>: v0.5.1's alignment was deterministic by default via brainiak's <code>rand_seed=0</code>, and a <code>None</code> default would make alignment nondeterministic by default — a v0.5.1-visible behavior change this rename does not make. Same <code>random_state: int = 0</code> contract as <code>SRM</code> (see above), not the bare <code>int | None = None</code> used elsewhere. <code>align()</code> forwards the same <code>random_state: int = 0</code> default to the constructed <code>SRM</code>/<code>DetSRM</code> (see above). Each is documented, not an oversight.
   <!-- /AUTOGEN:api-vocabulary:tour-exceptions -->
 </div>
 </section>

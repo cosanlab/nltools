@@ -13,7 +13,7 @@ Method | Use when | Trade-off
 --- | --- | ---
 `'procrustes'` (hyperalignment) | Aligning one subject to a reference subject or common model | Orthogonal rotation, no dimensionality reduction; invertible
 [`HyperAlignment`](../api/tasks/alignment.md#tasks-alignment-hyperalignment) | Building a common model from a group, iteratively | Same voxel count out; `n_iter=2` is usually enough
-[`SRM`](../api/tasks/alignment.md#tasks-alignment-srm) | You want a low-dimensional shared response and a noise model | Probabilistic, slower; `features=` sets the shared dimensionality
+[`SRM`](../api/tasks/alignment.md#tasks-alignment-srm) | You want a low-dimensional shared response and a noise model | Probabilistic, slower; `n_features=` sets the shared dimensionality
 [`DetSRM`](../api/tasks/alignment.md#tasks-alignment-detsrm) | Same, without the probabilistic machinery | Faster and deterministic; the usual default
 [`LocalAlignment`](../api/tasks/alignment.md#tasks-alignment-localalignment) | One transform per ROI or searchlight, not one for the whole brain | Respects local topography; far more compute
 
@@ -60,7 +60,7 @@ test subjects into it. Fitting the model on everyone and then decoding across su
 ```python
 from nltools.algorithms import DetSRM, HyperAlignment, LocalAlignment, procrustes
 
-srm = DetSRM(features=10, n_iter=5)
+srm = DetSRM(n_features=10, n_iter=5)
 srm.fit([s.data.T for s in subjects])          # each array is voxels x samples
 srm.transform([s.data.T for s in subjects])
 
@@ -77,8 +77,9 @@ the estimators do not.
 
 ## Gotchas
 
-- The alignment subsystem keeps legacy kwarg names at its boundary: `parallel=` instead of
-  `device=`, `n_iter=` for solver iterations. The class facades translate.
+- The alignment subsystem keeps its own vocabulary: `parallel=` instead of `device=` for CPU/GPU
+  selection, and `n_iter=` names solver iterations (EM steps, coordinate-descent rounds, or
+  template-refinement rounds), not permutations.
 - `LocalAlignment` fits one model per neighborhood. On a whole brain that is tens of thousands of
   models, so start with an ROI mask and budget time before running `spatial_scale='searchlight'`.
 - SRM subjects may differ in sample count; shorter ones are zero-padded within each neighborhood.

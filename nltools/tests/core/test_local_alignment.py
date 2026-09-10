@@ -575,7 +575,7 @@ class TestLocalAlignmentBatching:
         la = LocalAlignment(
             radius_mm=4.0,
             n_iter=1,
-            max_memory_gb=0.001,  # Very small to force small batches
+            memory_budget_gb=0.001,  # Very small to force small batches
             parallel=None,
         )
         la.fit(larger_data, larger_mask)
@@ -591,7 +591,7 @@ class TestLocalAlignmentBatching:
         la = LocalAlignment(
             radius_mm=4.0,
             n_iter=1,
-            max_memory_gb=100.0,  # Very large - should fit in one batch
+            memory_budget_gb=100.0,  # Very large - should fit in one batch
             parallel=None,
         )
         la.fit(larger_data, larger_mask)

@@ -29,7 +29,7 @@ Name | Description
 ### `SRM`
 
 ```python
-SRM(*, n_iter: int = 10, features: int = 50, rand_seed: int = 0)
+SRM(*, n_iter: int = 10, n_features: int = 50, random_state: int = 0)
 ```
 
 Bases: `sklearn.base.BaseEstimator`, `sklearn.base.TransformerMixin`
@@ -56,19 +56,19 @@ $V \gg T \gg K$).
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `n_iter` | <code>int</code> | Number of EM iterations. Defaults to 10. | <code>10</code>
-`features` | <code>int</code> | Number of shared features to compute. Defaults to 50. | <code>50</code>
-`rand_seed` | <code>int</code> | Seed for the random initialization. Defaults to 0. | <code>0</code>
+`n_features` | <code>int</code> | Number of shared features to compute. Defaults to 50. | <code>50</code>
+`random_state` | <code>int</code> | Seed for the random initialization. Defaults to 0. | <code>0</code>
 
 **Attributes:**
 
 Name | Type | Description
 ---- | ---- | -----------
-`w_` | <code>list[ndarray]</code> | Per-subject orthogonal transforms, element i of shape (voxels_i, features).
-`s_` | <code>ndarray</code> | The shared response, shape (features, samples).
-`sigma_s_` | <code>ndarray</code> | Covariance of the shared response's Normal distribution, shape (features, features).
+`w_` | <code>list[ndarray]</code> | Per-subject orthogonal transforms, element i of shape (voxels_i, n_features).
+`s_` | <code>ndarray</code> | The shared response, shape (n_features, samples).
+`sigma_s_` | <code>ndarray</code> | Covariance of the shared response's Normal distribution, shape (n_features, n_features).
 `mu_` | <code>list[ndarray]</code> | Per-subject voxel means over samples, element i of shape (voxels_i,).
 `rho2_` | <code>ndarray</code> | Estimated noise variance $\rho_i^2$ per subject, shape (subjects,).
-`random_state_` | <code>RandomState</code> | Generator seeded from `rand_seed`.
+`random_state_` | <code>RandomState</code> | Generator seeded from `random_state`.
 
 **Methods:**
 
@@ -88,7 +88,7 @@ from nltools.algorithms import SRM
 
 data = [np.random.randn(100, 50) for _ in range(3)]  # 3 subjects
 
-srm = SRM(n_iter=10, features=50)
+srm = SRM(n_iter=10, n_features=50)
 srm.fit(data, parallel="cpu", n_jobs=-1)
 shared_responses = srm.transform(data)  # list of (50, 50) arrays
 
@@ -145,7 +145,7 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
-<code>list[ndarray \| None]</code> | Shared responses, element i of shape     (features, samples_i).
+<code>list[ndarray \| None]</code> | Shared responses, element i of shape     (n_features, samples_i).
 
 (tasks-alignment-transform-subject)=
 ##### `transform_subject`
@@ -168,13 +168,13 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
-<code>ndarray</code> | Orthogonal mapping $W_{new}$ for the new subject, shape     (voxels, features).
+<code>ndarray</code> | Orthogonal mapping $W_{new}$ for the new subject, shape     (voxels, n_features).
 
 (tasks-alignment-detsrm)=
 ### `DetSRM`
 
 ```python
-DetSRM(*, n_iter: int = 10, features: int = 50, rand_seed: int = 0)
+DetSRM(*, n_iter: int = 10, n_features: int = 50, random_state: int = 0)
 ```
 
 Bases: `sklearn.base.BaseEstimator`, `sklearn.base.TransformerMixin`
@@ -199,16 +199,16 @@ samples, and K features (typically $V \gg T \gg K$).
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `n_iter` | <code>int</code> | Number of coordinate-descent iterations. Defaults to 10. | <code>10</code>
-`features` | <code>int</code> | Number of shared features to compute. Defaults to 50. | <code>50</code>
-`rand_seed` | <code>int</code> | Seed for the random initialization. Defaults to 0. | <code>0</code>
+`n_features` | <code>int</code> | Number of shared features to compute. Defaults to 50. | <code>50</code>
+`random_state` | <code>int</code> | Seed for the random initialization. Defaults to 0. | <code>0</code>
 
 **Attributes:**
 
 Name | Type | Description
 ---- | ---- | -----------
-`w_` | <code>list[ndarray]</code> | Per-subject orthogonal transforms, element i of shape (voxels_i, features).
-`s_` | <code>ndarray</code> | The shared response, shape (features, samples).
-`random_state_` | <code>RandomState</code> | Generator seeded from `rand_seed`.
+`w_` | <code>list[ndarray]</code> | Per-subject orthogonal transforms, element i of shape (voxels_i, n_features).
+`s_` | <code>ndarray</code> | The shared response, shape (n_features, samples).
+`random_state_` | <code>RandomState</code> | Generator seeded from `random_state`.
 
 **Methods:**
 
@@ -228,7 +228,7 @@ from nltools.algorithms import DetSRM
 
 data = [np.random.randn(100, 50) for _ in range(3)]  # 3 subjects
 
-detsrm = DetSRM(n_iter=10, features=50)
+detsrm = DetSRM(n_iter=10, n_features=50)
 detsrm.fit(data, parallel="cpu", n_jobs=-1)
 shared_responses = detsrm.transform(data)  # list of (50, 50) arrays
 
@@ -282,7 +282,7 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
-<code>list[ndarray]</code> | Shared responses, element i of shape     (features, samples_i).
+<code>list[ndarray]</code> | Shared responses, element i of shape     (n_features, samples_i).
 
 ##### `transform_subject`
 
@@ -304,7 +304,7 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
-<code>ndarray</code> | Orthogonal mapping $W_{new}$ for the new subject, shape     (voxels, features).
+<code>ndarray</code> | Orthogonal mapping $W_{new}$ for the new subject, shape     (voxels, n_features).
 
 (tasks-alignment-hyperalignment)=
 ### `HyperAlignment`
@@ -455,7 +455,7 @@ Type | Description
 ### `LocalAlignment`
 
 ```python
-LocalAlignment(spatial_scale: str = 'searchlight', method: str = 'procrustes', radius_mm: float = 10.0, roi_mask: nib.Nifti1Image | None = None, n_features: int | None = None, n_iter: int = 3, aggregation: str = 'center', parallel: str | None = 'cpu', n_jobs: int = -1, progress_bar: bool = False, n_neighborhoods_batch: int | None = None, max_memory_gb: float | None = None, transforms_: dict[int, list[np.ndarray]] | None = None, template_: dict[int, np.ndarray] | None = None, neighborhoods_: SphereNeighborhoods | dict[int, np.ndarray] | None = None, n_voxels_: int | None = None, mask_: nib.Nifti1Image | None = None, backend_: Backend | None = None)
+LocalAlignment(spatial_scale: str = 'searchlight', method: str = 'procrustes', radius_mm: float = 10.0, roi_mask: nib.Nifti1Image | None = None, n_features: int | None = None, n_iter: int = 3, aggregation: str = 'center', parallel: str | None = 'cpu', n_jobs: int = -1, progress_bar: bool = False, n_neighborhoods_batch: int | None = None, memory_budget_gb: float | None = None, transforms_: dict[int, list[np.ndarray]] | None = None, template_: dict[int, np.ndarray] | None = None, neighborhoods_: SphereNeighborhoods | dict[int, np.ndarray] | None = None, n_voxels_: int | None = None, mask_: nib.Nifti1Image | None = None, backend_: Backend | None = None)
 ```
 
 Local (neighborhood-based) functional alignment across subjects.
@@ -477,8 +477,8 @@ Name | Type | Description | Default
 `parallel` | <code>str \| None</code> | Parallelization mode. None runs single-threaded numpy, 'cpu' uses joblib CPU parallelization, and 'gpu' uses PyTorch. GPU acceleration applies only to `method='procrustes'`; requesting 'gpu' with the 'srm' or 'hyperalignment' methods raises `NotImplementedError` (an explicit GPU request never silently runs on CPU). Defaults to 'cpu'. | <code>'cpu'</code>
 `n_jobs` | <code>int</code> | Number of jobs for CPU parallelization. Defaults to -1. | <code>-1</code>
 `progress_bar` | <code>bool</code> | Whether to display tqdm progress bars during fit and transform. Defaults to False. | <code>False</code>
-`n_neighborhoods_batch` | <code>int \| None</code> | Number of neighborhoods to process per batch on the GPU. None auto-calculates a batch size from `max_memory_gb`. Defaults to None. | <code>None</code>
-`max_memory_gb` | <code>float \| None</code> | Explicit memory budget (in GB) used to auto-size GPU batches when `n_neighborhoods_batch` is None. None (default) measures the device's available memory. | <code>None</code>
+`n_neighborhoods_batch` | <code>int \| None</code> | Number of neighborhoods to process per batch on the GPU. None auto-calculates a batch size from `memory_budget_gb`. Defaults to None. | <code>None</code>
+`memory_budget_gb` | <code>float \| None</code> | Explicit memory budget (in GB) used to auto-size GPU batches when `n_neighborhoods_batch` is None. None (default) measures the device's available memory. | <code>None</code>
 
 **Attributes:**
 
@@ -602,7 +602,7 @@ Type | Description
 ### `align`
 
 ```python
-align(data, method = 'deterministic_srm', n_features = None, axis = 0, *args, **kwargs)
+align(data, method = 'deterministic_srm', n_features = None, axis = 0, *, n_iter = 10, random_state = 0)
 ```
 
 Align subject data into a common response model.
@@ -623,8 +623,8 @@ Name | Type | Description | Default
 `method` | <code>str</code> | One of `'probabilistic_srm'`, `'deterministic_srm'`, or `'procrustes'`. Defaults to `'deterministic_srm'`. | <code>'deterministic_srm'</code>
 `n_features` | <code>int \| None</code> | Number of features in the common space (SRM only). None uses the number of voxels. Must be None for `'procrustes'`. | <code>None</code>
 `axis` | <code>int</code> | Axis to align on: 0 aligns timepoints (ISC computed per voxel), 1 aligns voxels (ISC computed per timepoint). Defaults to 0. | <code>0</code>
-`*args` | <code>Any</code> | Positional arguments forwarded to the `SRM`/`DetSRM` constructor. | <code>()</code>
-`**kwargs` | <code>Any</code> | Keyword arguments forwarded to the `SRM`/`DetSRM` constructor. | <code>{}</code>
+`n_iter` | <code>int</code> | Number of `SRM`/`DetSRM` iterations; ignored by `method='procrustes'`. Defaults to 10. | <code>10</code>
+`random_state` | <code>int</code> | Seed forwarded to the constructed `SRM`/`DetSRM`; ignored by `method='procrustes'`. Defaults to 0. | <code>0</code>
 
 **Returns:**
 
