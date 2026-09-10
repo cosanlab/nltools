@@ -82,10 +82,11 @@ public signature against in CI. The table below is rendered from it:
 | Concept | Canonical kwarg |
 |---|---|
 | Algorithm / variant choice | `method` |
+| Decoding estimator (MVPA) | `estimator: str \| BaseEstimator = 'linear_svc'` on `BrainData.predict` — a built-in shortcut name or any sklearn estimator / `Pipeline`. It names an sklearn object, so it is distinct from `method=`, which selects an algorithm variant |
 | Spatial scale | `spatial_scale` (`'whole_brain' \| 'roi' \| 'searchlight'`) |
 | Distance / similarity metric | `metric` |
 | Central tendency | `summary` (`'mean' \| 'median'`) |
-| Cross-validation spec | `cv` (`int \| 'loo' \| 'logo' \|` splitter; sklearn-style names — the grouping lives in `groups=`) |
+| Cross-validation spec | `cv` (`int \|` splitter `\| None`) on `BrainData.predict` — `None` is a deterministic five-fold `KFold`/`StratifiedKFold`; the `'loo'`/`'logo'` names are accepted only by `resolve_cv`, and `'loso'`/`'loro'` are gone everywhere. The grouping lives in `groups=` |
 | Subject-level parallelism | `n_jobs: int = -1` |
 | GPU / CPU selection | `device: str = "cpu"` — run-or-raise: explicit `'gpu'` never silently degrades to CPU; `'auto'` is the one graceful-fallback path |
 | Backend (alignment internals) | `parallel: None \| 'cpu' \| 'gpu'` (the inference engine and `Ridge` use `device` as of v0.6.0) |
@@ -98,7 +99,7 @@ public signature against in CI. The table below is rendered from it:
 | Display autoscaling | `autoscale: bool = True` (viewer display window; `False` = raw magnitude range) |
 | Display symmetry | `symmetric: bool \| 'auto' = 'auto'` (viewer positive/negative limbs) |
 | Diagonal flag | `include_diag: bool` |
-| Radius (mm) | `radius_mm: float` |
+| Radius (mm) | `radius: float = 10.0` on `BrainData.predict` (millimeters, matching nilearn's searchlight); the other searchlight and surface entry points keep `radius_mm` |
 | GLM-specific fit option | `glm_*` on `BrainData.fit` (`glm_noise_model`, `glm_bins`, `glm_n_jobs`) — a non-default one under `model='ridge'` raises `ValueError`; `random_state` keeps its bare name because both estimators use it |
 | Ridge-specific fit option | `ridge_*` on `BrainData.fit` (`ridge_alpha`, `ridge_cv`, `ridge_search_iterations`, `ridge_dirichlet_concentration`, `ridge_device`, `ridge_memory_budget_gb`, `ridge_per_target_alpha`, `ridge_prefer_conservative_alpha`, `ridge_progress_bar`) — each maps onto the identically-named `Ridge` argument, and a non-default one under `model='glm'` raises `ValueError` |
 | Contrast inference toggle | `inference: bool = False` on `compute_contrasts` — the effect alone by default (what a second-level model consumes); `True` returns the full `ContrastResult` |

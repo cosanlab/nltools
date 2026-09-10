@@ -1,9 +1,13 @@
 """Tests for BrainData.predict() — kwargs API returning Predict dataclass."""
 
+import inspect
+import typing
 import warnings
 
 import numpy as np
 import pytest
+from sklearn.base import BaseEstimator
+from sklearn.model_selection import KFold, LeaveOneGroupOut, StratifiedKFold
 
 from nltools.data import Predict
 
@@ -28,19 +32,12 @@ class TestPredictDispatch:
         with pytest.raises(ValueError, match="Invalid spatial_scale"):
             sim_brain_data.predict(y=y, spatial_scale="bogus")
 
-    def test_unknown_model_shortcut(self, sim_brain_data):
+    def test_unknown_estimator_shortcut(self, sim_brain_data):
         n = sim_brain_data.shape[0]
         y = np.array([0] * (n // 2) + [1] * (n - n // 2))
 
-        with pytest.raises(ValueError, match="Unknown model"):
-            sim_brain_data.predict(y=y, model="bogus")
-
-    def test_invalid_reduce(self, sim_brain_data):
-        n = sim_brain_data.shape[0]
-        y = np.array([0] * (n // 2) + [1] * (n - n // 2))
-
-        with pytest.raises(ValueError, match="Unknown reduce"):
-            sim_brain_data.predict(y=y, reduce="ica", n_components=2)
+        with pytest.raises(ValueError, match="Unknown estimator shortcut"):
+            sim_brain_data.predict(y=y, estimator="bogus")
 
 
 class TestStoredYFallback:
@@ -65,8 +62,8 @@ class TestStoredYFallback:
     def test_y_none_matches_explicit_y(self, sim_brain_data):
         y = self._labels(sim_brain_data)
         sim_brain_data.Y = {"label": y}
-        implicit = sim_brain_data.predict(cv=3, random_state=0)
-        explicit = sim_brain_data.predict(y=y, cv=3, random_state=0)
+        implicit = sim_brain_data.predict(cv=3)
+        explicit = sim_brain_data.predict(y=y, cv=3)
         np.testing.assert_array_equal(implicit.predictions, explicit.predictions)
         assert implicit.mean_score == explicit.mean_score
 
@@ -101,7 +98,7 @@ class TestStoredYFallback:
         n = sim_brain_data.shape[0]
         runs = np.arange(n) % 3
         sim_brain_data.Y = {"label": self._labels(sim_brain_data), "run": runs}
-        result = sim_brain_data.predict(y="label", cv="logo", groups="run")
+        result = sim_brain_data.predict(y="label", cv=LeaveOneGroupOut(), groups="run")
         # LeaveOneGroupOut over 3 runs → 3 folds.
         assert result.scores.shape == (3,)
 
@@ -139,7 +136,7 @@ class TestWholeBrain:
         y = np.array([0] * (n // 2) + [1] * (n - n // 2))
 
         result = sim_brain_data.predict(
-            y=y, spatial_scale="whole_brain", cv=3, model="svm"
+            y=y, spatial_scale="whole_brain", cv=3, estimator="linear_svc"
         )
 
         assert result.predictions is not None
@@ -167,7 +164,7 @@ class TestWholeBrain:
         y = np.random.RandomState(0).randn(n)
 
         result = sim_brain_data.predict(
-            y=y, spatial_scale="whole_brain", cv=3, model="ridge"
+            y=y, spatial_scale="whole_brain", cv=3, estimator="ridge"
         )
 
         assert isinstance(result, Predict)
@@ -175,35 +172,10 @@ class TestWholeBrain:
         # mean_score should be a finite float (R² for regression)
         assert isinstance(result.mean_score, float)
 
-    def test_logistic_shortcut(self, sim_brain_data):
-        n = sim_brain_data.shape[0]
-        y = np.array([0] * (n // 2) + [1] * (n - n // 2))
-
-        result = sim_brain_data.predict(
-            y=y, spatial_scale="whole_brain", cv=3, model="logistic"
-        )
-        assert result.weight_map is not None
-
-    def test_ridge_classifier_shortcut(self, sim_brain_data):
-        n = sim_brain_data.shape[0]
-        y = np.array([0] * (n // 2) + [1] * (n - n // 2))
-
-        result = sim_brain_data.predict(
-            y=y, spatial_scale="whole_brain", cv=3, model="ridge_classifier"
-        )
-        assert result.weight_map is not None
-
-    def test_lda_shortcut(self, sim_brain_data):
-        n = sim_brain_data.shape[0]
-        y = np.array([0] * (n // 2) + [1] * (n - n // 2))
-
-        result = sim_brain_data.predict(
-            y=y, spatial_scale="whole_brain", cv=3, model="lda"
-        )
-        assert result.weight_map is not None
-
     def test_custom_sklearn_estimator(self, sim_brain_data):
+        """A bare caller estimator is fitted as given — no scaler is wrapped."""
         from sklearn.linear_model import LogisticRegression
+        from sklearn.pipeline import Pipeline
 
         n = sim_brain_data.shape[0]
         y = np.array([0] * (n // 2) + [1] * (n - n // 2))
@@ -212,13 +184,27 @@ class TestWholeBrain:
             y=y,
             spatial_scale="whole_brain",
             cv=3,
-            model=LogisticRegression(max_iter=1000),
+            estimator=LogisticRegression(max_iter=1000),
         )
         assert isinstance(result, Predict)
         assert result.weight_map is not None
+        assert not isinstance(result.estimator, Pipeline)
+        assert isinstance(result.estimator, LogisticRegression)
+
+    def test_shortcut_estimator_standardizes_within_each_fold(self, sim_brain_data):
+        """A shortcut name selects a predefined pipeline that scales per fold."""
+        from sklearn.pipeline import Pipeline
+        from sklearn.preprocessing import StandardScaler
+
+        n = sim_brain_data.shape[0]
+        y = np.array([0] * (n // 2) + [1] * (n - n // 2))
+
+        result = sim_brain_data.predict(y=y, cv=3, estimator="linear_svc")
+        assert isinstance(result.estimator, Pipeline)
+        assert isinstance(result.estimator[0], StandardScaler)
 
     def test_sklearn_pipeline_passthrough(self, sim_brain_data):
-        """Pass a custom Pipeline as model — replaces .pipe() escape hatch."""
+        """A caller-supplied Pipeline is used exactly as given, unwrapped."""
         from sklearn.feature_selection import SelectKBest, f_classif
         from sklearn.pipeline import make_pipeline
         from sklearn.preprocessing import StandardScaler
@@ -233,9 +219,10 @@ class TestWholeBrain:
             LinearSVC(dual="auto", max_iter=10000),
         )
         result = sim_brain_data.predict(
-            y=y, spatial_scale="whole_brain", cv=3, model=pipe, standardize=False
+            y=y, spatial_scale="whole_brain", cv=3, estimator=pipe
         )
         assert isinstance(result, Predict)
+        assert result.estimator.named_steps.keys() == pipe.named_steps.keys()
         # weight_map may be None — SelectKBest masks the feature space; we
         # don't try to back-project here. Just confirm no crash + scores.
         assert result.scores is not None
@@ -249,146 +236,50 @@ class TestWholeBrain:
         with warnings.catch_warnings(record=True) as w:
             warnings.simplefilter("always")
             result = sim_brain_data.predict(
-                y=y, spatial_scale="whole_brain", cv=3, model=SVC(kernel="rbf")
+                y=y, spatial_scale="whole_brain", cv=3, estimator=SVC(kernel="rbf")
             )
         assert result.weight_map is None
         assert any("weight_map" in str(warn.message) for warn in w)
 
 
 # ---------------------------------------------------------------------------
-# standardize / reduce
+# scoring
 # ---------------------------------------------------------------------------
 
 
-class TestPreprocessing:
-    def test_standardize_true_runs(self, sim_brain_data):
-        n = sim_brain_data.shape[0]
-        y = np.array([0] * (n // 2) + [1] * (n - n // 2))
-        result = sim_brain_data.predict(
-            y=y, spatial_scale="whole_brain", cv=3, standardize=True
-        )
-        assert result.weight_map is not None
+class TestScoring:
+    def test_scoring_none_uses_the_estimator_score(self, minimal_brain_data):
+        """`scoring=None` scores with the estimator's own `score` method.
 
-    def test_standardize_false_runs(self, sim_brain_data):
-        n = sim_brain_data.shape[0]
-        y = np.array([0] * (n // 2) + [1] * (n - n // 2))
-        result = sim_brain_data.predict(
-            y=y, spatial_scale="whole_brain", cv=3, standardize=False
-        )
-        assert result.weight_map is not None
-
-    def test_reduce_pca_back_projects_weight_map(self, sim_brain_data):
-        n = sim_brain_data.shape[0]
-        n_voxels = sim_brain_data.shape[1]
-        y = np.array([0] * (n // 2) + [1] * (n - n // 2))
-
-        n_comp = min(3, n_voxels - 1)
-        result = sim_brain_data.predict(
-            y=y, spatial_scale="whole_brain", cv=3, reduce="pca", n_components=n_comp
-        )
-        # weight_map must be in voxel space (back-projected through PCA), not
-        # PC space
-        assert result.weight_map.shape == (n_voxels,)
-        assert result.fold_weight_maps.shape == (3, n_voxels)
-
-
-# ---------------------------------------------------------------------------
-# scoring='auto'
-# ---------------------------------------------------------------------------
-
-
-class TestScoringAuto:
-    def test_auto_classifier_uses_accuracy(self, sim_brain_data):
-        """Classifier + scoring='auto' → 'accuracy' → scores in [0, 1]."""
-        n = sim_brain_data.shape[0]
-        y = np.array([0] * (n // 2) + [1] * (n - n // 2))
-        result = sim_brain_data.predict(
-            y=y, spatial_scale="whole_brain", cv=3, model="svm", scoring="auto"
-        )
-        assert np.all((result.scores >= 0) & (result.scores <= 1))
-
-    def test_auto_regressor_uses_r2(self, sim_brain_data):
-        """Regressor + scoring='auto' → 'r2' (can be negative)."""
-        n = sim_brain_data.shape[0]
-        y = np.random.RandomState(0).randn(n)
-        result = sim_brain_data.predict(
-            y=y, spatial_scale="whole_brain", cv=3, model="ridge", scoring="auto"
-        )
-        # R² scores can be any float (including negative for bad fits) — just
-        # confirm we got per-fold floats back
-        assert result.scores is not None
-        assert result.scores.dtype.kind == "f"
-
-    def test_explicit_scoring_passthrough(self, sim_brain_data):
-        n = sim_brain_data.shape[0]
-        y = np.array([0] * (n // 2) + [1] * (n - n // 2))
-        result = sim_brain_data.predict(
-            y=y,
-            spatial_scale="whole_brain",
-            cv=3,
-            model="svm",
-            scoring="balanced_accuracy",
-        )
-        assert result.scores is not None
-
-
-# ---------------------------------------------------------------------------
-# inplace
-# ---------------------------------------------------------------------------
-
-
-class TestInplace:
-    def test_inplace_false_returns_predict(self, sim_brain_data):
-        n = sim_brain_data.shape[0]
-        y = np.array([0] * (n // 2) + [1] * (n - n // 2))
-        result = sim_brain_data.predict(y=y, spatial_scale="whole_brain", cv=3)
-        assert isinstance(result, Predict)
-        # inplace=False must not attach predict_* attrs to bd
-        assert not hasattr(sim_brain_data, "predict_weight_map")
-        assert not hasattr(sim_brain_data, "predict_predictions")
-
-    def test_inplace_true_mutates_self_with_predict_prefix(self, sim_brain_data):
-        """inplace=True attaches result fields with a ``predict_`` prefix —
-        mirrors ``bd.fit()``'s ``glm_*`` / ``ridge_*`` model-prefixed naming.
+        A regressor's `score` is R2, which goes negative on noise — no accuracy
+        scorer can produce that, so the assertion distinguishes the two.
         """
-        n = sim_brain_data.shape[0]
-        n_voxels = sim_brain_data.shape[1]
+        from sklearn.base import clone
+
+        n = minimal_brain_data.shape[0]
+        y = np.random.default_rng(0).standard_normal(n)
+        result = minimal_brain_data.predict(y=y, cv=3, estimator="ridge")
+
+        expected = []
+        for train, test in KFold(n_splits=3).split(minimal_brain_data.data, y):
+            fitted = clone(result.estimator).fit(
+                minimal_brain_data.data[train], y[train]
+            )
+            expected.append(fitted.score(minimal_brain_data.data[test], y[test]))
+        np.testing.assert_allclose(result.scores, expected)
+        assert np.any(result.scores < 0)
+
+    def test_explicit_scoring_overrides_the_estimator_score(self, minimal_brain_data):
+        """A callable scorer replaces the estimator's own `score`."""
+        sentinel = 0.4242
+
+        def constant_scorer(estimator, X, y):
+            return sentinel
+
+        n = minimal_brain_data.shape[0]
         y = np.array([0] * (n // 2) + [1] * (n - n // 2))
-        result = sim_brain_data.predict(
-            y=y, spatial_scale="whole_brain", cv=3, inplace=True
-        )
-        assert result is sim_brain_data
-        assert sim_brain_data.predict_weight_map is not None
-        assert sim_brain_data.predict_weight_map.shape == (n_voxels,)
-        assert sim_brain_data.predict_predictions is not None
-        assert sim_brain_data.predict_scores is not None
-        assert isinstance(sim_brain_data.predict_mean_score, float)
-
-    def test_inplace_cross_mode_replaces_prediction_state(self, minimal_brain_data):
-        n = len(minimal_brain_data)
-        y = np.array([0] * (n // 2) + [1] * (n - n // 2))
-        X = np.random.default_rng(0).standard_normal((n, 3))
-        minimal_brain_data.fit(model="ridge", X=X, ridge_alpha=1.0)
-        fitted_model = minimal_brain_data.model_
-
-        minimal_brain_data.predict(y=y, spatial_scale="whole_brain", cv=3, inplace=True)
-        assert hasattr(minimal_brain_data, "predict_predictions")
-        assert hasattr(minimal_brain_data, "predict_weight_map")
-
-        minimal_brain_data.predict(
-            y=y,
-            spatial_scale="searchlight",
-            cv=3,
-            radius_mm=4.0,
-            n_jobs=1,
-            inplace=True,
-        )
-
-        assert hasattr(minimal_brain_data, "predict_accuracy_map")
-        assert not hasattr(minimal_brain_data, "predict_predictions")
-        assert not hasattr(minimal_brain_data, "predict_weight_map")
-        assert minimal_brain_data.model_ is fitted_model
-        assert hasattr(minimal_brain_data, "ridge_weights")
+        result = minimal_brain_data.predict(y=y, cv=3, scoring=constant_scorer)
+        np.testing.assert_allclose(result.scores, [sentinel] * 3)
 
 
 # ---------------------------------------------------------------------------
@@ -404,7 +295,7 @@ class TestSearchlight:
         y = np.array([0] * (n // 2) + [1] * (n - n // 2))
 
         result = minimal_brain_data.predict(
-            y=y, spatial_scale="searchlight", cv=3, radius_mm=4.0, n_jobs=1
+            y=y, spatial_scale="searchlight", cv=3, radius=4.0, n_jobs=1
         )
         assert isinstance(result, Predict)
         assert result.accuracy_map is not None
@@ -425,7 +316,7 @@ class TestAllDataRefit:
         n = sim_brain_data.shape[0]
         y = np.array([0] * (n // 2) + [1] * (n - n // 2))
         result = sim_brain_data.predict(
-            y=y, spatial_scale="whole_brain", cv=3, model="svm"
+            y=y, spatial_scale="whole_brain", cv=3, estimator="linear_svc"
         )
         assert result.estimator is not None
         # Linear-model estimators expose .coef_ (possibly inside a Pipeline).
@@ -445,28 +336,13 @@ class TestAllDataRefit:
         n = sim_brain_data.shape[0]
         y = np.array([0] * (n // 2) + [1] * (n - n // 2))
         result = sim_brain_data.predict(
-            y=y, spatial_scale="whole_brain", cv=3, model="svm"
+            y=y, spatial_scale="whole_brain", cv=3, estimator="linear_svc"
         )
         # Pull coef_ from the all-data fit (no PCA in this default pipeline,
         # so .coef_ already lives in voxel space).
         est = result.estimator
         coef = est.named_steps["linearsvc"].coef_.ravel()
         np.testing.assert_allclose(result.weight_map.data, coef)
-
-    def test_pca_back_projection_works_for_weight_map(self, sim_brain_data):
-        n = sim_brain_data.shape[0]
-        n_voxels = sim_brain_data.shape[1]
-        y = np.array([0] * (n // 2) + [1] * (n - n // 2))
-        n_comp = min(3, n_voxels - 1)
-        result = sim_brain_data.predict(
-            y=y,
-            spatial_scale="whole_brain",
-            cv=3,
-            reduce="pca",
-            n_components=n_comp,
-        )
-        # weight_map is in voxel space (back-projected through PCA), not PC space
-        assert result.weight_map.shape == (n_voxels,)
 
 
 # ---------------------------------------------------------------------------
@@ -486,7 +362,7 @@ class TestBrainDataWrapping:
         n_voxels = sim_brain_data.shape[1]
         y = np.array([0] * (n // 2) + [1] * (n - n // 2))
         result = sim_brain_data.predict(
-            y=y, spatial_scale="whole_brain", cv=3, model="svm"
+            y=y, spatial_scale="whole_brain", cv=3, estimator="linear_svc"
         )
         for field in ("weight_map", "fold_weight_maps"):
             obj = getattr(result, field)
@@ -509,7 +385,7 @@ class TestBrainDataWrapping:
         n = minimal_brain_data.shape[0]
         y = np.array([0] * (n // 2) + [1] * (n - n // 2))
         result = minimal_brain_data.predict(
-            y=y, spatial_scale="searchlight", cv=3, radius_mm=4.0, n_jobs=1
+            y=y, spatial_scale="searchlight", cv=3, radius=4.0, n_jobs=1
         )
         assert isinstance(result.accuracy_map, BrainData)
         assert result.accuracy_map.mask is not minimal_brain_data.mask
@@ -554,7 +430,12 @@ class TestROIDispatch:
         atlas = self._build_atlas(minimal_brain_data, n_rois=2)
 
         result = minimal_brain_data.predict(
-            y=y, spatial_scale="roi", roi_mask=atlas, cv=3, model="svm", n_jobs=1
+            y=y,
+            spatial_scale="roi",
+            roi_mask=atlas,
+            cv=3,
+            estimator="linear_svc",
+            n_jobs=1,
         )
         # Score fields are arrays, not scalars, on ROI dispatch
         assert result.scores is not None
@@ -583,7 +464,12 @@ class TestROIDispatch:
         atlas = self._build_atlas(minimal_brain_data, n_rois=2)
 
         result = minimal_brain_data.predict(
-            y=y, spatial_scale="roi", roi_mask=atlas, cv=3, model="svm", n_jobs=1
+            y=y,
+            spatial_scale="roi",
+            roi_mask=atlas,
+            cv=3,
+            estimator="linear_svc",
+            n_jobs=1,
         )
         assert isinstance(result.weight_map, BrainData)
         assert result.weight_map.data.shape == (n_voxels,)
@@ -604,7 +490,12 @@ class TestROIDispatch:
         y = np.array([0] * (n // 2) + [1] * (n - n // 2))
         atlas = self._build_atlas(minimal_brain_data, n_rois=2)
         result = minimal_brain_data.predict(
-            y=y, spatial_scale="roi", roi_mask=atlas, cv=3, model="svm", n_jobs=1
+            y=y,
+            spatial_scale="roi",
+            roi_mask=atlas,
+            cv=3,
+            estimator="linear_svc",
+            n_jobs=1,
         )
         # Recover the label vector that the runner used to assign voxels
         from nilearn.masking import apply_mask
@@ -635,7 +526,7 @@ class TestROIDispatch:
                 spatial_scale="roi",
                 roi_mask=atlas,
                 cv=3,
-                model=SVC(kernel="rbf"),
+                estimator=SVC(kernel="rbf"),
                 n_jobs=1,
             )
         assert result.weight_map is None
@@ -651,54 +542,6 @@ class TestROIDispatch:
 
 
 # ---------------------------------------------------------------------------
-# Pipeline auto-detect — model=Pipeline triggers standardize=False default
-# ---------------------------------------------------------------------------
-
-
-class TestPipelineStandardizeDetect:
-    def test_pipeline_default_warns_and_disables_standardize(self, sim_brain_data):
-        """Passing a Pipeline with the default ``standardize=True`` warns and
-        flips standardize off — avoids silently wrapping another StandardScaler.
-        """
-        from sklearn.pipeline import make_pipeline
-        from sklearn.preprocessing import StandardScaler
-        from sklearn.svm import LinearSVC
-
-        n = sim_brain_data.shape[0]
-        y = np.array([0] * (n // 2) + [1] * (n - n // 2))
-        pipe = make_pipeline(StandardScaler(), LinearSVC(dual="auto", max_iter=10000))
-        with warnings.catch_warnings(record=True) as w:
-            warnings.simplefilter("always")
-            sim_brain_data.predict(y=y, spatial_scale="whole_brain", cv=3, model=pipe)
-        msgs = [str(warn.message) for warn in w]
-        assert any("Pipeline" in m and "standardize" in m for m in msgs), (
-            f"expected pipeline-standardize warning, got: {msgs}"
-        )
-
-    def test_pipeline_explicit_standardize_true_still_wraps(self, sim_brain_data):
-        """User can opt back into wrapping by passing ``standardize=True``
-        explicitly — same value as the default but no warning is suppressed.
-        Behavior is the same as today, just confirmed not silently flipped.
-        """
-        from sklearn.pipeline import make_pipeline
-        from sklearn.svm import LinearSVC
-
-        n = sim_brain_data.shape[0]
-        y = np.array([0] * (n // 2) + [1] * (n - n // 2))
-        pipe = make_pipeline(LinearSVC(dual="auto", max_iter=10000))
-        # standardize=False explicitly: never warns, never wraps
-        with warnings.catch_warnings(record=True) as w:
-            warnings.simplefilter("always")
-            sim_brain_data.predict(
-                y=y, spatial_scale="whole_brain", cv=3, model=pipe, standardize=False
-            )
-        assert not any(
-            "Pipeline" in str(warn.message) and "standardize" in str(warn.message)
-            for warn in w
-        )
-
-
-# ---------------------------------------------------------------------------
 # String class labels (F4): labels travel with the data as strings
 # ---------------------------------------------------------------------------
 
@@ -710,11 +553,10 @@ class TestStringLabels:
         n = minimal_brain_data.shape[0]
         labels = np.array(["face", "house"] * (n // 2))
         minimal_brain_data.Y = {"condition": labels}
-        result = minimal_brain_data.predict(y="condition", cv=5, random_state=0)
+        result = minimal_brain_data.predict(y="condition", cv=5)
         preds = np.asarray(result.predictions)
         assert preds.dtype.kind == "U"
-        covered = np.asarray(result.cv_folds) >= 0
-        assert set(np.unique(preds[covered])) <= {"face", "house"}
+        assert set(np.unique(preds)) <= {"face", "house"}
         assert 0.0 <= result.mean_score <= 1.0
 
     def test_whole_brain_numeric_predictions_stay_float(self, minimal_brain_data):
@@ -722,6 +564,496 @@ class TestStringLabels:
         n = minimal_brain_data.shape[0]
         rng = np.random.default_rng(0)
         y = rng.standard_normal(n)
-        result = minimal_brain_data.predict(y=y, model="ridge", cv=5, random_state=0)
+        result = minimal_brain_data.predict(y=y, estimator="ridge", cv=5)
         preds = np.asarray(result.predictions)
         assert preds.dtype.kind == "f"
+
+
+# ---------------------------------------------------------------------------
+# Signature contract (spec "Prediction and decoding")
+# ---------------------------------------------------------------------------
+
+
+class TestPredictSignature:
+    """`BrainData.predict` exposes exactly the spec's keyword-only signature."""
+
+    EXPECTED = (
+        ("X", None),
+        ("y", None),
+        ("estimator", "linear_svc"),
+        ("cv", None),
+        ("groups", None),
+        ("scoring", None),
+        ("spatial_scale", "whole_brain"),
+        ("roi_mask", None),
+        ("radius", 10.0),
+        ("n_jobs", 1),
+        ("progress_bar", False),
+    )
+
+    @staticmethod
+    def _labels(bd):
+        n = bd.shape[0]
+        return np.array([0] * (n // 2) + [1] * (n - n // 2))
+
+    def test_signature_matches_spec(self):
+        from nltools.data import BrainData
+
+        params = list(inspect.signature(BrainData.predict).parameters.values())
+        assert params[0].name == "self"
+        rest = params[1:]
+        assert [p.name for p in rest] == [name for name, _ in self.EXPECTED]
+        assert [p.default for p in rest] == [default for _, default in self.EXPECTED]
+
+    def test_every_argument_is_keyword_only(self):
+        from nltools.data import BrainData
+
+        rest = list(inspect.signature(BrainData.predict).parameters.values())[1:]
+        assert all(p.kind is inspect.Parameter.KEYWORD_ONLY for p in rest)
+
+    def test_static_overloads_are_declared(self):
+        """The two mode-specific return-type overloads are visible to type checkers."""
+        from nltools.data import BrainData
+
+        overloads = typing.get_overloads(BrainData.predict)
+        returns = [inspect.signature(o).return_annotation for o in overloads]
+        assert len(overloads) == 2
+        assert any("BrainData" in str(r) for r in returns)
+        assert any("Predict" in str(r) for r in returns)
+
+    @pytest.mark.parametrize(
+        "removed",
+        ["model", "standardize", "reduce", "n_components", "inplace", "radius_mm"],
+    )
+    def test_removed_keyword_raises_type_error(self, minimal_brain_data, removed):
+        y = self._labels(minimal_brain_data)
+        with pytest.raises(TypeError):
+            minimal_brain_data.predict(y=y, cv=3, **{removed: 1})
+
+    def test_random_state_keyword_is_removed(self, minimal_brain_data):
+        y = self._labels(minimal_brain_data)
+        with pytest.raises(TypeError):
+            minimal_brain_data.predict(y=y, cv=3, random_state=0)
+
+    def test_scoring_auto_is_rejected(self, minimal_brain_data):
+        y = self._labels(minimal_brain_data)
+        with pytest.raises(ValueError, match="auto"):
+            minimal_brain_data.predict(y=y, cv=3, scoring="auto")
+
+    def test_multimetric_scoring_mapping_is_rejected(self, minimal_brain_data):
+        y = self._labels(minimal_brain_data)
+        with pytest.raises(ValueError, match="one value per"):
+            minimal_brain_data.predict(
+                y=y, cv=3, scoring={"acc": "accuracy", "bal": "balanced_accuracy"}
+            )
+
+    @pytest.mark.parametrize("alias", ["loo", "logo"])
+    def test_cv_string_aliases_are_rejected(self, minimal_brain_data, alias):
+        y = self._labels(minimal_brain_data)
+        with pytest.raises(ValueError, match="LeaveOne"):
+            minimal_brain_data.predict(y=y, cv=alias)
+
+    @pytest.mark.parametrize(
+        "abbreviation, canonical",
+        [
+            ("svm", "linear_svc"),
+            ("logistic", "logistic_regression"),
+            ("lda", "linear_discriminant_analysis"),
+            ("svr", "linear_svr"),
+        ],
+    )
+    def test_ambiguous_estimator_abbreviations_are_rejected(
+        self, minimal_brain_data, abbreviation, canonical
+    ):
+        y = self._labels(minimal_brain_data)
+        with pytest.raises(ValueError, match=canonical):
+            minimal_brain_data.predict(y=y, cv=3, estimator=abbreviation)
+
+    @pytest.mark.parametrize(
+        "shortcut",
+        [
+            "linear_svc",
+            "logistic_regression",
+            "linear_discriminant_analysis",
+            "ridge_classifier",
+        ],
+    )
+    def test_classification_shortcuts_run(self, minimal_brain_data, shortcut):
+        y = self._labels(minimal_brain_data)
+        result = minimal_brain_data.predict(y=y, cv=3, estimator=shortcut)
+        assert result.weight_map is not None
+
+    @pytest.mark.parametrize("shortcut", ["ridge", "lasso", "linear_svr"])
+    def test_regression_shortcuts_run(self, minimal_brain_data, shortcut):
+        y = np.random.default_rng(0).standard_normal(minimal_brain_data.shape[0])
+        result = minimal_brain_data.predict(y=y, cv=3, estimator=shortcut)
+        assert result.weight_map is not None
+
+    def test_linear_svr_shortcut_is_linear(self, minimal_brain_data):
+        from sklearn.svm import LinearSVR
+
+        y = np.random.default_rng(0).standard_normal(minimal_brain_data.shape[0])
+        result = minimal_brain_data.predict(y=y, cv=3, estimator="linear_svr")
+        assert isinstance(result.estimator[-1], LinearSVR)
+
+
+# ---------------------------------------------------------------------------
+# Invalid argument / state combinations (C26)
+# ---------------------------------------------------------------------------
+
+
+class TestInvalidCombinations:
+    """Every argument/state combination the spec does not list raises early."""
+
+    @staticmethod
+    def _labels(bd):
+        n = bd.shape[0]
+        return np.array([0] * (n // 2) + [1] * (n - n // 2))
+
+    @staticmethod
+    def _fit_ridge(bd):
+        X = np.random.default_rng(0).standard_normal((bd.shape[0], 3))
+        bd.fit(model="ridge", X=X, ridge_alpha=1.0)
+        return X
+
+    def test_roi_mask_without_roi_scale_raises(self, minimal_brain_data):
+        y = self._labels(minimal_brain_data)
+        with pytest.raises(ValueError, match="roi_mask"):
+            minimal_brain_data.predict(y=y, cv=3, roi_mask="atlas.nii.gz")
+
+    def test_roi_scale_without_roi_mask_raises(self, minimal_brain_data):
+        y = self._labels(minimal_brain_data)
+        with pytest.raises(ValueError, match="roi_mask"):
+            minimal_brain_data.predict(y=y, cv=3, spatial_scale="roi")
+
+    def test_radius_outside_searchlight_raises(self, minimal_brain_data):
+        y = self._labels(minimal_brain_data)
+        with pytest.raises(ValueError, match="radius"):
+            minimal_brain_data.predict(y=y, cv=3, radius=6.0)
+
+    @pytest.mark.parametrize(
+        "kwargs",
+        [
+            {"estimator": "ridge"},
+            {"cv": 3},
+            {"groups": np.zeros(50)},
+            {"scoring": "r2"},
+            {"spatial_scale": "roi"},
+            {"roi_mask": "atlas.nii.gz"},
+            {"radius": 6.0},
+            {"n_jobs": 4},
+            {"progress_bar": True},
+        ],
+    )
+    def test_mvpa_arguments_on_the_fitted_model_path_raise(
+        self, minimal_brain_data, kwargs
+    ):
+        X = self._fit_ridge(minimal_brain_data)
+        with pytest.raises(ValueError, match="decoding"):
+            minimal_brain_data.predict(X=X, **kwargs)
+
+    @pytest.mark.parametrize(
+        "kwargs",
+        [
+            {"estimator": "ridge"},
+            {"cv": 3},
+            {"groups": np.zeros(50)},
+            {"scoring": "r2"},
+            {"spatial_scale": "roi"},
+            {"roi_mask": "atlas.nii.gz"},
+            {"radius": 6.0},
+            {"n_jobs": 4},
+            {"progress_bar": True},
+        ],
+    )
+    def test_mvpa_arguments_on_the_no_argument_path_raise(
+        self, minimal_brain_data, kwargs
+    ):
+        self._fit_ridge(minimal_brain_data)
+        with pytest.raises(ValueError, match="decoding"):
+            minimal_brain_data.predict(**kwargs)
+
+    def test_the_defaults_themselves_are_accepted_on_a_fitted_call(
+        self, minimal_brain_data
+    ):
+        """Passing every decoding argument at its default is still a fitted call."""
+        X = self._fit_ridge(minimal_brain_data)
+        predicted = minimal_brain_data.predict(
+            X=X,
+            estimator="linear_svc",
+            cv=None,
+            groups=None,
+            scoring=None,
+            spatial_scale="whole_brain",
+            roi_mask=None,
+            radius=10.0,
+            n_jobs=1,
+            progress_bar=False,
+        )
+        assert predicted.shape == minimal_brain_data.shape
+
+    def test_no_model_no_labels_raises(self, minimal_brain_data):
+        with pytest.raises(ValueError, match="fit"):
+            minimal_brain_data.predict()
+
+
+# ---------------------------------------------------------------------------
+# MVPA target and group validation
+# ---------------------------------------------------------------------------
+
+
+class RaisingEstimator(BaseEstimator):
+    """Estimator whose `fit` always raises — proves validation runs first."""
+
+    def fit(self, X, y):
+        raise AssertionError("fit must not be reached")
+
+    def predict(self, X):
+        raise AssertionError("predict must not be reached")
+
+
+class TestMvpaTargets:
+    def test_two_dimensional_y_is_rejected(self, minimal_brain_data):
+        n = minimal_brain_data.shape[0]
+        y = np.zeros((n, 2))
+        with pytest.raises(ValueError, match="one-dimensional"):
+            minimal_brain_data.predict(y=y, cv=3)
+
+    def test_multilabel_indicator_y_is_rejected(self, minimal_brain_data):
+        n = minimal_brain_data.shape[0]
+        y = np.tile(np.array([[1, 0], [0, 1]]), (n // 2, 1))
+        with pytest.raises(ValueError, match="one-dimensional"):
+            minimal_brain_data.predict(y=y, cv=3)
+
+    def test_y_row_count_mismatch_is_rejected(self, minimal_brain_data):
+        y = np.zeros(minimal_brain_data.shape[0] + 1)
+        with pytest.raises(ValueError, match="one value per row"):
+            minimal_brain_data.predict(y=y, cv=3)
+
+    def test_groups_row_count_mismatch_is_rejected(self, minimal_brain_data):
+        n = minimal_brain_data.shape[0]
+        y = np.array([0] * (n // 2) + [1] * (n - n // 2))
+        with pytest.raises(ValueError, match="one value per row"):
+            minimal_brain_data.predict(y=y, cv=3, groups=np.zeros(n + 1))
+
+    def test_two_dimensional_groups_is_rejected(self, minimal_brain_data):
+        n = minimal_brain_data.shape[0]
+        y = np.array([0] * (n // 2) + [1] * (n - n // 2))
+        with pytest.raises(ValueError, match="one value per row"):
+            minimal_brain_data.predict(y=y, cv=3, groups=np.zeros((n, 2)))
+
+    def test_target_validation_happens_before_any_fit(self, minimal_brain_data):
+        y = np.zeros((minimal_brain_data.shape[0], 2))
+        with pytest.raises(ValueError, match="one-dimensional"):
+            minimal_brain_data.predict(y=y, cv=3, estimator=RaisingEstimator())
+
+
+# ---------------------------------------------------------------------------
+# Cross-validation partition rules
+# ---------------------------------------------------------------------------
+
+
+class TestCvPartition:
+    @staticmethod
+    def _labels(bd):
+        n = bd.shape[0]
+        return np.array([0] * (n // 2) + [1] * (n - n // 2))
+
+    @staticmethod
+    def _reference_folds(splitter, X, y, groups=None):
+        """Fold index per row, as a reference splitter assigns them."""
+        folds = np.empty(len(y), dtype=int)
+        for index, (_, test) in enumerate(splitter.split(X, y, groups)):
+            folds[test] = index
+        return folds
+
+    def test_cv_none_is_a_deterministic_unshuffled_five_fold(self, minimal_brain_data):
+        """`cv=None` is StratifiedKFold(5) with no shuffle — not a seeded shuffle."""
+        y = self._labels(minimal_brain_data)
+        first = minimal_brain_data.predict(y=y)
+        second = minimal_brain_data.predict(y=y)
+
+        assert first.scores.shape == (5,)
+        np.testing.assert_array_equal(first.cv_folds, second.cv_folds)
+        np.testing.assert_array_equal(
+            first.cv_folds,
+            self._reference_folds(
+                StratifiedKFold(n_splits=5), minimal_brain_data.data, y
+            ),
+        )
+
+    def test_cv_none_on_a_regressor_is_an_unshuffled_kfold(self, minimal_brain_data):
+        y = np.random.default_rng(0).standard_normal(minimal_brain_data.shape[0])
+        result = minimal_brain_data.predict(y=y, estimator="ridge")
+        np.testing.assert_array_equal(
+            result.cv_folds,
+            self._reference_folds(KFold(n_splits=5), minimal_brain_data.data, y),
+        )
+
+    def test_integer_cv_ignores_groups_instead_of_going_group_aware(
+        self, minimal_brain_data
+    ):
+        """An int is that many plain folds — never a `GroupKFold` promotion."""
+        n = minimal_brain_data.shape[0]
+        y = self._labels(minimal_brain_data)
+        groups = np.arange(n) % 5
+
+        result = minimal_brain_data.predict(y=y, cv=4, groups=groups)
+
+        assert result.scores.shape == (4,)
+        # The folds are exactly StratifiedKFold's, which never sees `groups`.
+        np.testing.assert_array_equal(
+            result.cv_folds,
+            self._reference_folds(
+                StratifiedKFold(n_splits=4), minimal_brain_data.data, y
+            ),
+        )
+        # A group-aware splitter keeps each group inside one test fold; this
+        # one must not, or the promotion is still happening.
+        assert any(
+            len(np.unique(result.cv_folds[groups == g])) > 1 for g in np.unique(groups)
+        )
+
+    def test_supplied_splitter_is_used_as_given(self, minimal_brain_data):
+        n = minimal_brain_data.shape[0]
+        y = self._labels(minimal_brain_data)
+        groups = np.arange(n) % 3
+        result = minimal_brain_data.predict(y=y, cv=LeaveOneGroupOut(), groups=groups)
+
+        assert result.scores.shape == (3,)
+        np.testing.assert_array_equal(
+            result.cv_folds,
+            self._reference_folds(
+                LeaveOneGroupOut(), minimal_brain_data.data, y, groups
+            ),
+        )
+
+    def test_overlapping_test_folds_are_rejected(self, minimal_brain_data):
+        from sklearn.model_selection import ShuffleSplit
+
+        y = self._labels(minimal_brain_data)
+        with pytest.raises(ValueError, match="partition"):
+            minimal_brain_data.predict(
+                y=y, cv=ShuffleSplit(n_splits=3, test_size=0.5, random_state=0)
+            )
+
+    def test_repeated_test_folds_are_rejected(self, minimal_brain_data):
+        from sklearn.model_selection import RepeatedKFold
+
+        y = self._labels(minimal_brain_data)
+        with pytest.raises(ValueError, match="partition"):
+            minimal_brain_data.predict(
+                y=y, cv=RepeatedKFold(n_splits=3, n_repeats=2, random_state=0)
+            )
+
+    def test_partition_validation_happens_before_any_fit(self, minimal_brain_data):
+        from sklearn.model_selection import ShuffleSplit
+
+        y = self._labels(minimal_brain_data)
+        with pytest.raises(ValueError, match="partition"):
+            minimal_brain_data.predict(
+                y=y,
+                cv=ShuffleSplit(n_splits=2, test_size=0.5, random_state=0),
+                estimator=RaisingEstimator(),
+            )
+
+    def test_every_observation_gets_one_fold_index(self, minimal_brain_data):
+        """Every row carries a real fold index — no `-1` "never tested" sentinel."""
+        y = self._labels(minimal_brain_data)
+        n = minimal_brain_data.shape[0]
+        result = minimal_brain_data.predict(y=y, cv=5)
+
+        assert np.all(result.cv_folds >= 0)
+        assert set(np.unique(result.cv_folds)) == {0, 1, 2, 3, 4}
+        assert list(np.bincount(result.cv_folds)) == [n // 5] * 5
+        np.testing.assert_array_equal(
+            result.cv_folds,
+            self._reference_folds(
+                StratifiedKFold(n_splits=5), minimal_brain_data.data, y
+            ),
+        )
+
+
+# ---------------------------------------------------------------------------
+# `predict` attaches nothing to the source
+# ---------------------------------------------------------------------------
+
+
+class TestNoPredictAttributes:
+    @staticmethod
+    def _labels(bd):
+        n = bd.shape[0]
+        return np.array([0] * (n // 2) + [1] * (n - n // 2))
+
+    @staticmethod
+    def _atlas(bd, n_rois=2):
+        import nibabel as nib
+
+        mask_data = bd.mask.get_fdata().astype(bool)
+        flat = np.zeros(int(mask_data.sum()), dtype=np.int64)
+        chunk = max(1, len(flat) // n_rois)
+        for i in range(n_rois):
+            flat[i * chunk : (i + 1) * chunk] = i + 1
+        flat[n_rois * chunk :] = n_rois
+        out = np.zeros(mask_data.shape, dtype=np.int64)
+        out[mask_data] = flat
+        return nib.Nifti1Image(out, bd.mask.affine, bd.mask.header)
+
+    def _assert_clean(self, bd, before_attributes, before_data):
+        """Nothing added, nothing removed, no data touched — fit state included."""
+        assert not [name for name in vars(bd) if name.startswith("predict_")]
+        assert set(vars(bd)) == before_attributes
+        np.testing.assert_array_equal(bd.data, before_data)
+
+    def test_whole_brain_attaches_nothing(self, minimal_brain_data):
+        attributes = set(vars(minimal_brain_data))
+        before = minimal_brain_data.data.copy()
+        minimal_brain_data.predict(y=self._labels(minimal_brain_data), cv=3)
+        self._assert_clean(minimal_brain_data, attributes, before)
+
+    def test_searchlight_attaches_nothing(self, minimal_brain_data):
+        attributes = set(vars(minimal_brain_data))
+        before = minimal_brain_data.data.copy()
+        minimal_brain_data.predict(
+            y=self._labels(minimal_brain_data),
+            cv=3,
+            spatial_scale="searchlight",
+            radius=4.0,
+        )
+        self._assert_clean(minimal_brain_data, attributes, before)
+
+    def test_roi_attaches_nothing(self, minimal_brain_data):
+        attributes = set(vars(minimal_brain_data))
+        before = minimal_brain_data.data.copy()
+        minimal_brain_data.predict(
+            y=self._labels(minimal_brain_data),
+            cv=3,
+            spatial_scale="roi",
+            roi_mask=self._atlas(minimal_brain_data),
+        )
+        self._assert_clean(minimal_brain_data, attributes, before)
+
+    def test_decoding_leaves_fitted_state_intact(self, minimal_brain_data):
+        """MVPA on a fitted object neither clears nor replaces the fit state."""
+        n = minimal_brain_data.shape[0]
+        X = np.random.default_rng(0).standard_normal((n, 3))
+        minimal_brain_data.fit(model="ridge", X=X, ridge_alpha=1.0)
+        fitted_model = minimal_brain_data.model_
+        weights = minimal_brain_data.ridge_weights.data.copy()
+        attributes = set(vars(minimal_brain_data))
+        before = minimal_brain_data.data.copy()
+
+        minimal_brain_data.predict(y=self._labels(minimal_brain_data), cv=3)
+
+        self._assert_clean(minimal_brain_data, attributes, before)
+        assert minimal_brain_data.model_ is fitted_model
+        np.testing.assert_array_equal(minimal_brain_data.ridge_weights.data, weights)
+
+    def test_prediction_state_inventory_is_gone(self):
+        from nltools.data.braindata import utils
+
+        assert not hasattr(utils, "_PREDICTION_STATE_ATTRIBUTES")
+        assert not hasattr(utils, "_clear_prediction_state")
+        assert not [
+            name for name in utils._FIT_STATE_ATTRIBUTES if name.startswith("predict_")
+        ]

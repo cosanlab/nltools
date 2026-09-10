@@ -369,10 +369,15 @@ resolve_cv(cv, *, groups = None, classifier: bool = False, shuffle: bool = False
 
 Resolve a cv spec (int, sklearn-style name, or splitter) into an sklearn splitter.
 
-The cv-resolution rule used by `BrainData.predict`. String
-names follow sklearn's splitter classes. An int spec honors `groups` when
-one is supplied (it becomes a `GroupKFold` variant rather than a plain
-`KFold`, which would ignore the groups).
+A standalone convenience helper for callers writing their own
+cross-validation loops. It is deliberately more permissive than
+`BrainData.predict`, which uses its own stricter rule: `predict` takes no
+string aliases, never promotes an int to a group-aware splitter, never
+shuffles, and requires the resulting test folds to partition the rows.
+
+Here, a string name maps to the matching sklearn splitter class, and an int
+spec honors `groups` when one is supplied (it becomes a `GroupKFold`
+variant rather than a plain `KFold`, which would ignore the groups).
 
 **Parameters:**
 

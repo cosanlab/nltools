@@ -41,8 +41,12 @@ stats:
 vocabulary:
   - concept: "Algorithm / variant choice"
     kwarg: "method"
-    tour_note: "not `algorithm`/`scheme`/`kind`/`estimator`"
+    tour_note: "not `algorithm`/`scheme`/`kind`"
     index_md: "`method`"
+  - concept: "Decoding estimator (MVPA)"
+    kwarg: "estimator"
+    tour_note: "an sklearn *object* or a shortcut name — `method` names an algorithm variant"
+    index_md: "`estimator: str | BaseEstimator = 'linear_svc'` on `BrainData.predict` — a built-in shortcut name or any sklearn estimator / `Pipeline`. It names an sklearn object, so it is distinct from `method=`, which selects an algorithm variant"
   - concept: "Spatial scale"
     kwarg: "spatial_scale"
     tour_note: "`'whole_brain'` · `'roi'` · `'searchlight'`"
@@ -57,8 +61,8 @@ vocabulary:
     index_md: "`summary` (`'mean' | 'median'`)"
   - concept: "Cross-validation spec"
     kwarg: "cv"
-    tour_note: "`int` folds · `'loo'` · `'logo'` (+ `groups=`) · sklearn splitter — never `'loso'`/`'loro'`"
-    index_md: "`cv` (`int | 'loo' | 'logo' |` splitter; sklearn-style names — the grouping lives in `groups=`)"
+    tour_note: "`None` = deterministic 5-fold · `int` folds · sklearn splitter — `'loo'`/`'logo'` are `resolve_cv`-only"
+    index_md: "`cv` (`int |` splitter `| None`) on `BrainData.predict` — `None` is a deterministic five-fold `KFold`/`StratifiedKFold`; the `'loo'`/`'logo'` names are accepted only by `resolve_cv`, and `'loso'`/`'loro'` are gone everywhere. The grouping lives in `groups=`"
   - concept: "Subject-level parallelism"
     kwarg: "n_jobs"
     tour_note: "default `-1`"
@@ -108,9 +112,9 @@ vocabulary:
     tour_note: "not `ignore_diagonal` — inverted sense"
     index_md: "`include_diag: bool`"
   - concept: "Radius (mm)"
-    kwarg: "radius_mm"
-    tour_note: "units in the name"
-    index_md: "`radius_mm: float`"
+    kwarg: "radius"
+    tour_note: "`predict(radius=)` follows nilearn · `radius_mm` elsewhere keeps the units in the name"
+    index_md: "`radius: float = 10.0` on `BrainData.predict` (millimeters, matching nilearn's searchlight); the other searchlight and surface entry points keep `radius_mm`"
   - concept: "GLM-specific fit option"
     kwarg: "glm_*"
     tour_note: "`glm_noise_model` · `glm_bins` · `glm_n_jobs` — `random_state` stays bare"
@@ -170,7 +174,8 @@ enforcement:
     algorithm: {canonical: "method"}
     scheme: {canonical: "method"}
     kind: {canonical: "method"}
-    estimator: {canonical: "method"}
+    estimator:
+      canonical: "method (algorithm variant) — estimator= is canonical only on BrainData.predict, where it names an sklearn object"
     icc_type: {canonical: "method"}
     extract_type: {canonical: "method"}
     perm_type: {canonical: "method"}
@@ -237,6 +242,13 @@ enforcement:
     # BrainData.predict defaults n_jobs=1 to limit searchlight worker memory.
     - {path: "nltools/data/braindata/__init__.py", function: "BrainData.predict", kwarg: "n_jobs", reason: "searchlight worker memory; documented in the docstring"}
     - {path: "nltools/data/braindata/prediction.py", function: "predict", kwarg: "n_jobs", reason: "delegation target of BrainData.predict"}
+    # MVPA's estimator= names an sklearn object, not an algorithm variant, so it
+    # is canonical there while the alias stays banned everywhere else.
+    - {path: "nltools/data/braindata/__init__.py", function: "BrainData.predict", kwarg: "estimator", reason: "names an sklearn estimator object, not an algorithm variant"}
+    - {path: "nltools/data/braindata/prediction.py", function: "predict", kwarg: "estimator", reason: "delegation target of BrainData.predict"}
+    - {path: "nltools/data/braindata/prediction.py", function: "predict_mvpa", kwarg: "estimator", reason: "delegation target of BrainData.predict"}
+    - {path: "nltools/data/braindata/prediction.py", function: "resolve_estimator", kwarg: "estimator", reason: "resolves the estimator= argument of BrainData.predict"}
+    - {path: "nltools/data/braindata/prediction.py", function: "build_pipeline", kwarg: "estimator", reason: "builds the pipeline for the estimator= argument of BrainData.predict"}
     # Only autoregressive fits reach nilearn's parallel path, so the default
     # OLS fit never spawns workers.
     - {path: "nltools/models/glm.py", function: "Glm.__init__", kwarg: "n_jobs", reason: "nilearn's run_glm parallelizes AR groups only; documented in the docstring"}

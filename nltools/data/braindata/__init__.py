@@ -1,13 +1,21 @@
 """Represent brain image data with the BrainData class."""
 
 import os
-from collections.abc import Mapping, Sequence
-from typing import TYPE_CHECKING, Literal
+from collections.abc import Callable, Mapping, Sequence
+from typing import TYPE_CHECKING, Literal, overload
 
 import numpy as np
 
 if TYPE_CHECKING:
+    from pathlib import Path
+
+    from nibabel import Nifti1Image
+    from sklearn.base import BaseEstimator
+    from sklearn.model_selection import BaseCrossValidator
+
     from nltools.data.atlases import Atlas, ClusterReport
+    from nltools.data.designmatrix import DesignMatrix
+    from nltools.data.results import Predict
 
 from nltools.utils import coalesced_gc
 
@@ -1452,201 +1460,174 @@ class BrainData:
             niivue_opts=kwargs,
         )
 
+    @overload
+    def predict(
+        self,
+        *,
+        X: "DesignMatrix | np.ndarray | Mapping[str, np.ndarray]",
+        y: None = None,
+        estimator: "str | BaseEstimator" = "linear_svc",
+        cv: "int | BaseCrossValidator | None" = None,
+        groups: "np.ndarray | str | None" = None,
+        scoring: "str | Callable | None" = None,
+        spatial_scale: Literal["whole_brain", "roi", "searchlight"] = "whole_brain",
+        roi_mask: "Nifti1Image | str | Path | None" = None,
+        radius: float = 10.0,
+        n_jobs: int = 1,
+        progress_bar: bool = False,
+    ) -> "BrainData": ...
+
+    @overload
+    def predict(
+        self,
+        *,
+        X: None = None,
+        y: "np.ndarray | str | None" = None,
+        estimator: "str | BaseEstimator" = "linear_svc",
+        cv: "int | BaseCrossValidator | None" = None,
+        groups: "np.ndarray | str | None" = None,
+        scoring: "str | Callable | None" = None,
+        spatial_scale: Literal["whole_brain", "roi", "searchlight"] = "whole_brain",
+        roi_mask: "Nifti1Image | str | Path | None" = None,
+        radius: float = 10.0,
+        n_jobs: int = 1,
+        progress_bar: bool = False,
+    ) -> "Predict": ...
+
     @coalesced_gc()
     def predict(
         self,
         *,
+        X: "DesignMatrix | np.ndarray | Mapping[str, np.ndarray] | None" = None,
         y: "np.ndarray | str | None" = None,
-        X: "np.ndarray | Mapping[str, np.ndarray] | None" = None,
-        spatial_scale: str = "whole_brain",
-        model="svm",
-        cv: int | str = 5,
-        standardize: bool = True,
-        reduce: "str | None" = None,
-        n_components: "int | None" = None,
-        scoring: str = "auto",
+        estimator: "str | BaseEstimator" = "linear_svc",
+        cv: "int | BaseCrossValidator | None" = None,
         groups: "np.ndarray | str | None" = None,
-        roi_mask=None,
-        radius_mm: float = 10.0,
-        inplace: bool = False,
+        scoring: "str | Callable | None" = None,
+        spatial_scale: Literal["whole_brain", "roi", "searchlight"] = "whole_brain",
+        roi_mask: "Nifti1Image | str | Path | None" = None,
+        radius: float = 10.0,
         n_jobs: int = 1,
-        random_state: "int | None" = None,
         progress_bar: bool = False,
     ):
-        """Predict voxel timeseries (encoding) or decode labels (MVPA).
+        """Predict voxel responses from a fitted model, or decode labels with MVPA.
 
-        Dispatched by which of ``X`` or ``y`` is provided:
+        Exactly one mode is resolved before any work happens:
 
-        1. **Timeseries prediction** (``X`` provided): use a fitted ridge /
-           GLM encoding model on ``self`` to predict voxel responses.
-           Returns a fresh ``BrainData`` whose ``.data`` holds the predicted
-           timeseries (composes directly with ``.plot()``, ``.standardize()``
-           etc.). ``inplace`` has no effect in this mode.
-        2. **MVPA decoding** (``y`` provided, or resolvable from ``.Y``):
-           train a classifier or regressor with cross-validation. Returns a
-           `Predict` dataclass. Spatial fields (``weight_map``,
-           ``fold_weight_maps``, ``final_weight_map``, ``accuracy_map``) are
-           `BrainData` objects so ``result.weight_map.plot()`` works
-           directly. Drop down to numpy via ``result.weight_map.data``.
+        - an explicit ``y=`` runs MVPA decoding and returns a `Predict`;
+        - an explicit ``X=`` predicts from the fitted `Glm` or `Ridge` and
+          returns a new, independently owned `BrainData`;
+        - with neither argument and a fitted model, an independent copy of the
+          stored training predictions;
+        - with neither argument, no fitted model, and exactly one ``.Y`` column,
+          MVPA on that column.
 
-        Labels travel with the data: when ``y`` is omitted and this object
-        carries a single-column ``.Y`` frame, that column is decoded
-        (``y='name'`` picks a column of a multi-column ``.Y``; ``groups``
-        accepts a ``.Y`` column name the same way). A fitted model wins over an
-        attached ``.Y`` on the no-argument call — pass ``y=`` explicitly to
-        decode instead. The no-argument call returns an independent copy of the
-        stored training predictions — ``glm_predicted`` for a GLM,
-        ``ridge_fitted_values`` for a Ridge — with their row metadata. With an
-        explicit ``X=``, the estimator validates and aligns it: a
-        `DesignMatrix` whose column names `Glm.predict` matches to the fitted
-        order, or, for a banded `Ridge`, a mapping with exactly the fitted
-        feature-space names in any order.
+        Supplying both ``X`` and ``y``, or a decoding argument on a
+        fitted-model call, raises before prediction begins. A fitted model wins
+        over an attached ``.Y`` on the no-argument call — pass ``y=``
+        explicitly to decode instead. `predict` never mutates the source and
+        attaches nothing to it.
 
-        Field shapes by ``spatial_scale=``:
-
-        - **whole_brain**: ``predictions`` (n_samples,) OOF predictions,
-          ``scores`` (n_folds,), ``mean_score`` float, ``std_score`` float,
-          ``weight_map`` BrainData (``coef_`` from one fit on the **full**
-          ``(X, y)`` — the publishable map), ``fold_weight_maps`` BrainData
-          (n_folds, n_voxels) for stability analysis, ``estimator`` the
-          fitted all-data sklearn estimator (use for ``.predict()`` on new
-          data).
-        - **roi**: ``scores`` (n_folds, n_rois), ``mean_score`` (n_rois,),
-          ``std_score`` (n_rois,), ``roi_labels`` (n_rois,) atlas IDs in
-          matching order, ``accuracy_map`` / ``weight_map`` /
-          ``fold_weight_maps`` BrainData (per-parcel coefs reassembled to
-          voxel space; voxels outside the atlas = NaN), ``estimator`` dict
-          keyed by atlas label.
-        - **searchlight**: ``accuracy_map`` BrainData.
-
-        With ``inplace=True``, fields are attached to ``self`` with a
-        ``predict_`` prefix (e.g. ``self.predict_weight_map``,
-        ``self.predict_accuracy_map``), mirroring ``bd.fit()``'s
-        ``glm_*`` / ``ridge_*`` naming.
-
-        Why ``weight_map`` is the all-data refit, not the CV mean:
-        the mean of K per-fold ``coef_`` vectors doesn't correspond to
-        any actual fitted estimator (each fold saw a different subset).
-        The all-data refit is a single legitimate model with all the
-        information used. CV gives the honest *score*; the refit gives
-        the publishable *map*. The CV-mean is one line away if you want
-        it: ``result.fold_weight_maps.data.mean(axis=0)``.
-
-        **Choosing a model.** String shortcuts for classification are ``'svm'``
-        (LinearSVC), ``'logistic'``, ``'lda'``, and ``'ridge_classifier'``; for
-        regression, ``'ridge'``, ``'lasso'``, and ``'svr'``. Any sklearn estimator
-        or ``Pipeline`` is also accepted (e.g.
-        ``make_pipeline(StandardScaler(), SelectKBest(k=500), LinearSVC())``).
-        When ``model`` is a sklearn ``Pipeline``, ``standardize`` is auto-defaulted
-        to ``False`` (with a warning) so we don't wrap another StandardScaler
-        around your pipeline; pass ``standardize=True`` explicitly to override.
+        Labels travel with the data: ``y='name'`` picks a column of ``.Y``, and
+        ``groups`` accepts a ``.Y`` column name the same way. With an explicit
+        ``X=``, the estimator validates and aligns it: a `DesignMatrix` whose
+        column names `Glm.predict` matches to the fitted order, or, for a
+        banded `Ridge`, a mapping with exactly the fitted feature-space names
+        in any order.
 
         Args:
-            y (array-like, str, optional): Labels (classification) or
-                continuous targets (regression), shape ``(n_samples,)``, or
-                the name of a ``.Y`` column. Triggers MVPA mode; omitted, it
-                falls back to a single-column ``.Y``.
-            X (array-like | Mapping, optional): Features for timeseries
-                prediction, shape ``(n_samples, n_features)``, or a mapping of
-                feature-space names to matrices for a banded `Ridge`. Triggers
-                encoding mode.
-            spatial_scale (str): MVPA dispatch — ``'whole_brain'``,
-                ``'searchlight'``, or ``'roi'``.
-            model (str | sklearn estimator): Algorithm — a string shortcut
-                (``'svm'``, ``'logistic'``, ``'lda'``, ``'ridge_classifier'``,
-                ``'ridge'``, ``'lasso'``, ``'svr'``) or any sklearn estimator /
-                Pipeline. Default ``'svm'``; see "Choosing a model" above.
-            cv (int, str, or sklearn CV splitter): ``int`` → shuffled KFold
-                (regression) or StratifiedKFold (classification), honoring
-                ``groups`` via the Group variants; ``'loo'`` (leave-one-out);
-                ``'logo'`` (leave-one-group-out — pass the grouping variable
-                via ``groups``, e.g. runs for leave-one-run-out); or any
-                sklearn splitter.
-            standardize (bool): Z-score features per fold before fitting.
-                Default ``True``. Auto-flipped to ``False`` when ``model`` is
-                a sklearn ``Pipeline`` (see ``model`` above).
-            reduce (str, optional): Per-fold dimensionality reduction.
-                Currently only ``'pca'`` supported. Default ``None``. Weight
-                maps are back-projected through PCA to voxel space.
-            n_components (int, optional): PCA components when ``reduce='pca'``.
-            scoring (str): Sklearn scoring string. Default ``'auto'`` →
-                ``'accuracy'`` if classifier, ``'r2'`` if regressor.
-            groups (array-like, str, optional): Group labels for CV splitters
-                that need them (e.g., leave-one-run-out), or the name of a
-                ``.Y`` column holding them.
-            roi_mask (Nifti1Image or path-like, optional): Atlas image for
-                ``spatial_scale='roi'``.
-            radius_mm (float): Searchlight radius in mm. Default ``10.0``.
-            inplace (bool): If ``True``, populate result fields as
-                ``predict_*`` attributes on ``self`` and return ``self``.
-                Default ``False`` returns a fresh `Predict`.
-            n_jobs (int): Parallel jobs for searchlight / ROI. Default ``1``;
-                searchlight on a real brain at higher ``n_jobs`` can be
+            X (DesignMatrix | array-like | Mapping, optional): Features for
+                fitted-model prediction, shape ``(n_samples, n_features)``, or a
+                mapping of feature-space names to matrices for a banded `Ridge`.
+            y (array-like | str, optional): Labels (classification) or
+                continuous targets (regression), shape ``(n_samples,)``, or the
+                name of a ``.Y`` column. Must be one-dimensional with one value
+                per row; multioutput and multilabel targets are not accepted.
+            estimator (str | sklearn estimator): A built-in shortcut —
+                ``'linear_svc'``, ``'logistic_regression'``,
+                ``'linear_discriminant_analysis'``, ``'ridge_classifier'``,
+                ``'ridge'``, ``'lasso'``, ``'linear_svr'`` — or any sklearn
+                estimator or `Pipeline`, which is used exactly as supplied.
+                Default ``'linear_svc'``.
+            cv (int | sklearn splitter, optional): ``None`` (the default) is a
+                deterministic five-fold ``KFold`` (regression) or
+                ``StratifiedKFold`` (classification); an int selects that many
+                folds; an sklearn splitter is used as supplied. Test folds must
+                partition the rows, so shuffle-split and repeated splitters
+                raise. Rows ordered by condition make unshuffled contiguous
+                folds degenerate — pass a shuffled splitter to control that,
+                e.g. ``cv=KFold(n_splits=5, shuffle=True, random_state=0)``.
+            groups (array-like | str, optional): Group labels passed to the
+                splitter (e.g. ``LeaveOneGroupOut`` for leave-one-run-out), one
+                value per row, or the name of a ``.Y`` column holding them.
+            scoring (str | callable, optional): Follows scikit-learn's
+                single-metric scoring contract. ``None`` (the default) uses the
+                estimator's own ``score`` method; a scoring name or callable
+                overrides it. Multimetric mappings are not accepted.
+            spatial_scale (str): MVPA dispatch — ``'whole_brain'``, ``'roi'``,
+                or ``'searchlight'``.
+            roi_mask (Nifti1Image | path-like, optional): Atlas image; required
+                by, and only valid for, ``spatial_scale='roi'``.
+            radius (float): Searchlight sphere radius in millimeters; only
+                valid for ``spatial_scale='searchlight'``. Default ``10.0``.
+            n_jobs (int): Parallel workers for the outer MVPA loop. Default
+                ``1``; searchlight on a real brain at higher ``n_jobs`` can be
                 memory-heavy.
-            random_state (int, optional): Seed for the shuffled fold splitter
-                when ``cv`` is an int (MVPA mode). Default ``None`` (unseeded
-                shuffle each call). Ignored when ``cv`` is a splitter object —
-                set its own ``random_state`` instead.
-            progress_bar (bool): Show progress bar for searchlight / ROI.
+            progress_bar (bool): Show a progress bar for searchlight and ROI.
 
         Returns:
-            Predict | BrainData: ``Predict`` dataclass when ``inplace=False``;
-                ``self`` (mutated, with ``predict_*`` attrs) when ``inplace=True``.
+            Predict | BrainData: A `Predict` record for MVPA; a new `BrainData`
+                holding the predicted timeseries for fitted-model prediction.
+
+        Raises:
+            ValueError: On both ``X`` and ``y``, a decoding argument on a
+                fitted-model call, an unknown estimator shortcut or spatial
+                scale, a target or group vector that is not one value per row,
+                or cross-validation folds that do not partition the rows.
+            TypeError: On a removed keyword, an `estimator` that is neither a
+                shortcut name nor an object with `fit`/`predict`, or a `cv`
+                that is neither `None`, an int, nor a splitter.
 
         Examples:
             Whole-brain decoding:
 
             ```python
-            result = brain.predict(y=labels, spatial_scale='whole_brain', cv=5)
-            result.weight_map.plot()       # publishable map (all-data fit)
-            result.mean_score              # honest CV-derived accuracy
-            new_pred = result.estimator.predict(new_X)  # apply to new data
+            result = brain.predict(y=labels, cv=5)
+            result.weight_map.plot()   # the all-data refit — the publishable map
+            result.mean_score          # the cross-validated score
+            new_pred = result.estimator.predict(new_X)
             ```
 
             Searchlight and ROI decoding:
 
             ```python
-            result = brain.predict(y=labels, spatial_scale='searchlight',
-                                   radius_mm=8.0, n_jobs=4)
-            result.accuracy_map.plot()
-
+            result = brain.predict(
+                y=labels, spatial_scale='searchlight', radius=8.0, n_jobs=4
+            )
             result = brain.predict(y=labels, spatial_scale='roi', roi_mask=atlas)
-            top = result.roi_labels[result.mean_score.argsort()[::-1][:10]]
-            result.accuracy_map.plot()  # brain-space view of the same map
             ```
 
-            Custom sklearn pipeline as model — standardize auto-defaults to
-            False because we detect the Pipeline:
+            Prediction from a fitted encoding model:
 
             ```python
-            from sklearn.feature_selection import SelectKBest
-            from sklearn.pipeline import make_pipeline
-            from sklearn.preprocessing import StandardScaler
-            from sklearn.svm import LinearSVC
-            pipe = make_pipeline(StandardScaler(), SelectKBest(k=500),
-                                 LinearSVC())
-            result = brain.predict(y=labels, model=pipe)
+            brain.fit(model='ridge', X=features)
+            predicted = brain.predict(X=new_features)
             ```
         """
         from .prediction import predict
 
         return predict(
             self,
-            y=y,
             X=X,
-            spatial_scale=spatial_scale,
-            model=model,
+            y=y,
+            estimator=estimator,
             cv=cv,
-            standardize=standardize,
-            reduce=reduce,
-            n_components=n_components,
-            scoring=scoring,
             groups=groups,
+            scoring=scoring,
+            spatial_scale=spatial_scale,
             roi_mask=roi_mask,
-            radius_mm=radius_mm,
-            inplace=inplace,
+            radius=radius,
             n_jobs=n_jobs,
-            random_state=random_state,
             progress_bar=progress_bar,
         )
 

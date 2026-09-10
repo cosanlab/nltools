@@ -227,7 +227,7 @@ BrainData.predict(
     scoring: str | Callable | None = None,
     spatial_scale: Literal["whole_brain", "roi", "searchlight"] = "whole_brain",
     roi_mask: NiimgLike | None = None,
-    radius_mm: float = 10.0,
+    radius: float = 10.0,
     n_jobs: int = 1,
     progress_bar: bool = False,
 ) -> BrainData | Predict

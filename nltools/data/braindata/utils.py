@@ -42,22 +42,10 @@ def check_brain_data_is_single(data):
     return len(data.shape) <= 1
 
 
-_PREDICTION_STATE_ATTRIBUTES = (
-    "predict_predictions",
-    "predict_scores",
-    "predict_mean_score",
-    "predict_std_score",
-    "predict_cv_folds",
-    "predict_roi_labels",
-    "predict_accuracy_map",
-    "predict_weight_map",
-    "predict_fold_weight_maps",
-    "predict_estimator",
-)
-
 #: Every attribute a fit may attach to a BrainData. The enumeration is
 #: exhaustive: clearing fitted state deletes exactly these names, with no
-#: predicates and no special cases.
+#: predicates and no special cases. `predict` attaches nothing, so it
+#: contributes no names.
 _FIT_STATE_ATTRIBUTES = (
     "model_",
     "ridge_weights",
@@ -67,15 +55,7 @@ _FIT_STATE_ATTRIBUTES = (
     "glm_residual",
     "glm_predicted",
     "glm_r2",
-    *_PREDICTION_STATE_ATTRIBUTES,
 )
-
-
-def _clear_prediction_state(bd):
-    """Remove results attached by a previous in-place decoding call."""
-    for name in _PREDICTION_STATE_ATTRIBUTES:
-        if hasattr(bd, name):
-            delattr(bd, name)
 
 
 def _clear_fit_state(bd):

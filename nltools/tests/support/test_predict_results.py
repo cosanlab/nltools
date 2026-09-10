@@ -8,7 +8,6 @@ import numpy as np
 import pytest
 
 from nltools.data import BrainData, Predict
-from nltools.data.braindata.utils import _PREDICTION_STATE_ATTRIBUTES
 
 
 @pytest.fixture(scope="module")
@@ -23,12 +22,6 @@ def test_results_are_exported_only_from_supported_data_namespace():
     assert not hasattr(data, "Fit")
     with pytest.raises(ModuleNotFoundError):
         importlib.import_module("nltools.data.fitresults")
-
-
-def test_prediction_state_inventory_matches_predict_fields():
-    expected = {f"predict_{name}" for name in Predict.__dataclass_fields__}
-
-    assert set(_PREDICTION_STATE_ATTRIBUTES) == expected
 
 
 class TestPredictCreation:

@@ -68,7 +68,9 @@ print(
 `BrainData.predict()` mirrors `.fit()`: one call, one frozen `Predict` result. `cv` scores generalization; `weight_map` is the classifier refit on all the data (the publishable map). For a linear SVM:
 
 ```{code-cell} python3
-decode_wb = trials.predict(y=y, spatial_scale="whole_brain", model="svm", cv=5)
+decode_wb = trials.predict(
+    y=y, spatial_scale="whole_brain", estimator="linear_svc", cv=5
+)
 print(
     f"whole-brain accuracy: {decode_wb.mean_score:.3f} ± {decode_wb.std_score:.3f}  (chance 0.5)"
 )
@@ -90,7 +92,12 @@ decode_wb.weight_map.plot(
 ```{code-cell} python3
 atlas_path = fetch_resource("masks/default/3mm-MNI152-2009fsl-k50.nii.gz")
 decode_roi = trials.predict(
-    y=y, spatial_scale="roi", roi_mask=atlas_path, model="svm", cv=5, n_jobs=4
+    y=y,
+    spatial_scale="roi",
+    roi_mask=atlas_path,
+    estimator="linear_svc",
+    cv=5,
+    n_jobs=4,
 )
 print(
     f"per-parcel accuracy: {decode_roi.mean_score.shape[0]} parcels, best = {decode_roi.mean_score.max():.3f}"
@@ -114,12 +121,12 @@ A roving sphere: one classifier per voxel-neighborhood, giving a per-voxel accur
 
 ```{code-cell} python3
 @memory.cache
-def searchlight_decode(radius_mm):
+def searchlight_decode(radius):
     return trials.predict(
         y=y,
         spatial_scale="searchlight",
-        radius_mm=radius_mm,
-        model="svm",
+        radius=radius,
+        estimator="linear_svc",
         cv=5,
         n_jobs=-1,
     )
@@ -214,8 +221,8 @@ Both approaches share the `spatial_scale=` axis, and both extend across subjects
 | Question | Can we predict the condition? | What's the representational geometry? |
 | Whole-brain | `bd.predict(y=, spatial_scale="whole_brain")` | `bd.distance(metric="correlation")` → `.similarity(model)` |
 | ROI | `bd.predict(y=, spatial_scale="roi", roi_mask=)` | `bd.distance(..., spatial_scale="roi", roi_mask=)` → `.similarity(model)` → `roi_to_brain_from_atlas(...)` |
-| Searchlight | `bd.predict(y=, spatial_scale="searchlight", radius_mm=)` | `bd.distance(..., spatial_scale="searchlight", radius_mm=)` |
-| Custom model | pass any sklearn estimator to `model=` | any `metric=` (`spearman`/`pearson`) |
+| Searchlight | `bd.predict(y=, spatial_scale="searchlight", radius=)` | `bd.distance(..., spatial_scale="searchlight", radius_mm=)` |
+| Custom model | pass any sklearn estimator to `estimator=` | any `metric=` (`spearman`/`pearson`) |
 
 **Next steps**
 
