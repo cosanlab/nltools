@@ -506,13 +506,16 @@ extract_roi(mask, method = 'mean', n_components = None)
 Extract activity from mask or ROI atlas using NiftiLabelsMasker.
 
 The mask may be binary (a single ROI) or a labeled atlas (one value per
-region, extracting from every ROI at once).
+region, extracting from every ROI at once). Unlike `apply_mask`, this
+is an extraction convenience: `mask` is resampled onto this object's
+own grid with nearest-neighbor interpolation before extracting, so it
+need not already share this object's grid.
 
 **Parameters:**
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`mask` | <code>[BrainData](#page-data-brain-data) \| Nifti1Image \| str \| Path</code> | Binary mask or labeled atlas to extract from. | *required*
+`mask` | <code>[BrainData](#page-data-brain-data) \| Nifti1Image \| str \| Path</code> | Binary mask or labeled atlas to extract from, on any grid. | *required*
 `method` | <code>str</code> | Extraction method: ``'mean'`` (default), ``'median'``, or ``'pca'``. | <code>'mean'</code>
 `n_components` | <code>int \| None</code> | Number of components to return when ``method='pca'``. | <code>None</code>
 
@@ -521,6 +524,12 @@ Name | Type | Description | Default
 Type | Description
 ---- | -----------
 <code>float \| ndarray</code> | For a binary mask, a scalar (single image) or 1D     array (multiple images). For a labeled atlas, a 1D array (single     image), a 2D array of images x ROIs (multiple images), or the PCA     components array when ``method='pca'``.
+
+**Raises:**
+
+Type | Description
+---- | -----------
+<code>ValueError</code> | If, after resampling onto this object's grid, `mask` has no overlap with it.
 
 **Examples:**
 

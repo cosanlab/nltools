@@ -104,6 +104,113 @@ class TestBrainDataAnalysis:
         assert isinstance(pca_single, np.ndarray)
         assert pca_single.shape == (len(masks), 1, n_images)
 
+    def test_extract_roi_nifti_atlas_with_many_labels_keeps_integer_labels(
+        self, sim_brain_data
+    ):
+        """A raw NIfTI atlas with 1000+ labels is coerced with nearest-neighbour.
+
+        BrainData's automatic interpolation switches to continuous above 1000
+        unique values, which would blend integer labels; extract_roi must force
+        nearest-neighbour on the NIfTI path so the result matches the explicit
+        BrainData path exactly.
+        """
+        bd = BrainData(sim_brain_data.to_nifti(), mask="3mm-MNI152-2009fsl")
+        template = BrainData(create_sphere([0, 0, 0], radius=40))
+        n_voxels = template.data.shape[-1]
+        labels = (np.arange(n_voxels) % 1200 + 1).astype(float)
+        atlas = BrainData(np.tile(labels, (1, 1)), mask=template.mask)
+        atlas.data = atlas.data.ravel()
+
+        via_braindata = bd.extract_roi(atlas, method="mean")
+        via_nifti = bd.extract_roi(atlas.to_nifti(), method="mean")
+
+        assert via_braindata.shape == via_nifti.shape
+        np.testing.assert_allclose(via_braindata, via_nifti)
+
+    def test_extract_roi_does_not_mutate_a_same_grid_atlas(self, sim_brain_data):
+        """The labeled branch rounds labels on a copy, never on the caller's mask."""
+        bd = sim_brain_data
+        centers = [[15, 10, -8], [-15, 10, -8], [0, -15, -8]]
+        spheres = [create_sphere(c, radius=10) for c in centers]
+        atlas = roi_to_brain([1.2, 2.2, 3.2], BrainData(spheres))
+        before = atlas.data.copy()
+
+        bd.extract_roi(atlas, method="mean")
+
+        assert atlas.data.dtype == before.dtype
+        np.testing.assert_array_equal(atlas.data, before)
+
+    @pytest.mark.slow
+    def test_extract_roi_resamples_mask_onto_object_grid(self, sim_brain_data):
+        """extract_roi coerces a foreign-grid mask onto the object's own grid.
+
+        A binary mask and a labeled atlas are supplied to a BrainData on a
+        non-default (3 mm) grid three ways: as a BrainData already on the
+        object's own grid, as a BrainData on the default (2 mm) grid, and as
+        a raw NIfTI on the default grid. All three forms succeed and agree
+        for the same ROI within nearest-neighbor resampling tolerance.
+        """
+        bd = BrainData(sim_brain_data.to_nifti(), mask="3mm-MNI152-2009fsl")
+        center = [12, 10, -8]
+        radius = 10
+
+        binary_on_object_grid = create_sphere(center, radius=radius, mask=bd.mask)
+        binary_on_default_grid = create_sphere(center, radius=radius)
+
+        mask_a = BrainData(binary_on_object_grid, mask=bd.mask)
+        mask_b = BrainData(binary_on_default_grid)
+        mask_c = binary_on_default_grid
+
+        value_a = bd.extract_roi(mask_a, method="mean")
+        value_b = bd.extract_roi(mask_b, method="mean")
+        value_c = bd.extract_roi(mask_c, method="mean")
+
+        # The underlying signal is per-voxel gaussian noise (sigma=1), so ROI
+        # means from slightly different (but heavily overlapping) voxel
+        # selections agree only up to the resulting sampling noise, not
+        # bit-for-bit; the absolute tolerance below is sized to that noise
+        # floor rather than to the (near-zero) ROI means themselves.
+        assert value_a.shape == value_b.shape == value_c.shape
+        np.testing.assert_allclose(value_a, value_b, atol=0.3)
+        np.testing.assert_allclose(value_a, value_c, atol=0.3)
+
+        centers = [[15, 10, -8], [-15, 10, -8], [0, -15, -8]]
+        spheres_on_object_grid = [
+            create_sphere(c, radius=radius, mask=bd.mask) for c in centers
+        ]
+        spheres_on_default_grid = [create_sphere(c, radius=radius) for c in centers]
+
+        atlas_a = roi_to_brain(
+            [1, 2, 3], BrainData(spheres_on_object_grid, mask=bd.mask)
+        )
+        atlas_b = roi_to_brain([1, 2, 3], BrainData(spheres_on_default_grid))
+        atlas_c = atlas_b.to_nifti()
+
+        labels_a = bd.extract_roi(atlas_a, method="mean")
+        labels_b = bd.extract_roi(atlas_b, method="mean")
+        labels_c = bd.extract_roi(atlas_c, method="mean")
+
+        assert labels_a.shape == labels_b.shape == labels_c.shape
+        np.testing.assert_allclose(labels_a, labels_b, atol=0.3)
+        np.testing.assert_allclose(labels_a, labels_c, atol=0.3)
+
+    def test_extract_roi_raises_when_mask_has_no_overlap_after_coercion(
+        self, sim_brain_data
+    ):
+        """A mask with no overlap after coercion raises the no-voxels error."""
+        bd = BrainData(sim_brain_data.to_nifti(), mask="3mm-MNI152-2009fsl")
+
+        # A single-voxel mask placed far outside the template's field of view:
+        # resampling it onto bd's grid leaves an all-zero result.
+        far_away_affine = np.eye(4)
+        far_away_affine[:3, 3] = [500, 500, 500]
+        far_away_mask = nb.Nifti1Image(
+            np.ones((2, 2, 2), dtype=np.uint8), far_away_affine
+        )
+
+        with pytest.raises(ValueError, match="No voxels remain"):
+            bd.extract_roi(far_away_mask, method="mean")
+
     def test_extract_roi_signature_is_canonical(self):
         """extract_roi selects an extraction variant via method= (metric is reserved)."""
         import inspect

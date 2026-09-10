@@ -896,11 +896,14 @@ class BrainData:
         """Extract activity from mask or ROI atlas using NiftiLabelsMasker.
 
         The mask may be binary (a single ROI) or a labeled atlas (one value per
-        region, extracting from every ROI at once).
+        region, extracting from every ROI at once). Unlike `apply_mask`, this
+        is an extraction convenience: `mask` is resampled onto this object's
+        own grid with nearest-neighbor interpolation before extracting, so it
+        need not already share this object's grid.
 
         Args:
             mask (BrainData | Nifti1Image | str | Path): Binary mask or labeled
-                atlas to extract from.
+                atlas to extract from, on any grid.
             method (str): Extraction method: ``'mean'`` (default), ``'median'``, or
                 ``'pca'``.
             n_components (int | None): Number of components to return when
@@ -911,6 +914,10 @@ class BrainData:
                 array (multiple images). For a labeled atlas, a 1D array (single
                 image), a 2D array of images x ROIs (multiple images), or the PCA
                 components array when ``method='pca'``.
+
+        Raises:
+            ValueError: If, after resampling onto this object's grid, `mask`
+                has no overlap with it.
 
         Examples:
             ```python

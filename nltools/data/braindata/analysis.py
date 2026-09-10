@@ -612,13 +612,18 @@ def apply_mask(bd, mask):
 def extract_roi(bd, mask, method="mean", n_components=None):
     """Extract activity from a binary mask or a labeled ROI atlas.
 
-    Labeled atlases (multiple ROIs) are handled with nilearn's
-    ``NiftiLabelsMasker``.
+    `extract_roi` is an extraction convenience, not a masking primitive: unlike
+    the strict same-grid `apply_mask`, it resamples `mask` onto `bd`'s own grid
+    with nearest-neighbor interpolation before extracting, the same way
+    nilearn's `NiftiLabelsMasker` resamples labels onto data. A mask already on
+    `bd`'s grid is used as given. Labeled atlases (multiple ROIs) are handled
+    with nilearn's ``NiftiLabelsMasker``.
 
     Args:
         bd (BrainData): Data to extract from.
         mask (BrainData | Nifti1Image | str): A binary mask (extracts from a
-            single ROI) or a labeled atlas (extracts from every ROI).
+            single ROI) or a labeled atlas (extracts from every ROI), on any
+            grid.
         method (str): Extraction method: ``'mean'`` (default), ``'median'``, or
             ``'pca'``.
         n_components (int | None): Number of components to return when
@@ -629,6 +634,10 @@ def extract_roi(bd, mask, method="mean", n_components=None):
             of values (multiple images). For a labeled atlas, a 1D array with one
             value per ROI (single image), a 2D array of images x ROIs (multiple
             images), or the components array when `method='pca'`.
+
+    Raises:
+        ValueError: If, after resampling onto `bd`'s grid, `mask` has no
+            overlap with `bd`.
 
     Examples:
         ```python
@@ -644,19 +653,35 @@ def extract_roi(bd, mask, method="mean", n_components=None):
     """
     from nilearn.maskers import NiftiLabelsMasker
 
-    from .utils import check_brain_data, check_brain_data_is_single
+    from . import BrainData
+    from .io import check_space_match
+    from .utils import check_brain_data_is_single
 
     methods = ["mean", "median", "pca"]
     if method not in methods:
         raise NotImplementedError(f"method must be one of {methods}, got {method}")
 
-    # Convert mask to BrainData if needed
-    mask_brain = check_brain_data(mask)
-    mask_img = mask_brain.to_nifti()
+    # Coerce mask onto bd's own grid before extracting. A BrainData mask on a
+    # foreign grid is resampled explicitly (nearest, so labels survive); any
+    # other input (Nifti1Image, path) loads directly against bd's mask, which
+    # resamples it implicitly the same way BrainData loading always has.
+    if isinstance(mask, BrainData):
+        mask_brain = mask
+        if not check_space_match(mask_brain.mask, bd.mask):
+            mask_brain = mask_brain.resample(img=bd.mask, interpolation="nearest")
+    else:
+        mask_brain = BrainData(mask, mask=bd.mask, interpolation="nearest")
 
     # Check if binary or labeled mask
     unique_values = np.unique(mask_brain.data)
     n_unique = len(unique_values)
+
+    if n_unique < 2:
+        raise ValueError(
+            "No voxels remain after masking - mask may not overlap with data"
+        )
+
+    mask_img = mask_brain.to_nifti()
 
     if n_unique == 2:
         # Binary mask - use simple extraction
@@ -670,11 +695,6 @@ def extract_roi(bd, mask, method="mean", n_components=None):
         elif method == "pca":
             if is_single:
                 raise ValueError("Cannot run PCA on a single image")
-            # Check if masked has any data
-            if masked.data.size == 0 or masked.data.shape[1] == 0:
-                raise ValueError(
-                    "No voxels remain after masking - mask may not overlap with data"
-                )
             output = decompose(
                 masked, method="pca", n_components=n_components, axis="images"
             )
@@ -682,7 +702,9 @@ def extract_roi(bd, mask, method="mean", n_components=None):
 
     elif n_unique > 2:
         # Labeled atlas - use NiftiLabelsMasker for efficiency
-        # Round values to ensure integer labels (use int32 for nilearn/FSL/SPM compatibility)
+        # Round values to ensure integer labels (use int32 for nilearn/FSL/SPM
+        # compatibility) on a copy, so a caller's mask is never mutated.
+        mask_brain = mask_brain.copy()
         mask_brain.data = np.round(mask_brain.data).astype(np.int32)
         mask_img = mask_brain.to_nifti()
 
