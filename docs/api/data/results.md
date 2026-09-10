@@ -19,52 +19,52 @@ Name | Description
 ### `Predict`
 
 ```python
-Predict(predictions: np.ndarray | None = None, scores: np.ndarray | None = None, mean_score: float | np.ndarray | None = None, std_score: float | np.ndarray | None = None, cv_folds: np.ndarray | None = None, roi_labels: np.ndarray | None = None, accuracy_map: BrainData | None = None, weight_map: BrainData | None = None, fold_weight_maps: BrainData | None = None, estimator: Any = None)
+Predict(spatial_scale: str, scoring: Any = None, classes: np.ndarray | None = None, predictions: np.ndarray | None = None, cv_folds: np.ndarray | None = None, scores: np.ndarray | None = None, estimator: Any = None, weight_map: BrainData | None = None, roi_labels: np.ndarray | None = None, score_map: BrainData | None = None)
 ```
 
 Frozen structural record for `BrainData.predict` decoding results.
 
-Fields cannot be rebound, but their mutable payloads remain usable. The
-record takes independent ownership of arrays, brain maps, and estimators
-when constructed. Which fields are populated depends on ``spatial_scale``;
-fields not applicable to the call stay ``None`` and are dropped by
-`available` and `asdict`.
+``spatial_scale`` is the discriminator: it decides which fields carry a
+value and which stay ``None``. Construction validates that combination and
+the shapes it implies, so an empty or mixed-mode record cannot exist. Field
+bindings cannot be rebound, but the payloads they hold remain usable, and
+the record takes independent ownership of every array, brain map, and
+estimator it stores.
 
 **Brain-space outputs are `BrainData` objects**, not raw arrays, so
 ``result.weight_map.plot()`` works directly (``.data`` gives the array).
-Non-spatial fields (``predictions``, ``cv_folds``, scalar scores) are
-numpy.
+Non-spatial fields are numpy.
 
 **Populated by `spatial_scale`.** ``'whole_brain'``: ``predictions``,
-``scores``, ``mean_score``, ``std_score``, ``cv_folds``, ``weight_map``,
-``fold_weight_maps``, ``estimator``. ``'roi'``: ``scores``,
-``mean_score``, ``std_score``, ``roi_labels``, ``accuracy_map``,
-``weight_map``, ``fold_weight_maps``, ``estimator`` — and if any parcel's
-model cannot expose ``coef_`` (a non-linear model, or feature selection in
-the pipeline), ``weight_map`` / ``fold_weight_maps`` / ``estimator`` are
-all ``None`` for the whole call. ``'searchlight'``: ``accuracy_map`` only.
+``cv_folds``, ``scores``, ``estimator``, ``weight_map``. ``'roi'``:
+``scores``, ``roi_labels``, ``score_map``, ``weight_map``.
+``'searchlight'``: ``score_map``. ``classes`` accompanies any classifier;
+``scoring`` records the caller's scoring specification in every mode.
 
 **Why the all-data fit is the canonical map.** The mean of per-fold
 ``coef_`` vectors corresponds to no actual fitted estimator (each fold saw
-a different subset). The all-data refit is one real model using all the
-information; CV gives the honest *score*, the refit gives the publishable
-*map*. ``fold_weight_maps`` is still exposed for stability analysis, and
-the CV mean is ``fold_weight_maps.data.mean(axis=0)``.
+a different subset), and fits on overlapping training folds are not
+independent uncertainty samples. The record therefore exposes one
+coefficient map, from the estimator refitted on all observations after
+cross-validation: cross-validation gives the honest *score*, the refit
+gives the publishable *map*.
 
 **Attributes:**
 
 Name | Type | Description
 ---- | ---- | -----------
-`predictions` | <code>ndarray \| None</code> | Out-of-fold CV predictions, ``(n_samples,)`` (whole-brain only).
+`spatial_scale` | <code>str</code> | ``'whole_brain'``, ``'roi'``, or ``'searchlight'``.
+`scoring` | <code>str \| callable \| None</code> | The scoring specification the caller passed. ``None`` records that the estimator's own ``score`` method was used; it does not by itself name that method's metric.
+[`classes`](#classes) | <code>ndarray \| None</code> | Classifier class labels, ``(n_classes,)``. ``None`` for regression.
+`predictions` | <code>ndarray \| None</code> | Out-of-fold predictions, one per row, ``(n_samples,)`` (whole-brain only).
+`cv_folds` | <code>ndarray \| None</code> | Fold index per row, ``(n_samples,)`` (whole-brain only).
 `scores` | <code>ndarray \| None</code> | Per-fold score — ``(n_folds,)`` for whole-brain, ``(n_folds, n_rois)`` for ROI.
-`mean_score` | <code>float \| ndarray \| None</code> | Mean score across folds — a float for whole-brain, ``(n_rois,)`` for ROI.
-`std_score` | <code>float \| ndarray \| None</code> | Score standard deviation across folds, same form as ``mean_score``.
-`cv_folds` | <code>ndarray \| None</code> | Fold index per sample, ``(n_samples,)`` (whole-brain only).
-`roi_labels` | <code>ndarray \| None</code> | Atlas integer ids, ``(n_rois,)``, in the order of ``mean_score`` / ``std_score`` / ``scores`` axis 1 (ROI only).
-`accuracy_map` | <code>[BrainData](#page-data-brain-data) \| None</code> | ``(1, n_voxels)`` map — for ROI, every voxel in parcel *i* holds that parcel's mean score (NaN outside parcels); for searchlight, the sphere-centered score at each voxel.
-`weight_map` | <code>[BrainData](#page-data-brain-data) \| None</code> | ``(1, n_voxels)`` ``coef_`` of the model refit on all data — the publishable map. For ROI, each parcel's coefficients are written back into voxel space (NaN outside parcels); magnitudes are not comparable across parcels.
-`fold_weight_maps` | <code>[BrainData](#page-data-brain-data) \| None</code> | ``(n_folds, n_voxels)`` stack of per-fold ``coef_`` for stability analysis.
-`estimator` | <code>Any</code> | The fitted all-data sklearn estimator (whole-brain; use it to ``.predict()`` on new data), or a ``dict[int, estimator]`` keyed by atlas label (ROI).
+`estimator` | <code>Any</code> | The all-data fitted sklearn estimator (whole-brain only); use it to ``.predict()`` on new data.
+`weight_map` | <code>[BrainData](#page-data-brain-data) \| None</code> | Coefficients of the estimator refit on all data, ``(n_voxels,)`` or ``(n_classes, n_voxels)`` for multiclass — one map for regression and binary classification, one map per class in ``classes`` order for multiclass. For ROI, each parcel's coefficients are written into its voxels (NaN outside parcels); magnitudes are not comparable across parcels.
+`roi_labels` | <code>ndarray \| None</code> | Atlas integer ids, ``(n_rois,)``, in the order of the ``scores`` parcel axis (ROI only).
+`score_map` | <code>[BrainData](#page-data-brain-data) \| None</code> | ``(n_voxels,)`` map of cross-validated scores — for ROI, every voxel of parcel *i* holds that parcel's mean fold score (NaN outside parcels); for searchlight, the sphere-centered mean fold score at each voxel.
+`mean_score` | <code>float \| ndarray</code> | Mean of ``scores`` across folds, computed on demand — a float for whole-brain, ``(n_rois,)`` for ROI. Accessing it on a searchlight result raises `AttributeError`.
+`std_score` | <code>float \| ndarray</code> | Standard deviation of ``scores`` across folds, in ``mean_score``'s form and with the same searchlight rule.
 
 <details class="note" open markdown="1">
 <summary>Note</summary>
@@ -80,9 +80,7 @@ for a voxel timeseries.
 Name | Description
 ---- | -----------
 [`asdict`](#data-results-asdict) | Convert to dictionary.
-[`available`](#data-results-available) | Return names of non-None fields (excludes private).
-
-
+[`available`](#data-results-available) | Return names of the fields this result carries (excludes private).
 
 #### Methods
 
@@ -99,7 +97,7 @@ Convert to dictionary.
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`include_none` | <code>bool</code> | If True, include fields with None values. Private fields (starting with _) are always excluded. | <code>False</code>
+`include_none` | <code>bool</code> | If True, include every field that does not apply to this spatial scale, whose value is None. `spatial_scale` and `scoring` are always included. Private fields (starting with _) are always excluded. | <code>False</code>
 
 **Returns:**
 
@@ -114,4 +112,8 @@ Type | Description
 available() -> list
 ```
 
-Return names of non-None fields (excludes private).
+Return names of the fields this result carries (excludes private).
+
+`spatial_scale` and `scoring` always count: a `scoring` of `None` records
+that the estimator's own `score` method was used, which is a value, not an
+absent field.

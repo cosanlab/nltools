@@ -1,6 +1,11 @@
-"""Tests for the frozen structural `Predict` result record."""
+"""Tests for the frozen structural `Predict` result record.
 
-from dataclasses import FrozenInstanceError
+The spec's shape table (`docs/development/specs/braindata.md`, "Prediction and
+decoding") is the contract: one record class, a required ``spatial_scale``
+discriminator, and exactly one legal field combination per spatial scale.
+"""
+
+from dataclasses import FrozenInstanceError, fields
 import importlib
 
 import nibabel as nib
@@ -10,9 +15,60 @@ import pytest
 from nltools.data import BrainData, Predict
 
 
+N_SAMPLES, N_FOLDS, N_ROIS, N_VOXELS = 20, 4, 3, 125
+
+
 @pytest.fixture(scope="module")
 def tiny_mask():
-    return nib.Nifti1Image(np.ones((10, 10, 10), dtype=np.uint8), np.eye(4))
+    return nib.Nifti1Image(np.ones((5, 5, 5), dtype=np.uint8), np.eye(4))
+
+
+@pytest.fixture
+def brain_map(tiny_mask):
+    def _make(n_maps=None):
+        shape = (N_VOXELS,) if n_maps is None else (n_maps, N_VOXELS)
+        return BrainData(
+            np.random.default_rng(0).standard_normal(shape), mask=tiny_mask
+        )
+
+    return _make
+
+
+@pytest.fixture
+def whole_brain_fields(brain_map):
+    return {
+        "spatial_scale": "whole_brain",
+        "scoring": None,
+        "classes": np.array([0, 1]),
+        "predictions": np.arange(N_SAMPLES) % 2,
+        "cv_folds": np.arange(N_SAMPLES) % N_FOLDS,
+        "scores": np.linspace(0.4, 0.8, N_FOLDS),
+        "estimator": "fitted-estimator",
+        "weight_map": brain_map(),
+    }
+
+
+@pytest.fixture
+def roi_fields(brain_map):
+    return {
+        "spatial_scale": "roi",
+        "scoring": "accuracy",
+        "classes": np.array([0, 1]),
+        "scores": np.random.default_rng(1).random((N_FOLDS, N_ROIS)),
+        "weight_map": brain_map(),
+        "roi_labels": np.arange(1, N_ROIS + 1, dtype=np.int64),
+        "score_map": brain_map(),
+    }
+
+
+@pytest.fixture
+def searchlight_fields(brain_map):
+    return {
+        "spatial_scale": "searchlight",
+        "scoring": "accuracy",
+        "classes": np.array([0, 1]),
+        "score_map": brain_map(),
+    }
 
 
 def test_results_are_exported_only_from_supported_data_namespace():
@@ -24,152 +80,405 @@ def test_results_are_exported_only_from_supported_data_namespace():
         importlib.import_module("nltools.data.fitresults")
 
 
-class TestPredictCreation:
-    def test_minimal_creation(self):
-        """Predict allows construction with no fields (all None default)."""
-        result = Predict()
+class TestPredictFieldSet:
+    def test_fields_match_the_spec_table(self):
+        assert [field.name for field in fields(Predict)] == [
+            "spatial_scale",
+            "scoring",
+            "classes",
+            "predictions",
+            "cv_folds",
+            "scores",
+            "estimator",
+            "weight_map",
+            "roi_labels",
+            "score_map",
+        ]
+
+    @pytest.mark.parametrize("removed", ["accuracy_map", "fold_weight_maps"])
+    def test_removed_fields_are_gone(self, removed, whole_brain_fields):
+        assert removed not in {field.name for field in fields(Predict)}
+        with pytest.raises(TypeError):
+            Predict(**whole_brain_fields, **{removed: None})
+
+    @pytest.mark.parametrize("summary", ["mean_score", "std_score"])
+    def test_score_summaries_are_not_stored_fields(self, summary, whole_brain_fields):
+        assert summary not in {field.name for field in fields(Predict)}
+        with pytest.raises(TypeError):
+            Predict(**whole_brain_fields, **{summary: 0.5})
+
+    def test_spatial_scale_is_required(self):
+        with pytest.raises(TypeError):
+            Predict()
+
+    def test_unknown_spatial_scale_is_rejected(self):
+        with pytest.raises(ValueError, match="spatial_scale"):
+            Predict(spatial_scale="voxel", score_map=None)
+
+
+class TestWholeBrainConstruction:
+    def test_construction(self, whole_brain_fields):
+        result = Predict(**whole_brain_fields)
+
+        assert result.spatial_scale == "whole_brain"
+        assert result.scoring is None
+        assert result.classes.shape == (2,)
+        assert result.predictions.shape == (N_SAMPLES,)
+        assert result.cv_folds.shape == (N_SAMPLES,)
+        assert result.scores.shape == (N_FOLDS,)
+        assert result.estimator == "fitted-estimator"
+        assert result.weight_map.shape == (N_VOXELS,)
+        assert result.roi_labels is None
+        assert result.score_map is None
+
+    def test_regression_leaves_classes_none(self, whole_brain_fields):
+        result = Predict(**{**whole_brain_fields, "classes": None})
+        assert result.classes is None
+
+    @pytest.mark.parametrize("field", ["roi_labels", "score_map"])
+    def test_roi_and_searchlight_fields_are_rejected(
+        self, field, whole_brain_fields, brain_map
+    ):
+        value = np.arange(N_ROIS) if field == "roi_labels" else brain_map()
+        with pytest.raises(ValueError, match=f"{field}.*whole_brain"):
+            Predict(**{**whole_brain_fields, field: value})
+
+    @pytest.mark.parametrize(
+        "field", ["predictions", "cv_folds", "scores", "estimator"]
+    )
+    def test_required_fields_cannot_be_missing(self, field, whole_brain_fields):
+        with pytest.raises(ValueError, match=f"{field}.*whole_brain"):
+            Predict(**{**whole_brain_fields, field: None})
+
+    def test_two_dimensional_predictions_are_rejected(self, whole_brain_fields):
+        with pytest.raises(ValueError, match="predictions"):
+            Predict(**{**whole_brain_fields, "predictions": np.zeros((N_SAMPLES, 2))})
+
+    def test_cv_folds_must_match_predictions(self, whole_brain_fields):
+        with pytest.raises(ValueError, match="cv_folds"):
+            Predict(**{**whole_brain_fields, "cv_folds": np.zeros(N_SAMPLES + 1)})
+
+    def test_two_dimensional_scores_are_rejected(self, whole_brain_fields):
+        with pytest.raises(ValueError, match="scores"):
+            Predict(**{**whole_brain_fields, "scores": np.zeros((N_FOLDS, N_ROIS))})
+
+    def test_fold_indices_beyond_the_fold_scores_are_rejected(self, whole_brain_fields):
+        """A fold index with no score means `scores` is not one value per fold."""
+        with pytest.raises(ValueError, match="cv_folds.*scores"):
+            Predict(**{**whole_brain_fields, "scores": np.zeros(2)})
+
+    def test_the_uncovered_row_sentinel_is_rejected(self, whole_brain_fields):
+        """`-1` marked an uncovered row before the partition rule; it cannot survive."""
+        folds = np.arange(N_SAMPLES) % N_FOLDS
+        folds[0] = -1
+        with pytest.raises(ValueError, match="cv_folds.*scores"):
+            Predict(**{**whole_brain_fields, "cv_folds": folds})
+
+
+class TestRoiConstruction:
+    def test_construction(self, roi_fields):
+        result = Predict(**roi_fields)
+
+        assert result.spatial_scale == "roi"
+        assert result.scoring == "accuracy"
+        assert result.scores.shape == (N_FOLDS, N_ROIS)
+        assert result.roi_labels.shape == (N_ROIS,)
+        assert result.score_map.shape == (N_VOXELS,)
+        assert result.weight_map.shape == (N_VOXELS,)
         assert result.predictions is None
-        assert result.weight_map is None
-        assert result.mean_score is None
+        assert result.cv_folds is None
+        assert result.estimator is None
 
-    def test_whole_brain_classification(self, tiny_mask):
-        n_samples, n_voxels, n_folds = 100, 1000, 5
+    @pytest.mark.parametrize("field", ["predictions", "cv_folds", "estimator"])
+    def test_whole_brain_fields_are_rejected(self, field, roi_fields):
+        value = "fitted" if field == "estimator" else np.arange(N_SAMPLES)
+        with pytest.raises(ValueError, match=f"{field}.*roi"):
+            Predict(**{**roi_fields, field: value})
+
+    @pytest.mark.parametrize("field", ["scores", "roi_labels", "score_map"])
+    def test_required_fields_cannot_be_missing(self, field, roi_fields):
+        with pytest.raises(ValueError, match=f"{field}.*roi"):
+            Predict(**{**roi_fields, field: None})
+
+    def test_scores_must_be_two_dimensional(self, roi_fields):
+        with pytest.raises(ValueError, match="scores"):
+            Predict(**{**roi_fields, "scores": np.zeros(N_FOLDS)})
+
+    def test_roi_labels_must_match_the_score_columns(self, roi_fields):
+        with pytest.raises(ValueError, match="roi_labels"):
+            Predict(**{**roi_fields, "roi_labels": np.arange(N_ROIS + 1)})
+
+    def test_weight_map_may_be_absent(self, roi_fields):
+        assert Predict(**{**roi_fields, "weight_map": None}).weight_map is None
+
+
+class TestSearchlightConstruction:
+    def test_construction(self, searchlight_fields):
+        result = Predict(**searchlight_fields)
+
+        assert result.spatial_scale == "searchlight"
+        assert result.score_map.shape == (N_VOXELS,)
+        for field in ("predictions", "cv_folds", "scores", "estimator", "weight_map"):
+            assert getattr(result, field) is None
+        assert result.roi_labels is None
+
+    @pytest.mark.parametrize(
+        "field", ["predictions", "cv_folds", "scores", "estimator", "roi_labels"]
+    )
+    def test_other_mode_fields_are_rejected(self, field, searchlight_fields):
+        value = "fitted" if field == "estimator" else np.arange(N_SAMPLES)
+        with pytest.raises(ValueError, match=f"{field}.*searchlight"):
+            Predict(**{**searchlight_fields, field: value})
+
+    def test_weight_map_is_rejected(self, searchlight_fields, brain_map):
+        with pytest.raises(ValueError, match="weight_map.*searchlight"):
+            Predict(**{**searchlight_fields, "weight_map": brain_map()})
+
+    def test_score_map_is_required(self, searchlight_fields):
+        with pytest.raises(ValueError, match="score_map.*searchlight"):
+            Predict(**{**searchlight_fields, "score_map": None})
+
+
+class TestMapFieldTypes:
+    @pytest.mark.parametrize("field", ["weight_map", "score_map"])
+    def test_map_fields_reject_raw_arrays(self, field, roi_fields):
+        with pytest.raises(TypeError, match=f"{field}.*BrainData"):
+            Predict(**{**roi_fields, field: np.zeros(N_VOXELS)})
+
+    def test_score_map_must_hold_one_map(self, searchlight_fields, brain_map):
+        with pytest.raises(ValueError, match="score_map"):
+            Predict(**{**searchlight_fields, "score_map": brain_map(n_maps=2)})
+
+    def test_binary_weight_map_is_one_signed_map(self, whole_brain_fields):
+        """Binary classification produces one map, for `classes_[1]` vs `classes_[0]`."""
+        result = Predict(**whole_brain_fields)
+        assert len(result.classes) == 2
+        assert result.weight_map.shape == (N_VOXELS,)
+
+    def test_binary_weight_map_rejects_one_map_per_class(
+        self, whole_brain_fields, brain_map
+    ):
+        with pytest.raises(ValueError, match="weight_map"):
+            Predict(**{**whole_brain_fields, "weight_map": brain_map(n_maps=2)})
+
+    def test_multiclass_weight_map_holds_one_map_per_class(
+        self, whole_brain_fields, brain_map
+    ):
         result = Predict(
-            predictions=np.random.randn(n_samples),
-            scores=np.random.randn(n_folds),
-            mean_score=0.72,
-            std_score=0.05,
-            cv_folds=np.arange(n_samples) % n_folds,
-            weight_map=BrainData(np.random.randn(n_voxels), mask=tiny_mask),
-            fold_weight_maps=BrainData(
-                np.random.randn(n_folds, n_voxels), mask=tiny_mask
-            ),
+            **{
+                **whole_brain_fields,
+                "classes": np.array([0, 1, 2]),
+                "weight_map": brain_map(n_maps=3),
+            }
         )
+        assert result.weight_map.shape == (3, N_VOXELS)
 
-        assert result.predictions.shape == (n_samples,)
-        assert result.scores.shape == (n_folds,)
-        assert result.mean_score == 0.72
-        assert result.weight_map.shape == (n_voxels,)
-        assert result.fold_weight_maps.shape == (n_folds, n_voxels)
-        assert result.accuracy_map is None
+    def test_multiclass_weight_map_class_count_must_match_classes(
+        self, whole_brain_fields, brain_map
+    ):
+        with pytest.raises(ValueError, match="weight_map"):
+            Predict(
+                **{
+                    **whole_brain_fields,
+                    "classes": np.array([0, 1, 2]),
+                    "weight_map": brain_map(n_maps=2),
+                }
+            )
 
-    def test_searchlight_result(self, tiny_mask):
-        n_voxels = 1000
-        result = Predict(
-            accuracy_map=BrainData(np.random.randn(n_voxels), mask=tiny_mask),
-            mean_score=0.65,
-        )
-        assert result.accuracy_map.shape == (n_voxels,)
-        assert result.weight_map is None
+    def test_multiclass_weight_map_cannot_be_one_averaged_map(
+        self, whole_brain_fields, brain_map
+    ):
+        with pytest.raises(ValueError, match="weight_map"):
+            Predict(
+                **{
+                    **whole_brain_fields,
+                    "classes": np.array([0, 1, 2]),
+                    "weight_map": brain_map(),
+                }
+            )
 
-    def test_roi_result_with_repurposed_score_fields(self, tiny_mask):
-        """ROI dispatch repurposes scores/mean_score/std_score with array
-        shapes. ``roi_labels`` carries the atlas IDs in matching order.
-        """
-        n_folds, n_rois, n_voxels = 5, 200, 1000
-        result = Predict(
-            scores=np.random.rand(n_folds, n_rois),
-            mean_score=np.random.rand(n_rois),
-            std_score=np.random.rand(n_rois),
-            roi_labels=np.arange(1, n_rois + 1, dtype=np.int64),
-            accuracy_map=BrainData(np.random.rand(n_voxels), mask=tiny_mask),
-        )
-        assert result.scores.shape == (n_folds, n_rois)
-        assert result.mean_score.shape == (n_rois,)
-        assert result.std_score.shape == (n_rois,)
-        assert result.roi_labels.shape == (n_rois,)
-        assert "roi_labels" in result.available()
-        # Whole-brain-only fields stay None on ROI dispatch
-        assert result.weight_map is None
-        assert result.fold_weight_maps is None
+    def test_regression_weight_map_must_be_one_map(self, whole_brain_fields, brain_map):
+        with pytest.raises(ValueError, match="weight_map"):
+            Predict(
+                **{
+                    **whole_brain_fields,
+                    "classes": None,
+                    "weight_map": brain_map(n_maps=2),
+                }
+            )
 
-    def test_estimator_field(self, tiny_mask):
-        """``estimator`` holds the all-data fitted sklearn estimator. There
-        is no separate ``final_estimator`` / ``final_weight_map`` — the
-        all-data fit is canonical and ``weight_map`` is its coefficients.
-        """
-        n_voxels = 1000
-        from sklearn.svm import LinearSVC
 
-        est = LinearSVC()
-        result = Predict(
-            mean_score=0.7,
-            estimator=est,
-            weight_map=BrainData(np.random.randn(n_voxels), mask=tiny_mask),
-        )
-        assert result.estimator is not est
-        assert result.weight_map.shape == (n_voxels,)
+class TestScoreSummaries:
+    def test_whole_brain_summaries_derive_from_scores(self, whole_brain_fields):
+        result = Predict(**whole_brain_fields)
 
-    def test_copied_estimator_remains_fitted_and_usable(self):
+        assert isinstance(result.mean_score, float)
+        assert result.mean_score == pytest.approx(float(result.scores.mean()))
+        assert result.std_score == pytest.approx(float(result.scores.std()))
+
+    def test_roi_summaries_are_one_value_per_parcel(self, roi_fields):
+        result = Predict(**roi_fields)
+
+        assert result.mean_score.shape == (N_ROIS,)
+        assert result.std_score.shape == (N_ROIS,)
+        np.testing.assert_allclose(result.mean_score, result.scores.mean(axis=0))
+        np.testing.assert_allclose(result.std_score, result.scores.std(axis=0))
+
+    def test_roi_summaries_ignore_failed_parcels(self, roi_fields):
+        scores = np.array(roi_fields["scores"])
+        scores[0, 0] = np.nan
+        result = Predict(**{**roi_fields, "scores": scores})
+
+        assert np.isfinite(result.mean_score).all()
+        np.testing.assert_allclose(result.mean_score, np.nanmean(scores, axis=0))
+
+    @pytest.mark.parametrize("summary", ["mean_score", "std_score"])
+    def test_searchlight_summaries_raise(self, summary, searchlight_fields):
+        result = Predict(**searchlight_fields)
+
+        with pytest.raises(AttributeError, match="score_map"):
+            getattr(result, summary)
+
+    def test_summaries_track_the_stored_scores(self, whole_brain_fields):
+        result = Predict(**whole_brain_fields)
+        result.scores[0] = 0.0
+        assert result.mean_score == pytest.approx(float(result.scores.mean()))
+
+    @pytest.mark.parametrize("summary", ["mean_score", "std_score"])
+    def test_summaries_are_not_in_asdict(self, summary, whole_brain_fields):
+        assert summary not in Predict(**whole_brain_fields).asdict(include_none=True)
+
+
+class TestPredictOwnership:
+    def test_arrays_are_copied(self, whole_brain_fields):
+        scores = np.array([0.1, 0.2, 0.3, 0.4])
+        result = Predict(**{**whole_brain_fields, "scores": scores})
+
+        result.scores[0] = 9.9
+        assert scores[0] == 0.1
+
+    def test_maps_are_copied(self, whole_brain_fields, brain_map):
+        weight_map = brain_map()
+        result = Predict(**{**whole_brain_fields, "weight_map": weight_map})
+
+        assert result.weight_map is not weight_map
+        result.weight_map.data[0] = 9.9
+        assert weight_map.data[0] != 9.9
+
+    def test_copied_estimator_remains_fitted_and_usable(self, whole_brain_fields):
         from sklearn.svm import LinearSVC
 
         X = np.array([[-2.0], [-1.0], [1.0], [2.0]])
         y = np.array([0, 0, 1, 1])
         estimator = LinearSVC().fit(X, y)
 
-        result = Predict(estimator=estimator)
+        result = Predict(**{**whole_brain_fields, "estimator": estimator})
 
         assert result.estimator is not estimator
         np.testing.assert_array_equal(result.estimator.predict(X), y)
 
-    @pytest.mark.parametrize(
-        "field", ["accuracy_map", "weight_map", "fold_weight_maps"]
-    )
-    def test_map_fields_reject_raw_arrays(self, field):
-        with pytest.raises(TypeError, match=f"{field}.*BrainData"):
-            Predict(**{field: np.zeros(3)})
+    def test_a_callable_scorer_is_stored_as_supplied(self, whole_brain_fields):
+        def scorer(estimator, X, y):
+            return 1.0
+
+        result = Predict(**{**whole_brain_fields, "scoring": scorer})
+        assert result.scoring is scorer
+
+
+class TestPredictPickle:
+    """Unpickling is the one path that bypasses `__post_init__`."""
+
+    def _old_format_bytes(self):
+        """Pickle bytes carrying the pre-0.6.0-dev field layout for `Predict`."""
+        import copyreg
+        import pickle
+
+        old_state = {
+            "predictions": np.arange(N_SAMPLES),
+            "scores": np.zeros(N_FOLDS),
+            "mean_score": 0.5,
+            "std_score": 0.1,
+            "cv_folds": np.arange(N_SAMPLES) % N_FOLDS,
+            "roi_labels": None,
+            "accuracy_map": None,
+            "weight_map": None,
+            "fold_weight_maps": None,
+            "estimator": None,
+        }
+
+        class _OldRecord:
+            def __reduce__(self):
+                return (copyreg._reconstructor, (Predict, object, None), old_state)
+
+        return pickle.dumps(_OldRecord())
+
+    def test_old_format_pickle_raises_instead_of_reading_as_empty(self):
+        import pickle
+
+        with pytest.raises(ValueError, match="older nltools"):
+            pickle.loads(self._old_format_bytes())
+
+    def test_round_trip_preserves_the_record(self, roi_fields):
+        import pickle
+
+        restored = pickle.loads(pickle.dumps(Predict(**roi_fields)))
+
+        assert restored.spatial_scale == "roi"
+        np.testing.assert_allclose(restored.scores, Predict(**roi_fields).scores)
+        assert restored.score_map.shape == (N_VOXELS,)
+        assert restored.mean_score.shape == (N_ROIS,)
 
 
 class TestPredictFrozenBindings:
-    def test_cannot_modify_field(self):
-        result = Predict(mean_score=0.5)
+    def test_cannot_modify_field(self, whole_brain_fields):
+        result = Predict(**whole_brain_fields)
         with pytest.raises(FrozenInstanceError):
-            result.mean_score = 0.9
+            result.scores = np.zeros(N_FOLDS)
 
-    def test_cannot_add_attribute(self):
-        result = Predict()
+    def test_cannot_add_attribute(self, whole_brain_fields):
+        result = Predict(**whole_brain_fields)
         with pytest.raises(FrozenInstanceError):
             result.new_field = 1
 
-    def test_array_contents_remain_mutable(self):
-        arr = np.array([0.1, 0.2, 0.3])
-        result = Predict(scores=arr)
-        result.scores[0] = 9.9
-        assert result.scores[0] == 9.9
-        assert arr[0] == 0.1
-
 
 class TestPredictAvailable:
-    def test_empty_available(self):
-        assert Predict().available() == []
+    def test_searchlight_lists_only_populated_fields(self, searchlight_fields):
+        result = Predict(**searchlight_fields)
+        assert set(result.available()) == {
+            "spatial_scale",
+            "scoring",
+            "classes",
+            "score_map",
+        }
 
-    def test_partial_available(self):
-        result = Predict(
-            mean_score=0.7,
-            scores=np.array([0.6, 0.8]),
-        )
-        assert set(result.available()) == {"mean_score", "scores"}
+    def test_scoring_is_listed_when_it_is_none(self, searchlight_fields):
+        """`scoring=None` is a value — the estimator's own `score` — not an absence."""
+        result = Predict(**{**searchlight_fields, "scoring": None})
+        assert "scoring" in result.available()
+        assert "predictions" not in result.available()
 
-    def test_excludes_private(self):
-        result = Predict(mean_score=0.5)
+    def test_excludes_private(self, whole_brain_fields):
+        result = Predict(**whole_brain_fields)
         object.__setattr__(result, "_priv", 1)
         assert "_priv" not in result.available()
 
 
 class TestPredictAsDict:
-    def test_default_excludes_none(self):
-        result = Predict(mean_score=0.5)
-        d = result.asdict()
-        assert d == {"mean_score": 0.5}
+    def test_default_excludes_none(self, searchlight_fields):
+        keys = Predict(**searchlight_fields).asdict().keys()
+        assert set(keys) == {"spatial_scale", "scoring", "classes", "score_map"}
 
-    def test_include_none(self):
-        result = Predict(mean_score=0.5)
-        d = result.asdict(include_none=True)
-        assert "predictions" in d
-        assert d["predictions"] is None
-        assert d["mean_score"] == 0.5
+    def test_scoring_is_included_when_it_is_none(self, searchlight_fields):
+        result = Predict(**{**searchlight_fields, "scoring": None})
+        assert result.asdict()["scoring"] is None
+        assert "predictions" not in result.asdict()
 
-    def test_excludes_private(self):
-        result = Predict(mean_score=0.5)
+    def test_include_none(self, searchlight_fields):
+        full = Predict(**searchlight_fields).asdict(include_none=True)
+        assert full["predictions"] is None
+        assert full["spatial_scale"] == "searchlight"
+
+    def test_excludes_private(self, searchlight_fields):
+        result = Predict(**searchlight_fields)
         object.__setattr__(result, "_priv", 1)
         assert "_priv" not in result.asdict(include_none=True)

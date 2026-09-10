@@ -1410,11 +1410,11 @@ mean_acc = results['mcr_all'].mean()
 ```python
 # Unified MVPA API — returns a frozen `Predict` dataclass.
 result = brain_data.predict(y=labels, spatial_scale='whole_brain', estimator='linear_svc', cv=5)
-result.weight_map        # full-data refit coefficients (BrainData)
-result.estimator         # fitted full-data sklearn estimator
-result.fold_weight_maps  # per-fold coefs, shape (n_folds, n_voxels)
+result.spatial_scale   # 'whole_brain' — says which fields carry values
+result.weight_map      # full-data refit coefficients (BrainData)
+result.estimator       # fitted full-data sklearn estimator
 result.scores          # per-fold scores, shape (n_folds,)
-result.mean_score      # mean accuracy across folds (float)
+result.mean_score      # mean score across folds, computed from `scores`
 result.predictions     # OOF predictions in original sample order
 result.available()     # list non-None fields
 ```
@@ -1428,7 +1428,7 @@ result.available()     # list non-None fields
 | Label storage | `.Y` attribute | `y=` argument | Explicit |
 | Custom transforms | `brain.cv(k).normalize().reduce().pipe(t).predict()` (fluent) | Pass `estimator=make_pipeline(StandardScaler(), MyXform(), LinearSVC())`, used exactly as given | Standard sklearn pattern, no separate API to learn |
 | Return type | dict (`weight_map`, `mcr_all`, …) | `Predict` dataclass | Frozen, introspectable via `.available()` / `.asdict()` |
-| Weight map | top-level dict key | `result.weight_map` | Full-data refit coefficients for linear models; per-fold coefficients are in `result.fold_weight_maps` |
+| Weight map | top-level dict key | `result.weight_map` | Coefficients of the estimator refit on all observations after cross-validation — the map to publish. Fold-specific maps are not exposed: fits on overlapping training folds are not independent uncertainty samples |
 
 **Removed**: `brain.cv(k).predict(y, algorithm=…)` fluent API. The full set of fluent steps (`cv()`, `normalize()`, `reduce()`, `pipe()`) on `BrainData` collapses to kwargs on `bd.predict()`. The standalone `nltools.pipelines.Pipeline` orchestrator was also removed in v0.6.0. Collection orchestration is deferred to 0.6.1. Custom single-dataset preprocessing uses `estimator=make_pipeline(...)` on `bd.predict()`.
 
@@ -2302,14 +2302,13 @@ result = brain_data.predict(
 )
 result.weight_map        # full-data refit coefficients (BrainData)
 result.estimator         # fitted full-data sklearn estimator
-result.fold_weight_maps  # per-fold coefficients
 result.scores            # per-fold scores
-result.mean_score        # mean across folds
+result.mean_score        # mean across folds, derived from `scores`
 
-# Searchlight — populates accuracy_map (no weight_map; per-sphere classifiers)
+# Searchlight — populates score_map only (no weight_map; per-sphere models)
 result = brain_data.predict(y=labels, spatial_scale='searchlight',
                             estimator='ridge_classifier', radius=10, cv=5)
-result.accuracy_map      # voxel-shaped accuracy
+result.score_map         # voxel-shaped cross-validated score
 
 # Note: 'ridge' is regression-only; for classification use 'ridge_classifier'.
 # scoring=None (default) uses the estimator's own score method.

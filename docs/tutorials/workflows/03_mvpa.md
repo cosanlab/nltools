@@ -87,7 +87,7 @@ decode_wb.weight_map.plot(
 
 ### ROI
 
-`spatial_scale="roi"` with a parcellation trains one classifier per parcel and returns an `accuracy_map` — every voxel in parcel *i* filled with parcel *i*'s cross-validated accuracy. We use the bundled k50 atlas. It is defined in MNI space, and `roi_mask=` resamples it onto this subject's grid by header affine alone — a grid change, not a spatial normalization — so its parcel boundaries are only approximate for this un-normalized subject.
+`spatial_scale="roi"` with a parcellation trains one classifier per parcel and returns a `score_map` — every voxel in parcel *i* filled with parcel *i*'s cross-validated accuracy. We use the bundled k50 atlas. It is defined in MNI space, and `roi_mask=` resamples it onto this subject's grid by header affine alone — a grid change, not a spatial normalization — so its parcel boundaries are only approximate for this un-normalized subject.
 
 ```{code-cell} python3
 atlas_path = fetch_resource("masks/default/3mm-MNI152-2009fsl-k50.nii.gz")
@@ -102,7 +102,7 @@ decode_roi = trials.predict(
 print(
     f"per-parcel accuracy: {decode_roi.mean_score.shape[0]} parcels, best = {decode_roi.mean_score.max():.3f}"
 )
-decode_roi.accuracy_map.plot(
+decode_roi.score_map.plot(
     method="slices",
     bg_img=HAXBY.anat[0],
     title="ROI decoding accuracy (chance 0.5)",
@@ -132,7 +132,7 @@ def searchlight_decode(radius):
     )
 
 decode_sl = searchlight_decode(8.0)
-decode_sl.accuracy_map.plot(
+decode_sl.score_map.plot(
     method="slices",
     bg_img=HAXBY.anat[0],
     title="Searchlight decoding accuracy (8 mm sphere)",

@@ -1578,6 +1578,15 @@ class BrainData:
         Returns:
             Predict | BrainData: A `Predict` record for MVPA; a new `BrainData`
                 holding the predicted timeseries for fitted-model prediction.
+                The record's ``spatial_scale`` says which of its fields carry
+                values: whole-brain fills ``predictions``, ``cv_folds``,
+                ``scores``, ``estimator`` and ``weight_map``; ROI fills
+                ``scores``, ``roi_labels``, ``score_map`` and ``weight_map``;
+                searchlight fills ``score_map`` alone. ``classes`` accompanies
+                any classifier and ``scoring`` records the scoring
+                specification in every mode. ``mean_score`` and ``std_score``
+                are computed from ``scores`` on demand and do not exist for a
+                searchlight result.
 
         Raises:
             ValueError: On both ``X`` and ``y``, a decoding argument on a
@@ -1604,7 +1613,11 @@ class BrainData:
             result = brain.predict(
                 y=labels, spatial_scale='searchlight', radius=8.0, n_jobs=4
             )
+            result.score_map.plot()    # one score per sphere center
+
             result = brain.predict(y=labels, spatial_scale='roi', roi_mask=atlas)
+            result.mean_score          # one score per parcel
+            result.score_map.plot()    # those scores painted into voxel space
             ```
 
             Prediction from a fitted encoding model:

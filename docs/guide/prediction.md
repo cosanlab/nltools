@@ -4,18 +4,49 @@ title: "Prediction: encoding & decoding"
 
 [`BrainData.predict`](../api/data/brain_data.md#data-brain-data-predict) is decoding: predict a
 per-image label or value `y` from voxel patterns, cross-validated. One call returns a frozen
-[`Predict`](../api/data/fitresults.md#data-fitresults-predict) result holding `predictions`,
-`scores`, `mean_score`, `cv_folds`, the `weight_map` (the model refit on all the data, the map you
-publish), and `fold_weight_maps`. Encoding runs the other way, predicting voxel timeseries from
-stimulus features, and is a ridge problem. Use
+[`Predict`](../api/data/results.md#data-results-predict) result whose `spatial_scale` field
+says which of its fields carry values. Encoding runs the other way, predicting voxel timeseries
+from stimulus features, and is a ridge problem. Use
 [`BrainData.fit`](../api/data/brain_data.md#data-brain-data-fit)`(model='ridge')` or the
 [`Ridge`](../api/models.md#models-ridge) estimator directly.
 
 `spatial_scale=` sets what a "pattern" means. `'whole_brain'` fits one model on every in-mask
 voxel. `'roi'` needs `roi_mask=` (a labeled parcellation) and fits one model per parcel, returning
-per-parcel scores plus an `accuracy_map` with every voxel filled by its parcel's score.
+per-parcel scores plus a `score_map` with every voxel filled by its parcel's score.
 `'searchlight'` fits one model per sphere of radius `radius` (in millimeters) and returns a
 per-voxel map. It is the slow one, so cache the result.
+
+## What comes back
+
+Every field exists on every `Predict`; `None` means the field does not apply to the scale you
+asked for. Constructing a mixed combination is impossible — the record validates itself.
+
+Field | `'whole_brain'` | `'roi'` | `'searchlight'`
+--- | --- | --- | ---
+`spatial_scale` | `'whole_brain'` | `'roi'` | `'searchlight'`
+`scoring` | what you passed | what you passed | what you passed
+`classes` | class labels, or `None` for regression | same | same
+`predictions` | `(n_samples,)` out-of-fold | `None` | `None`
+`cv_folds` | `(n_samples,)` fold index | `None` | `None`
+`scores` | `(n_folds,)` | `(n_folds, n_rois)` | `None`
+`estimator` | the all-data fit | `None` | `None`
+`weight_map` | `BrainData` (see below) | `BrainData` (see below) | `None`
+`roi_labels` | `None` | `(n_rois,)` | `None`
+`score_map` | `None` | `BrainData` | `BrainData`
+
+`mean_score` and `std_score` are computed from `scores` on demand — a float for whole-brain, one
+value per parcel for ROI. A searchlight result has no cross-fold summary to compute: its
+`score_map` already holds the mean score at every sphere center, so asking for either raises
+`AttributeError`.
+
+`scoring=None` (the default) records that the estimator's own `score` method was used; it does not
+name that method's metric. `weight_map` is the estimator refit on all observations after
+cross-validation — the map you publish. It is one signed map for regression and binary
+classification. It is `None` today when the estimator exposes no `coef_` (a non-linear model, or a
+pipeline whose preprocessing cannot be reversed) and for a multiclass classifier, whose one map per
+class is not built yet; averaging coefficients across classes describes no fitted decision
+boundary, so nothing is returned in its place. Fold-specific coefficient maps are deliberately
+absent: fits on overlapping training folds are not independent uncertainty samples.
 
 Goal | Use | Notes
 --- | --- | ---
@@ -56,7 +87,7 @@ roi_result = pain.predict(
     y=high_pain, estimator="linear_svc", spatial_scale="roi", roi_mask=atlas
 )
 roi_result.mean_score      # one score per parcel
-roi_result.accuracy_map    # those scores painted back into voxel space
+roi_result.score_map       # those scores painted back into voxel space
 ```
 
 ## Encoding

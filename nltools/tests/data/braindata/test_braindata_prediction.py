@@ -139,24 +139,30 @@ class TestWholeBrain:
             y=y, spatial_scale="whole_brain", cv=3, estimator="linear_svc"
         )
 
-        assert result.predictions is not None
+        assert result.spatial_scale == "whole_brain"
+        assert result.scoring is None
+        np.testing.assert_array_equal(result.classes, [0, 1])
         assert result.predictions.shape == (n,)
-        assert result.scores is not None
+        assert result.cv_folds.shape == (n,)
         assert result.scores.shape == (3,)
         assert isinstance(result.mean_score, float)
         assert isinstance(result.std_score, float)
-        assert result.cv_folds is not None
-        assert result.cv_folds.shape == (n,)
         # weight_map is the all-data refit (canonical), always populated for
         # linear models — no separate refit=True opt-in.
-        assert result.weight_map is not None
         assert result.weight_map.shape == (n_voxels,)
-        assert result.fold_weight_maps is not None
-        assert result.fold_weight_maps.shape == (3, n_voxels)
         # All-data fitted estimator, available for .predict() on new data.
         assert result.estimator is not None
-        # whole_brain doesn't populate accuracy_map
-        assert result.accuracy_map is None
+        # ROI and searchlight fields stay None for whole-brain decoding.
+        assert result.roi_labels is None
+        assert result.score_map is None
+
+    def test_scoring_specification_is_recorded(self, sim_brain_data):
+        n = sim_brain_data.shape[0]
+        y = np.array([0] * (n // 2) + [1] * (n - n // 2))
+
+        result = sim_brain_data.predict(y=y, cv=3, scoring="balanced_accuracy")
+
+        assert result.scoring == "balanced_accuracy"
 
     def test_regression_with_ridge(self, sim_brain_data):
         n = sim_brain_data.shape[0]
@@ -171,6 +177,8 @@ class TestWholeBrain:
         assert result.weight_map.shape == (n_voxels,)
         # mean_score should be a finite float (R² for regression)
         assert isinstance(result.mean_score, float)
+        # Regression has no class labels.
+        assert result.classes is None
 
     def test_custom_sklearn_estimator(self, sim_brain_data):
         """A bare caller estimator is fitted as given — no scaler is wrapped."""
@@ -226,6 +234,37 @@ class TestWholeBrain:
         # weight_map may be None — SelectKBest masks the feature space; we
         # don't try to back-project here. Just confirm no crash + scores.
         assert result.scores is not None
+
+    def test_multiclass_does_not_average_coefficients_across_classes(
+        self, minimal_brain_data
+    ):
+        """One averaged map is not a valid multiclass map, so none is returned.
+
+        Per-class maps arrive with the back-projection work; until then the
+        result degrades to no weight map rather than storing an average the
+        spec forbids.
+        """
+        n = minimal_brain_data.shape[0]
+        y = np.array([0, 1, 2] * (n // 3) + [0] * (n % 3))
+
+        with warnings.catch_warnings(record=True) as w:
+            warnings.simplefilter("always")
+            result = minimal_brain_data.predict(y=y, cv=3)
+
+        np.testing.assert_array_equal(result.classes, [0, 1, 2])
+        assert result.weight_map is None
+        assert result.scores.shape == (3,)
+        assert result.predictions.shape == (n,)
+        assert any("class" in str(warn.message) for warn in w)
+
+    def test_binary_weight_map_is_one_signed_map(self, minimal_brain_data):
+        n = minimal_brain_data.shape[0]
+        n_voxels = minimal_brain_data.shape[1]
+        y = np.array([0, 1] * (n // 2))
+
+        result = minimal_brain_data.predict(y=y, cv=3)
+
+        assert result.weight_map.shape == (n_voxels,)
 
     def test_non_linear_emits_warning_no_weight_map(self, sim_brain_data):
         from sklearn.svm import SVC
@@ -283,12 +322,12 @@ class TestScoring:
 
 
 # ---------------------------------------------------------------------------
-# Searchlight / ROI — accuracy_map populated, weight_map None
+# Searchlight / ROI — score_map populated
 # ---------------------------------------------------------------------------
 
 
 class TestSearchlight:
-    def test_returns_predict_with_accuracy_map(self, minimal_brain_data):
+    def test_returns_predict_with_score_map(self, minimal_brain_data):
         """Searchlight on a minimal 5-voxel fixture — fast."""
         n = minimal_brain_data.shape[0]
         n_voxels = minimal_brain_data.shape[1]
@@ -298,18 +337,30 @@ class TestSearchlight:
             y=y, spatial_scale="searchlight", cv=3, radius=4.0, n_jobs=1
         )
         assert isinstance(result, Predict)
-        assert result.accuracy_map is not None
-        assert result.accuracy_map.shape == (n_voxels,)
-        # weight_map intentionally not provided for searchlight
-        assert result.weight_map is None
-        assert result.fold_weight_maps is None
+        assert result.spatial_scale == "searchlight"
+        assert result.score_map.shape == (n_voxels,)
+        np.testing.assert_array_equal(result.classes, [0, 1])
+        # Searchlight exposes nothing but the score map.
+        for field in ("predictions", "cv_folds", "scores", "estimator", "weight_map"):
+            assert getattr(result, field) is None
+
+    def test_score_summaries_raise_and_point_at_the_score_map(self, minimal_brain_data):
+        n = minimal_brain_data.shape[0]
+        y = np.array([0] * (n // 2) + [1] * (n - n // 2))
+
+        result = minimal_brain_data.predict(
+            y=y, spatial_scale="searchlight", cv=3, radius=4.0, n_jobs=1
+        )
+        for summary in ("mean_score", "std_score"):
+            with pytest.raises(AttributeError, match="score_map"):
+                getattr(result, summary)
 
 
 class TestAllDataRefit:
     """The all-data refit is always-on for whole_brain dispatch — there's no
-    ``refit=`` kwarg. ``weight_map`` is the canonical, publishable map (single
-    legitimate estimator, all the data); ``fold_weight_maps`` is the per-fold
-    stack for stability analysis; ``estimator`` is the fitted sklearn object.
+    ``refit=`` kwarg. ``weight_map`` is the canonical, publishable map (one
+    legitimate estimator, all the data) and ``estimator`` is that fitted
+    sklearn object. Fold-specific coefficient maps are not exposed.
     """
 
     def test_estimator_is_fitted_and_callable_on_new_data(self, sim_brain_data):
@@ -330,8 +381,8 @@ class TestAllDataRefit:
 
     def test_weight_map_is_from_all_data_fit_not_cv_mean(self, sim_brain_data):
         """``weight_map`` should match ``estimator.coef_`` (back-projected
-        through any PCA), not the across-fold average of ``fold_weight_maps``.
-        That's the whole point of dropping the ``refit`` flag.
+        through any PCA), not the average of the per-fold coefficients. That's
+        the whole point of dropping the ``refit`` flag.
         """
         n = sim_brain_data.shape[0]
         y = np.array([0] * (n // 2) + [1] * (n - n // 2))
@@ -355,7 +406,7 @@ class TestBrainDataWrapping:
     ``.plot()`` directly without wrapping. Numpy access via ``.data``.
     """
 
-    def test_whole_brain_weight_maps_are_braindata(self, sim_brain_data):
+    def test_whole_brain_weight_map_is_braindata(self, sim_brain_data):
         from nltools.data import BrainData
 
         n = sim_brain_data.shape[0]
@@ -364,9 +415,7 @@ class TestBrainDataWrapping:
         result = sim_brain_data.predict(
             y=y, spatial_scale="whole_brain", cv=3, estimator="linear_svc"
         )
-        for field in ("weight_map", "fold_weight_maps"):
-            obj = getattr(result, field)
-            assert isinstance(obj, BrainData), f"{field} should be BrainData"
+        assert isinstance(result.weight_map, BrainData)
         # Equivalent but independently owned mask (so .plot() composes without aliasing)
         assert result.weight_map.mask is not sim_brain_data.mask
         np.testing.assert_array_equal(
@@ -377,9 +426,8 @@ class TestBrainDataWrapping:
         )
         # Underlying numpy still accessible and has expected shapes
         assert result.weight_map.data.shape == (n_voxels,)
-        assert result.fold_weight_maps.data.shape == (3, n_voxels)
 
-    def test_searchlight_accuracy_map_is_braindata(self, minimal_brain_data):
+    def test_searchlight_score_map_is_braindata(self, minimal_brain_data):
         from nltools.data import BrainData
 
         n = minimal_brain_data.shape[0]
@@ -387,13 +435,13 @@ class TestBrainDataWrapping:
         result = minimal_brain_data.predict(
             y=y, spatial_scale="searchlight", cv=3, radius=4.0, n_jobs=1
         )
-        assert isinstance(result.accuracy_map, BrainData)
-        assert result.accuracy_map.mask is not minimal_brain_data.mask
+        assert isinstance(result.score_map, BrainData)
+        assert result.score_map.mask is not minimal_brain_data.mask
         np.testing.assert_array_equal(
-            result.accuracy_map.mask.get_fdata(), minimal_brain_data.mask.get_fdata()
+            result.score_map.mask.get_fdata(), minimal_brain_data.mask.get_fdata()
         )
         np.testing.assert_array_equal(
-            result.accuracy_map.mask.affine, minimal_brain_data.mask.affine
+            result.score_map.mask.affine, minimal_brain_data.mask.affine
         )
 
 
@@ -422,40 +470,7 @@ class TestROIDispatch:
         out[mask_data] = flat
         return nib.Nifti1Image(out, bd.mask.affine, bd.mask.header)
 
-    def test_roi_populates_repurposed_score_fields(self, minimal_brain_data):
-        from nltools.data import BrainData
-
-        n = minimal_brain_data.shape[0]
-        y = np.array([0] * (n // 2) + [1] * (n - n // 2))
-        atlas = self._build_atlas(minimal_brain_data, n_rois=2)
-
-        result = minimal_brain_data.predict(
-            y=y,
-            spatial_scale="roi",
-            roi_mask=atlas,
-            cv=3,
-            estimator="linear_svc",
-            n_jobs=1,
-        )
-        # Score fields are arrays, not scalars, on ROI dispatch
-        assert result.scores is not None
-        assert result.scores.shape == (3, 2)  # (n_folds, n_rois)
-        assert result.mean_score is not None
-        assert result.mean_score.shape == (2,)
-        assert result.std_score is not None
-        assert result.std_score.shape == (2,)
-        assert result.roi_labels is not None
-        assert result.roi_labels.shape == (2,)
-        # Atlas labels in mean_score order
-        assert list(result.roi_labels) == [1, 2]
-        # accuracy_map is a BrainData
-        assert isinstance(result.accuracy_map, BrainData)
-
-    def test_roi_populates_voxel_space_weight_map(self, minimal_brain_data):
-        """Non-overlapping ROI assembles per-parcel coefs back to voxel
-        space (the atlas is a label image, so each voxel belongs to exactly
-        one parcel — disjoint reassembly). Voxels outside the atlas are NaN.
-        """
+    def test_roi_populates_the_roi_field_set(self, minimal_brain_data):
         from nltools.data import BrainData
 
         n = minimal_brain_data.shape[0]
@@ -471,21 +486,70 @@ class TestROIDispatch:
             estimator="linear_svc",
             n_jobs=1,
         )
+        assert result.spatial_scale == "roi"
+        assert result.scores.shape == (3, 2)  # (n_folds, n_rois)
+        assert result.mean_score.shape == (2,)
+        assert result.std_score.shape == (2,)
+        assert result.roi_labels.shape == (2,)
+        # Atlas labels in parcel-score order
+        assert list(result.roi_labels) == [1, 2]
+        assert isinstance(result.score_map, BrainData)
+        assert result.score_map.shape == (n_voxels,)
         assert isinstance(result.weight_map, BrainData)
-        assert result.weight_map.data.shape == (n_voxels,)
-        assert isinstance(result.fold_weight_maps, BrainData)
-        assert result.fold_weight_maps.data.shape == (3, n_voxels)
-        # estimator is a dict keyed by atlas label
-        assert isinstance(result.estimator, dict)
-        assert set(result.estimator.keys()) == {1, 2}
+        assert result.weight_map.shape == (n_voxels,)
+        # Whole-brain-only fields stay None on ROI decoding.
+        assert result.predictions is None
+        assert result.cv_folds is None
 
-    def test_roi_weight_map_voxels_match_per_parcel_estimator_coef(
+    def test_roi_does_not_expose_an_estimator_mapping(self, minimal_brain_data):
+        """ROI decoding hides its per-parcel models; only the maps come back."""
+        n = minimal_brain_data.shape[0]
+        y = np.array([0] * (n // 2) + [1] * (n - n // 2))
+        atlas = self._build_atlas(minimal_brain_data, n_rois=2)
+
+        result = minimal_brain_data.predict(
+            y=y,
+            spatial_scale="roi",
+            roi_mask=atlas,
+            cv=3,
+            estimator="linear_svc",
+            n_jobs=1,
+        )
+        assert result.estimator is None
+
+    def test_roi_score_map_paints_each_parcel_mean_fold_score(self, minimal_brain_data):
+        from nilearn.masking import apply_mask
+
+        n = minimal_brain_data.shape[0]
+        y = np.array([0] * (n // 2) + [1] * (n - n // 2))
+        atlas = self._build_atlas(minimal_brain_data, n_rois=2)
+
+        result = minimal_brain_data.predict(
+            y=y,
+            spatial_scale="roi",
+            roi_mask=atlas,
+            cv=3,
+            estimator="linear_svc",
+            n_jobs=1,
+        )
+        label_vec = apply_mask(atlas, minimal_brain_data.mask).astype(int)
+        for index, label in enumerate(result.roi_labels):
+            voxels = result.score_map.data[label_vec == label]
+            np.testing.assert_allclose(voxels, result.mean_score[index])
+
+    def test_roi_weight_map_matches_an_independent_per_parcel_fit(
         self, minimal_brain_data
     ):
-        """Regression: each voxel's value in result.weight_map must equal
-        the corresponding entry of its parcel's all-data ``estimator.coef_``.
-        That's the disjoint-reassembly contract.
+        """Each voxel's weight equals its parcel's all-data ``coef_``.
+
+        The runner no longer returns per-parcel estimators, so the reference is
+        an independent fit of the same pipeline on the same parcel columns.
         """
+        from nilearn.masking import apply_mask
+        from sklearn.pipeline import make_pipeline
+        from sklearn.preprocessing import StandardScaler
+        from sklearn.svm import LinearSVC
+
         n = minimal_brain_data.shape[0]
         y = np.array([0] * (n // 2) + [1] * (n - n // 2))
         atlas = self._build_atlas(minimal_brain_data, n_rois=2)
@@ -497,21 +561,21 @@ class TestROIDispatch:
             estimator="linear_svc",
             n_jobs=1,
         )
-        # Recover the label vector that the runner used to assign voxels
-        from nilearn.masking import apply_mask
 
         label_vec = apply_mask(atlas, minimal_brain_data.mask).astype(int)
         weights = result.weight_map.data
-        for label, est in result.estimator.items():
+        for label in result.roi_labels:
             cols = label_vec == label
-            est_coef = est.named_steps["linearsvc"].coef_.ravel()
-            np.testing.assert_allclose(weights[cols], est_coef)
+            reference = make_pipeline(
+                StandardScaler(), LinearSVC(dual="auto", max_iter=10000)
+            ).fit(minimal_brain_data.data[:, cols], y)
+            expected = reference.named_steps["linearsvc"].coef_.ravel()
+            np.testing.assert_allclose(weights[cols], expected)
 
-    def test_roi_non_linear_model_drops_weight_fields(self, minimal_brain_data):
-        """Non-linear ROI dispatch can't expose coefs → weight_map /
-        fold_weight_maps / estimator collapse to None for the whole call,
-        matching whole_brain's all-or-nothing rule. Exactly one aggregate
-        warning is emitted (not one per parcel).
+    def test_roi_non_linear_model_drops_the_weight_map(self, minimal_brain_data):
+        """Non-linear ROI decoding can't expose coefs → ``weight_map`` is None
+        for the whole call, matching whole_brain's all-or-nothing rule. Exactly
+        one aggregate warning is emitted (not one per parcel).
         """
         from sklearn.svm import SVC
         import warnings
@@ -530,15 +594,77 @@ class TestROIDispatch:
                 n_jobs=1,
             )
         assert result.weight_map is None
-        assert result.fold_weight_maps is None
-        assert result.estimator is None
         # Score fields still populated (CV ran fine, just couldn't extract weights)
-        assert result.mean_score is not None
+        assert result.scores is not None
+        assert result.score_map is not None
         # One aggregate warning, not per-parcel spam
         msgs = [m for m in w if "weight_map" in str(m.message).lower()]
-        assert (
-            len(msgs) <= 2
-        )  # one from per-parcel quiet=True (suppressed) + one aggregate
+        assert len(msgs) == 1
+
+
+# ---------------------------------------------------------------------------
+# Result ownership — every returned map is a new, independent BrainData
+# ---------------------------------------------------------------------------
+
+
+class TestReturnedMapOwnership:
+    """Returned maps own their data and mask, and carry no row metadata.
+
+    Their leading axis is a coefficient or score axis, not the source
+    observations, so the spec's row-metadata rule clears ``.X`` and ``.Y``.
+    """
+
+    def _assert_independent(self, brain_map, source):
+        from nltools.data import BrainData
+
+        assert isinstance(brain_map, BrainData)
+        assert brain_map.mask is not source.mask
+        assert brain_map.X.is_empty()
+        assert brain_map.Y.is_empty()
+        assert not hasattr(brain_map, "model_")
+
+        before = np.array(brain_map.data, copy=True)
+        source.data[:] = source.data + 100.0
+        np.testing.assert_array_equal(brain_map.data, before)
+
+        brain_map.data[0] = 12345.0
+        assert not np.any(source.data == 12345.0)
+        brain_map.mask.get_fdata()[:] = 0
+        assert source.mask.get_fdata().sum() > 0
+
+    def test_whole_brain_weight_map_is_independent(self, minimal_brain_data):
+        n = minimal_brain_data.shape[0]
+        y = np.array([0] * (n // 2) + [1] * (n - n // 2))
+        result = minimal_brain_data.predict(y=y, cv=3)
+        self._assert_independent(result.weight_map, minimal_brain_data)
+
+    def test_searchlight_score_map_is_independent(self, minimal_brain_data):
+        n = minimal_brain_data.shape[0]
+        y = np.array([0] * (n // 2) + [1] * (n - n // 2))
+        result = minimal_brain_data.predict(
+            y=y, spatial_scale="searchlight", cv=3, radius=4.0, n_jobs=1
+        )
+        self._assert_independent(result.score_map, minimal_brain_data)
+
+    @pytest.mark.parametrize("field", ["score_map", "weight_map"])
+    def test_roi_maps_are_independent(self, field, minimal_brain_data):
+        import nibabel as nib
+
+        mask_data = minimal_brain_data.mask.get_fdata().astype(bool)
+        flat = np.ones(int(mask_data.sum()), dtype=np.int64)
+        flat[len(flat) // 2 :] = 2
+        atlas_data = np.zeros(mask_data.shape, dtype=np.int64)
+        atlas_data[mask_data] = flat
+        atlas = nib.Nifti1Image(
+            atlas_data, minimal_brain_data.mask.affine, minimal_brain_data.mask.header
+        )
+
+        n = minimal_brain_data.shape[0]
+        y = np.array([0] * (n // 2) + [1] * (n - n // 2))
+        result = minimal_brain_data.predict(
+            y=y, spatial_scale="roi", roi_mask=atlas, cv=3, n_jobs=1
+        )
+        self._assert_independent(getattr(result, field), minimal_brain_data)
 
 
 # ---------------------------------------------------------------------------
