@@ -22,7 +22,7 @@ Goal | Use | Notes
 Align one subject to another | [`BrainData.align`](../api/data/brain_data.md#data-brain-data-align)`(target, method='procrustes')` | Returns `transformed`, `transformation_matrix`, `common_model`, `disparity`, `scale`
 Build a group common model | [`align`](../api/tasks/alignment.md#tasks-alignment-align)`(list_of_arrays, method=)` | `'procrustes'`, `'probabilistic_srm'`, `'deterministic_srm'`
 Project a new subject in | `BrainData.align(common_model, method='deterministic_srm')` | The target is the fitted model array, not a subject; `transformed` comes back as an array on the model's feature axis
-Local (ROI/searchlight) | `BrainData.align(..., spatial_scale='roi'\|'searchlight')`, or [`LocalAlignment`](../api/tasks/alignment.md#tasks-alignment-localalignment) | Needs `roi_mask=` or `radius_mm=`
+Local (ROI/searchlight) | `BrainData.align(..., spatial_scale='roi'\|'searchlight')`, or [`LocalAlignment`](../api/tasks/alignment.md#tasks-alignment-localalignment) | Needs `roi_mask=` or `radius=`
 Raw matrix superposition | [`procrustes`](../api/tasks/alignment.md#tasks-alignment-procrustes) | Returns `(mtx1, mtx2, disparity, R, scale)`
 Test two matrices' similarity | [`procrustes_distance`](../api/tasks/alignment.md#tasks-alignment-procrustes-distance) | Permutation test on the Procrustes disparity
 Match state maps across groups | [`align_states`](../api/tasks/alignment.md#tasks-alignment-align-states) | For comparing decompositions, not timeseries
@@ -74,7 +74,7 @@ srm.transform([s.data.T for s in subjects])
 
 mtx1, mtx2, disparity, R, scale = procrustes(subjects[0].data, subjects[1].data)
 
-local = LocalAlignment(spatial_scale="searchlight", radius_mm=12.0, n_iter=2, n_jobs=2)
+local = LocalAlignment(spatial_scale="searchlight", radius=12.0, n_iter=2, n_jobs=2)
 aligned = local.fit_transform([s.data.T for s in subjects], mask)
 ```
 

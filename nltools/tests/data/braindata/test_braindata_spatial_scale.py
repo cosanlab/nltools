@@ -98,7 +98,7 @@ class TestDistanceSearchlight:
         result = minimal_brain_data.distance(
             metric="correlation",
             spatial_scale="searchlight",
-            radius_mm=10.0,
+            radius=10.0,
         )
         assert isinstance(result, Adjacency)
         assert not result.is_single_matrix
@@ -113,14 +113,14 @@ class TestDistanceSearchlight:
         )
         from sklearn.metrics import pairwise_distances
 
-        radius_mm = 10.0
+        radius = 10.0
         result = minimal_brain_data.distance(
             metric="correlation",
             spatial_scale="searchlight",
-            radius_mm=radius_mm,
+            radius=radius,
         )
         nbrs = compute_searchlight_neighborhoods(
-            minimal_brain_data.mask, radius_mm=radius_mm, use_cache=False
+            minimal_brain_data.mask, radius=radius, use_cache=False
         )
         # Spot-check the first center.
         center0_neighbors = nbrs.get_neighbors(0)
@@ -135,7 +135,7 @@ class TestDistanceSearchlight:
         rdms = minimal_brain_data.distance(
             metric="correlation",
             spatial_scale="searchlight",
-            radius_mm=10.0,
+            radius=10.0,
         )
         n = minimal_brain_data.shape[0]
         rng = np.random.default_rng(0)
@@ -221,7 +221,7 @@ class TestReductionsROI:
             minimal_brain_data.align(
                 minimal_brain_data,
                 spatial_scale="searchlight",
-                radius_mm=10.0,
+                radius=10.0,
             )
 
 
@@ -309,3 +309,25 @@ def test_roi_order_and_selected_mapping(minimal_brain_data):
     )
     np.testing.assert_allclose(painted.data[label_vec == 9], per_roi[0])
     assert np.isnan(painted.data[label_vec == 3]).all()
+
+
+class TestRadiusKeyword:
+    """Searchlight facades take nilearn's `radius` (millimeters), not `radius_mm`."""
+
+    @pytest.mark.parametrize("method_name", ["distance", "align"])
+    def test_radius_mm_is_not_a_parameter(self, method_name):
+        import inspect
+
+        parameters = inspect.signature(getattr(BrainData, method_name)).parameters
+        assert "radius" in parameters
+        assert "radius_mm" not in parameters
+
+    def test_distance_searchlight_rejects_radius_mm(self, minimal_brain_data):
+        with pytest.raises(TypeError):
+            minimal_brain_data.distance(
+                metric="correlation", spatial_scale="searchlight", radius_mm=10.0
+            )
+
+    def test_align_rejects_radius_mm(self, minimal_brain_data):
+        with pytest.raises(TypeError):
+            minimal_brain_data.align(minimal_brain_data, radius_mm=10.0)

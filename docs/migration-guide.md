@@ -26,7 +26,7 @@ Version 0.6.0 is a **breaking release** that refactors nltools to better leverag
 | **GPU inference** | N/A | `inference` module | **New** |
 | **Algorithm kwarg** | `algorithm=`, `scheme=`, `kind=`, `noise_model=`, `extract_type=`, `mode=`, `perm_type=` | `method=` (or `spatial_scale=` for spatial scale; `Adjacency.similarity` keeps the correlation type in the separate `metric=` slot) | **Renamed** |
 | **Progress flag** | `show_progress=True` | `progress_bar=False` | **Renamed + default flipped** |
-| **Sphere radius** | `radius=` (units implicit) | `radius_mm=` everywhere except `BrainData.predict`, which keeps `radius=` (millimeters, matching nilearn's searchlight) | **Renamed** |
+| **Simulator geometry** | `Simulator` radii in voxels, centers as voxel indices | Radii in millimeters, centers as world (MNI) coordinates, converted through the mask affine (`radius=` keeps its name everywhere, in millimeters, as in nilearn); defaults were rescaled so the simulated region keeps its v0.5.1 physical size, and `create_sphere` now raises `ValueError` for a center whose sphere holds no in-mask voxel instead of returning an empty image | **Units changed** |
 | **Permutation count** | `n_perm=` (Adjacency.generate_permutations) | `n_permute=` | **Renamed** |
 | **Similarity diagonal** | `ignore_diagonal=False` | `include_diag=False` (polarity flipped, default now excludes diagonal) | **Changed** |
 | **Duplicate columns on append** | `append(axis=1)` accepted value-identical columns | Raises `ValueError` — value-identical columns refused | **Changed** |
@@ -1860,11 +1860,10 @@ A sweep of the implemented data-class facades (`BrainData`, `Adjacency`, and `De
 | Concept | Old kwarg(s) | New kwarg | Scope |
 |---|---|---|---|
 | Algorithm / variant choice | `algorithm`, `scheme`, `kind`, `noise_model`, `extract_type`, `mode`, `perm_type` | `method` | Implemented facade methods including `BrainData.decompose`, `Adjacency.cluster`, `Adjacency.similarity`, and the permutation helpers. For `Adjacency.similarity`, `method=` selects the permutation scheme (`'1d'` / `'2d'` / `None`) and the correlation type lives in the separate `metric=` slot (`'spearman'` / `'pearson'` / `'kendall'`). **Note:** `BrainData.predict` and `BrainData.distance` use the new `spatial_scale=` kwarg (not `method=`) for selecting `'whole_brain'`/`'roi'`/`'searchlight'` — see "Spatial scale" row below. |
-| Spatial scale (whole-brain / ROI / searchlight) | `method='whole_brain'\|'roi'\|'searchlight'` (predict only — overloaded with the algorithm slot, never canonical elsewhere) | `spatial_scale='whole_brain'\|'roi'\|'searchlight'` | `BrainData.predict` and `BrainData.distance`. Companion kwargs `roi_mask=` and `radius_mm=` are already canonical. Naming follows the spatial-scale framing of [Jolly & Chang, 2021, *SCAN*](https://doi.org/10.1093/scan/nsab010). The `method=` slot is now reserved for algorithm choice everywhere. |
+| Spatial scale (whole-brain / ROI / searchlight) | `method='whole_brain'\|'roi'\|'searchlight'` (predict only — overloaded with the algorithm slot, never canonical elsewhere) | `spatial_scale='whole_brain'\|'roi'\|'searchlight'` | `BrainData.predict` and `BrainData.distance`. Companion kwargs `roi_mask=` and `radius=` are already canonical. Naming follows the spatial-scale framing of [Jolly & Chang, 2021, *SCAN*](https://doi.org/10.1093/scan/nsab010). The `method=` slot is now reserved for algorithm choice everywhere. |
 | Classifier / sklearn estimator | `algorithm=` (predict) | `estimator=` | `BrainData.predict`. It names an sklearn object, so it stays distinct from `BrainData.fit(model=…)`, which selects an estimator class. String shortcuts: classification — `'linear_svc'`, `'logistic_regression'`, `'linear_discriminant_analysis'`, `'ridge_classifier'`; regression — `'ridge'`, `'lasso'`, `'linear_svr'`. Or pass any sklearn estimator / `Pipeline` directly, which is used exactly as given. |
 | Progress indicator | `show_progress` (defaulted `True`) | `progress_bar` (defaults `False`, matching sklearn) | Implemented facade methods and their submodules. `verbose` is kept only where it controls log-level output (info prints in `DesignMatrix.clean` / `.append`). |
 | Warning suppression in `standardize` | `verbose=`, then briefly `suppress_warnings=` | *(removed)* | `BrainData.standardize` no longer delegates to `sklearn.preprocessing.scale`, so there are no numerical warnings to suppress: it computes in float64 (exact on raw float32 BOLD), casts back to the input dtype, and maps constant voxels/observations to 0 instead of NaN. Drop the kwarg. |
-| Sphere / searchlight radius | `radius` (millimeters, but units were implicit) | `radius_mm` | `BrainData.plot_flatmap`, `nltools.plotting.plot_surf`, and `plot_flatmap`. `BrainData.predict` keeps `radius` (millimeters, matching nilearn's searchlight), as do the pure-geometry helpers (`create_sphere`, `Simulator`). |
 | Permutation count | `n_perm` | `n_permute` | `Adjacency.generate_permutations`. |
 | Similarity diagonal | `ignore_diagonal=False` | `include_diag=False` | `Adjacency.similarity`. **Polarity is flipped AND the default changed**: directed matrices now exclude the (trivially 1.0) self-similarity diagonal by default. No-op for symmetric matrices, which never store the diagonal. |
 | Threshold arms on `BrainData.plot` | `thr_upper`, `thr_lower`, `kind` | `upper`, `lower`, `method` | The convenience scalar `threshold=` kwarg is unchanged. |
@@ -2312,7 +2311,7 @@ Unsupported types now raise `TypeError` (with a clearer message) instead of the 
 | Old empty-state attribute | ❌ Removed (use `.is_empty`) | ❌ Removed |
 | `.X` and `.Y` | Still works | ⚠️ May be deprecated |
 | In-place `.smooth()` | Changed (returns copy) | N/A |
-| Legacy data-facade kwarg aliases (`algorithm=`, `show_progress=`, `radius=`, `n_perm=`, `thr_upper=`, `thr_lower=`, `kind=`, `ignore_diagonal=`) | ❌ Removed — no aliases kept | N/A |
+| Legacy data-facade kwarg aliases (`algorithm=`, `show_progress=`, `n_perm=`, `thr_upper=`, `thr_lower=`, `kind=`, `ignore_diagonal=`) | ❌ Removed — no aliases kept | N/A |
 
 ---
 
@@ -2400,7 +2399,7 @@ is_empty = brain_data.is_empty
 - [ ] Drop the `threshold_dict=` kwarg on `BrainData.ttest()` (signature changed — now `popmean=`, `permutation=`, `tail=`, `n_permute=`)
 - [ ] Replace `brain.nifti_masker.transform(img)` → `nilearn.masking.apply_mask(img, brain.mask)` (same for `inverse_transform` → `unmask`)
 - [ ] Replace `download_collection` / `get_collection_image_metadata` → `fetch_neurovault_collection`
-- [ ] Rename any kwargs still using legacy spellings: `algorithm=` → `method=`/`model=`, `show_progress=` → `progress_bar=`, `radius=` → `radius_mm=`, `n_perm=` → `n_permute=`, `ignore_diagonal=True` → `include_diag=False`, `thr_upper=`/`thr_lower=` → `upper=`/`lower=`, `kind=` → `method=` (see "v0.6.0 Kwarg Standardization" below)
+- [ ] Rename any kwargs still using legacy spellings: `algorithm=` → `method=`/`model=`, `show_progress=` → `progress_bar=`, `n_perm=` → `n_permute=`, `ignore_diagonal=True` → `include_diag=False`, `thr_upper=`/`thr_lower=` → `upper=`/`lower=`, `kind=` → `method=` (see "v0.6.0 Kwarg Standardization" below)
 - [ ] Rename any positional-kwarg calls to `__init__`: implemented `BrainData`/`Adjacency`/`DesignMatrix` constructors now require keyword arguments after the first positional data arg
 - [ ] Rename module-level plotting callers: `surface_plot` → `plot_surf`, `scatterplot` → `plot_scatter`, `roc_plot` → `plot_roc`, `probability_plot` → `plot_probability`, `dist_from_hyperplane_plot` → `plot_dist_from_hyperplane`, `adjacency.plot(...)` (module fn) → `plot_adjacency`, `DesignMatrix.heatmap()` → `DesignMatrix.plot()`
 

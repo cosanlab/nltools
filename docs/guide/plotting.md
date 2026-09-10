@@ -71,7 +71,7 @@ iterating on a figure.
 - `iplot` and `component_viewer` render through a live kernel. In a statically built page they
   degrade to a placeholder, so use `plot` for anything that has to survive a docs build.
 - `plot_surf` and `plot_flatmap` interpolate volume data onto an fsaverage mesh with a
-  `radius_mm=3.0` sampling ball. They are visualizations of volume data, not surface analyses.
+  `radius=3.0` sampling ball. They are visualizations of volume data, not surface analyses.
 - `Adjacency.plot_mds` returns nothing; it draws into the current or supplied axes.
 - Set a non-interactive matplotlib backend (`matplotlib.use("Agg")`) before importing in a script,
   or figures will try to open windows.

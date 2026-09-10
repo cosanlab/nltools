@@ -6,7 +6,9 @@ __all__ = ["SimulateGrid", "Simulator"]
 import os
 import numpy as np
 import nibabel as nib
+from nibabel.affines import voxel_sizes
 import matplotlib.pyplot as plt
+from nilearn.image.resampling import coord_transform
 from nilearn.masking import apply_mask, unmask
 from scipy.stats import multivariate_normal, binom, ttest_1samp
 from nltools.data import BrainData
@@ -15,6 +17,12 @@ from nltools.templates import get_brainspace
 import csv
 from copy import deepcopy
 from sklearn.utils import check_random_state
+
+
+def _grid_center_world(mask):
+    """Return the world (MNI) millimeter coordinate of a mask's grid center."""
+    i, j, k = (np.array(mask.shape) // 2).tolist()
+    return [float(v) for v in coord_transform(i, j, k, mask.affine)]
 
 
 class Simulator:
@@ -75,15 +83,37 @@ class Simulator:
     def gaussian(self, mu, sigma, i_tot):
         """Create a 3D gaussian signal normalized to a given intensity.
 
+        Geometry is millimeters: `mu` is a world (MNI) coordinate and `sigma` a
+        physical width, both converted to voxel units through the brain mask's
+        affine, so the same request describes the same blob on any grid.
+
         Args:
-            mu (array-like): Center of the gaussian in voxel coordinates `[x, y, z]`.
-            sigma (array-like): Standard deviation per axis `[sx, sy, sz]`.
+            mu (array-like): Center of the gaussian `[x, y, z]` in world (MNI)
+                millimeters.
+            sigma (float | array-like): Standard deviation in millimeters — a scalar
+                for an isotropic blob or one width per axis `[sx, sy, sz]`.
             i_tot (float): Total activation; the gaussian is rescaled so its sum
                 within the brain mask equals this value.
 
         Returns:
             np.ndarray: 3-D array the shape of the brain mask.
+
+        Note:
+            `sigma` is converted per axis with `nibabel.affines.voxel_sizes`, so the
+            millimeter widths map onto world axes only for an axis-aligned affine. On
+            an oblique affine the blob's principal axes follow the voxel grid.
         """
+        affine = self.brain_mask.affine
+        mu_voxel = np.asarray(
+            coord_transform(
+                float(mu[0]), float(mu[1]), float(mu[2]), np.linalg.inv(affine)
+            ),
+            dtype=float,
+        )
+        sigma_voxel = np.broadcast_to(
+            np.asarray(sigma, dtype=float), (3,)
+        ) / voxel_sizes(affine)
+
         x, y, z = np.mgrid[
             0 : self.brain_mask.shape[0],
             0 : self.brain_mask.shape[1],
@@ -93,8 +123,8 @@ class Simulator:
         # Need an (N, 3) array of (x, y) pairs.
         xyz = np.column_stack([x.flat, y.flat, z.flat])
 
-        covariance = np.diag(sigma**2)
-        g = multivariate_normal.pdf(xyz, mean=mu, cov=covariance)
+        covariance = np.diag(sigma_voxel**2)
+        g = multivariate_normal.pdf(xyz, mean=mu_voxel, cov=covariance)
 
         # Reshape back to a 3D grid.
         g = g.reshape(x.shape).astype(float)
@@ -106,31 +136,27 @@ class Simulator:
 
         return g
 
-    def sphere(self, r, p):
-        """Create a sphere of given radius at some point p in the brain mask.
+    def sphere(self, radius, center):
+        """Create a sphere of a given radius at a world coordinate in the brain mask.
+
+        Delegates to `nltools.mask.create_sphere`, so the radius is millimeters and
+        the center is a world (MNI) coordinate resolved through the mask's affine.
 
         Args:
-            r (int | float): Radius of the sphere in voxels.
-            p (array-like): Center of the sphere in voxel coordinates `[x, y, z]`.
+            radius (int | float): Radius of the sphere in millimeters.
+            center (array-like): Center of the sphere `[x, y, z]` in world (MNI)
+                millimeters.
 
         Returns:
             np.ndarray: 3-D array the shape of the brain mask, 1 inside the sphere and
                 0 elsewhere.
         """
-        dims = self.brain_mask.shape
+        from nltools.mask import create_sphere
 
-        x, y, z = np.ogrid[
-            -p[0] : dims[0] - p[0], -p[1] : dims[1] - p[1], -p[2] : dims[2] - p[2]
-        ]
-        mask = x * x + y * y + z * z <= r * r
-
-        activation = np.zeros(dims)
-        activation[mask] = 1
-        activation = np.multiply(activation, self.brain_mask.get_fdata())
-        activation = nib.Nifti1Image(activation, affine=np.eye(4))
-
-        # return the 3D numpy matrix of zeros containing the sphere as a region of ones
-        return activation.get_fdata()
+        drawn = create_sphere(
+            [float(c) for c in center], radius=radius, mask=self.brain_mask
+        )
+        return np.asarray(drawn.dataobj, dtype=float)
 
     def normal_noise(self, mu, sigma):
         """Produce a normal noise distribution for all points in the brain mask.
@@ -148,7 +174,9 @@ class Simulator:
         if sigma != 0:
             n = self.random_state.normal(mu, sigma, vlength)
         else:
-            n = [mu] * vlength
+            # float, not a list of Python ints: an int64 array makes nibabel
+            # warn and silently downcast the image to int32.
+            n = np.full(vlength, float(mu))
         m = unmask(n, self.brain_mask)
 
         # return the 3D numpy matrix of zeros containing the brain mask filled with noise produced over a normal distribution
@@ -172,57 +200,48 @@ class Simulator:
         ni = nib.Nifti1Image(m, affine=self.brain_mask.affine)
         return ni
 
-    def n_spheres(self, radius, center):
+    def n_spheres(self, radius, center=None):
         """Generate a set of spheres in the brain mask space.
 
+        Delegates to `nltools.mask.create_sphere`, so radii are millimeters and
+        centers are world (MNI) coordinates resolved through the mask's affine.
+
         Args:
-            radius (int | list[int]): Sphere radius, or one radius per sphere.
-            center (list, optional): Sphere center `[x, y, z]`, or one center per
-                sphere `[[x1, y1, z1], ...]`. None places every sphere at the mask
-                center.
+            radius (int | float | list): Sphere radius in millimeters, or one radius
+                per sphere.
+            center (list, optional): Sphere center `[x, y, z]` in world (MNI)
+                millimeters, or one center per sphere `[[x1, y1, z1], ...]`. None
+                places every sphere at the world coordinate of the mask's grid center.
 
         Returns:
-            np.ndarray: 3-D array the shape of the brain mask with the spheres summed.
+            np.ndarray: 3-D binary array the shape of the brain mask holding the union
+                of the requested spheres.
         """
-        # initialize useful values
-        dims = self.brain_mask.get_fdata().shape
+        from nltools.mask import create_sphere
 
-        # Initialize Spheres with options for multiple radii and centers of the spheres (or just an int and a 3D list)
-        if isinstance(radius, (int, float, np.integer, np.floating)):
-            radius = [int(radius)]
         if center is None:
-            center = [
-                [dims[0] // 2, dims[1] // 2, dims[2] // 2] for _ in radius
-            ]  # default value for centers (one [x, y, z] per radius)
-        elif (
-            isinstance(center, list) and isinstance(center[0], int) and len(radius) == 1
-        ):
-            center = [center]
-        if (
-            (type(radius)) is list
-            and (type(center) is list)
-            and (len(radius) == len(center))
-        ):
-            A = np.zeros_like(self.brain_mask.get_fdata())
-            for i in range(len(radius)):
-                A = np.add(A, self.sphere(radius[i], [int(c) for c in center[i]]))
-            return A
-        raise ValueError(
-            "Data type for sphere or radius(ii) or center(s) not recognized."
-        )
+            n_requested = (
+                len(radius) if isinstance(radius, (list, tuple, np.ndarray)) else 1
+            )
+            center = [_grid_center_world(self.brain_mask)] * n_requested
+
+        drawn = create_sphere(center, radius=radius, mask=self.brain_mask)
+        return np.asarray(drawn.dataobj, dtype=float)
 
     def create_data(
-        self, levels, sigma, *, radius=5, center=None, reps=1, output_dir=None
+        self, levels, sigma, *, radius=10, center=None, reps=1, output_dir=None
     ):
         """Create simulated data with discrete intensity levels.
 
         Args:
             levels (list): Intensities or class labels, one per image in a repetition.
             sigma (float): Standard deviation of the added noise.
-            radius (int | list[int]): Sphere radius, or one radius per sphere.
-            center (list, optional): Sphere center `[x, y, z]`, or one center per
-                sphere `[[x1, y1, z1], ...]`. None places every sphere at the mask
-                center.
+            radius (int | float | list): Sphere radius in millimeters, or one radius
+                per sphere. Default 10.0.
+            center (list, optional): Sphere center `[x, y, z]` in world (MNI)
+                millimeters, or one center per sphere `[[x1, y1, z1], ...]`. None
+                (the default) places every sphere at the world coordinate of the
+                mask's grid center.
             reps (int): Number of repetitions (e.g. trials or subjects). Default 1.
             output_dir (str, optional): Directory to write `data.nii.gz`, `y.csv`, and
                 `rep_id.csv` into. If None, nothing is written.
@@ -290,7 +309,7 @@ class Simulator:
             cov (float): Covariance between voxels.
             sigma (float): Standard deviation of the added noise.
             mask (nibabel.Nifti1Image, optional): Region where activations are placed.
-                Defaults to a sphere of radius 10 at the mask center.
+                Defaults to a 20 mm sphere at the mask's grid center.
             reps (int): Number of repetitions per subject. Default 1.
             n_sub (int): Number of subjects to simulate. Default 1.
             output_dir (str, optional): Directory to write the image, `y.csv`, and
@@ -299,7 +318,7 @@ class Simulator:
 
         if mask is None:
             # Initialize Spheres with options for multiple radii and centers of the spheres (or just an int and a 3D list)
-            A = self.n_spheres(10, None)  # parameters are (radius, center)
+            A = self.n_spheres(20, None)  # parameters are (radius, center)
             mask = nib.Nifti1Image(A.astype(np.float32), affine=self.brain_mask.affine)
 
         # Create n_reps with cov for each voxel within sphere
@@ -410,8 +429,8 @@ class Simulator:
                 single region or a region-by-region matrix.
             sigma (float): Standard deviation of the added noise.
             masks (nibabel.Nifti1Image | list[nibabel.Nifti1Image], optional): Region(s)
-                where activations are placed. Defaults to a sphere of radius 10 at the
-                mask center.
+                where activations are placed. Defaults to a 20 mm sphere at the mask's
+                grid center.
             reps (int): Number of repetitions per subject. Default 1.
             n_sub (int): Number of subjects to simulate. Default 1.
             output_dir (str, optional): Directory to write the image, `y.csv`, and
@@ -420,7 +439,7 @@ class Simulator:
 
         if masks is None:
             # Initialize Spheres with options for multiple radii and centers of the spheres (or just an int and a 3D list)
-            A = self.n_spheres(10, None)  # parameters are (radius, center)
+            A = self.n_spheres(20, None)  # parameters are (radius, center)
             masks = nib.Nifti1Image(A.astype(np.float32), affine=self.brain_mask.affine)
 
         if type(masks) is nib.nifti1.Nifti1Image:

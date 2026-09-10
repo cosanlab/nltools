@@ -74,7 +74,7 @@ def fitted_local_alignment(sample_multisubject_data, small_mask):
     la = LocalAlignment(
         spatial_scale="searchlight",
         method="procrustes",
-        radius_mm=5.0,  # Small radius for test mask
+        radius=5.0,  # Small radius for test mask
         n_iter=2,
         parallel=None,  # Avoid nested parallelism with pytest-xdist
     )
@@ -98,7 +98,7 @@ class TestLocalAlignmentInitialization:
         la = LocalAlignment()
         assert la.spatial_scale == "searchlight"
         assert la.method == "procrustes"
-        assert la.radius_mm == 10.0
+        assert la.radius == 10.0
         assert la.n_features is None
         assert la.n_iter == 3
         assert la.aggregation == "center"
@@ -110,12 +110,12 @@ class TestLocalAlignmentInitialization:
         la = LocalAlignment(
             spatial_scale="searchlight",
             method="srm",
-            radius_mm=8.0,
+            radius=8.0,
             n_features=10,
             n_iter=5,
         )
         assert la.method == "srm"
-        assert la.radius_mm == 8.0
+        assert la.radius == 8.0
         assert la.n_features == 10
         assert la.n_iter == 5
 
@@ -148,7 +148,7 @@ class TestLocalAlignmentFit:
         """Test that fit() returns self for method chaining."""
         from nltools.algorithms.alignment import LocalAlignment
 
-        la = LocalAlignment(radius_mm=5.0, n_iter=1, parallel=None)
+        la = LocalAlignment(radius=5.0, n_iter=1, parallel=None)
         result = la.fit(sample_multisubject_data, small_mask)
         assert result is la
 
@@ -183,7 +183,7 @@ class TestLocalAlignmentFit:
         """Test fit with procrustes method."""
         from nltools.algorithms.alignment import LocalAlignment
 
-        la = LocalAlignment(method="procrustes", radius_mm=5.0, n_iter=2, parallel=None)
+        la = LocalAlignment(method="procrustes", radius=5.0, n_iter=2, parallel=None)
         la.fit(sample_multisubject_data, small_mask)
 
         assert la.transforms_ is not None
@@ -194,7 +194,7 @@ class TestLocalAlignmentFit:
         from nltools.algorithms.alignment import LocalAlignment
 
         la = LocalAlignment(
-            method="srm", radius_mm=5.0, n_iter=2, n_features=5, parallel=None
+            method="srm", radius=5.0, n_iter=2, n_features=5, parallel=None
         )
         la.fit(sample_multisubject_data, small_mask)
 
@@ -206,7 +206,7 @@ class TestLocalAlignmentFit:
         from nltools.algorithms.alignment import LocalAlignment
 
         la = LocalAlignment(
-            method="hyperalignment", radius_mm=5.0, n_iter=2, parallel=None
+            method="hyperalignment", radius=5.0, n_iter=2, parallel=None
         )
         la.fit(sample_multisubject_data, small_mask)
 
@@ -217,7 +217,7 @@ class TestLocalAlignmentFit:
         """Test that fit validates input data."""
         from nltools.algorithms.alignment import LocalAlignment
 
-        la = LocalAlignment(radius_mm=5.0, parallel=None)
+        la = LocalAlignment(radius=5.0, parallel=None)
 
         # Single subject should fail
         with pytest.raises(ValueError, match="at least 2 subject"):
@@ -231,7 +231,7 @@ class TestLocalAlignmentFit:
         """Test that fit validates consistent voxel counts."""
         from nltools.algorithms.alignment import LocalAlignment
 
-        la = LocalAlignment(radius_mm=5.0, parallel=None)
+        la = LocalAlignment(radius=5.0, parallel=None)
 
         # Different voxel counts should fail
         data = [
@@ -245,7 +245,7 @@ class TestLocalAlignmentFit:
         """Test that fit handles unequal sample counts via padding (GH #410)."""
         from nltools.algorithms.alignment import LocalAlignment
 
-        la = LocalAlignment(radius_mm=5.0, parallel=None)
+        la = LocalAlignment(radius=5.0, parallel=None)
 
         # Different sample counts should work (underlying methods handle padding)
         data = [
@@ -302,7 +302,7 @@ class TestLocalAlignmentTransform:
         """Test fit_transform convenience method."""
         from nltools.algorithms.alignment import LocalAlignment
 
-        la = LocalAlignment(radius_mm=5.0, n_iter=1, parallel=None)
+        la = LocalAlignment(radius=5.0, n_iter=1, parallel=None)
         aligned = la.fit_transform(sample_multisubject_data, small_mask)
 
         assert isinstance(aligned, list)
@@ -320,7 +320,7 @@ class TestLocalAlignmentNumericalProperties:
         """Test that procrustes transforms are orthogonal."""
         from nltools.algorithms.alignment import LocalAlignment
 
-        la = LocalAlignment(method="procrustes", radius_mm=5.0, n_iter=2, parallel=None)
+        la = LocalAlignment(method="procrustes", radius=5.0, n_iter=2, parallel=None)
         la.fit(sample_multisubject_data, small_mask)
 
         # Check orthogonality for a sample of neighborhoods
@@ -340,7 +340,7 @@ class TestLocalAlignmentNumericalProperties:
         """Test that alignment reduces inter-subject variance."""
         from nltools.algorithms.alignment import LocalAlignment
 
-        la = LocalAlignment(method="procrustes", radius_mm=5.0, n_iter=3, parallel=None)
+        la = LocalAlignment(method="procrustes", radius=5.0, n_iter=3, parallel=None)
         aligned = la.fit_transform(sample_multisubject_data, small_mask)
 
         # Calculate inter-subject variance before and after
@@ -517,7 +517,7 @@ class TestLocalAlignmentEdgeCases:
         np.random.seed(42)
         data = [np.random.randn(2, 20) for _ in range(3)]
 
-        la = LocalAlignment(radius_mm=5.0, n_iter=1, parallel=None)
+        la = LocalAlignment(radius=5.0, n_iter=1, parallel=None)
 
         # Should not raise - handles degenerate cases
         la.fit(data, tiny_mask)
@@ -557,7 +557,7 @@ class TestLocalAlignmentBatching:
         from nltools.algorithms.alignment import LocalAlignment
 
         la = LocalAlignment(
-            radius_mm=4.0,
+            radius=4.0,
             n_iter=1,
             n_neighborhoods_batch=10,  # Small batch for testing
             parallel=None,
@@ -573,7 +573,7 @@ class TestLocalAlignmentBatching:
         from nltools.algorithms.alignment import LocalAlignment
 
         la = LocalAlignment(
-            radius_mm=4.0,
+            radius=4.0,
             n_iter=1,
             memory_budget_gb=0.001,  # Very small to force small batches
             parallel=None,
@@ -589,7 +589,7 @@ class TestLocalAlignmentBatching:
         from nltools.algorithms.alignment import LocalAlignment
 
         la = LocalAlignment(
-            radius_mm=4.0,
+            radius=4.0,
             n_iter=1,
             memory_budget_gb=100.0,  # Very large - should fit in one batch
             parallel=None,
@@ -604,12 +604,12 @@ class TestLocalAlignmentBatching:
         from nltools.algorithms.alignment import LocalAlignment
 
         # Fit without explicit batching
-        la1 = LocalAlignment(radius_mm=5.0, n_iter=2, parallel=None)
+        la1 = LocalAlignment(radius=5.0, n_iter=2, parallel=None)
         aligned1 = la1.fit_transform(sample_multisubject_data, small_mask)
 
         # Fit with small batch size
         la2 = LocalAlignment(
-            radius_mm=5.0, n_iter=2, n_neighborhoods_batch=5, parallel=None
+            radius=5.0, n_iter=2, n_neighborhoods_batch=5, parallel=None
         )
         aligned2 = la2.fit_transform(sample_multisubject_data, small_mask)
 
@@ -692,7 +692,7 @@ class TestLocalAlignmentParallelization:
         data, mask = parallel_test_data
 
         la = LocalAlignment(
-            radius_mm=4.0,
+            radius=4.0,
             n_iter=2,
             parallel="cpu",
             n_jobs=2,  # Controlled parallelism
@@ -711,7 +711,7 @@ class TestLocalAlignmentParallelization:
         data, mask = parallel_test_data
 
         la = LocalAlignment(
-            radius_mm=4.0,
+            radius=4.0,
             n_iter=2,
             parallel="cpu",
             n_jobs=2,
@@ -730,7 +730,7 @@ class TestLocalAlignmentParallelization:
 
         # Serial execution
         la_serial = LocalAlignment(
-            radius_mm=4.0,
+            radius=4.0,
             n_iter=2,
             parallel=None,
         )
@@ -738,7 +738,7 @@ class TestLocalAlignmentParallelization:
 
         # Parallel execution (n_jobs=1 means serial in joblib, use 2 to test)
         la_parallel = LocalAlignment(
-            radius_mm=4.0,
+            radius=4.0,
             n_iter=2,
             parallel="cpu",
             n_jobs=2,
@@ -757,7 +757,7 @@ class TestLocalAlignmentParallelization:
         data, mask = parallel_test_data
 
         la = LocalAlignment(
-            radius_mm=4.0,
+            radius=4.0,
             n_iter=1,
             parallel="cpu",
             n_jobs=1,  # Effectively serial
@@ -804,7 +804,7 @@ class TestLocalAlignmentBackend:
         data, mask = backend_test_data
 
         la = LocalAlignment(
-            radius_mm=5.0,
+            radius=5.0,
             n_iter=1,
             parallel=None,  # Should use numpy backend
         )
@@ -820,7 +820,7 @@ class TestLocalAlignmentBackend:
         data, mask = backend_test_data
 
         la = LocalAlignment(
-            radius_mm=5.0,
+            radius=5.0,
             n_iter=1,
             parallel="cpu",
         )
@@ -837,7 +837,7 @@ class TestLocalAlignmentBackend:
         data, mask = backend_test_data
 
         la = LocalAlignment(
-            radius_mm=5.0,
+            radius=5.0,
             n_iter=1,
             parallel="gpu",
         )
@@ -857,7 +857,7 @@ class TestLocalAlignmentBackend:
         data, mask = backend_test_data
 
         la = LocalAlignment(
-            radius_mm=5.0,
+            radius=5.0,
             n_iter=2,
             parallel="gpu",
         )
@@ -884,7 +884,7 @@ class TestLocalAlignmentBackend:
 
         # CPU mode (numpy backend)
         la_cpu = LocalAlignment(
-            radius_mm=5.0,
+            radius=5.0,
             n_iter=2,
             parallel=None,
         )
@@ -892,7 +892,7 @@ class TestLocalAlignmentBackend:
 
         # GPU mode.
         la_gpu = LocalAlignment(
-            radius_mm=5.0,
+            radius=5.0,
             n_iter=2,
             parallel="gpu",
         )
@@ -913,7 +913,7 @@ class TestLocalAlignmentBackend:
         data, mask = backend_test_data
 
         la = LocalAlignment(
-            radius_mm=5.0,
+            radius=5.0,
             n_iter=2,
             parallel="gpu",
         )

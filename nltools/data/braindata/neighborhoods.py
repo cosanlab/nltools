@@ -13,7 +13,7 @@ Examples:
     from nltools.data.braindata.neighborhoods import compute_searchlight_neighborhoods
 
     mask = nib.load("mask.nii.gz")
-    neighborhoods = compute_searchlight_neighborhoods(mask, radius_mm=10.0)
+    neighborhoods = compute_searchlight_neighborhoods(mask, radius=10.0)
 
     # Iterate over all voxels and their neighborhoods
     for center_idx, neighbor_indices in neighborhoods.iter_neighborhoods():
@@ -54,7 +54,7 @@ class SphereNeighborhoods:
             ``adjacency[i, j]`` is nonzero if voxel ``j`` is within the radius
             of voxel ``i``.
         mask_hash (str): Hash of the source mask, for cache validation.
-        radius_mm (float): Radius in millimeters.
+        radius (float): Radius in millimeters.
         n_voxels (int): Number of voxels in the mask.
         mean_size (float): Mean neighborhood size in voxels.
         min_size (int): Smallest neighborhood size in voxels.
@@ -62,7 +62,7 @@ class SphereNeighborhoods:
 
     Examples:
         ```python
-        neighborhoods = compute_searchlight_neighborhoods(mask, radius_mm=10.0)
+        neighborhoods = compute_searchlight_neighborhoods(mask, radius=10.0)
         print(f"Mean neighborhood size: {neighborhoods.mean_size:.1f} voxels")
 
         # Get neighbors of a specific voxel
@@ -73,7 +73,7 @@ class SphereNeighborhoods:
 
     adjacency: sparse.csr_matrix
     mask_hash: str
-    radius_mm: float
+    radius: float
     n_voxels: int
 
     def get_neighbors(self, voxel_idx: int) -> np.ndarray:
@@ -140,14 +140,14 @@ class SphereNeighborhoods:
     def __repr__(self) -> str:
         return (
             f"SphereNeighborhoods(n_voxels={self.n_voxels}, "
-            f"radius={self.radius_mm}mm, "
+            f"radius={self.radius}mm, "
             f"mean_size={self.mean_size:.1f})"
         )
 
 
 def compute_searchlight_neighborhoods(
     mask_img: Nifti1Image,
-    radius_mm: float = 10.0,
+    radius: float = 10.0,
     use_cache: bool = True,
 ) -> SphereNeighborhoods:
     """Compute sphere neighborhoods for all voxels in a brain mask.
@@ -162,7 +162,7 @@ def compute_searchlight_neighborhoods(
 
     Args:
         mask_img: NIfTI mask image defining the brain region
-        radius_mm: Radius of spheres in millimeters (default: 10.0)
+        radius: Radius of spheres in millimeters (default: 10.0)
         use_cache: If True, cache results to ~/.nltools/cache/searchlight/
             for fast reloading (default: True)
 
@@ -179,10 +179,10 @@ def compute_searchlight_neighborhoods(
         mask = nib.load("brain_mask.nii.gz")
 
         # First call computes and caches (may take a few seconds)
-        neighborhoods = compute_searchlight_neighborhoods(mask, radius_mm=8.0)
+        neighborhoods = compute_searchlight_neighborhoods(mask, radius=8.0)
 
         # Subsequent calls load from cache (~50ms)
-        neighborhoods = compute_searchlight_neighborhoods(mask, radius_mm=8.0)
+        neighborhoods = compute_searchlight_neighborhoods(mask, radius=8.0)
 
         print(neighborhoods)
         # SphereNeighborhoods(n_voxels=50000, radius=8.0mm, mean_size=33.2)
@@ -199,7 +199,7 @@ def compute_searchlight_neighborhoods(
 
     # Compute mask hash for cache key
     mask_hash = hash_mask(mask_img)
-    cache_key = f"{mask_hash}_{radius_mm}mm"
+    cache_key = f"{mask_hash}_{radius}mm"
 
     # Try to load from cache
     if use_cache:
@@ -220,7 +220,10 @@ def compute_searchlight_neighborhoods(
             return SphereNeighborhoods(
                 adjacency=adjacency,
                 mask_hash=str(cached["mask_hash"]),
-                radius_mm=float(cached["radius_mm"]),
+                # The radius is part of the cache key, so the argument is
+                # authoritative; reading it back would break caches written
+                # under the old `radius_mm` key name.
+                radius=float(radius),
                 n_voxels=int(cached["n_voxels"]),
             )
 
@@ -247,7 +250,7 @@ def compute_searchlight_neighborhoods(
 
     # Use BallTree for efficient radius queries
     # This is the same approach used by nilearn's searchlight
-    clf = neighbors.NearestNeighbors(radius=radius_mm, algorithm="ball_tree")
+    clf = neighbors.NearestNeighbors(radius=radius, algorithm="ball_tree")
     clf.fit(mask_coords_world)
     adjacency = clf.radius_neighbors_graph(mask_coords_world, mode="connectivity")
     adjacency = adjacency.tocsr()
@@ -262,13 +265,13 @@ def compute_searchlight_neighborhoods(
             indptr=adjacency.indptr,
             shape=np.array(adjacency.shape),
             mask_hash=np.array(mask_hash),
-            radius_mm=np.array(radius_mm),
+            radius=np.array(radius),
             n_voxels=np.array(n_voxels),
         )
 
     return SphereNeighborhoods(
         adjacency=adjacency,
         mask_hash=mask_hash,
-        radius_mm=radius_mm,
+        radius=radius,
         n_voxels=n_voxels,
     )

@@ -78,7 +78,7 @@ def run(reps: int = 3, quick: bool = False) -> list[BenchResult]:
     results.append(
         benchmark(
             lambda: bd_sl.predict(
-                y=y_sl, spatial_scale="searchlight", radius_mm=8.0, cv=3, n_jobs=-1
+                y=y_sl, spatial_scale="searchlight", radius=8.0, cv=3, n_jobs=-1
             ),
             domain="predict",
             name=f"searchlight[{sl_images}x{sl_voxels}]",
@@ -89,7 +89,7 @@ def run(reps: int = 3, quick: bool = False) -> list[BenchResult]:
                 "spatial_scale": "searchlight",
                 "n_samples": sl_images,
                 "n_voxels": sl_voxels,
-                "radius_mm": 8.0,
+                "radius": 8.0,
             },
         )
     )

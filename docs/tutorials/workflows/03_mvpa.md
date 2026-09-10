@@ -221,7 +221,7 @@ Both approaches share the `spatial_scale=` axis, and both extend across subjects
 | Question | Can we predict the condition? | What's the representational geometry? |
 | Whole-brain | `bd.predict(y=, spatial_scale="whole_brain")` | `bd.distance(metric="correlation")` → `.similarity(model)` |
 | ROI | `bd.predict(y=, spatial_scale="roi", roi_mask=)` | `bd.distance(..., spatial_scale="roi", roi_mask=)` → `.similarity(model)` → `roi_to_brain_from_atlas(...)` |
-| Searchlight | `bd.predict(y=, spatial_scale="searchlight", radius=)` | `bd.distance(..., spatial_scale="searchlight", radius_mm=)` |
+| Searchlight | `bd.predict(y=, spatial_scale="searchlight", radius=)` | `bd.distance(..., spatial_scale="searchlight", radius=)` |
 | Custom model | pass any sklearn estimator to `estimator=` | any `metric=` (`spearman`/`pearson`) |
 
 **Next steps**

@@ -330,7 +330,7 @@ class TestPlotFlatmap:
         single_image = sim_brain_data[0]
         fig = plot_flatmap(
             single_image,
-            radius_mm=5.0,
+            radius=5.0,
             interpolation="nearest_most_frequent",
         )
         assert fig is not None
@@ -359,3 +359,23 @@ class TestBrainDataPlotFlatmap:
         empty_brain = BrainData()
         with pytest.raises(ValueError, match="empty|Empty"):
             empty_brain.plot_flatmap()
+
+
+class TestRadiusKeyword:
+    """The surface plotters take nilearn's `radius` (millimeters), not `radius_mm`."""
+
+    def test_plot_surf_radius_mm_keyword_is_removed(self, sim_brain_data):
+        with pytest.raises(TypeError):
+            plot_surf(sim_brain_data[0], radius_mm=5.0)
+
+    def test_plot_flatmap_radius_mm_keyword_is_removed(self, sim_brain_data):
+        with pytest.raises(TypeError):
+            plot_flatmap(sim_brain_data[0], radius_mm=5.0)
+
+    def test_brain_data_plot_surf_radius_mm_keyword_is_removed(self, sim_brain_data):
+        with pytest.raises(TypeError):
+            sim_brain_data[0].plot_surf(radius_mm=5.0)
+
+    def test_brain_data_plot_flatmap_radius_mm_keyword_is_removed(self, sim_brain_data):
+        with pytest.raises(TypeError):
+            sim_brain_data[0].plot_flatmap(radius_mm=5.0)

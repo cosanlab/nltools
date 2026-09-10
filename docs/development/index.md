@@ -103,7 +103,7 @@ public signature against in CI. The table below is rendered from it:
 | Display autoscaling | `autoscale: bool = True` (viewer display window; `False` = raw magnitude range) |
 | Display symmetry | `symmetric: bool \| 'auto' = 'auto'` (viewer positive/negative limbs) |
 | Diagonal flag | `include_diag: bool` |
-| Radius (mm) | `radius: float = 10.0` on `BrainData.predict` (millimeters, matching nilearn's searchlight); the other searchlight and surface entry points keep `radius_mm` |
+| Radius (mm) | `radius: float` in millimeters everywhere, following nilearn's `SearchLight` and `NiftiSpheresMasker` — `10.0` on the searchlight entry points (`BrainData.predict`, `BrainData.distance`, `BrainData.align`, `LocalAlignment`, `compute_searchlight_neighborhoods`), `3.0` on the surface plotters, and the same millimeter unit for `create_sphere` and `Simulator` geometry, converted to voxels through the image affine |
 | GLM-specific fit option | `glm_*` on `BrainData.fit` (`glm_noise_model`, `glm_bins`, `glm_n_jobs`) — a non-default one under `model='ridge'` raises `ValueError`; `random_state` keeps its bare name because both estimators use it |
 | Ridge-specific fit option | `ridge_*` on `BrainData.fit` (`ridge_alpha`, `ridge_cv`, `ridge_search_iterations`, `ridge_dirichlet_concentration`, `ridge_device`, `ridge_memory_budget_gb`, `ridge_per_target_alpha`, `ridge_prefer_conservative_alpha`, `ridge_progress_bar`) — each maps onto the identically-named `Ridge` argument, and a non-default one under `model='glm'` raises `ValueError` |
 | Contrast inference toggle | `inference: bool = False` on `compute_contrasts` — the effect alone by default (what a second-level model consumes); `True` returns the full `ContrastResult` |

@@ -16,7 +16,7 @@ Two kwargs are easy to mix up. `metric=` is the correlation type used to compare
 Goal | Use | Notes
 --- | --- | ---
 Brain RDM | [`BrainData.distance`](../api/data/brain_data.md#data-brain-data-distance)`(metric='correlation')` | Any scipy metric; `'euclidean'` is the default
-Per-ROI or per-searchlight RDMs | `distance(..., spatial_scale='roi', roi_mask=)` or `'searchlight', radius_mm=` | Returns an ordinary stack in explicit ROI or voxel order
+Per-ROI or per-searchlight RDMs | `distance(..., spatial_scale='roi', roi_mask=)` or `'searchlight', radius=` | Returns an ordinary stack in explicit ROI or voxel order
 Model RDM | `Adjacency(square_matrix, matrix_type='distance')` | `'similarity'` and `'directed'` are the other types
 Compare two RDMs | [`Adjacency.similarity`](../api/data/adjacency.md#data-adjacency-similarity)`(other, metric=, method='2d')` | Returns `{'correlation', 'p', ...}`; a stack returns a list
 Paint a stack's result on the brain | `roi_to_brain_from_atlas(...)` or `nilearn.masking.unmask(...)` | Retain the aligned atlas/ROI order or source-mask voxel order

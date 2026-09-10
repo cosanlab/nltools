@@ -33,7 +33,7 @@ import nibabel as nib
 from nltools.data.braindata.neighborhoods import compute_searchlight_neighborhoods
 
 mask = nib.load("mask.nii.gz")
-neighborhoods = compute_searchlight_neighborhoods(mask, radius_mm=10.0)
+neighborhoods = compute_searchlight_neighborhoods(mask, radius=10.0)
 
 # Iterate over all voxels and their neighborhoods
 for center_idx, neighbor_indices in neighborhoods.iter_neighborhoods():
@@ -47,7 +47,7 @@ for center_idx, neighbor_indices in neighborhoods.iter_neighborhoods():
 ### `SphereNeighborhoods`
 
 ```python
-SphereNeighborhoods(adjacency: sparse.csr_matrix, mask_hash: str, radius_mm: float, n_voxels: int)
+SphereNeighborhoods(adjacency: sparse.csr_matrix, mask_hash: str, radius: float, n_voxels: int)
 ```
 
 Precomputed sphere neighborhoods for a brain mask.
@@ -62,7 +62,7 @@ Name | Type | Description
 ---- | ---- | -----------
 `adjacency` | <code>csr_matrix</code> | ``(n_voxels, n_voxels)`` matrix where ``adjacency[i, j]`` is nonzero if voxel ``j`` is within the radius of voxel ``i``.
 `mask_hash` | <code>str</code> | Hash of the source mask, for cache validation.
-`radius_mm` | <code>float</code> | Radius in millimeters.
+`radius` | <code>float</code> | Radius in millimeters.
 `n_voxels` | <code>int</code> | Number of voxels in the mask.
 `mean_size` | <code>float</code> | Mean neighborhood size in voxels.
 `min_size` | <code>int</code> | Smallest neighborhood size in voxels.
@@ -81,7 +81,7 @@ Name | Description
 **Examples:**
 
 ```python
-neighborhoods = compute_searchlight_neighborhoods(mask, radius_mm=10.0)
+neighborhoods = compute_searchlight_neighborhoods(mask, radius=10.0)
 print(f"Mean neighborhood size: {neighborhoods.mean_size:.1f} voxels")
 
 # Get neighbors of a specific voxel
@@ -162,7 +162,7 @@ Type | Description
 ### `compute_searchlight_neighborhoods`
 
 ```python
-compute_searchlight_neighborhoods(mask_img: Nifti1Image, radius_mm: float = 10.0, use_cache: bool = True) -> SphereNeighborhoods
+compute_searchlight_neighborhoods(mask_img: Nifti1Image, radius: float = 10.0, use_cache: bool = True) -> SphereNeighborhoods
 ```
 
 Compute sphere neighborhoods for all voxels in a brain mask.
@@ -180,7 +180,7 @@ voxel resolution.
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `mask_img` | <code>Nifti1Image</code> | NIfTI mask image defining the brain region | *required*
-`radius_mm` | <code>float</code> | Radius of spheres in millimeters (default: 10.0) | <code>10.0</code>
+`radius` | <code>float</code> | Radius of spheres in millimeters (default: 10.0) | <code>10.0</code>
 `use_cache` | <code>bool</code> | If True, cache results to ~/.nltools/cache/searchlight/ for fast reloading (default: True) | <code>True</code>
 
 **Returns:**
@@ -203,10 +203,10 @@ import nibabel as nib
 mask = nib.load("brain_mask.nii.gz")
 
 # First call computes and caches (may take a few seconds)
-neighborhoods = compute_searchlight_neighborhoods(mask, radius_mm=8.0)
+neighborhoods = compute_searchlight_neighborhoods(mask, radius=8.0)
 
 # Subsequent calls load from cache (~50ms)
-neighborhoods = compute_searchlight_neighborhoods(mask, radius_mm=8.0)
+neighborhoods = compute_searchlight_neighborhoods(mask, radius=8.0)
 
 print(neighborhoods)
 # SphereNeighborhoods(n_voxels=50000, radius=8.0mm, mean_size=33.2)

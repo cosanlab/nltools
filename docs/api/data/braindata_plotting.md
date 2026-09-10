@@ -80,7 +80,7 @@ Type | Description
 ### `plot_flatmap_brain`
 
 ```python
-plot_flatmap_brain(bd, *, threshold = None, cmap = None, vmax = None, vmin = None, template = 'fsaverage5', with_curvature = True, curvature_contrast = 0.5, curvature_brightness = 0.5, transparency = 'auto', colorbar = True, colorbar_orientation = 'horizontal', figsize = (12, 6), title = None, radius_mm = 3.0, interpolation = 'linear', axes = None, save = None)
+plot_flatmap_brain(bd, *, threshold = None, cmap = None, vmax = None, vmin = None, template = 'fsaverage5', with_curvature = True, curvature_contrast = 0.5, curvature_brightness = 0.5, transparency = 'auto', colorbar = True, colorbar_orientation = 'horizontal', figsize = (12, 6), title = None, radius = 3.0, interpolation = 'linear', axes = None, save = None)
 ```
 
 Plot brain data on cortical flatmap.
@@ -103,7 +103,7 @@ Name | Type | Description | Default
 `colorbar_orientation` | <code>str</code> | 'horizontal' or 'vertical'. Default: 'horizontal'. | <code>'horizontal'</code>
 `figsize` | <code>tuple</code> | Figure size. Default: (12, 6). | <code>(12, 6)</code>
 `title` | <code>str</code> | Figure title. | <code>None</code>
-`radius_mm` | <code>float</code> | sampling radius in mm for vol_to_surf. Default: 3.0. | <code>3.0</code>
+`radius` | <code>float</code> | sampling radius in mm for vol_to_surf. Default: 3.0. | <code>3.0</code>
 `interpolation` | <code>str</code> | Interpolation for vol_to_surf. Default: 'linear'. | <code>'linear'</code>
 `axes` | <code>Axes</code> | Existing axes to plot on. | <code>None</code>
 `save` | <code>str</code> | File path to save figure. | <code>None</code>

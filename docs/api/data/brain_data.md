@@ -94,7 +94,7 @@ Name | Description
 ### `align`
 
 ```python
-align(target, method = 'procrustes', axis = 0, *, spatial_scale: str = 'whole_brain', roi_mask: str = None, radius_mm: float = 10.0)
+align(target, method = 'procrustes', axis = 0, *, spatial_scale: str = 'whole_brain', roi_mask: str = None, radius: float = 10.0)
 ```
 
 Align BrainData instance to target object using functional alignment.
@@ -108,7 +108,7 @@ Name | Type | Description | Default
 `axis` | <code>int</code> | Axis to align on. Default 0. | <code>0</code>
 `spatial_scale` | <code>str</code> | ``'whole_brain'`` (default), ``'roi'``, or ``'searchlight'``. ``'roi'`` is supported (per-parcel transforms + reassembly, requires `roi_mask`). ``'searchlight'`` is not yet implemented (overlapping spheres have no canonical per-voxel transform). | <code>'whole_brain'</code>
 `roi_mask` | <code>[BrainData](#page-data-brain-data) \| Nifti1Image \| str \| Path \| None</code> | Atlas image used when ``spatial_scale='roi'``. | <code>None</code>
-`radius_mm` | <code>float</code> | Reserved for ``spatial_scale='searchlight'``. | <code>10.0</code>
+`radius` | <code>float</code> | Reserved for ``spatial_scale='searchlight'``. | <code>10.0</code>
 
 **Returns:**
 
@@ -475,7 +475,7 @@ Type | Description
 ### `distance`
 
 ```python
-distance(metric = 'euclidean', *, spatial_scale: str = 'whole_brain', roi_mask: str = None, radius_mm: float = 10.0, **kwargs: float)
+distance(metric = 'euclidean', *, spatial_scale: str = 'whole_brain', roi_mask: str = None, radius: float = 10.0, **kwargs: float)
 ```
 
 Calculate distance between images within a BrainData() instance.
@@ -487,7 +487,7 @@ Name | Type | Description | Default
 `metric` | <code>str</code> | Distance metric — any ``scipy.spatial.distance`` metric supported by ``cdist``. Default ``'euclidean'``. | <code>'euclidean'</code>
 `spatial_scale` | <code>str</code> | One of ``'whole_brain'`` (default), ``'roi'``, or ``'searchlight'``. ``'whole_brain'`` returns a single pairwise distance ``Adjacency`` between images. ``'roi'`` requires ``roi_mask`` and returns a stacked ``Adjacency`` with one RDM per sorted nonzero atlas label present inside the source mask after nearest-neighbor resampling. `'searchlight'` returns one RDM per source-mask voxel in mask order. | <code>'whole_brain'</code>
 `roi_mask` | <code>[BrainData](#page-data-brain-data) \| Nifti1Image \| str \| Path \| None</code> | Atlas image for ``spatial_scale='roi'``. | <code>None</code>
-`radius_mm` | <code>float</code> | Searchlight radius in mm. Default 10.0. | <code>10.0</code>
+`radius` | <code>float</code> | Searchlight radius in mm. Default 10.0. | <code>10.0</code>
 `**kwargs` | <code>dict</code> | Additional metric options forwarded to ``scipy.spatial.distance.cdist`` (e.g. ``p`` for minkowski). | <code>{}</code>
 
 **Returns:**
@@ -833,7 +833,7 @@ Type | Description
 ### `plot_flatmap`
 
 ```python
-plot_flatmap(*, threshold = None, cmap = None, vmax = None, vmin = None, template = 'fsaverage5', with_curvature = True, curvature_contrast = 0.5, curvature_brightness = 0.5, transparency = 'auto', colorbar = True, colorbar_orientation = 'horizontal', figsize = (12, 6), title = None, radius_mm = 3.0, interpolation = 'linear', axes = None, save = None)
+plot_flatmap(*, threshold = None, cmap = None, vmax = None, vmin = None, template = 'fsaverage5', with_curvature = True, curvature_contrast = 0.5, curvature_brightness = 0.5, transparency = 'auto', colorbar = True, colorbar_orientation = 'horizontal', figsize = (12, 6), title = None, radius = 3.0, interpolation = 'linear', axes = None, save = None)
 ```
 
 Plot brain data on cortical flatmap.
@@ -855,7 +855,7 @@ Name | Type | Description | Default
 `colorbar_orientation` | <code>str</code> | 'horizontal' or 'vertical'. Default: 'horizontal'. | <code>'horizontal'</code>
 `figsize` | <code>tuple</code> | Figure size as (width, height). Default: (12, 6). | <code>(12, 6)</code>
 `title` | <code>str</code> | Figure title. | <code>None</code>
-`radius_mm` | <code>float</code> | Sampling radius in mm. Default: 3.0. | <code>3.0</code>
+`radius` | <code>float</code> | Sampling radius in mm. Default: 3.0. | <code>3.0</code>
 `interpolation` | <code>str</code> | Interpolation method. Default: 'linear'. | <code>'linear'</code>
 `axes` | <code>Axes</code> | Existing axes to plot on. | <code>None</code>
 `save` | <code>str</code> | File path to save figure. | <code>None</code>
@@ -870,7 +870,7 @@ Type | Description
 ### `plot_surf`
 
 ```python
-plot_surf(*, hemi = 'both', view = 'montage', surface = 'pial', template = 'fsaverage5', threshold = None, cmap = None, vmin = None, vmax = None, transparency = 'auto', bg_on_data = False, colorbar = True, colorbar_orientation = 'horizontal', figsize = (10, 8), title = None, radius_mm = 3.0, interpolation = 'linear', zoom = 1.2, axes = None, save = None)
+plot_surf(*, hemi = 'both', view = 'montage', surface = 'pial', template = 'fsaverage5', threshold = None, cmap = None, vmin = None, vmax = None, transparency = 'auto', bg_on_data = False, colorbar = True, colorbar_orientation = 'horizontal', figsize = (10, 8), title = None, radius = 3.0, interpolation = 'linear', zoom = 1.2, axes = None, save = None)
 ```
 
 Render this BrainData on fsaverage surfaces as a tight 2×2 montage.

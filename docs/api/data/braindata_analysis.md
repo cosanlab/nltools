@@ -248,7 +248,7 @@ Type | Description
 ### `distance`
 
 ```python
-distance(bd, metric = 'euclidean', *, spatial_scale: str = 'whole_brain', roi_mask: str = None, radius_mm: float = 10.0, **kwargs: float)
+distance(bd, metric = 'euclidean', *, spatial_scale: str = 'whole_brain', roi_mask: str = None, radius: float = 10.0, **kwargs: float)
 ```
 
 Calculate distance between images within a BrainData() instance.
@@ -261,7 +261,7 @@ Name | Type | Description | Default
 `metric` | <code>str</code> | Any distance metric supported by ``scipy.spatial.distance.cdist`` (e.g. ``'euclidean'``, ``'cityblock'``, ``'cosine'``, ``'correlation'``, ``'hamming'``, ``'jaccard'``). | <code>'euclidean'</code>
 `spatial_scale` | <code>str</code> | ``'whole_brain'`` (default), ``'roi'``, or ``'searchlight'``. See `BrainData.distance`. | <code>'whole_brain'</code>
 `roi_mask` | <code>[BrainData](#page-data-brain-data) \| Nifti1Image \| str \| None</code> | Atlas for ``spatial_scale='roi'``. | <code>None</code>
-`radius_mm` | <code>float</code> | Searchlight radius for ``spatial_scale='searchlight'``. | <code>10.0</code>
+`radius` | <code>float</code> | Searchlight radius for ``spatial_scale='searchlight'``. | <code>10.0</code>
 `**kwargs` | <code>dict</code> | Forwarded to ``scipy.spatial.distance.cdist``. | <code>{}</code>
 
 **Returns:**

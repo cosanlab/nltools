@@ -787,7 +787,7 @@ def _run_searchlight(
     from .neighborhoods import compute_searchlight_neighborhoods
 
     neighborhoods = compute_searchlight_neighborhoods(
-        bd.mask, radius_mm=radius, use_cache=True
+        bd.mask, radius=radius, use_cache=True
     )
 
     def decode_sphere(center_idx, neighbor_indices):

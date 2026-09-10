@@ -23,7 +23,7 @@ Name | Description
 [`fetch_neurovault_collection`](#tasks-loading-fetch-neurovault-collection) | Download images and metadata from a Neurovault collection.
 [`load_haxby_example`](#tasks-loading-load-haxby-example) | Load a small synthetic Haxby-like dataset, entirely in-memory.
 [`download_nifti`](#tasks-loading-download-nifti) | Download an image from a URL to a nifti file.
-[`create_sphere`](#tasks-loading-create-sphere) | Generate spheres in brain-mask space.
+[`create_sphere`](#tasks-loading-create-sphere) | Generate binary spheres in the space of a brain mask.
 [`expand_mask`](#tasks-loading-expand-mask) | Expand an integer-labeled mask into separate binary masks.
 [`collapse_mask`](#tasks-loading-collapse-mask) | Collapse separate masks into one integer-labeled mask.
 [`roi_to_brain`](#tasks-loading-roi-to-brain) | Populate an expanded binary ROI mask with a vector or matrix of per-ROI values.
@@ -333,14 +333,20 @@ Type | Description
 create_sphere(coordinates, radius = 5, mask = None)
 ```
 
-Generate spheres in brain-mask space.
+Generate binary spheres in the space of a brain mask.
+
+Spheres are drawn with `nilearn.maskers.NiftiSpheresMasker`, so centers are
+world (MNI) millimeter coordinates and the radius is in millimeters — the same
+convention as nilearn's `SearchLight` and `NiftiSpheresMasker`. The result is
+resolution-independent: the same request covers the same physical volume on a
+1 mm, 2 mm, or 3 mm grid, up to voxel quantization.
 
 **Parameters:**
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`coordinates` | <code>list</code> | Sphere center `[x, y, z]` in voxel coordinates, or one center per sphere `[[x1, y1, z1], ...]`. | *required*
-`radius` | <code>int \| float \| list</code> | Radius of the sphere(s) in voxels. A scalar applies to every center; a list gives one radius per center. | <code>5</code>
+`coordinates` | <code>list</code> | Sphere center `[x, y, z]` in world (MNI) millimeters, or one center per sphere `[[x1, y1, z1], ...]`. | *required*
+`radius` | <code>int \| float \| list</code> | Radius of the sphere(s) in millimeters. A scalar applies to every center; a list gives one radius per center. | <code>5</code>
 `mask` | <code>Nifti1Image \| str</code> | Image (or path) defining the brain space. Defaults to the package brain-space mask. | <code>None</code>
 
 **Returns:**
@@ -348,6 +354,24 @@ Name | Type | Description | Default
 Type | Description
 ---- | -----------
 <code>Nifti1Image</code> | A binary image with the requested spheres in mask space.
+
+**Raises:**
+
+Type | Description
+---- | -----------
+<code>ValueError</code> | If `mask` is neither a nibabel image nor a readable file path, if the radius list length does not match the coordinate list length, or if a requested sphere contains no in-mask voxel.
+
+**Examples:**
+
+```python
+from nltools.mask import create_sphere
+
+# A 10 mm sphere centered on an MNI coordinate
+roi = create_sphere([12, 10, -8], radius=10)
+
+# Two spheres with different radii
+rois = create_sphere([[12, 10, -8], [-12, 10, -8]], radius=[10, 6])
+```
 
 (tasks-loading-expand-mask)=
 ### `expand_mask`

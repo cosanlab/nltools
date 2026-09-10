@@ -373,7 +373,7 @@ Type | Description
 ### `LocalAlignment`
 
 ```python
-LocalAlignment(spatial_scale: str = 'searchlight', method: str = 'procrustes', radius_mm: float = 10.0, roi_mask: nib.Nifti1Image | None = None, n_features: int | None = None, n_iter: int = 3, aggregation: str = 'center', parallel: str | None = 'cpu', n_jobs: int = -1, progress_bar: bool = False, n_neighborhoods_batch: int | None = None, memory_budget_gb: float | None = None, transforms_: dict[int, list[np.ndarray]] | None = None, template_: dict[int, np.ndarray] | None = None, neighborhoods_: SphereNeighborhoods | dict[int, np.ndarray] | None = None, n_voxels_: int | None = None, mask_: nib.Nifti1Image | None = None, backend_: Backend | None = None)
+LocalAlignment(spatial_scale: str = 'searchlight', method: str = 'procrustes', radius: float = 10.0, roi_mask: nib.Nifti1Image | None = None, n_features: int | None = None, n_iter: int = 3, aggregation: str = 'center', parallel: str | None = 'cpu', n_jobs: int = -1, progress_bar: bool = False, n_neighborhoods_batch: int | None = None, memory_budget_gb: float | None = None, transforms_: dict[int, list[np.ndarray]] | None = None, template_: dict[int, np.ndarray] | None = None, neighborhoods_: SphereNeighborhoods | dict[int, np.ndarray] | None = None, n_voxels_: int | None = None, mask_: nib.Nifti1Image | None = None, backend_: Backend | None = None)
 ```
 
 Local (neighborhood-based) functional alignment across subjects.
@@ -387,7 +387,7 @@ Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `spatial_scale` | <code>str</code> | Spatial scale, either 'searchlight' (overlapping spheres) or 'roi' (non-overlapping parcels). Defaults to 'searchlight'. | <code>'searchlight'</code>
 `method` | <code>str</code> | Alignment method, one of 'procrustes', 'srm', or 'hyperalignment'. Defaults to 'procrustes'. | <code>'procrustes'</code>
-`radius_mm` | <code>float</code> | Sphere radius in millimeters for the searchlight scale. Defaults to 10.0. | <code>10.0</code>
+`radius` | <code>float</code> | Sphere radius in millimeters for the searchlight scale. Defaults to 10.0. | <code>10.0</code>
 `roi_mask` | <code>Nifti1Image \| None</code> | Parcellation image for the ROI scale. Required if `spatial_scale='roi'`. Defaults to None. | <code>None</code>
 `n_features` | <code>int \| None</code> | Number of SRM features per neighborhood. None uses `min(n_local_voxels, n_samples)`; ignored by the other methods. Defaults to None. | <code>None</code>
 `n_iter` | <code>int</code> | Number of iterations for alignment refinement. Defaults to 3. | <code>3</code>
@@ -430,7 +430,7 @@ from nltools.algorithms.alignment import LocalAlignment
 data = [np.random.randn(1000, 100) for _ in range(5)]
 mask = nib.Nifti1Image(np.ones((10, 10, 10), dtype=np.int8), np.eye(4))
 
-la = LocalAlignment(spatial_scale="searchlight", method="procrustes", radius_mm=10.0)
+la = LocalAlignment(spatial_scale="searchlight", method="procrustes", radius=10.0)
 la.fit(data, mask)
 aligned = la.transform(data)  # list of (1000, 100) arrays
 ```

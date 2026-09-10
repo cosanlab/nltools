@@ -306,7 +306,7 @@ class LocalAlignment:
             spheres) or 'roi' (non-overlapping parcels). Defaults to 'searchlight'.
         method (str): Alignment method, one of 'procrustes', 'srm', or
             'hyperalignment'. Defaults to 'procrustes'.
-        radius_mm (float): Sphere radius in millimeters for the searchlight scale.
+        radius (float): Sphere radius in millimeters for the searchlight scale.
             Defaults to 10.0.
         roi_mask (nib.Nifti1Image | None): Parcellation image for the ROI scale.
             Required if `spatial_scale='roi'`. Defaults to None.
@@ -356,7 +356,7 @@ class LocalAlignment:
         data = [np.random.randn(1000, 100) for _ in range(5)]
         mask = nib.Nifti1Image(np.ones((10, 10, 10), dtype=np.int8), np.eye(4))
 
-        la = LocalAlignment(spatial_scale="searchlight", method="procrustes", radius_mm=10.0)
+        la = LocalAlignment(spatial_scale="searchlight", method="procrustes", radius=10.0)
         la.fit(data, mask)
         aligned = la.transform(data)  # list of (1000, 100) arrays
         ```
@@ -370,7 +370,7 @@ class LocalAlignment:
     # Configuration
     spatial_scale: str = "searchlight"
     method: str = "procrustes"
-    radius_mm: float = 10.0
+    radius: float = 10.0
     roi_mask: nib.Nifti1Image | None = None
     n_features: int | None = None
     n_iter: int = 3
@@ -585,7 +585,7 @@ class LocalAlignment:
         # Compute neighborhoods based on spatial_scale
         if self.spatial_scale == "searchlight":
             self.neighborhoods_ = compute_searchlight_neighborhoods(
-                mask, radius_mm=self.radius_mm
+                mask, radius=self.radius
             )
         elif self.spatial_scale == "roi":
             self.neighborhoods_ = _compute_roi_neighborhoods(self.roi_mask, mask)

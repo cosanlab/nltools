@@ -16,84 +16,105 @@ from nilearn.masking import intersect_masks
 
 
 def create_sphere(coordinates, radius=5, mask=None):
-    """Generate spheres in brain-mask space.
+    """Generate binary spheres in the space of a brain mask.
+
+    Spheres are drawn with `nilearn.maskers.NiftiSpheresMasker`, so centers are
+    world (MNI) millimeter coordinates and the radius is in millimeters — the same
+    convention as nilearn's `SearchLight` and `NiftiSpheresMasker`. The result is
+    resolution-independent: the same request covers the same physical volume on a
+    1 mm, 2 mm, or 3 mm grid, up to voxel quantization.
 
     Args:
-        coordinates (list): Sphere center `[x, y, z]` in voxel coordinates, or one
-            center per sphere `[[x1, y1, z1], ...]`.
-        radius (int | float | list): Radius of the sphere(s) in voxels. A scalar
+        coordinates (list): Sphere center `[x, y, z]` in world (MNI) millimeters, or
+            one center per sphere `[[x1, y1, z1], ...]`.
+        radius (int | float | list): Radius of the sphere(s) in millimeters. A scalar
             applies to every center; a list gives one radius per center.
         mask (nibabel.Nifti1Image | str, optional): Image (or path) defining the brain
             space. Defaults to the package brain-space mask.
 
     Returns:
         nibabel.Nifti1Image: A binary image with the requested spheres in mask space.
-    """
-    from nltools.data import BrainData
 
+    Raises:
+        ValueError: If `mask` is neither a nibabel image nor a readable file path, if
+            the radius list length does not match the coordinate list length, or if a
+            requested sphere contains no in-mask voxel.
+
+    Examples:
+        ```python
+        from nltools.mask import create_sphere
+
+        # A 10 mm sphere centered on an MNI coordinate
+        roi = create_sphere([12, 10, -8], radius=10)
+
+        # Two spheres with different radii
+        rois = create_sphere([[12, 10, -8], [-12, 10, -8]], radius=[10, 6])
+        ```
+    """
     if mask is not None:
         if not isinstance(mask, nib.Nifti1Image):
-            if isinstance(mask, str):
-                if os.path.isfile(mask):
-                    mask = nib.load(mask)
+            if isinstance(mask, str) and os.path.isfile(mask):
+                mask = nib.load(mask)
             else:
                 raise ValueError("mask is not a nibabel instance or a valid file name")
-
     else:
         mask = nib.load(get_brainspace().mask)
 
-    def sphere(r, p, mask):
-        """Create a sphere with a given radius and center in the brain mask.
+    centers, radii = _resolve_sphere_requests(coordinates, radius)
 
-        Args:
-            r: radius of the sphere
-            p: point (in coordinates of the brain mask) of the center of the
-                sphere
+    volume = np.zeros(mask.shape, dtype=bool)
+    for sphere_radius in sorted(set(radii)):
+        seeds = [c for c, r in zip(centers, radii) if r == sphere_radius]
+        volume |= _draw_spheres(seeds, sphere_radius, mask)
 
-        """
-        dims = mask.shape
-        m = [dims[0] / 2, dims[1] / 2, dims[2] / 2]
-        x, y, z = np.ogrid[
-            -m[0] : dims[0] - m[0], -m[1] : dims[1] - m[1], -m[2] : dims[2] - m[2]
-        ]
-        mask_r = x * x + y * y + z * z <= r * r
+    return nib.Nifti1Image(
+        volume.astype(np.float64), affine=mask.affine, header=mask.header
+    )
 
-        activation = np.zeros(dims)
-        activation[mask_r] = 1
-        translation_affine = np.array(
-            [
-                [1, 0, 0, p[0] - m[0]],
-                [0, 1, 0, p[1] - m[1]],
-                [0, 0, 1, p[2] - m[2]],
-                [0, 0, 0, 1],
-            ]
-        )
 
-        return nib.Nifti1Image(activation, affine=translation_affine)
-
-    if any(isinstance(i, list) for i in coordinates):
-        if isinstance(radius, list):
-            if len(radius) != len(coordinates):
-                raise ValueError(
-                    "Make sure length of radius list matcheslength of coordinate list."
-                )
-        else:
-            # A single scalar radius (int/float/np scalar) applies to every
-            # coordinate. Broadened from the old `isinstance(radius, int)` check
-            # so float / numpy-scalar radii no longer fall through to `zip`.
-            radius = [radius] * len(coordinates)
-        out = BrainData(
-            nib.Nifti1Image(np.zeros_like(mask.get_fdata()), affine=mask.affine),
-            mask=mask,
-        )
-        for r, c in zip(radius, coordinates):
-            out = out + BrainData(sphere(r, c, mask), mask=mask)
+def _resolve_sphere_requests(coordinates, radius):
+    """Normalize the center/radius arguments into equal-length lists of floats."""
+    if any(isinstance(c, (list, tuple, np.ndarray)) for c in coordinates):
+        centers = [tuple(float(v) for v in c) for c in coordinates]
     else:
-        out = BrainData(sphere(radius, coordinates, mask), mask=mask)
-    out = out.to_nifti()
-    out.get_fdata()[out.get_fdata() > 0.5] = 1
-    out.get_fdata()[out.get_fdata() < 0.5] = 0
-    return out
+        centers = [tuple(float(v) for v in coordinates)]
+
+    if isinstance(radius, (list, tuple, np.ndarray)):
+        radii = [float(r) for r in radius]
+        if len(radii) != len(centers):
+            raise ValueError(
+                "Make sure length of radius list matches length of coordinate list."
+            )
+    else:
+        radii = [float(radius)] * len(centers)
+
+    return centers, radii
+
+
+def _draw_spheres(seeds, radius, mask):
+    """Return a boolean volume covering every in-mask voxel within `radius` mm of a seed."""
+    from nilearn.maskers import NiftiSpheresMasker
+
+    masker = NiftiSpheresMasker(
+        seeds=seeds, radius=radius, mask_img=mask, allow_overlap=True
+    )
+    try:
+        masker.fit()
+        drawn = masker.inverse_transform(np.ones((1, len(seeds))))
+    except ValueError as error:
+        # nilearn 0.14 raises "These spheres are empty: [...]" for a seed with no
+        # in-mask voxel in range. Every other ValueError from this path (a
+        # non-binary mask, a malformed signal vector) is a different problem and
+        # must keep its own diagnostic.
+        if "spheres are empty" not in str(error):
+            raise
+        raise ValueError(
+            f"No in-mask voxel lies within {radius}mm of one of the requested "
+            f"centers {seeds}; the center is outside the mask. Coordinates are "
+            "world (MNI) millimeters, not voxel indices."
+        ) from error
+
+    return np.asarray(drawn.dataobj)[..., 0] > 0
 
 
 def expand_mask(mask, custom_mask=None):

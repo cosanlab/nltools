@@ -129,7 +129,7 @@ def distance(  # nosemgrep: kwargs-internal-forwarding  # forwards to scipy.spat
     *,
     spatial_scale: str = "whole_brain",
     roi_mask=None,
-    radius_mm: float = 10.0,
+    radius: float = 10.0,
     **kwargs,
 ):
     """Calculate distance between images within a BrainData() instance.
@@ -144,7 +144,7 @@ def distance(  # nosemgrep: kwargs-internal-forwarding  # forwards to scipy.spat
             ``'searchlight'``. See `BrainData.distance`.
         roi_mask (BrainData | Nifti1Image | str | None): Atlas for
             ``spatial_scale='roi'``.
-        radius_mm (float): Searchlight radius for ``spatial_scale='searchlight'``.
+        radius (float): Searchlight radius for ``spatial_scale='searchlight'``.
         **kwargs (dict): Forwarded to ``scipy.spatial.distance.cdist``.
 
     Returns:
@@ -167,7 +167,7 @@ def distance(  # nosemgrep: kwargs-internal-forwarding  # forwards to scipy.spat
         return Adjacency(dist_matrix, matrix_type="Distance")
 
     if spatial_scale == "searchlight":
-        return _distance_searchlight(bd, metric=metric, radius_mm=radius_mm, **kwargs)
+        return _distance_searchlight(bd, metric=metric, radius=radius, **kwargs)
 
     # spatial_scale == "roi"
     return _distance_roi(bd, metric=metric, roi_mask=roi_mask, **kwargs)
@@ -466,7 +466,7 @@ def _distance_roi(bd, *, metric, roi_mask, **kwargs):
     return Adjacency(matrices, matrix_type="distance")
 
 
-def _distance_searchlight(bd, *, metric, radius_mm, **kwargs):
+def _distance_searchlight(bd, *, metric, radius, **kwargs):
     """Compute a pairwise distance matrix for each searchlight center.
 
     Return an ordinary stack in source-mask voxel order. Map per-center values
@@ -478,9 +478,7 @@ def _distance_searchlight(bd, *, metric, radius_mm, **kwargs):
 
     from .neighborhoods import compute_searchlight_neighborhoods
 
-    nbrs = compute_searchlight_neighborhoods(
-        bd.mask, radius_mm=radius_mm, use_cache=True
-    )
+    nbrs = compute_searchlight_neighborhoods(bd.mask, radius=radius, use_cache=True)
     n_voxels = nbrs.n_voxels
 
     matrices = []

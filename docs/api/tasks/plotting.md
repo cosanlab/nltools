@@ -20,7 +20,7 @@ Name | Description
 ### `plot_surf`
 
 ```python
-plot_surf(brain, *, hemi = 'both', view = 'montage', surface = 'pial', template = 'fsaverage5', threshold = None, cmap = None, vmin = None, vmax = None, transparency = 'auto', bg_on_data = False, colorbar = True, colorbar_orientation = 'horizontal', figsize = (10, 8), title = None, radius_mm = 3.0, interpolation = 'linear', zoom = 1.2, axes = None, save = None)
+plot_surf(brain, *, hemi = 'both', view = 'montage', surface = 'pial', template = 'fsaverage5', threshold = None, cmap = None, vmin = None, vmax = None, transparency = 'auto', bg_on_data = False, colorbar = True, colorbar_orientation = 'horizontal', figsize = (10, 8), title = None, radius = 3.0, interpolation = 'linear', zoom = 1.2, axes = None, save = None)
 ```
 
 Plot volumetric data on fsaverage surfaces in a tight montage.
@@ -51,7 +51,7 @@ Name | Type | Description | Default
 `colorbar_orientation` | <code>str</code> | `'horizontal'` (default) or `'vertical'`. | <code>'horizontal'</code>
 `figsize` | <code>tuple</code> | Figure size. Default (10, 8). | <code>(10, 8)</code>
 `title` | <code>str</code> | Figure title. | <code>None</code>
-`radius_mm` | <code>float</code> | `vol_to_surf` sampling radius. Default 3.0. | <code>3.0</code>
+`radius` | <code>float</code> | `vol_to_surf` sampling radius. Default 3.0. | <code>3.0</code>
 `interpolation` | <code>str</code> | `vol_to_surf` interpolation. Default `'linear'`. | <code>'linear'</code>
 `zoom` | <code>float</code> | Zoom factor for each 3-D axis (`Axes3D.set_box_aspect`). Default 1.2; try 1.4 for the tightest clean framing. | <code>1.2</code>
 `axes` | <code>ndarray</code> | Pre-existing `Axes3D` array to draw into, of shape `(len(view), len(hemi))`. | <code>None</code>
@@ -67,7 +67,7 @@ Type | Description
 ### `plot_flatmap`
 
 ```python
-plot_flatmap(brain, *, threshold = None, cmap = None, vmax = None, vmin = None, template = 'fsaverage5', with_curvature = True, curvature_contrast = 0.5, curvature_brightness = 0.5, transparency = 'auto', colorbar = True, colorbar_orientation = 'horizontal', figsize = (12, 6), title = None, radius_mm = 3.0, interpolation = 'linear', axes = None, save = None)
+plot_flatmap(brain, *, threshold = None, cmap = None, vmax = None, vmin = None, template = 'fsaverage5', with_curvature = True, curvature_contrast = 0.5, curvature_brightness = 0.5, transparency = 'auto', colorbar = True, colorbar_orientation = 'horizontal', figsize = (12, 6), title = None, radius = 3.0, interpolation = 'linear', axes = None, save = None)
 ```
 
 Plot brain data on cortical flatmap.
@@ -97,7 +97,7 @@ Name | Type | Description | Default
 `colorbar_orientation` | <code>str</code> | 'horizontal' or 'vertical'. Defaults to 'horizontal'. | <code>'horizontal'</code>
 `figsize` | <code>tuple</code> | Figure size (width, height). Defaults to (12, 6). | <code>(12, 6)</code>
 `title` | <code>str</code> | Figure title. Defaults to None. | <code>None</code>
-`radius_mm` | <code>float</code> | Sampling radius in mm for vol_to_surf projection. Larger values provide smoother projections. Defaults to 3.0. | <code>3.0</code>
+`radius` | <code>float</code> | Sampling radius in mm for vol_to_surf projection. Larger values provide smoother projections. Defaults to 3.0. | <code>3.0</code>
 `interpolation` | <code>str</code> | Interpolation for vol_to_surf. Options: 'linear', 'nearest_most_frequent'. Defaults to 'linear'. | <code>'linear'</code>
 `axes` | <code>Axes</code> | Existing axes to plot on. If None, creates new figure. Defaults to None. | <code>None</code>
 `save` | <code>str</code> | File path to save figure. Defaults to None. | <code>None</code>

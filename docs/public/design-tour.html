@@ -510,7 +510,7 @@
     <tr><td>Display autoscaling</td><td><code>autoscale</code></td><td><code>True</code> = robust percentile window · <code>False</code> = raw magnitude range</td></tr>
     <tr><td>Display symmetry</td><td><code>symmetric</code></td><td><code>'auto'</code> = symmetric only for mixed-signed maps · <code>True</code> forces symmetry · <code>False</code> scales limbs independently</td></tr>
     <tr><td>Diagonal flag</td><td><code>include_diag</code></td><td>not <code>ignore_diagonal</code> — inverted sense</td></tr>
-    <tr><td>Radius (mm)</td><td><code>radius</code></td><td><code>predict(radius=)</code> follows nilearn · <code>radius_mm</code> elsewhere keeps the units in the name</td></tr>
+    <tr><td>Radius (mm)</td><td><code>radius</code></td><td>millimeters everywhere, following nilearn's <code>SearchLight</code> / <code>NiftiSpheresMasker</code></td></tr>
     <tr><td>GLM-specific fit option</td><td><code>glm_*</code></td><td><code>glm_noise_model</code> · <code>glm_bins</code> · <code>glm_n_jobs</code> — <code>random_state</code> stays bare</td></tr>
     <tr><td>Ridge-specific fit option</td><td><code>ridge_*</code></td><td><code>ridge_alpha</code> · <code>ridge_cv</code> · <code>ridge_device</code> · … — <code>random_state</code> stays bare</td></tr>
     <tr><td>Contrast inference toggle</td><td><code>inference</code></td><td><code>False</code> returns the effect · <code>True</code> returns a <code>ContrastResult</code></td></tr>

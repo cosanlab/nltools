@@ -199,7 +199,7 @@ class TestSphereNeighborhoods:
         sn = SphereNeighborhoods(
             adjacency=adj,
             mask_hash="test",
-            radius_mm=5.0,
+            radius=5.0,
             n_voxels=3,
         )
 
@@ -220,7 +220,7 @@ class TestSphereNeighborhoods:
         sn = SphereNeighborhoods(
             adjacency=adj,
             mask_hash="test",
-            radius_mm=5.0,
+            radius=5.0,
             n_voxels=3,
         )
 
@@ -238,7 +238,7 @@ class TestSphereNeighborhoods:
         sn = SphereNeighborhoods(
             adjacency=adj,
             mask_hash="test",
-            radius_mm=5.0,
+            radius=5.0,
             n_voxels=3,
         )
 
@@ -258,7 +258,7 @@ class TestSphereNeighborhoods:
         sn = SphereNeighborhoods(
             adjacency=adj,
             mask_hash="test",
-            radius_mm=5.0,
+            radius=5.0,
             n_voxels=3,
         )
 
@@ -277,7 +277,7 @@ class TestSphereNeighborhoods:
         sn = SphereNeighborhoods(
             adjacency=adj,
             mask_hash="test",
-            radius_mm=5.0,
+            radius=5.0,
             n_voxels=2,
         )
 
@@ -299,12 +299,12 @@ class TestComputeSearchlightNeighborhoods:
         monkeypatch.setenv("HOME", str(tmp_path))
 
         neighborhoods = compute_searchlight_neighborhoods(
-            tiny_mask, radius_mm=3.0, use_cache=False
+            tiny_mask, radius=3.0, use_cache=False
         )
 
         # 3x3x3 = 27 voxels
         assert neighborhoods.n_voxels == 27
-        assert neighborhoods.radius_mm == 3.0
+        assert neighborhoods.radius == 3.0
 
     def test_neighborhood_geometry(self, tiny_mask, tmp_path, monkeypatch):
         """Test that neighborhood geometry is correct."""
@@ -315,7 +315,7 @@ class TestComputeSearchlightNeighborhoods:
         # edge-adjacent (distance = 2*sqrt(2) = 2.83mm) or
         # corner-adjacent (distance = 2*sqrt(3) = 3.46mm)
         neighborhoods = compute_searchlight_neighborhoods(
-            tiny_mask, radius_mm=2.5, use_cache=False
+            tiny_mask, radius=2.5, use_cache=False
         )
 
         # Center voxel (1,1,1) should only see itself with radius < 2mm
@@ -334,9 +334,7 @@ class TestComputeSearchlightNeighborhoods:
         monkeypatch.setenv("HOME", str(tmp_path))
 
         # First computation
-        nb1 = compute_searchlight_neighborhoods(
-            small_mask, radius_mm=5.0, use_cache=True
-        )
+        nb1 = compute_searchlight_neighborhoods(small_mask, radius=5.0, use_cache=True)
 
         # Check cache file exists
         cache = CacheManager("searchlight")
@@ -345,13 +343,11 @@ class TestComputeSearchlightNeighborhoods:
         assert "5.0mm" in keys[0]
 
         # Second computation should load from cache
-        nb2 = compute_searchlight_neighborhoods(
-            small_mask, radius_mm=5.0, use_cache=True
-        )
+        nb2 = compute_searchlight_neighborhoods(small_mask, radius=5.0, use_cache=True)
 
         # Results should be identical
         assert nb1.n_voxels == nb2.n_voxels
-        assert nb1.radius_mm == nb2.radius_mm
+        assert nb1.radius == nb2.radius
         assert nb1.mask_hash == nb2.mask_hash
         np.testing.assert_array_equal(nb1.adjacency.toarray(), nb2.adjacency.toarray())
 
@@ -359,7 +355,7 @@ class TestComputeSearchlightNeighborhoods:
         """Test that use_cache=False skips caching."""
         monkeypatch.setenv("HOME", str(tmp_path))
 
-        compute_searchlight_neighborhoods(tiny_mask, radius_mm=5.0, use_cache=False)
+        compute_searchlight_neighborhoods(tiny_mask, radius=5.0, use_cache=False)
 
         cache = CacheManager("searchlight")
         assert len(cache.list_keys()) == 0
@@ -368,8 +364,8 @@ class TestComputeSearchlightNeighborhoods:
         """Test that different radii create different cache entries."""
         monkeypatch.setenv("HOME", str(tmp_path))
 
-        compute_searchlight_neighborhoods(small_mask, radius_mm=5.0, use_cache=True)
-        compute_searchlight_neighborhoods(small_mask, radius_mm=10.0, use_cache=True)
+        compute_searchlight_neighborhoods(small_mask, radius=5.0, use_cache=True)
+        compute_searchlight_neighborhoods(small_mask, radius=10.0, use_cache=True)
 
         cache = CacheManager("searchlight")
         keys = cache.list_keys()
@@ -383,19 +379,17 @@ class TestComputeSearchlightNeighborhoods:
         empty_mask = nib.Nifti1Image(empty_data, np.eye(4))
 
         with pytest.raises(ValueError, match="no non-zero voxels"):
-            compute_searchlight_neighborhoods(
-                empty_mask, radius_mm=5.0, use_cache=False
-            )
+            compute_searchlight_neighborhoods(empty_mask, radius=5.0, use_cache=False)
 
     def test_larger_radius_more_neighbors(self, small_mask, tmp_path, monkeypatch):
         """Test that larger radius gives more neighbors on average."""
         monkeypatch.setenv("HOME", str(tmp_path))
 
         nb_small = compute_searchlight_neighborhoods(
-            small_mask, radius_mm=3.0, use_cache=False
+            small_mask, radius=3.0, use_cache=False
         )
         nb_large = compute_searchlight_neighborhoods(
-            small_mask, radius_mm=8.0, use_cache=False
+            small_mask, radius=8.0, use_cache=False
         )
 
         assert nb_large.mean_size > nb_small.mean_size
@@ -405,7 +399,7 @@ class TestComputeSearchlightNeighborhoods:
         monkeypatch.setenv("HOME", str(tmp_path))
 
         neighborhoods = compute_searchlight_neighborhoods(
-            small_mask, radius_mm=5.0, use_cache=False
+            small_mask, radius=5.0, use_cache=False
         )
 
         adj = neighborhoods.adjacency.toarray()
@@ -416,7 +410,7 @@ class TestComputeSearchlightNeighborhoods:
         monkeypatch.setenv("HOME", str(tmp_path))
 
         neighborhoods = compute_searchlight_neighborhoods(
-            small_mask, radius_mm=5.0, use_cache=False
+            small_mask, radius=5.0, use_cache=False
         )
 
         # Diagonal should be all 1s (each voxel neighbors itself)
@@ -460,3 +454,18 @@ class TestClearCache:
         assert count == 2
         assert len(cache1.list_keys()) == 0
         assert len(cache2.list_keys()) == 0
+
+
+class TestRadiusKeyword:
+    """The radius keyword follows nilearn: `radius`, in millimeters."""
+
+    def test_radius_mm_keyword_is_removed(self, tiny_mask):
+        with pytest.raises(TypeError):
+            compute_searchlight_neighborhoods(tiny_mask, radius_mm=3.0, use_cache=False)
+
+    def test_radius_is_recorded_in_millimeters(self, tiny_mask):
+        neighborhoods = compute_searchlight_neighborhoods(
+            tiny_mask, radius=3.0, use_cache=False
+        )
+        assert neighborhoods.radius == 3.0
+        assert not hasattr(neighborhoods, "radius_mm")

@@ -91,3 +91,14 @@ def test_localalignment_rejects_legacy_max_memory_gb_kwarg():
     """`max_memory_gb=` is a removed legacy alias; the canonical name is memory_budget_gb."""
     with pytest.raises(TypeError):
         LocalAlignment(max_memory_gb=2.0)
+
+
+# ========== q31x gjsq: nilearn's `radius` (millimeters) vocabulary ==========
+
+
+def test_local_alignment_radius_mm_keyword_is_removed():
+    """LocalAlignment takes nilearn's `radius`, in millimeters."""
+    with pytest.raises(TypeError):
+        LocalAlignment(spatial_scale="searchlight", radius_mm=10.0)
+
+    assert LocalAlignment(spatial_scale="searchlight", radius=8.0).radius == 8.0

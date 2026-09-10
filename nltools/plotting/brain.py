@@ -281,7 +281,7 @@ def plot_surf(
     colorbar_orientation="horizontal",
     figsize=(10, 8),
     title=None,
-    radius_mm=3.0,
+    radius=3.0,
     interpolation="linear",
     zoom=1.2,
     axes=None,
@@ -327,7 +327,7 @@ def plot_surf(
         colorbar_orientation (str): `'horizontal'` (default) or `'vertical'`.
         figsize (tuple): Figure size. Default (10, 8).
         title (str, optional): Figure title.
-        radius_mm (float): `vol_to_surf` sampling radius. Default 3.0.
+        radius (float): `vol_to_surf` sampling radius. Default 3.0.
         interpolation (str): `vol_to_surf` interpolation. Default `'linear'`.
         zoom (float): Zoom factor for each 3-D axis (`Axes3D.set_box_aspect`).
             Default 1.2; try 1.4 for the tightest clean framing.
@@ -378,14 +378,14 @@ def plot_surf(
         tex = vol_to_surf(
             nifti_img,
             fs[f"{surf_key}_{h}"],
-            radius=radius_mm,
+            radius=radius,
             interpolation=interpolation,
         )
         if mask_img is not None:
             mk = vol_to_surf(
                 mask_img,
                 fs[f"{surf_key}_{h}"],
-                radius=radius_mm,
+                radius=radius,
                 interpolation="linear",
             )
             tex = np.where(mk >= 0.5, tex, np.nan)
@@ -487,7 +487,7 @@ def plot_flatmap(
     colorbar_orientation="horizontal",
     figsize=(12, 6),
     title=None,
-    radius_mm=3.0,
+    radius=3.0,
     interpolation="linear",
     axes=None,
     save=None,
@@ -538,7 +538,7 @@ def plot_flatmap(
         figsize (tuple, optional): Figure size (width, height).
             Defaults to (12, 6).
         title (str, optional): Figure title. Defaults to None.
-        radius_mm (float, optional): Sampling radius in mm for vol_to_surf
+        radius (float, optional): Sampling radius in mm for vol_to_surf
             projection. Larger values provide smoother projections.
             Defaults to 3.0.
         interpolation (str, optional): Interpolation for vol_to_surf.
@@ -606,13 +606,13 @@ def plot_flatmap(
     texture_left = surface.vol_to_surf(
         nifti_img,
         fs["pial_left"],
-        radius=radius_mm,
+        radius=radius,
         interpolation=interpolation,
     )
     texture_right = surface.vol_to_surf(
         nifti_img,
         fs["pial_right"],
-        radius=radius_mm,
+        radius=radius,
         interpolation=interpolation,
     )
 
@@ -620,10 +620,10 @@ def plot_flatmap(
     # outside the mask so the curvature shows through cleanly.
     if mask_img is not None:
         mask_left = surface.vol_to_surf(
-            mask_img, fs["pial_left"], radius=radius_mm, interpolation="linear"
+            mask_img, fs["pial_left"], radius=radius, interpolation="linear"
         )
         mask_right = surface.vol_to_surf(
-            mask_img, fs["pial_right"], radius=radius_mm, interpolation="linear"
+            mask_img, fs["pial_right"], radius=radius, interpolation="linear"
         )
         texture_left = np.where(mask_left >= 0.5, texture_left, np.nan)
         texture_right = np.where(mask_right >= 0.5, texture_right, np.nan)

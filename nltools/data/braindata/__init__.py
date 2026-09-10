@@ -426,7 +426,7 @@ class BrainData:
         *,
         spatial_scale: str = "whole_brain",
         roi_mask=None,
-        radius_mm: float = 10.0,
+        radius: float = 10.0,
     ):
         """Align BrainData instance to target object using functional alignment.
 
@@ -442,7 +442,7 @@ class BrainData:
                 per-voxel transform).
             roi_mask (BrainData | Nifti1Image | str | Path | None): Atlas image
                 used when ``spatial_scale='roi'``.
-            radius_mm (float): Reserved for ``spatial_scale='searchlight'``.
+            radius (float): Reserved for ``spatial_scale='searchlight'``.
 
         Returns:
             dict: ``'transformed'``, ``'transformation_matrix'`` and
@@ -851,7 +851,7 @@ class BrainData:
         *,
         spatial_scale: str = "whole_brain",
         roi_mask=None,
-        radius_mm: float = 10.0,
+        radius: float = 10.0,
         **kwargs,
     ):
         """Calculate distance between images within a BrainData() instance.
@@ -868,7 +868,7 @@ class BrainData:
                 returns one RDM per source-mask voxel in mask order.
             roi_mask (BrainData | Nifti1Image | str | Path | None): Atlas image
                 for ``spatial_scale='roi'``.
-            radius_mm (float): Searchlight radius in mm. Default 10.0.
+            radius (float): Searchlight radius in mm. Default 10.0.
             **kwargs (dict): Additional metric options forwarded to
                 ``scipy.spatial.distance.cdist`` (e.g. ``p`` for minkowski).
 
@@ -887,7 +887,7 @@ class BrainData:
             metric=metric,
             spatial_scale=spatial_scale,
             roi_mask=roi_mask,
-            radius_mm=radius_mm,
+            radius=radius,
             **kwargs,
         )
 
@@ -1274,7 +1274,7 @@ class BrainData:
         colorbar_orientation="horizontal",
         figsize=(12, 6),
         title=None,
-        radius_mm=3.0,
+        radius=3.0,
         interpolation="linear",
         axes=None,
         save=None,
@@ -1298,7 +1298,7 @@ class BrainData:
             colorbar_orientation (str): 'horizontal' or 'vertical'. Default: 'horizontal'.
             figsize (tuple): Figure size as (width, height). Default: (12, 6).
             title (str, optional): Figure title.
-            radius_mm (float): Sampling radius in mm. Default: 3.0.
+            radius (float): Sampling radius in mm. Default: 3.0.
             interpolation (str): Interpolation method. Default: 'linear'.
             axes (matplotlib.axes.Axes, optional): Existing axes to plot on.
             save (str, optional): File path to save figure.
@@ -1323,7 +1323,7 @@ class BrainData:
             colorbar_orientation=colorbar_orientation,
             figsize=figsize,
             title=title,
-            radius_mm=radius_mm,
+            radius=radius,
             interpolation=interpolation,
             axes=axes,
             save=save,
@@ -1346,7 +1346,7 @@ class BrainData:
         colorbar_orientation="horizontal",
         figsize=(10, 8),
         title=None,
-        radius_mm=3.0,
+        radius=3.0,
         interpolation="linear",
         zoom=1.2,
         axes=None,
@@ -1393,7 +1393,7 @@ class BrainData:
             colorbar_orientation=colorbar_orientation,
             figsize=figsize,
             title=title,
-            radius_mm=radius_mm,
+            radius=radius,
             interpolation=interpolation,
             zoom=zoom,
             axes=axes,

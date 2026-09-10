@@ -57,7 +57,7 @@ Name | Description
 [`gaussian`](#tasks-simulation-gaussian) | Create a 3D gaussian signal normalized to a given intensity.
 [`n_spheres`](#tasks-simulation-n-spheres) | Generate a set of spheres in the brain mask space.
 [`normal_noise`](#tasks-simulation-normal-noise) | Produce a normal noise distribution for all points in the brain mask.
-[`sphere`](#tasks-simulation-sphere) | Create a sphere of given radius at some point p in the brain mask.
+[`sphere`](#tasks-simulation-sphere) | Create a sphere of a given radius at a world coordinate in the brain mask.
 [`to_nifti`](#tasks-simulation-to-nifti) | Convert a numpy array to a NIfTI image with the brain mask's affine.
 
 
@@ -93,7 +93,7 @@ Name | Type | Description | Default
 `cor` | <code>float</code> | Covariance between each voxel and the outcome `y`. | *required*
 `cov` | <code>float</code> | Covariance between voxels. | *required*
 `sigma` | <code>float</code> | Standard deviation of the added noise. | *required*
-`mask` | <code>Nifti1Image</code> | Region where activations are placed. Defaults to a sphere of radius 10 at the mask center. | <code>None</code>
+`mask` | <code>Nifti1Image</code> | Region where activations are placed. Defaults to a 20 mm sphere at the mask's grid center. | <code>None</code>
 `reps` | <code>int</code> | Number of repetitions per subject. Default 1. | <code>1</code>
 `n_sub` | <code>int</code> | Number of subjects to simulate. Default 1. | <code>1</code>
 `output_dir` | <code>str</code> | Directory to write the image, `y.csv`, and `rep_id.csv` into. If None, nothing is written. | <code>None</code>
@@ -102,7 +102,7 @@ Name | Type | Description | Default
 ##### `create_data`
 
 ```python
-create_data(levels, sigma, *, radius = 5, center = None, reps = 1, output_dir = None)
+create_data(levels, sigma, *, radius = 10, center = None, reps = 1, output_dir = None)
 ```
 
 Create simulated data with discrete intensity levels.
@@ -113,8 +113,8 @@ Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `levels` | <code>list</code> | Intensities or class labels, one per image in a repetition. | *required*
 `sigma` | <code>float</code> | Standard deviation of the added noise. | *required*
-`radius` | <code>int \| list[int]</code> | Sphere radius, or one radius per sphere. | <code>5</code>
-`center` | <code>list</code> | Sphere center `[x, y, z]`, or one center per sphere `[[x1, y1, z1], ...]`. None places every sphere at the mask center. | <code>None</code>
+`radius` | <code>int \| float \| list</code> | Sphere radius in millimeters, or one radius per sphere. Default 10.0. | <code>10</code>
+`center` | <code>list</code> | Sphere center `[x, y, z]` in world (MNI) millimeters, or one center per sphere `[[x1, y1, z1], ...]`. None (the default) places every sphere at the world coordinate of the mask's grid center. | <code>None</code>
 `reps` | <code>int</code> | Number of repetitions (e.g. trials or subjects). Default 1. | <code>1</code>
 `output_dir` | <code>str</code> | Directory to write `data.nii.gz`, `y.csv`, and `rep_id.csv` into. If None, nothing is written. | <code>None</code>
 
@@ -143,7 +143,7 @@ Name | Type | Description | Default
 `cor` | <code>float \| list[float]</code> | Covariance between each region's voxels and the outcome `y`; one value per region. | *required*
 `cov` | <code>float \| list[list[float]]</code> | Covariance between voxels; a scalar for a single region or a region-by-region matrix. | *required*
 `sigma` | <code>float</code> | Standard deviation of the added noise. | *required*
-`masks` | <code>Nifti1Image \| list[Nifti1Image]</code> | Region(s) where activations are placed. Defaults to a sphere of radius 10 at the mask center. | <code>None</code>
+`masks` | <code>Nifti1Image \| list[Nifti1Image]</code> | Region(s) where activations are placed. Defaults to a 20 mm sphere at the mask's grid center. | <code>None</code>
 `reps` | <code>int</code> | Number of repetitions per subject. Default 1. | <code>1</code>
 `n_sub` | <code>int</code> | Number of subjects to simulate. Default 1. | <code>1</code>
 `output_dir` | <code>str</code> | Directory to write the image, `y.csv`, and `rep_id.csv` into. If None, nothing is written. | <code>None</code>
@@ -157,12 +157,16 @@ gaussian(mu, sigma, i_tot)
 
 Create a 3D gaussian signal normalized to a given intensity.
 
+Geometry is millimeters: `mu` is a world (MNI) coordinate and `sigma` a
+physical width, both converted to voxel units through the brain mask's
+affine, so the same request describes the same blob on any grid.
+
 **Parameters:**
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`mu` | <code>array - like</code> | Center of the gaussian in voxel coordinates `[x, y, z]`. | *required*
-`sigma` | <code>array - like</code> | Standard deviation per axis `[sx, sy, sz]`. | *required*
+`mu` | <code>array - like</code> | Center of the gaussian `[x, y, z]` in world (MNI) millimeters. | *required*
+`sigma` | <code>float \| array - like</code> | Standard deviation in millimeters — a scalar for an isotropic blob or one width per axis `[sx, sy, sz]`. | *required*
 `i_tot` | <code>float</code> | Total activation; the gaussian is rescaled so its sum within the brain mask equals this value. | *required*
 
 **Returns:**
@@ -171,27 +175,39 @@ Type | Description
 ---- | -----------
 <code>ndarray</code> | 3-D array the shape of the brain mask.
 
+<details class="note" open markdown="1">
+<summary>Note</summary>
+
+`sigma` is converted per axis with `nibabel.affines.voxel_sizes`, so the
+millimeter widths map onto world axes only for an axis-aligned affine. On
+an oblique affine the blob's principal axes follow the voxel grid.
+
+</details>
+
 (tasks-simulation-n-spheres)=
 ##### `n_spheres`
 
 ```python
-n_spheres(radius, center)
+n_spheres(radius, center = None)
 ```
 
 Generate a set of spheres in the brain mask space.
+
+Delegates to `nltools.mask.create_sphere`, so radii are millimeters and
+centers are world (MNI) coordinates resolved through the mask's affine.
 
 **Parameters:**
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`radius` | <code>int \| list[int]</code> | Sphere radius, or one radius per sphere. | *required*
-`center` | <code>list</code> | Sphere center `[x, y, z]`, or one center per sphere `[[x1, y1, z1], ...]`. None places every sphere at the mask center. | *required*
+`radius` | <code>int \| float \| list</code> | Sphere radius in millimeters, or one radius per sphere. | *required*
+`center` | <code>list</code> | Sphere center `[x, y, z]` in world (MNI) millimeters, or one center per sphere `[[x1, y1, z1], ...]`. None places every sphere at the world coordinate of the mask's grid center. | <code>None</code>
 
 **Returns:**
 
 Type | Description
 ---- | -----------
-<code>ndarray</code> | 3-D array the shape of the brain mask with the spheres summed.
+<code>ndarray</code> | 3-D binary array the shape of the brain mask holding the union     of the requested spheres.
 
 (tasks-simulation-normal-noise)=
 ##### `normal_noise`
@@ -219,17 +235,20 @@ Type | Description
 ##### `sphere`
 
 ```python
-sphere(r, p)
+sphere(radius, center)
 ```
 
-Create a sphere of given radius at some point p in the brain mask.
+Create a sphere of a given radius at a world coordinate in the brain mask.
+
+Delegates to `nltools.mask.create_sphere`, so the radius is millimeters and
+the center is a world (MNI) coordinate resolved through the mask's affine.
 
 **Parameters:**
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`r` | <code>int \| float</code> | Radius of the sphere in voxels. | *required*
-`p` | <code>array - like</code> | Center of the sphere in voxel coordinates `[x, y, z]`. | *required*
+`radius` | <code>int \| float</code> | Radius of the sphere in millimeters. | *required*
+`center` | <code>array - like</code> | Center of the sphere `[x, y, z]` in world (MNI) millimeters. | *required*
 
 **Returns:**
 
