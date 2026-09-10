@@ -88,6 +88,8 @@ project:
             - file: api/tasks/simulation.md
         - file: api/algorithms.md
           title: nltools.algorithms (A–Z index)
+        - file: api/neighborhoods.md
+          title: Searchlight neighborhoods
     - title: Development
       children:
         - file: contributing.md
@@ -99,7 +101,6 @@ project:
           children:
             - file: api/backends.md
             - file: api/cache.md
-            - file: api/neighborhoods.md
             - file: api/utils.md
             - file: api/templates.md
             - file: api/algorithms/decoding.md

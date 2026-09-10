@@ -256,6 +256,7 @@ INTERNAL_ONLY = {
     "is_reserved_name",
     "make_progress_bar",
     "maybe_tqdm",
+    "parse_run_separated",
     "reserved_name",
     "run_separated_name",
     # nltools.templates resolution internals behind get_brainspace/set_brainspace.

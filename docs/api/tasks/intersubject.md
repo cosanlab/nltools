@@ -87,7 +87,7 @@ Physics Reports, 748, 1-60.
 ### `isfc`
 
 ```python
-isfc(data, method = 'average', n_jobs = -1)
+isfc(data, *, method = 'average', n_jobs = -1, random_state = None, progress_bar = False)
 ```
 
 Compute intersubject functional connectivity (ISFC) from per-subject matrices.
@@ -105,6 +105,8 @@ Name | Type | Description | Default
 `data` | <code>list[ndarray]</code> | One matrix per subject, each `(n_observations, n_features)` with identical shapes. | *required*
 `method` | <code>str</code> | Only `'average'` (leave-one-out) is implemented. | <code>'average'</code>
 `n_jobs` | <code>int</code> | Parallel workers; -1 (default) uses all cores, 1 runs serially. | <code>-1</code>
+`random_state` | <code>int \| RandomState \| None</code> | Unused. ISFC's leave-one-out computation is deterministic and draws no random samples; the parameter exists for signature parity with the rest of the ISC family (`isc`, `isc_group`). | <code>None</code>
+`progress_bar` | <code>bool</code> | Display a progress bar over subjects. Defaults to False. | <code>False</code>
 
 **Returns:**
 

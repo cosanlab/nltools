@@ -33,6 +33,7 @@ Name | Description
 [`is_reserved_name`](#utils-is-reserved-name) | Return True if ``name`` is in the nltools-generated column namespace.
 [`make_progress_bar`](#utils-make-progress-bar) | Build a progress bar, or a no-op stand-in when `progress_bar` is False.
 [`maybe_tqdm`](#utils-maybe-tqdm) | Wrap `iterable` in a tqdm progress bar only when `progress_bar` is True.
+[`parse_run_separated`](#utils-parse-run-separated) | Split a run-separated column name into its run index and base name.
 [`reserved_name`](#utils-reserved-name) | Build a generated column name inside the reserved namespace.
 [`run_separated_name`](#utils-run-separated-name) | Build the run-separated variant of a column name.
 
@@ -306,6 +307,27 @@ for i in maybe_tqdm(range(n_permute), progress_bar=progress_bar,
                     desc="CPU parallel perms", unit="perm"):
     ...
 ```
+
+(utils-parse-run-separated)=
+### `parse_run_separated`
+
+```python
+parse_run_separated(name: str) -> tuple[int, str] | None
+```
+
+Split a run-separated column name into its run index and base name.
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`name` | <code>str</code> | Column name to parse. | *required*
+
+**Returns:**
+
+Type | Description
+---- | -----------
+<code>tuple[int, str] \| None</code> | `(run_idx, base)` for a run-separated name (e.g.     `'.nl_r1_poly_0'` → `(1, 'poly_0')`), else None.
 
 (utils-reserved-name)=
 ### `reserved_name`

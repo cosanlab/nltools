@@ -32,6 +32,7 @@ Name | Description
 [`DetSRM`](#algorithms-detsrm) | Deterministic Shared Response Model (DetSRM).
 [`HyperAlignment`](#algorithms-hyperalignment) | Hyperalignment using iterative Procrustes alignment (Haxby et al., 2011).
 [`LocalAlignment`](#algorithms-localalignment) | Local (neighborhood-based) functional alignment across subjects.
+[`SphereNeighborhoods`](#algorithms-sphereneighborhoods) | Precomputed sphere neighborhoods for a brain mask.
 [`SRM`](#algorithms-srm) | Probabilistic Shared Response Model (SRM).
 
 **Functions:**
@@ -43,6 +44,7 @@ Name | Description
 [`calc_bpm`](#algorithms-calc-bpm) | Calculate instantaneous BPM from beat to beat interval.
 [`circle_shift`](#algorithms-circle-shift) | Circular shift for time-series data.
 [`compute_multivariate_similarity`](#algorithms-compute-multivariate-similarity) | Compute multivariate similarity by regressing one pattern on several.
+[`compute_searchlight_neighborhoods`](#algorithms-compute-searchlight-neighborhoods) | Compute sphere neighborhoods for all voxels in a brain mask.
 [`compute_similarity`](#algorithms-compute-similarity) | Compute row-wise similarity between two data arrays.
 [`correlation_permutation_test`](#algorithms-correlation-permutation-test) | Permutation test for whether the correlation between two arrays differs from zero.
 [`distance_correlation`](#algorithms-distance-correlation) | Compute the distance correlation between two arrays to test for multivariate dependence.
@@ -404,7 +406,7 @@ Name | Type | Description
 ---- | ---- | -----------
 `transforms_` | <code>dict[int, list[ndarray]]</code> | Per-neighborhood transforms. Keys are center voxel indices (searchlight) or parcel ids (roi); values are lists of transform matrices, one per subject.
 `template_` | <code>dict[int, ndarray]</code> | Per-neighborhood templates used for alignment.
-`neighborhoods_` | <code>[SphereNeighborhoods](#neighborhoods-sphereneighborhoods) \| RoiNeighborhoods</code> | Computed neighborhoods (searchlight spheres or parcels).
+`neighborhoods_` | <code>[SphereNeighborhoods](#algorithms-sphereneighborhoods) \| RoiNeighborhoods</code> | Computed neighborhoods (searchlight spheres or parcels).
 `n_voxels_` | <code>int</code> | Total number of voxels in the mask.
 `mask_` | <code>Nifti1Image</code> | Brain mask used for fitting.
 `backend_` | <code>[Backend](#backends-backend)</code> | Execution backend selected from `parallel`.
@@ -513,6 +515,117 @@ Name | Type | Description | Default
 Type | Description
 ---- | -----------
 <code>list[ndarray]</code> | Aligned data for each subject, each shape     (n_voxels, n_samples).
+
+(algorithms-sphereneighborhoods)=
+### `SphereNeighborhoods`
+
+```python
+SphereNeighborhoods(adjacency: sparse.csr_matrix, mask_hash: str, radius: float, n_voxels: int)
+```
+
+Precomputed sphere neighborhoods for a brain mask.
+
+This dataclass stores a sparse adjacency matrix where row i contains True
+for all voxels within the specified radius of voxel i. It provides efficient
+iteration over neighborhoods for searchlight-style analyses.
+
+**Attributes:**
+
+Name | Type | Description
+---- | ---- | -----------
+`adjacency` | <code>csr_matrix</code> | ``(n_voxels, n_voxels)`` matrix where ``adjacency[i, j]`` is nonzero if voxel ``j`` is within the radius of voxel ``i``.
+`mask_hash` | <code>str</code> | Hash of the source mask, for cache validation.
+`radius` | <code>float</code> | Radius in millimeters.
+`n_voxels` | <code>int</code> | Number of voxels in the mask.
+`mean_size` | <code>float</code> | Mean neighborhood size in voxels.
+`min_size` | <code>int</code> | Smallest neighborhood size in voxels.
+`max_size` | <code>int</code> | Largest neighborhood size in voxels.
+
+**Methods:**
+
+Name | Description
+---- | -----------
+[`get_neighborhood_size`](#algorithms-get-neighborhood-size) | Get the number of voxels in a neighborhood.
+[`get_neighbors`](#algorithms-get-neighbors) | Get indices of all voxels in the neighborhood of a given voxel.
+[`iter_neighborhoods`](#algorithms-iter-neighborhoods) | Iterate over all neighborhoods.
+
+
+
+**Examples:**
+
+```python
+neighborhoods = compute_searchlight_neighborhoods(mask, radius=10.0)
+print(f"Mean neighborhood size: {neighborhoods.mean_size:.1f} voxels")
+
+# Get neighbors of a specific voxel
+neighbor_idx = neighborhoods.get_neighbors(100)
+print(f"Voxel 100 has {len(neighbor_idx)} neighbors")
+```
+
+#### Methods
+
+(algorithms-get-neighborhood-size)=
+##### `get_neighborhood_size`
+
+```python
+get_neighborhood_size(voxel_idx: int) -> int
+```
+
+Get the number of voxels in a neighborhood.
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`voxel_idx` | <code>int</code> | Index of the center voxel | *required*
+
+**Returns:**
+
+Type | Description
+---- | -----------
+<code>int</code> | Number of voxels in the neighborhood
+
+(algorithms-get-neighbors)=
+##### `get_neighbors`
+
+```python
+get_neighbors(voxel_idx: int) -> np.ndarray
+```
+
+Get indices of all voxels in the neighborhood of a given voxel.
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`voxel_idx` | <code>int</code> | Index of the center voxel (0 to n_voxels-1) | *required*
+
+**Returns:**
+
+Type | Description
+---- | -----------
+<code>ndarray</code> | Array of voxel indices within radius of the center voxel
+
+(algorithms-iter-neighborhoods)=
+##### `iter_neighborhoods`
+
+```python
+iter_neighborhoods(*, progress_bar: bool = False) -> Iterator[tuple[int, np.ndarray]]
+```
+
+Iterate over all neighborhoods.
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`progress_bar` | <code>bool</code> | If True, wrap the iterator with a tqdm progress bar. | <code>False</code>
+
+**Yields:**
+
+Type | Description
+---- | -----------
+<code>tuple[int, ndarray]</code> | ``(center_voxel_idx, neighbor_indices)`` for     each voxel.
 
 (algorithms-srm)=
 ### `SRM`
@@ -836,6 +949,69 @@ X = np.random.randn(100, 5)
 result = compute_multivariate_similarity(y, X, method="ols")
 result["beta"].shape  # → (6,)  5 predictors + intercept
 ```
+
+(algorithms-compute-searchlight-neighborhoods)=
+### `compute_searchlight_neighborhoods`
+
+```python
+compute_searchlight_neighborhoods(mask_img: Nifti1Image, radius: float = 10.0, use_cache: bool = True) -> SphereNeighborhoods
+```
+
+Compute sphere neighborhoods for all voxels in a brain mask.
+
+For each voxel in the mask, this function identifies all other voxels
+within the specified radius (in millimeters). The result is cached to
+disk for fast reloading in subsequent analyses.
+
+The algorithm uses sklearn's BallTree for efficient radius queries in
+world coordinates (mm), ensuring accurate neighborhoods regardless of
+voxel resolution.
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`mask_img` | <code>Nifti1Image</code> | NIfTI mask image defining the brain region | *required*
+`radius` | <code>float</code> | Radius of spheres in millimeters (default: 10.0) | <code>10.0</code>
+`use_cache` | <code>bool</code> | If True, cache results to ~/.nltools/cache/searchlight/ for fast reloading (default: True) | <code>True</code>
+
+**Returns:**
+
+Type | Description
+---- | -----------
+<code>[SphereNeighborhoods](#algorithms-sphereneighborhoods)</code> | SphereNeighborhoods with precomputed adjacency matrix
+
+**Raises:**
+
+Type | Description
+---- | -----------
+<code>ValueError</code> | If mask has no non-zero voxels
+
+**Examples:**
+
+```python
+import nibabel as nib
+
+mask = nib.load("brain_mask.nii.gz")
+
+# First call computes and caches (may take a few seconds)
+neighborhoods = compute_searchlight_neighborhoods(mask, radius=8.0)
+
+# Subsequent calls load from cache (~50ms)
+neighborhoods = compute_searchlight_neighborhoods(mask, radius=8.0)
+
+print(neighborhoods)
+# SphereNeighborhoods(n_voxels=50000, radius=8.0mm, mean_size=33.2)
+```
+
+<details class="note" open markdown="1">
+<summary>Note</summary>
+
+Cache location: ``~/.nltools/cache/searchlight/{mask_hash}_{radius}mm.npz``.
+For a typical 2mm MNI mask (~50k voxels) with a 10mm radius the first
+run takes ~1-2 seconds; a cached load takes ~50ms.
+
+</details>
 
 (algorithms-compute-similarity)=
 ### `compute_similarity`
@@ -1544,7 +1720,7 @@ correlation analysis at the group level. NeuroImage, 142, 248-259.
 ### `isfc`
 
 ```python
-isfc(data, method = 'average', n_jobs = -1)
+isfc(data, *, method = 'average', n_jobs = -1, random_state = None, progress_bar = False)
 ```
 
 Compute intersubject functional connectivity (ISFC) from per-subject matrices.
@@ -1562,6 +1738,8 @@ Name | Type | Description | Default
 `data` | <code>list[ndarray]</code> | One matrix per subject, each `(n_observations, n_features)` with identical shapes. | *required*
 `method` | <code>str</code> | Only `'average'` (leave-one-out) is implemented. | <code>'average'</code>
 `n_jobs` | <code>int</code> | Parallel workers; -1 (default) uses all cores, 1 runs serially. | <code>-1</code>
+`random_state` | <code>int \| RandomState \| None</code> | Unused. ISFC's leave-one-out computation is deterministic and draws no random samples; the parameter exists for signature parity with the rest of the ISC family (`isc`, `isc_group`). | <code>None</code>
+`progress_bar` | <code>bool</code> | Display a progress bar over subjects. Defaults to False. | <code>False</code>
 
 **Returns:**
 

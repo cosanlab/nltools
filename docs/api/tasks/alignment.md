@@ -486,7 +486,7 @@ Name | Type | Description
 ---- | ---- | -----------
 `transforms_` | <code>dict[int, list[ndarray]]</code> | Per-neighborhood transforms. Keys are center voxel indices (searchlight) or parcel ids (roi); values are lists of transform matrices, one per subject.
 `template_` | <code>dict[int, ndarray]</code> | Per-neighborhood templates used for alignment.
-`neighborhoods_` | <code>[SphereNeighborhoods](#neighborhoods-sphereneighborhoods) \| RoiNeighborhoods</code> | Computed neighborhoods (searchlight spheres or parcels).
+`neighborhoods_` | <code>[SphereNeighborhoods](#algorithms-sphereneighborhoods) \| RoiNeighborhoods</code> | Computed neighborhoods (searchlight spheres or parcels).
 `n_voxels_` | <code>int</code> | Total number of voxels in the mask.
 `mask_` | <code>Nifti1Image</code> | Brain mask used for fitting.
 `backend_` | <code>[Backend](#backends-backend)</code> | Execution backend selected from `parallel`.

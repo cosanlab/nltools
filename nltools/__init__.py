@@ -28,8 +28,11 @@ __all__ = [
     "get_brainspace",
     "io",
     "mask",
+    "models",
     "plotting",
     "reset_brainspace",
+    "roi_to_brain",
+    "roi_to_brain_from_atlas",
     "set_brainspace",
     "templates",
     "utils",
@@ -52,7 +55,13 @@ from .templates import (
     with_brainspace,
 )
 from .version import __version__
-from .mask import expand_mask, collapse_mask, create_sphere
+from .mask import (
+    expand_mask,
+    collapse_mask,
+    create_sphere,
+    roi_to_brain,
+    roi_to_brain_from_atlas,
+)
 from .algorithms import SRM, DetSRM
 
 # Bind submodules advertised in __all__ so attribute access (e.g.
@@ -64,6 +73,7 @@ from . import (  # noqa: F401
     data,
     datasets,
     io,
+    models,
     plotting,
     utils,
 )

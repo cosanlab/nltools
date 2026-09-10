@@ -372,15 +372,17 @@ PAGES: tuple[Page, ...] = (
             "group the same objects by what they are for."
         ),
     ),
+    _module_page(
+        "nltools.data.braindata.neighborhoods",
+        "neighborhoods.md",
+        title="Searchlight neighborhoods",
+    ),
     # --- internal modules ---------------------------------------------------
     _module_page("nltools.algorithms.backends", "backends.md", internal=True),
     _module_page(
         "nltools.algorithms.decoding", "algorithms/decoding.md", internal=True
     ),
     _module_page("nltools.data.braindata.cache", "cache.md", internal=True),
-    _module_page(
-        "nltools.data.braindata.neighborhoods", "neighborhoods.md", internal=True
-    ),
     _module_page("nltools.utils", "utils.md", internal=True),
     _module_page("nltools.templates", "templates.md", internal=True),
     _module_page(

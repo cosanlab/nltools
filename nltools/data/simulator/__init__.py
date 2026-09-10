@@ -554,6 +554,38 @@ class Simulator:
                     wr.writerow(self.rep_id)
 
 
+#: Multiple-comparison corrections `SimulateGrid` implements. `None` applies no
+#: correction; `'fdr'` requires `threshold_type='q'`.
+_SUPPORTED_CORRECTIONS = (None, "fdr")
+
+
+def _validate_correction(correction):
+    """Raise `ValueError` for an unsupported `correction`.
+
+    Also raises for the dropped v0.5.1 `correction='permutation'`.
+
+    Args:
+        correction: Value passed as `SimulateGrid`'s `correction` argument.
+
+    Raises:
+        ValueError: If `correction` is `'permutation'` (dropped in v0.6.0 — its
+            v0.5.1 permutation branch was never wired into `fit()`, so the
+            option never changed the result) or anything outside
+            `_SUPPORTED_CORRECTIONS`.
+    """
+    if correction == "permutation":
+        raise ValueError(
+            "correction='permutation' is no longer supported: its v0.5.1 "
+            "permutation branch never ran as part of fit() and never changed "
+            "the result. Run a permutation test directly with "
+            "nltools.algorithms.inference.one_sample_permutation_test instead."
+        )
+    if correction not in _SUPPORTED_CORRECTIONS:
+        raise ValueError(
+            f"correction must be one of {_SUPPORTED_CORRECTIONS}; got {correction!r}."
+        )
+
+
 class SimulateGrid:
     """Simulate 2D grid data for testing statistical methods.
 
@@ -694,7 +726,13 @@ class SimulateGrid:
 
         Returns:
             np.ndarray: Thresholded data.
+
+        Raises:
+            ValueError: If `correction` is unsupported (see `_validate_correction`),
+                or `correction='fdr'` is paired with a `threshold_type` other than
+                `'q'`.
         """
+        _validate_correction(correction)
         if correction == "fdr":
             if threshold_type != "q":
                 raise ValueError("Must specify a q value when using fdr")
@@ -865,6 +903,7 @@ class SimulateGrid:
             threshold=threshold,
             threshold_type=threshold_type,
             n_simulations=n_simulations,
+            correction=correction,
         )
 
         if self.signal_mask is None:

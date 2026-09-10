@@ -1,5 +1,5 @@
 ---
-title: data.braindata.neighborhoods
+title: Searchlight neighborhoods
 label: page-neighborhoods
 ---
 
@@ -187,7 +187,7 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
-<code>[SphereNeighborhoods](#neighborhoods-sphereneighborhoods)</code> | SphereNeighborhoods with precomputed adjacency matrix
+<code>[SphereNeighborhoods](#algorithms-sphereneighborhoods)</code> | SphereNeighborhoods with precomputed adjacency matrix
 
 **Raises:**
 

@@ -24,11 +24,13 @@ __all__ = [
     "DetSRM",
     "HyperAlignment",
     "LocalAlignment",
+    "SphereNeighborhoods",
     "align",
     "align_states",
     "calc_bpm",
     "circle_shift",
     "compute_multivariate_similarity",
+    "compute_searchlight_neighborhoods",
     "compute_similarity",
     "correlation_permutation_test",
     "distance_correlation",
@@ -81,6 +83,10 @@ from .alignment import (
     procrustes_distance,
 )
 from .corrections import fdr, holm_bonf, multi_threshold, threshold
+from ..data.braindata.neighborhoods import (
+    SphereNeighborhoods,
+    compute_searchlight_neighborhoods,
+)
 from .hrf import (
     glover_dispersion_derivative,
     glover_hrf,

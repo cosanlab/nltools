@@ -13,6 +13,8 @@ from nltools.models.results import Payload
 
 from .braindata import BrainData
 
+__all__ = ["BootstrapResult", "Predict"]
+
 #: Fields that may be populated for each spatial scale, and the subset that
 #: every result of that scale must carry. Anything outside `permitted` must be
 #: `None`, so an invalid field combination cannot be constructed.

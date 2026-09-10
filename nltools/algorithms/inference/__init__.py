@@ -57,16 +57,9 @@ from .matrix import (
 # the `.isc` engine *module* on this package.
 from .isc import isc_permutation_test, isc_group_permutation_test
 
-# Import utility functions (for testing and internal use)
-from .utils import _generate_sign_flips, _compute_pvalue, _auto_batch_size
-
 
 # Define public exports
 __all__ = [
-    "_auto_batch_size",
-    "_compute_pvalue",
-    # Private functions (exported for testing)
-    "_generate_sign_flips",
     "circle_shift",
     "correlation_permutation_test",
     "distance_correlation",

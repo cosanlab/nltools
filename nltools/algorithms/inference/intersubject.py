@@ -8,6 +8,7 @@ from scipy.signal import hilbert
 
 from .isc import isc_permutation_test
 from .matrix import _compute_cross_correlation
+from .utils import maybe_tqdm
 
 from ..signal import (
     _butter_bandpass_filter,
@@ -239,7 +240,7 @@ def isc_group(
     )
 
 
-def isfc(data, method="average", n_jobs=-1):
+def isfc(data, *, method="average", n_jobs=-1, random_state=None, progress_bar=False):
     """Compute intersubject functional connectivity (ISFC) from per-subject matrices.
 
     Uses the leave-one-out approach of Simony et al. (2016): for each subject,
@@ -254,6 +255,12 @@ def isfc(data, method="average", n_jobs=-1):
         method (str): Only `'average'` (leave-one-out) is implemented.
         n_jobs (int): Parallel workers; -1 (default) uses all cores, 1 runs
             serially.
+        random_state (int | np.random.RandomState | None): Unused. ISFC's
+            leave-one-out computation is deterministic and draws no random
+            samples; the parameter exists for signature parity with the rest
+            of the ISC family (`isc`, `isc_group`).
+        progress_bar (bool): Display a progress bar over subjects. Defaults to
+            False.
 
     Returns:
         list[np.ndarray]: One `(n_features, n_features)` ISFC matrix per
@@ -283,10 +290,16 @@ def isfc(data, method="average", n_jobs=-1):
                 f"Subject 0 has shape {reference_shape}, subject {i} has shape {subject_data.shape}"
             )
 
+    progress_kwargs = {
+        "progress_bar": progress_bar,
+        "desc": "ISFC subjects",
+        "unit": "subject",
+    }
+
     if n_jobs == 1:
         # Serial execution (for explicit serial control)
         sub_isfc = []
-        for target in subjects:
+        for target in maybe_tqdm(subjects, **progress_kwargs):
             m1 = data_arrays[target]
             sub_mean = np.zeros(m1.shape)
             for y in (y for y in subjects if y != target):
@@ -307,7 +320,8 @@ def isfc(data, method="average", n_jobs=-1):
 
         # Parallelize across subjects
         sub_isfc = Parallel(n_jobs=n_jobs)(
-            delayed(_compute_one_subject_isfc)(target) for target in subjects
+            delayed(_compute_one_subject_isfc)(target)
+            for target in maybe_tqdm(subjects, **progress_kwargs)
         )
 
     return sub_isfc

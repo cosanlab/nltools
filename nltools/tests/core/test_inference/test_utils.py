@@ -9,8 +9,11 @@ import pytest
 import numpy as np
 import multiprocessing
 
-from nltools.algorithms.inference import _generate_sign_flips, _compute_pvalue
-from nltools.algorithms.inference.utils import _auto_batch_size
+from nltools.algorithms.inference.utils import (
+    _auto_batch_size,
+    _compute_pvalue,
+    _generate_sign_flips,
+)
 from nltools.algorithms.backends import _auto_n_jobs_cpu, _estimate_data_size_mb
 
 
