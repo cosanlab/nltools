@@ -143,7 +143,7 @@ def _resample_img_to_mask(bd, data_img):
     cast itself inside ``resample_img`` — and warns about it on every load —
     so doing it here removes the notice without changing the result. Nearest
     interpolation keeps the integer dtype (labels stay labels). A header with
-    no sform (haxby's, for one) gets the same code-2 sform `resample_to`
+    no sform (haxby's, for one) gets the same code-2 sform `resample`
     assigns, for the same reason (see `_ensure_sform`).
     """
     import nibabel as nib
@@ -669,10 +669,14 @@ def _ensure_sform(img):
     return out
 
 
-def resample_to(bd, *, img=None, resolution=None, interpolation=None):
-    """Resample BrainData to match target image or resolution.
+def resample(bd, *, img=None, resolution=None, interpolation=None):
+    """Resample BrainData onto a new voxel grid.
 
-    Exactly one of `img` or `resolution` must be given.
+    Exactly one of `img` or `resolution` must be given. An `img` supplies only
+    the target grid; its intensity values never define the output mask. The
+    source mask is resampled onto that grid with nearest-neighbor interpolation
+    and installed on the result, which preserves row-aligned `X` and `Y` and
+    carries no fitted state.
 
     Args:
         bd (BrainData): Instance to resample.
@@ -680,21 +684,25 @@ def resample_to(bd, *, img=None, resolution=None, interpolation=None):
             as a nibabel image or a path to a `.nii`/`.nii.gz` file.
         resolution (float | int | None): Target isotropic voxel size in mm
             (e.g. `2.0` for 2 mm³ voxels).
-        interpolation (str | None): Interpolation method: `'nearest'` (atlases,
-            masks, labels), `'linear'`, or `'continuous'` (higher-order spline, for
-            stat maps). None uses the instance's interpolation setting.
+        interpolation (str | None): Interpolation method for the data:
+            `'nearest'` (atlases, masks, labels), `'linear'`, or `'continuous'`
+            (higher-order spline, for stat maps). None uses the instance's
+            interpolation setting.
 
     Returns:
         BrainData: New instance with resampled data and mask.
 
     Raises:
-        ValueError: If both `img` and `resolution` are None, or both are provided.
+        ValueError: If both `img` and `resolution` are None, both are provided,
+            `resolution` is not positive, or the instance is empty.
         TypeError: If `img` is not a valid image type.
     """
     import nibabel as nib
     from nilearn.image import resample_to_img, resample_img
+    from nilearn.masking import apply_mask as nilearn_apply_mask
 
-    # Validate inputs
+    from .utils import _result_with_mask
+
     if img is None and resolution is None:
         raise ValueError(
             "Must provide either 'img' or 'resolution' parameter. "
@@ -706,87 +714,73 @@ def resample_to(bd, *, img=None, resolution=None, interpolation=None):
             "Provide exactly one of them."
         )
 
-    # Check for empty BrainData
-    if len(bd) == 0:
-        raise ValueError("Cannot resample empty BrainData object")
-
-    # Convert current BrainData to nifti
-    source_nifti = to_nifti(bd)
-
-    # Resolve interpolation: None uses instance setting with auto-detection
-    if interpolation is None:
-        interpolation = get_interpolation(bd, source_nifti)
-
-    source_nifti = _ensure_sform(source_nifti)
-
-    if img is not None:
-        # Resample to target image
-        # Validate img type
+    # Check the target argument itself, then the object, before touching disk
+    # or doing any resampling work.
+    target_affine = None
+    if resolution is not None:
+        resolution = float(resolution)
+        if resolution <= 0:
+            raise ValueError(f"resolution must be positive. Got {resolution}")
+        target_affine = np.eye(4)
+        target_affine[:3, :3] = np.diag([resolution, resolution, resolution])
+        target_description = f"resolution={resolution}"
+    else:
         if not isinstance(img, (str, Path, nib.Nifti1Image)):
             raise TypeError(
                 f"img must be nibabel Nifti1Image, file path (str/Path), or None. "
                 f"Got {type(img).__name__}"
             )
+        target_description = f"img={img if isinstance(img, (str, Path)) else 'image'}"
 
-        # Resample - resample_to_img can handle file paths directly
+    if len(bd) == 0:
+        raise ValueError("Cannot resample empty BrainData object")
+
+    target_img = None
+    if target_affine is None:
+        if isinstance(img, (str, Path)):
+            img = nib.load(str(img))
+        # Copy-on-write via _ensure_sform avoids mutating the caller's image.
+        target_img = _ensure_sform(img)
+
+    source_nifti = to_nifti(bd)
+    if interpolation is None:
+        interpolation = get_interpolation(bd, source_nifti)
+    source_nifti = _ensure_sform(source_nifti)
+
+    # Both branches clip spline overshoot to the source range; nilearn's own
+    # defaults disagree between the two calls, so state the rule here.
+    # The mask always uses nearest interpolation so that it stays binary.
+    source_mask = _ensure_sform(bd.mask)
+    if target_img is not None:
         resampled_nifti = resample_to_img(
+            source_nifti, target_img, interpolation=interpolation, clip=True
+        )
+        resampled_mask = resample_to_img(
+            source_mask, target_img, interpolation="nearest", clip=True
+        )
+    else:
+        resampled_nifti = resample_img(
             source_nifti,
-            img,  # Can be file path or nibabel image
+            target_affine=target_affine,
             interpolation=interpolation,
+            clip=True,
+        )
+        resampled_mask = resample_img(
+            source_mask,
+            target_affine=target_affine,
+            interpolation="nearest",
+            clip=True,
         )
 
-        # For mask, we need to load the image if it's a file path
-        # (since we need to create a masker with it)
-        if isinstance(img, (str, Path)):
-            target_img = nib.load(str(img))
-        else:
-            target_img = img
+    if not np.any(resampled_mask.get_fdata() > 0):
+        raise ValueError(
+            f"Resampling to {target_description} leaves no voxels: the mask's "
+            "support does not survive on the target grid. Choose a finer "
+            "resolution or a target grid that overlaps the data."
+        )
 
-        if isinstance(target_img, nib.Nifti1Image):
-            target_img = _ensure_sform(target_img)
-
-        # Lazy import to avoid circular dependency
-        from nltools.data.braindata import BrainData
-
-        return BrainData(resampled_nifti, mask=target_img, resample=False)
-
-    # resolution is not None
-    # Resample to specified resolution
-    resolution = float(resolution)
-    if resolution <= 0:
-        raise ValueError(f"resolution must be positive. Got {resolution}")
-
-    # Create target affine with specified resolution (diagonal matrix)
-    # resample_img automatically calculates output shape and origin
-    target_affine = np.eye(4)
-    target_affine[:3, :3] = np.diag([resolution, resolution, resolution])
-
-    # Resample data
-    resampled_nifti = resample_img(
-        source_nifti,
-        target_affine=target_affine,
-        interpolation=interpolation,
-    )
-
-    # Resample mask with nearest interpolation (preserves binary nature).
-    # Copy-on-write via _ensure_sform avoids mutating bd.mask's header.
-    resampled_mask = resample_img(
-        _ensure_sform(bd.mask),
-        target_affine=target_affine,
-        interpolation="nearest",
-    )
-
-    # Preserve X and Y metadata if present
-    kwargs = {"mask": resampled_mask, "resample": False}
-    if hasattr(bd, "X") and bd.X is not None:
-        kwargs["X"] = bd.X
-    if hasattr(bd, "Y") and bd.Y is not None:
-        kwargs["Y"] = bd.Y
-
-    # Lazy import to avoid circular dependency
-    from nltools.data.braindata import BrainData
-
-    return BrainData(resampled_nifti, **kwargs)
+    resampled_data = nilearn_apply_mask(resampled_nifti, resampled_mask)
+    return _result_with_mask(bd, resampled_data, resampled_mask, rows="preserve")
 
 
 def write_brain_data(bd, file_name):

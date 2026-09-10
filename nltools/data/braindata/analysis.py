@@ -6,6 +6,8 @@ Each takes a `BrainData` as its first argument; the corresponding
 `BrainData` methods delegate here.
 """
 
+from pathlib import Path
+
 import numpy as np
 import polars as pl
 
@@ -465,47 +467,77 @@ def multivariate_similarity(bd, images, method="ols", tail=2):
     return compute_multivariate_similarity(y, X, method=method, tail=tail)
 
 
-def apply_mask(bd, mask, resample_mask_to_brain=False):
-    """Mask BrainData instance using nilearn functionality.
+def _mask_image_on_source_grid(bd, mask):
+    """Return ``mask`` as a single 3-D image verified to share ``bd``'s grid.
 
-    Note target data will be resampled into the same space as the mask. If you would like the mask
-    resampled into the BrainData space, then set resample_mask_to_brain=True.
+    Sameness is `check_space_match`, the one predicate the loader also uses, so
+    a mask the constructor would have accepted without resampling is accepted
+    here too. Nothing is resampled: a foreign grid is an error, not something to
+    fix silently, because resampling either operand would change the voxel axis
+    the caller asked to keep. A grid that matches only within that tolerance
+    adopts the source's affine verbatim, which moves no data but keeps the
+    stricter checks downstream in nilearn from rejecting sub-tolerance drift.
+    """
+    import nibabel as nib
+
+    from . import BrainData
+    from .io import check_space_match
+
+    if isinstance(mask, BrainData):
+        mask_img = mask.to_nifti()
+    elif isinstance(mask, (str, Path)):
+        mask_img = nib.load(str(mask))
+    elif isinstance(mask, nib.Nifti1Image):
+        mask_img = mask
+    else:
+        raise TypeError(
+            "mask must be a BrainData, nibabel image, or file path. "
+            f"Received {type(mask).__name__}"
+        )
+
+    if len(mask_img.shape) != 3:
+        raise ValueError("Mask must be a single image")
+
+    if not check_space_match(mask_img, bd.mask):
+        raise ValueError(
+            "apply_mask requires a mask on the same grid as the data: the data "
+            f"is {bd.mask.shape} with affine\n{bd.mask.affine}\nand the mask is "
+            f"{mask_img.shape} with affine\n{mask_img.affine}\n"
+            "Bring them onto a common grid with resample() first."
+        )
+
+    if not np.array_equal(mask_img.affine, bd.mask.affine):
+        mask_img = nib.Nifti1Image(mask_img.dataobj, bd.mask.affine)
+    return mask_img
+
+
+def apply_mask(bd, mask):
+    """Restrict BrainData to a mask's support without changing the grid.
+
+    Support is every voxel of ``mask`` greater than zero. The mask defines the
+    result's voxel axis on its own: where it reaches past ``bd``'s current
+    support the result gains those voxels with zero values, so a mask larger
+    than the data's own mask widens the array rather than intersecting with it.
 
     Args:
         bd (BrainData): Data to mask.
-        mask (BrainData | Nifti1Image): Mask to apply.
-        resample_mask_to_brain (bool): Resample the mask into the brain's space
-            before applying it. Default: ``False``.
+        mask (BrainData | Nifti1Image | str | Path): A single 3-D mask on the
+            same grid and with the same affine as ``bd``.
 
     Returns:
-        BrainData: Masked copy of ``bd``.
+        BrainData: Masked copy of ``bd`` with row metadata preserved.
+
+    Raises:
+        ValueError: If the mask is not a single 3-D image, or its shape or
+            affine differs from ``bd``'s. Use ``resample()`` first in that case.
+        TypeError: If ``mask`` is not a BrainData, nibabel image, or file path.
 
     Note:
         Masking is delegated to ``nilearn.masking.apply_mask``.
     """
-    from nilearn.image import resample_to_img
     from nilearn.masking import apply_mask as nilearn_apply_mask
 
-    from .utils import check_brain_data, check_brain_data_is_single
-
-    # Coerce raw Niimg-like masks into the *target's* space, not the default
-    # MNI152 template. Without bd.mask as context, check_brain_data re-homes a
-    # raw nifti onto the package-default mask, which silently mismatches (and
-    # then loudly fails) for any BrainData in a non-default space.
-    mask = check_brain_data(mask, mask=bd.mask)
-    if not check_brain_data_is_single(mask):
-        raise ValueError("Mask must be a single image")
-
-    # Handle resampling if requested (preserve existing feature)
-    mask_img = mask.to_nifti()
-    if resample_mask_to_brain:
-        mask_img = resample_to_img(
-            mask_img,
-            bd.to_nifti(),
-            interpolation="nearest",  # Masks are discrete, use nearest
-            force_resample=True,
-            copy_header=True,
-        )
+    mask_img = _mask_image_on_source_grid(bd, mask)
 
     # Use nilearn's apply_mask for efficient masking (C-optimized, single path, memory efficient)
     masked_data = nilearn_apply_mask(bd.to_nifti(), mask_img)

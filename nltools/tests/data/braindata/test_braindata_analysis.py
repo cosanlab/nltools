@@ -18,8 +18,6 @@ class TestBrainDataAnalysis:
         assert isinstance(s1, nb.Nifti1Image)
         masked_dat = sim_brain_data.apply_mask(s1)
         assert masked_dat.shape[1] == np.sum(s1.get_fdata() != 0)
-        masked_dat = sim_brain_data.apply_mask(s1, resample_mask_to_brain=True)
-        assert masked_dat.shape[1] == np.sum(s1.get_fdata() != 0)
 
     def test_apply_mask_dimension_compatibility(self, sim_brain_data):
         """Test mask as BrainData with dimension handling."""
@@ -29,28 +27,11 @@ class TestBrainDataAnalysis:
         assert isinstance(result, BrainData)
         assert result.shape[1] == mask_bd.data.astype(bool).sum()
 
-        # With resampling
-        result_resample = sim_brain_data.apply_mask(
-            mask_bd, resample_mask_to_brain=True
-        )
-        assert isinstance(result_resample, BrainData)
-        assert result_resample.shape[1] == np.sum(s1.get_fdata() != 0)
+    def test_apply_mask_accepts_a_raw_niimg_on_the_target_grid(self):
+        """A raw Niimg mask already on the data's grid is used as given.
 
-        # Without resampling
-        result_no_resample = sim_brain_data.apply_mask(
-            mask_bd, resample_mask_to_brain=False
-        )
-        assert isinstance(result_no_resample, BrainData)
-        assert result_no_resample.shape[1] == mask_bd.data.astype(bool).sum()
-
-    def test_apply_mask_raw_niimg_inherits_target_space(self):
-        """A raw Niimg mask is homed onto the target's space, not default MNI152.
-
-        Regression: apply_mask used to coerce a raw nifti mask via
-        check_brain_data() with no space context, re-homing it onto the
-        package-default MNI152 template. For any BrainData in a non-default
-        space this silently mismatched and then failed loudly on affine
-        mismatch inside nilearn's apply_mask.
+        The mask is never re-homed onto the package-default MNI152 template,
+        and it is never resampled: `apply_mask` only changes support.
         """
         # Non-MNI space: 4mm isotropic, small grid, offset origin.
         aff = np.diag([4.0, 4.0, 4.0, 1.0])

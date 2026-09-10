@@ -799,6 +799,11 @@ class Adjacency:
     def write(self, file_name, method="long"):
         """Write the Adjacency to a `.csv` or `.h5` file.
 
+        HDF5 is the round-trip format: values, matrix kind, node labels, and
+        `Y`. CSV stores values only, so a CSV read back loses the labels, `Y`,
+        and the matrix kind, and needs an explicit `matrix_type` wherever the
+        flat layout is ambiguous. Square CSV output is single-matrix only.
+
         Args:
             file_name (str | Path): Output path; an `.h5`/`.hdf5` suffix writes HDF5.
             method (str): Layout for CSV output, `'long'` (vectorized rows) or

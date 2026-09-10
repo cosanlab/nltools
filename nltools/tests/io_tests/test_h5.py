@@ -105,6 +105,40 @@ class TestLegacyBrainDataH5:
         assert isinstance(result["mask"], nib.Nifti1Image)
         assert result["mask"].shape == (8, 8, 8)
 
+    def test_legacy_mask_path_is_reduced_to_its_basename(self, tmp_path):
+        """0.5.1 files stored the writer's absolute mask path; loads normalize it.
+
+        The committed fixture carries no ``mask_file_name`` node, so the legacy
+        layout is synthesized here from it.
+        """
+        import h5py
+        import shutil
+
+        path = tmp_path / "legacy_with_mask_name.h5"
+        shutil.copy(LEGACY_BRAINDATA, path)
+        with h5py.File(path, "a") as f:
+            f.create_dataset(
+                "mask_file_name", data="/somebody/elses/home/2mm-mask.nii.gz"
+            )
+
+        result = load_brain_data_h5(str(path))
+        assert result["mask"].get_filename() == "2mm-mask.nii.gz"
+
+    def test_legacy_windows_mask_path_is_reduced_to_its_basename(self, tmp_path):
+        """A file written on Windows carries backslash separators."""
+        import h5py
+        import shutil
+
+        path = tmp_path / "legacy_windows_mask_name.h5"
+        shutil.copy(LEGACY_BRAINDATA, path)
+        with h5py.File(path, "a") as f:
+            f.create_dataset(
+                "mask_file_name", data="C:\\Users\\someone\\masks\\2mm-mask.nii.gz"
+            )
+
+        result = load_brain_data_h5(str(path))
+        assert result["mask"].get_filename() == "2mm-mask.nii.gz"
+
     def test_braindata_constructor(self):
         from nltools.data import BrainData
 

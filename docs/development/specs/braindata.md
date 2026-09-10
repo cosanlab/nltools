@@ -710,14 +710,19 @@ The HDF5 input boundary retains an isolated reader for files written by
 nltools 0.5.1 and earlier with Deepdish/PyTables. It recognizes only that
 legacy data-container layout and translates it immediately into the same
 canonical data, mask, `.X`, and `.Y` values returned by the current reader.
-Any stored legacy mask path is reduced to its basename during translation. The
+Any stored legacy mask path is reduced to its basename during translation.
+Legacy `.X` and `.Y` are reconstructed from a single homogeneous matrix, which
+is canonical for these files because 0.5.1 only ever wrote numeric frames. The
 loader returns the current in-memory representation; downstream code does not
 branch on the source format. Current code never writes the legacy format, and
 the adapter does not read old fitted or collection-cache state.
 
-Internal `BrainCollection` caches use a separate, explicitly versioned format.
-They preserve the complete fitted-member state specified in
-`braincollection.md` and are not accepted as public `BrainData` input files.
+Internal `BrainCollection` caches are deferred to 0.6.1 along with the rest of
+`BrainCollection`; nothing in 0.6.0 implements them. When they arrive they use a
+separate, explicitly versioned format, preserve the complete fitted-member state
+specified in `braincollection.md`, and are not accepted as public `BrainData`
+input files.
+
 `Predict`, contrast, and bootstrap records are separate returned values rather
 than attached `BrainData` state. Writing a `BrainData` payload extracted from
 one of those records writes only that map or stack.

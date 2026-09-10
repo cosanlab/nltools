@@ -24,7 +24,7 @@ Name | Description
 [`load_from_list`](#data-braindata-io-load-from-list) | Load data from a list of BrainData objects or file paths.
 [`load_from_url`](#data-braindata-io-load-from-url) | Load data from URL.
 [`mask_images`](#data-braindata-io-mask-images) | Mask a list of space-aligned images with a single fitted masker.
-[`resample_to`](#data-braindata-io-resample-to) | Resample BrainData to match target image or resolution.
+[`resample`](#data-braindata-io-resample) | Resample BrainData onto a new voxel grid.
 [`to_nifti`](#data-braindata-io-to-nifti) | Convert BrainData instance to a nibabel NIfTI image.
 [`upload_neurovault`](#data-braindata-io-upload-neurovault) | Upload data to NeuroVault.
 [`warn_if_resampling`](#data-braindata-io-warn-if-resampling) | Emit a `ResamplingWarning` if ``verbose=True`` and ``resample=True``.
@@ -264,16 +264,20 @@ Type | Description
 ---- | -----------
 <code>ndarray</code> | Masked data of shape ``(len(imgs), n_voxels)``.
 
-(data-braindata-io-resample-to)=
-### `resample_to`
+(data-braindata-io-resample)=
+### `resample`
 
 ```python
-resample_to(bd, *, img = None, resolution = None, interpolation = None)
+resample(bd, *, img = None, resolution = None, interpolation = None)
 ```
 
-Resample BrainData to match target image or resolution.
+Resample BrainData onto a new voxel grid.
 
-Exactly one of `img` or `resolution` must be given.
+Exactly one of `img` or `resolution` must be given. An `img` supplies only
+the target grid; its intensity values never define the output mask. The
+source mask is resampled onto that grid with nearest-neighbor interpolation
+and installed on the result, which preserves row-aligned `X` and `Y` and
+carries no fitted state.
 
 **Parameters:**
 
@@ -282,7 +286,7 @@ Name | Type | Description | Default
 `bd` | <code>[BrainData](#page-data-brain-data)</code> | Instance to resample. | *required*
 `img` | <code>Nifti1Image \| str \| Path \| None</code> | Target image whose grid to match, as a nibabel image or a path to a `.nii`/`.nii.gz` file. | <code>None</code>
 `resolution` | <code>float \| int \| None</code> | Target isotropic voxel size in mm (e.g. `2.0` for 2 mm³ voxels). | <code>None</code>
-`interpolation` | <code>str \| None</code> | Interpolation method: `'nearest'` (atlases, masks, labels), `'linear'`, or `'continuous'` (higher-order spline, for stat maps). None uses the instance's interpolation setting. | <code>None</code>
+`interpolation` | <code>str \| None</code> | Interpolation method for the data: `'nearest'` (atlases, masks, labels), `'linear'`, or `'continuous'` (higher-order spline, for stat maps). None uses the instance's interpolation setting. | <code>None</code>
 
 **Returns:**
 
@@ -294,7 +298,7 @@ Type | Description
 
 Type | Description
 ---- | -----------
-<code>ValueError</code> | If both `img` and `resolution` are None, or both are provided.
+<code>ValueError</code> | If both `img` and `resolution` are None, both are provided, `resolution` is not positive, or the instance is empty.
 <code>TypeError</code> | If `img` is not a valid image type.
 
 (data-braindata-io-to-nifti)=

@@ -58,6 +58,12 @@ write(adj, file_name, method = 'long')
 
 Write an Adjacency to a `.csv` or `.h5` file.
 
+HDF5 is the round-trip format: it stores the matrix values, the matrix kind,
+the node labels, and `Y`. CSV stores values only. Reading a CSV back
+therefore loses the node labels, `Y`, and the matrix kind, and needs an
+explicit `matrix_type` wherever the flat layout is ambiguous. Square CSV
+output is single-matrix only.
+
 **Parameters:**
 
 Name | Type | Description | Default

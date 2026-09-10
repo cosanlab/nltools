@@ -73,7 +73,9 @@ Load BrainData contents from an HDF5 file.
 
 Supports the v0.6 layout (`X`/`Y` as Arrow IPC byte datasets) and the legacy
 deepdish/PyTables layout written by nltools <= 0.5.1 (`X`/`Y` as flat
-datasets with sibling `X_columns`/`X_index` nodes).
+datasets with sibling `X_columns`/`X_index` nodes). Both paths reduce a
+stored mask filename to its basename; the embedded mask data and affine are
+authoritative and the name is never reopened.
 
 **Parameters:**
 
@@ -100,8 +102,9 @@ Save BrainData or Adjacency objects to HDF5 files.
 Uses h5py for both types; the `X`/`Y` frames (BrainData) and `Y` (Adjacency)
 are stored as Arrow IPC byte datasets so every polars dtype round-trips
 exactly. A BrainData mask is always stored by value (data + affine
-datasets); its filename is stored alongside only when the mask is
-file-backed, so in-memory masks serialize without one and round-trip by value.
+datasets); the basename of its filename is stored alongside only when the
+mask is file-backed, so in-memory masks serialize without one and round-trip
+by value.
 
 **Parameters:**
 

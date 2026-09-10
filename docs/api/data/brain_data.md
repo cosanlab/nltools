@@ -48,7 +48,7 @@ Name | Description
 ---- | -----------
 [`align`](#data-brain-data-align) | Align BrainData instance to target object using functional alignment.
 [`append`](#data-brain-data-append) | Append data to BrainData instance.
-[`apply_mask`](#data-brain-data-apply-mask) | Mask BrainData instance using nilearn functionality.
+[`apply_mask`](#data-brain-data-apply-mask) | Restrict the data to a mask's support, leaving the grid unchanged.
 [`astype`](#data-brain-data-astype) | Cast BrainData.data as type.
 [`bootstrap`](#data-brain-data-bootstrap) | Bootstrap a statistic and its uncertainty, on CPU workers or a GPU.
 [`cluster_report`](#data-brain-data-cluster-report) | Generate a cluster report with anatomical labels.
@@ -72,7 +72,7 @@ Name | Description
 [`predict`](#data-brain-data-predict) | Predict voxel responses from a fitted model, or decode labels with MVPA.
 [`r_to_z`](#data-brain-data-r-to-z) | Apply Fisher's r-to-z transformation to each data element.
 [`regions`](#data-brain-data-regions) | Extract brain connected regions into separate regions.
-[`resample_to`](#data-brain-data-resample-to) | Resample BrainData to match target image or resolution.
+[`resample`](#data-brain-data-resample) | Resample onto a new voxel grid, carrying the mask along.
 [`scale`](#data-brain-data-scale) | Scale data via mean scaling.
 [`similarity`](#data-brain-data-similarity) | Calculate similarity to a single BrainData or nibabel image.
 [`smooth`](#data-brain-data-smooth) | Apply spatial smoothing using nilearn smooth_img().
@@ -159,26 +159,40 @@ Type | Description
 ### `apply_mask`
 
 ```python
-apply_mask(mask, resample_mask_to_brain = False)
+apply_mask(mask)
 ```
 
-Mask BrainData instance using nilearn functionality.
+Restrict the data to a mask's support, leaving the grid unchanged.
 
-Note target data will be resampled into the same space as the mask. If you would like the mask
-resampled into the BrainData space, then set resample_mask_to_brain=True.
+The mask must be a single three-dimensional image on the same grid and
+with the same affine as this object. A mismatch raises: resample the
+mask or the data with `resample()` first, rather than relying on an
+implicit resample here.
+
+Support is every voxel of `mask` greater than zero, and the mask defines
+the result's voxel axis on its own. Where it reaches past this object's
+current support the result gains those voxels with zero values, so a
+mask larger than `self.mask` widens the array rather than intersecting
+with it.
 
 **Parameters:**
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`mask` | <code>[BrainData](#page-data-brain-data) \| Nifti1Image</code> | Mask to apply to BrainData object. | *required*
-`resample_mask_to_brain` | <code>bool</code> | Resample the mask to brain space before applying it. Default False. | <code>False</code>
+`mask` | <code>[BrainData](#page-data-brain-data) \| Nifti1Image \| str \| Path</code> | Mask to apply. | *required*
 
 **Returns:**
 
 Type | Description
 ---- | -----------
 <code>[BrainData](#page-data-brain-data)</code> | Masked BrainData object.
+
+**Raises:**
+
+Type | Description
+---- | -----------
+<code>ValueError</code> | If the mask is not a single 3-D image, or its shape or affine differs from this object's.
+<code>TypeError</code> | If `mask` is not a BrainData, nibabel image, or file path.
 
 (data-brain-data-astype)=
 ### `astype`
@@ -990,34 +1004,49 @@ Type | Description
 ---- | -----------
 <code>[BrainData](#page-data-brain-data)</code> | BrainData instance with extracted ROIs as data.
 
-(data-brain-data-resample-to)=
-### `resample_to`
+(data-brain-data-resample)=
+### `resample`
 
 ```python
-resample_to(*, img = None, resolution = None, interpolation = None)
+resample(*, img = None, resolution = None, interpolation = None)
 ```
 
-Resample BrainData to match target image or resolution.
+Resample onto a new voxel grid, carrying the mask along.
+
+Exactly one of `img` or `resolution` is required. An `img` supplies
+only the target grid: its intensity values never define the output
+mask. The current mask is resampled onto the target grid with
+nearest-neighbor interpolation, so the result's voxel support is the
+source support expressed on the new grid. Row-aligned `X` and `Y`
+survive; fitted state does not.
 
 **Parameters:**
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`img` | <code>Nifti1Image \| str \| Path \| None</code> | Target image for resampling. | <code>None</code>
+`img` | <code>Nifti1Image \| str \| Path \| None</code> | Target image supplying the grid to match. | <code>None</code>
 `resolution` | <code>float \| int \| None</code> | Target isotropic voxel size in mm. | <code>None</code>
-`interpolation` | <code>str \| None</code> | Interpolation method: ``'nearest'``, ``'linear'``, ``'continuous'``, or ``None`` to use the instance's setting. | <code>None</code>
+`interpolation` | <code>str \| None</code> | Interpolation method for the data: ``'nearest'``, ``'linear'``, ``'continuous'``, or ``None`` to use the instance's setting. | <code>None</code>
 
 **Returns:**
 
 Type | Description
 ---- | -----------
-<code>[BrainData](#page-data-brain-data)</code> | New BrainData instance with resampled data.
+<code>[BrainData](#page-data-brain-data)</code> | New BrainData instance with resampled data and mask.
 
 **Raises:**
 
 Type | Description
 ---- | -----------
-<code>ValueError</code> | If both ``img`` and ``resolution`` are None, or both are provided.
+<code>ValueError</code> | If both ``img`` and ``resolution`` are None, both are provided, or ``resolution`` is not positive.
+<code>TypeError</code> | If ``img`` is not a valid image type.
+
+**Examples:**
+
+```python
+coarse = brain.resample(resolution=3.0)
+on_atlas_grid = brain.resample(img=atlas_img)
+```
 
 (data-brain-data-scale)=
 ### `scale`

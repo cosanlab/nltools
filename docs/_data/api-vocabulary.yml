@@ -219,6 +219,8 @@ enforcement:
     save_weights: {canonical: "return_samples"}
     percentiles: {canonical: "confidence_level (one level, not a percentile pair)"}
     ignore_diagonal: {canonical: "include_diag (note the inverted sense)"}
+    resample_mask_to_brain:
+      canonical: "no replacement — BrainData.apply_mask requires a same-grid mask; bring the operands onto a common grid with BrainData.resample() first"
   kwarg_contracts:
     metric:
       banned_defaults: ["mean", "median"]

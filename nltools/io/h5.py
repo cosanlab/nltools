@@ -7,6 +7,7 @@ __all__ = ["is_h5_path", "load_brain_data_h5", "to_h5"]
 
 import io
 import warnings
+from pathlib import Path, PureWindowsPath
 
 import nibabel as nib
 import numpy as np
@@ -51,11 +52,21 @@ def is_h5_path(file_name) -> bool:
         is_h5_path(Path("results.hdf5"))  # → True
         ```
     """
-    from pathlib import Path
-
     if isinstance(file_name, Path):
         file_name = str(file_name)
     return file_name.lower().endswith((".h5", ".hdf5"))
+
+
+def _mask_basename(stored_name):
+    """Reduce a stored mask filename to its basename.
+
+    Files written before the basename rule — and files written on Windows,
+    whose separators mean nothing to `pathlib` on POSIX — carry a full path, so
+    both separators are stripped here.
+    """
+    if "\\" in stored_name:
+        return PureWindowsPath(stored_name).name
+    return Path(stored_name).name
 
 
 def _write_polars_frame(h5_file, name, df, compression):
@@ -87,8 +98,9 @@ def to_h5(obj, file_name, obj_type="brain_data", h5_compression="gzip"):
     Uses h5py for both types; the `X`/`Y` frames (BrainData) and `Y` (Adjacency)
     are stored as Arrow IPC byte datasets so every polars dtype round-trips
     exactly. A BrainData mask is always stored by value (data + affine
-    datasets); its filename is stored alongside only when the mask is
-    file-backed, so in-memory masks serialize without one and round-trip by value.
+    datasets); the basename of its filename is stored alongside only when the
+    mask is file-backed, so in-memory masks serialize without one and round-trip
+    by value.
 
     Args:
         obj (BrainData | Adjacency): Object to save.
@@ -112,8 +124,10 @@ def to_h5(obj, file_name, obj_type="brain_data", h5_compression="gzip"):
             mask_file_name = obj.mask.get_filename()
             if mask_file_name is not None:
                 # In-memory masks have no filename; the mask still round-trips
-                # by value via the mask_data + mask_affine datasets above.
-                f.create_dataset("mask_file_name", data=mask_file_name)
+                # by value via the mask_data + mask_affine datasets above. Only
+                # the basename is stored: the writer's directory layout means
+                # nothing on another machine, and nothing reopens the name.
+                f.create_dataset("mask_file_name", data=_mask_basename(mask_file_name))
             _write_polars_frame(f, "X", obj.X, h5_compression)
             _write_polars_frame(f, "Y", obj.Y, h5_compression)
     else:
@@ -142,7 +156,9 @@ def load_brain_data_h5(file_path, mask=None):
 
     Supports the v0.6 layout (`X`/`Y` as Arrow IPC byte datasets) and the legacy
     deepdish/PyTables layout written by nltools <= 0.5.1 (`X`/`Y` as flat
-    datasets with sibling `X_columns`/`X_index` nodes).
+    datasets with sibling `X_columns`/`X_index` nodes). Both paths reduce a
+    stored mask filename to its basename; the embedded mask data and affine are
+    authoritative and the name is never reopened.
 
     Args:
         file_path (str | Path): Path to the HDF5 file.
@@ -166,9 +182,13 @@ def load_brain_data_h5(file_path, mask=None):
 
         if mask is None and "mask_data" in f:
             if "mask_file_name" in f:
-                # Mask originally file-backed: keep the filename association.
+                # Mask originally file-backed: keep the filename association,
+                # reduced to a basename so a file written before that rule
+                # stops reporting the writer's parent directory.
                 file_map = {
-                    "image": nib.FileHolder(filename=f["mask_file_name"][()].decode())
+                    "image": nib.FileHolder(
+                        filename=_mask_basename(f["mask_file_name"][()].decode())
+                    )
                 }
             else:
                 # Mask was in-memory at write time: reconstruct by value.
@@ -257,7 +277,8 @@ def _load_legacy_brain_data_h5(f, mask=None):
         if "mask_file_name" in f:
             file_name = _decode_legacy_scalar(f["mask_file_name"])
             if file_name:
-                file_map = {"image": nib.FileHolder(filename=file_name)}
+                # 0.5.1 stored the writer's absolute path; keep the basename.
+                file_map = {"image": nib.FileHolder(filename=_mask_basename(file_name))}
                 result["mask"] = nib.Nifti1Image(data, affine=affine, file_map=file_map)
             else:
                 result["mask"] = nib.Nifti1Image(data, affine=affine)

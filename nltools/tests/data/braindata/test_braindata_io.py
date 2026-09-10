@@ -9,6 +9,14 @@ from nltools.data import BrainData
 from nltools.templates import get_brainspace
 
 
+def _nearest_support(source_mask, target_img):
+    """Voxel count of ``source_mask`` nearest-resampled onto ``target_img``'s grid."""
+    from nilearn.image import resample_to_img
+
+    resampled = resample_to_img(source_mask, target_img, interpolation="nearest")
+    return int(np.count_nonzero(resampled.get_fdata() > 0))
+
+
 class TestBrainDataIO:
     def test_write_nifti_is_lossless_for_float_data(self, tmp_path):
         """Writing float brain data to NIfTI must not quantize (mask dtype leak).
@@ -133,9 +141,12 @@ class TestBrainDataIO:
         # The reconstructed BrainData is functional, not just loadable.
         assert loaded.mean().shape == (bd.shape[1],)
 
-    def test_h5_file_backed_mask_keeps_filename(self, tmp_path):
-        """Regression pin: a mask WITH a filename keeps the existing on-disk
-        representation (``mask_file_name`` dataset) and loads it back."""
+    def test_h5_file_backed_mask_keeps_only_the_basename(self, tmp_path):
+        """A file-backed mask retains its basename, never the parent path.
+
+        The embedded mask data and affine stay authoritative, so the stored
+        name is a label rather than a path anything reopens.
+        """
         import h5py
 
         affine = np.eye(4) * 2
@@ -150,15 +161,81 @@ class TestBrainDataIO:
         path = str(tmp_path / "file_mask.h5")
         bd.write(path)
         with h5py.File(path, "r") as f:
-            assert "mask_file_name" in f
-            assert f["mask_file_name"][()].decode() == str(mask_path)
+            assert f["mask_file_name"][()].decode() == "mask.nii.gz"
         loaded = BrainData(path)
-        assert loaded.mask.get_filename() == str(mask_path)
+        assert loaded.mask.get_filename() == "mask.nii.gz"
         np.testing.assert_allclose(loaded.mask.get_fdata(), mask.get_fdata())
+
+    def test_h5_absolute_mask_path_in_an_older_file_loads_as_a_basename(self, tmp_path):
+        """0.6.0-dev files stored the absolute mask path; reads normalize it."""
+        import h5py
+
+        affine = np.eye(4) * 2
+        affine[3, 3] = 1
+        mask_path = tmp_path / "mask.nii.gz"
+        nib.save(nib.Nifti1Image(np.ones((4, 4, 4), dtype=np.int8), affine), mask_path)
+        bd = BrainData(
+            nib.Nifti1Image(np.zeros((4, 4, 4, 2), dtype=np.float32), affine),
+            mask=nib.load(mask_path),
+        )
+        path = str(tmp_path / "older.h5")
+        bd.write(path)
+
+        # Rewrite the stored name the way an older nltools wrote it.
+        with h5py.File(path, "a") as f:
+            del f["mask_file_name"]
+            f.create_dataset("mask_file_name", data=str(mask_path))
+
+        assert BrainData(path).mask.get_filename() == "mask.nii.gz"
+
+    def test_h5_round_trip_of_a_fitted_object_loads_back_unfitted(self, tmp_path):
+        """Writing a fitted object is allowed; the load is always unfitted."""
+        from nltools.data.braindata.utils import _FIT_STATE_ATTRIBUTES
+
+        affine = np.eye(4) * 2
+        affine[3, 3] = 1
+        mask = nib.Nifti1Image(np.ones((4, 4, 4), dtype=np.int8), affine)
+        rng = np.random.default_rng(3)
+        vol = rng.standard_normal((4, 4, 4, 6)).astype(np.float32)
+        X = pl.DataFrame({"intercept": [1.0] * 6, "cond": [0.0, 1.0] * 3})
+        bd = BrainData(nib.Nifti1Image(vol, affine), mask=mask, X=X)
+        bd.fit(model="ridge", X=X.to_numpy(), ridge_alpha=1.0)
+        assert any(hasattr(bd, name) for name in _FIT_STATE_ATTRIBUTES)
+
+        path = str(tmp_path / "fitted.h5")
+        bd.write(path)
+        loaded = BrainData(path)
+
+        for name in _FIT_STATE_ATTRIBUTES:
+            assert not hasattr(loaded, name)
+        np.testing.assert_allclose(np.asarray(loaded.data), np.asarray(bd.data))
+        assert loaded.X.equals(bd.X)
+
+    def test_write_nifti_does_not_retain_row_metadata(self, tmp_path):
+        """NIfTI is an image export: data and geometry only."""
+        affine = np.eye(4) * 2
+        affine[3, 3] = 1
+        mask = nib.Nifti1Image(np.ones((4, 4, 4), dtype=np.int8), affine)
+        rng = np.random.default_rng(4)
+        vol = rng.standard_normal((4, 4, 4, 3)).astype(np.float32)
+        bd = BrainData(
+            nib.Nifti1Image(vol, affine),
+            mask=mask,
+            X=pl.DataFrame({"cond": [1.0, 2.0, 3.0]}),
+            Y=pl.DataFrame({"row": [0, 1, 2]}),
+        )
+
+        path = tmp_path / "export.nii.gz"
+        bd.write(path)
+        loaded = BrainData(path, mask=mask)
+
+        assert loaded.X.is_empty()
+        assert loaded.Y.is_empty()
+        np.testing.assert_allclose(np.asarray(loaded.data), np.asarray(bd.data))
 
     # ==================== Resampling Methods ====================
 
-    def test_resample_to_img_nibabel(self):
+    def test_resample_img_nibabel(self):
         """Test resampling to target nibabel image."""
 
         # Create source BrainData (3mm) - need custom mask in 3mm space
@@ -175,16 +252,19 @@ class TestBrainDataIO:
         mask_img = nib.load(get_brainspace().mask)
 
         # Resample
-        brain_resampled = brain_source.resample_to(img=mask_img)
+        brain_resampled = brain_source.resample(img=mask_img)
 
-        # Should match target space
-        assert brain_resampled.shape[1] == 238955  # 2mm voxel count
+        # The target supplies the grid; the source mask supplies the support.
+        assert brain_resampled.mask.shape == mask_img.shape
         assert np.allclose(brain_resampled.mask.affine, mask_img.affine, rtol=1e-2)
+        expected_support = _nearest_support(mask_3mm, mask_img)
+        assert brain_resampled.shape[1] == expected_support
+        assert expected_support != int(np.count_nonzero(mask_img.get_fdata()))
         assert (
             brain_resampled.shape[0] == brain_source.shape[0]
         )  # Same number of images
 
-    def test_resample_to_img_filepath(self, tmpdir):
+    def test_resample_img_filepath(self, tmpdir):
         """Test resampling to target image from file path."""
 
         # Create source BrainData (3mm) - need custom mask in 3mm space
@@ -203,13 +283,14 @@ class TestBrainDataIO:
         mask_img.to_filename(target_path)
 
         # Resample
-        brain_resampled = brain_source.resample_to(img=target_path)
+        brain_resampled = brain_source.resample(img=target_path)
 
-        # Should match target space
-        assert brain_resampled.shape[1] == 238955
+        # A path target behaves exactly like the loaded image.
+        assert brain_resampled.mask.shape == mask_img.shape
+        assert brain_resampled.shape[1] == _nearest_support(mask_3mm, mask_img)
         assert brain_resampled.shape[0] == brain_source.shape[0]
 
-    def test_resample_to_resolution_isotropic(self):
+    def test_resample_resolution_isotropic(self):
         """Test resampling to specified isotropic resolution."""
 
         # Create source BrainData (2mm)
@@ -220,7 +301,7 @@ class TestBrainDataIO:
         brain_source = BrainData(source_data, resample=False)
 
         # Resample to 3mm
-        brain_resampled = brain_source.resample_to(resolution=3.0)
+        brain_resampled = brain_source.resample(resolution=3.0)
 
         # Should have different voxel count
         assert brain_resampled.shape[1] != brain_source.shape[1]
@@ -232,7 +313,7 @@ class TestBrainDataIO:
             brain_resampled.shape[0] == brain_source.shape[0]
         )  # Same number of images
 
-    def test_resample_to_both_params_error(self):
+    def test_resample_both_params_error(self):
         """Test error when both img and resolution are provided."""
 
         # Create BrainData with matching mask
@@ -243,9 +324,9 @@ class TestBrainDataIO:
         brain = BrainData(source_data, resample=False)
 
         with pytest.raises(ValueError, match="both.*img.*and.*resolution"):
-            brain.resample_to(img=mask_img, resolution=2.0)
+            brain.resample(img=mask_img, resolution=2.0)
 
-    def test_resample_to_no_params_error(self):
+    def test_resample_no_params_error(self):
         """Test error when neither img nor resolution is provided."""
 
         # Create BrainData with matching mask
@@ -256,9 +337,9 @@ class TestBrainDataIO:
         brain = BrainData(source_data, resample=False)
 
         with pytest.raises(ValueError, match="either.*img.*or.*resolution"):
-            brain.resample_to()
+            brain.resample()
 
-    def test_resample_to_invalid_img_type(self):
+    def test_resample_invalid_img_type(self):
         """Test error with invalid img type."""
 
         # Create BrainData with matching mask
@@ -269,9 +350,9 @@ class TestBrainDataIO:
         brain = BrainData(source_data, resample=False)
 
         with pytest.raises(TypeError, match="img.*must be"):
-            brain.resample_to(img=123)  # Invalid type
+            brain.resample(img=123)  # Invalid type
 
-    def test_resample_to_preserves_metadata(self):
+    def test_resample_preserves_metadata(self):
         """Test that X and Y metadata are preserved after resampling."""
 
         # Create BrainData with matching mask
@@ -283,7 +364,7 @@ class TestBrainDataIO:
         Y = pl.DataFrame({"outcome": [0, 1, 0, 1, 0]})
 
         brain_source = BrainData(source_data, X=X, Y=Y, resample=False)
-        brain_resampled = brain_source.resample_to(resolution=3.0)
+        brain_resampled = brain_source.resample(resolution=3.0)
 
         # Metadata should be preserved
         assert brain_resampled.X.equals(brain_source.X)
@@ -292,8 +373,8 @@ class TestBrainDataIO:
             brain_resampled.shape[0] == brain_source.shape[0]
         )  # Same number of images
 
-    def test_resample_to_does_not_mutate_caller_headers(self):
-        """resample_to must not touch bd.mask or a caller-supplied target img."""
+    def test_resample_does_not_mutate_caller_headers(self):
+        """resample must not touch bd.mask or a caller-supplied target img."""
         # Build a source with sform_code=0 on its mask
         mask_3mm = nib.Nifti1Image(
             np.ones((60, 72, 60), dtype=np.float32), affine=np.eye(4) * 3
@@ -306,7 +387,7 @@ class TestBrainDataIO:
         assert brain.mask.header.get_sform(coded=True)[1] == 0
 
         # Resample by resolution — must not mutate brain.mask
-        brain.resample_to(resolution=4.0)
+        brain.resample(resolution=4.0)
         assert brain.mask.header.get_sform(coded=True)[1] == 0
 
         # Resample by target img — must not mutate the caller's target
@@ -314,10 +395,10 @@ class TestBrainDataIO:
             np.ones((45, 54, 45), dtype=np.float32), affine=np.eye(4) * 4
         )
         target.header.set_sform(target.affine, code=0)
-        brain.resample_to(img=target)
+        brain.resample(img=target)
         assert target.header.get_sform(coded=True)[1] == 0
 
-    def test_resample_to_same_space_identity(self):
+    def test_resample_same_space_identity(self):
         """Test resampling to same space produces similar results."""
 
         # Create BrainData
@@ -328,7 +409,7 @@ class TestBrainDataIO:
         brain_source = BrainData(source_data, resample=False)
 
         # Resample to same space (should be near-identical)
-        brain_resampled = brain_source.resample_to(img=mask_img)
+        brain_resampled = brain_source.resample(img=mask_img)
 
         # Data should be very similar (within interpolation tolerance)
         assert np.allclose(
@@ -402,8 +483,8 @@ class TestBrainDataIO:
             f"Expected many unique values, got {len(unique_vals)}"
         )
 
-    def test_resample_to_respects_interpolation(self):
-        """Test resample_to uses instance interpolation setting."""
+    def test_resample_respects_interpolation(self):
+        """Test resample uses instance interpolation setting."""
 
         # Create atlas-like source data with explicit nearest
         atlas_data = np.zeros((60, 72, 60))
@@ -424,7 +505,7 @@ class TestBrainDataIO:
 
         # Resample to 2mm template
         mask_2mm = nib.load(get_brainspace().mask)
-        brain_resampled = brain.resample_to(img=mask_2mm)
+        brain_resampled = brain.resample(img=mask_2mm)
 
         # Values should still be discrete after resampling
         unique_vals = np.unique(brain_resampled.data)
@@ -505,7 +586,7 @@ class TestIntegerImagesResampleQuietly:
 class TestLoadPathSetsSform:
     def test_no_sform_header_loads_without_nilearn_notice(self, tmp_path):
         """A header with sform_code=0 (haxby) must not trip nilearn's resampler
-        warning on load; `resample_to` already sets code 2, loading now does too."""
+        warning on load; `resample` already sets code 2, loading now does too."""
         import warnings
 
         affine = np.diag([3.0, 3.0, 3.0, 1.0])

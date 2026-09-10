@@ -537,23 +537,34 @@ class BrainData:
         )
 
     @coalesced_gc()
-    def apply_mask(self, mask, resample_mask_to_brain=False):
-        """Mask BrainData instance using nilearn functionality.
+    def apply_mask(self, mask):
+        """Restrict the data to a mask's support, leaving the grid unchanged.
 
-        Note target data will be resampled into the same space as the mask. If you would like the mask
-        resampled into the BrainData space, then set resample_mask_to_brain=True.
+        The mask must be a single three-dimensional image on the same grid and
+        with the same affine as this object. A mismatch raises: resample the
+        mask or the data with `resample()` first, rather than relying on an
+        implicit resample here.
+
+        Support is every voxel of `mask` greater than zero, and the mask defines
+        the result's voxel axis on its own. Where it reaches past this object's
+        current support the result gains those voxels with zero values, so a
+        mask larger than `self.mask` widens the array rather than intersecting
+        with it.
 
         Args:
-            mask (BrainData | Nifti1Image): Mask to apply to BrainData object.
-            resample_mask_to_brain (bool): Resample the mask to brain space before
-                applying it. Default False.
+            mask (BrainData | Nifti1Image | str | Path): Mask to apply.
 
         Returns:
             BrainData: Masked BrainData object.
+
+        Raises:
+            ValueError: If the mask is not a single 3-D image, or its shape or
+                affine differs from this object's.
+            TypeError: If `mask` is not a BrainData, nibabel image, or file path.
         """
         from .analysis import apply_mask
 
-        return apply_mask(self, mask, resample_mask_to_brain=resample_mask_to_brain)
+        return apply_mask(self, mask)
 
     def astype(self, dtype):
         """Cast BrainData.data as type.
@@ -1736,26 +1747,41 @@ class BrainData:
             is_mask=is_mask,
         )
 
-    def resample_to(self, *, img=None, resolution=None, interpolation=None):
-        """Resample BrainData to match target image or resolution.
+    def resample(self, *, img=None, resolution=None, interpolation=None):
+        """Resample onto a new voxel grid, carrying the mask along.
+
+        Exactly one of `img` or `resolution` is required. An `img` supplies
+        only the target grid: its intensity values never define the output
+        mask. The current mask is resampled onto the target grid with
+        nearest-neighbor interpolation, so the result's voxel support is the
+        source support expressed on the new grid. Row-aligned `X` and `Y`
+        survive; fitted state does not.
 
         Args:
-            img (Nifti1Image | str | Path | None): Target image for resampling.
+            img (Nifti1Image | str | Path | None): Target image supplying the
+                grid to match.
             resolution (float | int | None): Target isotropic voxel size in mm.
-            interpolation (str | None): Interpolation method: ``'nearest'``,
-                ``'linear'``, ``'continuous'``, or ``None`` to use the instance's
-                setting.
+            interpolation (str | None): Interpolation method for the data:
+                ``'nearest'``, ``'linear'``, ``'continuous'``, or ``None`` to
+                use the instance's setting.
 
         Returns:
-            BrainData: New BrainData instance with resampled data.
+            BrainData: New BrainData instance with resampled data and mask.
 
         Raises:
-            ValueError: If both ``img`` and ``resolution`` are None, or both are
-                provided.
-        """
-        from .io import resample_to
+            ValueError: If both ``img`` and ``resolution`` are None, both are
+                provided, or ``resolution`` is not positive.
+            TypeError: If ``img`` is not a valid image type.
 
-        return resample_to(
+        Examples:
+            ```python
+            coarse = brain.resample(resolution=3.0)
+            on_atlas_grid = brain.resample(img=atlas_img)
+            ```
+        """
+        from .io import resample
+
+        return resample(
             self, img=img, resolution=resolution, interpolation=interpolation
         )
 

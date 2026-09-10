@@ -32,6 +32,9 @@ Version 0.6.0 is a **breaking release** that refactors nltools to better leverag
 | **Duplicate columns on append** | `append(axis=1)` accepted value-identical columns | Raises `ValueError` — value-identical columns refused | **Changed** |
 | **Cluster summary kwargs** | `cluster_summary(method=…, summary=…)` | `cluster_summary(summary=…, scope='within' \| 'between')` | **Renamed** |
 | **ROI extraction kwarg** | `extract_roi(metric=…)` | `extract_roi(method=…)` | **Renamed** |
+| **Mask application** | `apply_mask(mask, resample_mask_to_brain=True)` | `apply_mask(mask)` — the mask must already sit on the data's grid | **Removed** |
+| **Resampling target** | The target image also supplied the output mask | `resample(img=…)` takes only the grid from the target; the source mask is carried over with nearest-neighbor interpolation | **Changed** |
+| **HDF5 mask filename** | The writer's absolute mask path | Basename only — the embedded mask data and affine are authoritative and the name is never reopened | **Changed** |
 | **BrainData.plot thresholds** | `thr_upper=`, `thr_lower=`, `kind=` | `upper=`, `lower=`, `method=` | **Renamed** |
 | **`DesignMatrix.convolve()` columns** | 1-D kernel: name preserved (`stim` → `stim`); 2-D kernel: `stim_c0`, `stim_c1` | Always suffixed `<col>_c{i}`; source column dropped (`stim` → `stim_c0`) | **Renamed (consistent)** |
 | **Generated column names** | `poly_0`, `cosine_1`, `global_spike1`, `0_poly_0` | `.nl_poly_0`, `.nl_cosine_1`, `.nl_global_spike1`, `.nl_r0_poly_0` — the reserved `.nl_` namespace | **Renamed** |
@@ -1119,6 +1122,69 @@ brain.mask.to_filename('/tmp/mask.nii.gz')
 # Option 2: Use HDF5 (preserves mask automatically)
 brain.write('/tmp/brain.h5')
 reloaded = BrainData('/tmp/brain.h5')  # Mask preserved
+```
+
+---
+
+### `apply_mask()` requires a mask on the data's grid
+
+**Status**: ⚠️ Breaking (v0.6.0)
+
+`apply_mask()` changes which voxels are kept. It never changes the grid, and it
+no longer resamples either operand to paper over a mismatch — a mask whose shape
+or affine differs from the data now raises, naming `resample()` in the message.
+The `resample_mask_to_brain=` keyword is gone; do the resampling yourself so the
+interpolation is visible in your code.
+
+```python
+# OLD (v0.5.1)
+roi = brain.apply_mask(mask_on_another_grid, resample_mask_to_brain=True)
+
+# NEW (v0.6.0)
+roi = brain.apply_mask(BrainData(mask_on_another_grid, mask=brain.mask))
+# or move the data instead, when the mask's grid is the one you want:
+roi = brain.resample(img=mask_on_another_grid).apply_mask(mask_on_another_grid)
+```
+
+A raw nibabel mask is used exactly as given — it is no longer re-homed onto the
+package-default MNI152 template first — so a mask already in the data's space
+keeps working unchanged.
+
+The supplied mask now defines the result's voxel axis on its own, with no
+intersection against the object's current support. A mask reaching beyond that
+support therefore widens the array: the extra columns exist and are all zero,
+and those zeros count in means, percentile thresholds, and plots. Intersect
+explicitly if you need the old shape:
+
+```python
+from nilearn.masking import intersect_masks
+
+roi = brain.apply_mask(intersect_masks([mask, brain.mask], threshold=1))
+```
+
+---
+
+### `resample(img=…)` uses the target only as a grid
+
+**Status**: ⚠️ Breaking (v0.6.0)
+
+A target image now supplies the output grid and nothing else. Its intensity
+values no longer become the output mask; instead the current mask is resampled
+onto the target grid with nearest-neighbor interpolation, so the result covers
+the same anatomy as the input, expressed at the new resolution. Expect a
+different voxel count than before whenever the target's non-zero support and
+your data's mask disagreed.
+
+```python
+# OLD: the target image doubled as the output mask, so the result's voxel
+# count came from the target's own non-zero voxels.
+resampled = brain.resample(img=target_mask)
+
+# NEW: same call, but the support is `brain.mask` expressed on the target grid.
+resampled = brain.resample(img=target_mask)
+
+# Want the target's support instead? Apply it explicitly, after the grids match.
+resampled = brain.resample(img=target_mask).apply_mask(target_mask)
 ```
 
 ---

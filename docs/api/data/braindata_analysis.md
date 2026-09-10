@@ -16,7 +16,7 @@ Name | Description
 ---- | -----------
 [`align`](#data-braindata-analysis-align) | Align a BrainData instance to a target using functional alignment.
 [`align_per_roi`](#data-braindata-analysis-align-per-roi) | Per-parcel functional alignment + voxel-space reassembly.
-[`apply_mask`](#data-braindata-analysis-apply-mask) | Mask BrainData instance using nilearn functionality.
+[`apply_mask`](#data-braindata-analysis-apply-mask) | Restrict BrainData to a mask's support without changing the grid.
 [`check_masks`](#data-braindata-analysis-check-masks) | Ensure two datasets use compatible masks, creating a union mask if needed.
 [`decompose`](#data-braindata-analysis-decompose) | Decompose a BrainData object.
 [`detrend_data`](#data-braindata-analysis-detrend-data) | Remove the linear trend from each voxel.
@@ -124,27 +124,35 @@ Type | Description
 ### `apply_mask`
 
 ```python
-apply_mask(bd, mask, resample_mask_to_brain = False)
+apply_mask(bd, mask)
 ```
 
-Mask BrainData instance using nilearn functionality.
+Restrict BrainData to a mask's support without changing the grid.
 
-Note target data will be resampled into the same space as the mask. If you would like the mask
-resampled into the BrainData space, then set resample_mask_to_brain=True.
+Support is every voxel of ``mask`` greater than zero. The mask defines the
+result's voxel axis on its own: where it reaches past ``bd``'s current
+support the result gains those voxels with zero values, so a mask larger
+than the data's own mask widens the array rather than intersecting with it.
 
 **Parameters:**
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `bd` | <code>[BrainData](#page-data-brain-data)</code> | Data to mask. | *required*
-`mask` | <code>[BrainData](#page-data-brain-data) \| Nifti1Image</code> | Mask to apply. | *required*
-`resample_mask_to_brain` | <code>bool</code> | Resample the mask into the brain's space before applying it. Default: ``False``. | <code>False</code>
+`mask` | <code>[BrainData](#page-data-brain-data) \| Nifti1Image \| str \| Path</code> | A single 3-D mask on the same grid and with the same affine as ``bd``. | *required*
 
 **Returns:**
 
 Type | Description
 ---- | -----------
-<code>[BrainData](#page-data-brain-data)</code> | Masked copy of ``bd``.
+<code>[BrainData](#page-data-brain-data)</code> | Masked copy of ``bd`` with row metadata preserved.
+
+**Raises:**
+
+Type | Description
+---- | -----------
+<code>ValueError</code> | If the mask is not a single 3-D image, or its shape or affine differs from ``bd``'s. Use ``resample()`` first in that case.
+<code>TypeError</code> | If ``mask`` is not a BrainData, nibabel image, or file path.
 
 <details class="note" open markdown="1">
 <summary>Note</summary>
