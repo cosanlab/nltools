@@ -26,6 +26,7 @@ Name | Description
 [`create_sphere`](#tasks-loading-create-sphere) | Generate spheres in brain-mask space.
 [`expand_mask`](#tasks-loading-expand-mask) | Expand an integer-labeled mask into separate binary masks.
 [`collapse_mask`](#tasks-loading-collapse-mask) | Collapse separate masks into one integer-labeled mask.
+[`collapse_label_stack`](#tasks-loading-collapse-label-stack) | Collapse a stack of binary masks into a single integer label vector.
 [`roi_to_brain`](#tasks-loading-roi-to-brain) | Populate an expanded binary ROI mask with a vector or matrix of per-ROI values.
 [`roi_to_brain_from_atlas`](#tasks-loading-roi-to-brain-from-atlas) | Paint per-parcel values onto voxel space using a labeled atlas.
 [`concatenate`](#tasks-loading-concatenate) | Concatenate a list of `BrainData` or `Adjacency` objects.
@@ -398,6 +399,42 @@ Type | Description
 Type | Description
 ---- | -----------
 <code>ValueError</code> | If `mask` is neither a nibabel nor BrainData instance, or if it holds fewer than 2 masks (nothing to collapse).
+
+(tasks-loading-collapse-label-stack)=
+### `collapse_label_stack`
+
+```python
+collapse_label_stack(stack)
+```
+
+Collapse a stack of binary masks into a single integer label vector.
+
+The array-level inverse of `expand_mask`: row *i* of ``stack`` becomes
+label ``i + 1``. Voxels belonging to more than one mask are ambiguous and
+are assigned label 0, as are voxels in no mask.
+
+A stacked binary mask carries no label values of its own, so labels are
+necessarily sequential in stack order. Round-tripping a 1..n atlas through
+`expand_mask` therefore preserves its original labels; an atlas with
+non-sequential labels (e.g. 3 and 7) comes back renumbered 1 and 2.
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`stack` |  | array of shape ``(n_masks, n_voxels)``. Nonzero means membership. | *required*
+
+**Returns:**
+
+Type | Description
+---- | -----------
+<code>ndarray</code> | integer labels of shape ``(n_voxels,)``.
+
+**Examples:**
+
+```python
+labels = collapse_label_stack(expand_mask(atlas).data)
+```
 
 (tasks-loading-roi-to-brain)=
 ### `roi_to_brain`

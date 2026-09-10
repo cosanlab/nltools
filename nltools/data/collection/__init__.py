@@ -995,7 +995,7 @@ class BrainCollection:
         model: str = "svm",
         cv: int | str = 5,
         groups: str | list | np.ndarray | None = None,
-        roi_mask: nib.Nifti1Image | Path | str | None = None,
+        roi_mask: BrainData | nib.Nifti1Image | Path | str | None = None,
         radius_mm: float = 10.0,
         scoring: str = "auto",
         standardize: bool = True,
@@ -1097,7 +1097,7 @@ class BrainCollection:
         model: str = "svm",
         cv: int | str = "logo",
         groups: str | np.ndarray | None = None,
-        roi_mask: nib.Nifti1Image | Path | str | None = None,
+        roi_mask: BrainData | nib.Nifti1Image | Path | str | None = None,
         radius_mm: float = 10.0,
         scoring: str = "auto",
         standardize: bool = True,
@@ -1636,7 +1636,7 @@ class BrainCollection:
         self,
         *,
         method: str = "loo",
-        roi_mask: nib.Nifti1Image | Path | str | None = None,
+        roi_mask: BrainData | nib.Nifti1Image | Path | str | None = None,
         summary: str = "median",
     ) -> dict:
         """Inter-subject correlation (ISC) across the time dimension.
@@ -1665,7 +1665,7 @@ class BrainCollection:
         self,
         *,
         method: str = "loo",
-        roi_mask: nib.Nifti1Image | Path | str | None = None,
+        roi_mask: BrainData | nib.Nifti1Image | Path | str | None = None,
         n_samples: int = 5000,
         summary: str = "median",
         tail: int | str = 2,
@@ -2076,6 +2076,7 @@ def _predict_group_null(
     from nltools.algorithms.inference.utils import _compute_pvalue
 
     from ..braindata import prediction as bdp
+    from ..braindata.utils import resolve_roi_atlas
     from . import execution
 
     # Rebuild the exact pipeline/scoring the observed run used inside
@@ -2099,7 +2100,7 @@ def _predict_group_null(
             for labels in permuted
         )
     elif spatial_scale == "roi":
-        label_vec, unique_labels = bdp._resolve_roi_labels(bd.mask, roi_mask)
+        _, label_vec, unique_labels = resolve_roi_atlas(bd, roi_mask)
         jobs = (
             delayed(bdp._cv_roi_mean_scores)(
                 X_data,

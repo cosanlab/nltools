@@ -146,6 +146,7 @@ PAGES: tuple[Page, ...] = (
             "nltools.mask.create_sphere",
             "nltools.mask.expand_mask",
             "nltools.mask.collapse_mask",
+            "nltools.mask.collapse_label_stack",
             "nltools.mask.roi_to_brain",
             "nltools.mask.roi_to_brain_from_atlas",
             "nltools.utils.concatenate",

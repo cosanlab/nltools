@@ -238,7 +238,7 @@ Name | Type | Description | Default
 `bd` | <code>[BrainData](#page-data-brain-data)</code> | Dataset whose images are compared. | *required*
 `metric` | <code>str</code> | Any distance metric supported by ``scipy.spatial.distance.cdist`` (e.g. ``'euclidean'``, ``'cityblock'``, ``'cosine'``, ``'correlation'``, ``'hamming'``, ``'jaccard'``). | <code>'euclidean'</code>
 `spatial_scale` | <code>str</code> | ``'whole_brain'`` (default), ``'roi'``, or ``'searchlight'``. See `BrainData.distance`. | <code>'whole_brain'</code>
-`roi_mask` | <code>[BrainData](#page-data-brain-data) \| Nifti1Image \| str \| None</code> | Atlas for ``spatial_scale='roi'``. | <code>None</code>
+`roi_mask` | <code>[BrainData](#page-data-brain-data) \| Nifti1Image \| str \| None</code> | Atlas for ``spatial_scale='roi'``: a 3-D label image or a path to one, a `BrainData` label vector, or a stacked binary mask from `expand_mask` (a `BrainData` or a 4-D image). | <code>None</code>
 `radius_mm` | <code>float</code> | Searchlight radius for ``spatial_scale='searchlight'``. | <code>10.0</code>
 `**kwargs` | <code>dict</code> | Forwarded to ``scipy.spatial.distance.cdist``. | <code>{}</code>
 

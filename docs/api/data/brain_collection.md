@@ -448,7 +448,7 @@ Type | Description
 ### `isc`
 
 ```python
-isc(*, method: str = 'loo', roi_mask: nib.Nifti1Image | Path | str | None = None, summary: str = 'median') -> dict
+isc(*, method: str = 'loo', roi_mask: BrainData | nib.Nifti1Image | Path | str | None = None, summary: str = 'median') -> dict
 ```
 
 Inter-subject correlation (ISC) across the time dimension.
@@ -458,7 +458,7 @@ Inter-subject correlation (ISC) across the time dimension.
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `method` | <code>str</code> | ``'loo'`` (leave-one-out template) or ``'pairwise'`` (all subject pairs). | <code>'loo'</code>
-`roi_mask` | <code>Nifti1Image \| Path \| str \| None</code> | Optional ROI/atlas mask restricting the computation to those voxels. The returned maps carry the ROI mask. If None, ISC is computed across the collection's whole-brain mask. | <code>None</code>
+`roi_mask` | <code>[BrainData](#page-data-brain-data) \| Nifti1Image \| Path \| str \| None</code> | Optional ROI/atlas mask restricting the computation to those voxels. The returned maps carry the ROI mask. If None, ISC is computed across the collection's whole-brain mask. | <code>None</code>
 `summary` | <code>str</code> | Aggregation across subjects/pairs (e.g. ``'median'``). | <code>'median'</code>
 
 **Returns:**
@@ -471,7 +471,7 @@ Type | Description
 ### `isc_test`
 
 ```python
-isc_test(*, method: str = 'loo', roi_mask: nib.Nifti1Image | Path | str | None = None, n_samples: int = 5000, summary: str = 'median', tail: int | str = 2, random_state: int | None = None) -> dict
+isc_test(*, method: str = 'loo', roi_mask: BrainData | nib.Nifti1Image | Path | str | None = None, n_samples: int = 5000, summary: str = 'median', tail: int | str = 2, random_state: int | None = None) -> dict
 ```
 
 Bootstrap inference on ISC (per-voxel p-values).
@@ -484,7 +484,7 @@ derives a per-voxel p-value from the null centered at 0.
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `method` | <code>str</code> | ``'loo'`` or ``'pairwise'`` (matches `isc`). | <code>'loo'</code>
-`roi_mask` | <code>Nifti1Image \| Path \| str \| None</code> | Optional ROI/atlas mask restricting the computation to those voxels. The returned maps carry the ROI mask. If None, ISC is computed across the collection's whole-brain mask. | <code>None</code>
+`roi_mask` | <code>[BrainData](#page-data-brain-data) \| Nifti1Image \| Path \| str \| None</code> | Optional ROI/atlas mask restricting the computation to those voxels. The returned maps carry the ROI mask. If None, ISC is computed across the collection's whole-brain mask. | <code>None</code>
 `n_samples` | <code>int</code> | Number of bootstrap resamples. | <code>5000</code>
 `summary` | <code>str</code> | Aggregation across subjects/pairs (e.g. ``'median'``). | <code>'median'</code>
 `tail` | <code>int \| str</code> | `2`/`'two'` (two-tailed, default) or `1`/`'one'` (one-tailed: ISC > 0). | <code>2</code>
@@ -669,7 +669,7 @@ Type | Description
 ### `predict`
 
 ```python
-predict(y: str | list | np.ndarray | None = None, *, X_new: np.ndarray | None = None, spatial_scale: str = 'whole_brain', model: str = 'svm', cv: int | str = 5, groups: str | list | np.ndarray | None = None, roi_mask: nib.Nifti1Image | Path | str | None = None, radius_mm: float = 10.0, scoring: str = 'auto', standardize: bool = True, n_jobs: int = -1, random_state: int | None = None, progress_bar: bool = False, cache: Literal['auto', True, False] = 'auto')
+predict(y: str | list | np.ndarray | None = None, *, X_new: np.ndarray | None = None, spatial_scale: str = 'whole_brain', model: str = 'svm', cv: int | str = 5, groups: str | list | np.ndarray | None = None, roi_mask: BrainData | nib.Nifti1Image | Path | str | None = None, radius_mm: float = 10.0, scoring: str = 'auto', standardize: bool = True, n_jobs: int = -1, random_state: int | None = None, progress_bar: bool = False, cache: Literal['auto', True, False] = 'auto')
 ```
 
 Per-subject decoding (``y``) or predict-after-fit (``X_new``).
@@ -707,7 +707,7 @@ Name | Type | Description | Default
 `model` | <code>str</code> | Model name or sklearn estimator (see ``BrainData.predict``). | <code>'svm'</code>
 `cv` | <code>int \| str</code> | Within-subject CV — an int fold count (default 5, honoring ``groups`` via the Group variants), ``'loo'``, ``'logo'`` (with ``groups``, e.g. leave-one-run-out), or an sklearn splitter. | <code>5</code>
 `groups` | <code>str \| list \| ndarray \| None</code> | Within-subject grouping variable — a ``.Y`` column name, one shared array, or a list of per-subject arrays. | <code>None</code>
-`roi_mask` | <code>Nifti1Image \| Path \| str \| None</code> | Atlas image for ``spatial_scale='roi'``. | <code>None</code>
+`roi_mask` | <code>[BrainData](#page-data-brain-data) \| Nifti1Image \| Path \| str \| None</code> | Atlas image for ``spatial_scale='roi'``. | <code>None</code>
 `radius_mm` | <code>float</code> | Searchlight radius. | <code>10.0</code>
 `scoring` | <code>str</code> | ``'auto'`` → accuracy (classifier) / r2 (regressor). | <code>'auto'</code>
 `standardize` | <code>bool</code> | Standardize features within each CV fold. | <code>True</code>
@@ -726,7 +726,7 @@ Type | Description
 ### `predict_group`
 
 ```python
-predict_group(y: str | list | np.ndarray, *, spatial_scale: str = 'whole_brain', model: str = 'svm', cv: int | str = 'logo', groups: str | np.ndarray | None = None, roi_mask: nib.Nifti1Image | Path | str | None = None, radius_mm: float = 10.0, scoring: str = 'auto', standardize: bool = True, n_permute: int = 0, n_jobs: int = -1, random_state: int | None = None, progress_bar: bool = False)
+predict_group(y: str | list | np.ndarray, *, spatial_scale: str = 'whole_brain', model: str = 'svm', cv: int | str = 'logo', groups: str | np.ndarray | None = None, roi_mask: BrainData | nib.Nifti1Image | Path | str | None = None, radius_mm: float = 10.0, scoring: str = 'auto', standardize: bool = True, n_permute: int = 0, n_jobs: int = -1, random_state: int | None = None, progress_bar: bool = False)
 ```
 
 Group MVPA: subjects as samples → one model → ``Predict``.
@@ -746,7 +746,7 @@ Name | Type | Description | Default
 `model` | <code>str</code> | Model name (see ``BrainData.predict``). | <code>'svm'</code>
 `cv` | <code>int \| str</code> | ``'logo'`` (leave-one-group-out, default — with the default ``groups`` this is leave-one-subject-out), ``'loo'`` (leave-one-out), an int fold count, or an sklearn splitter. An int spec **honors** ``groups``: it resolves to `StratifiedGroupKFold` (classifiers) / `GroupKFold` (regressors) so a group never straddles a train/test boundary. | <code>'logo'</code>
 `groups` | <code>str \| ndarray \| None</code> | Group labels, or a metadata column name. Defaults to one group per subject; pass ``groups='run'`` (or any metadata column) for e.g. leave-one-run-out under ``cv='logo'``. | <code>None</code>
-`roi_mask` | <code>Nifti1Image \| Path \| str \| None</code> | Restrict to an ROI. | <code>None</code>
+`roi_mask` | <code>[BrainData](#page-data-brain-data) \| Nifti1Image \| Path \| str \| None</code> | Restrict to an ROI. | <code>None</code>
 `radius_mm` | <code>float</code> | Searchlight radius. | <code>10.0</code>
 `scoring` | <code>str</code> | ``'auto'`` → accuracy (classifier) / r2 (regressor). | <code>'auto'</code>
 `standardize` | <code>bool</code> | Standardize features within each CV fold. | <code>True</code>

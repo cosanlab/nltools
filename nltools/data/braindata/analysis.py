@@ -9,7 +9,7 @@ Each takes a `BrainData` as its first argument; the corresponding
 import numpy as np
 import polars as pl
 
-from .utils import _copy_without_fit_state
+from .utils import _copy_without_fit_state, resolve_roi_atlas
 
 
 def check_masks(bd, image):
@@ -93,7 +93,9 @@ def distance(  # nosemgrep: kwargs-internal-forwarding  # forwards to scipy.spat
         spatial_scale (str): ``'whole_brain'`` (default), ``'roi'``, or
             ``'searchlight'``. See `BrainData.distance`.
         roi_mask (BrainData | Nifti1Image | str | None): Atlas for
-            ``spatial_scale='roi'``.
+            ``spatial_scale='roi'``: a 3-D label image or a path to one, a
+            `BrainData` label vector, or a stacked binary mask from
+            `expand_mask` (a `BrainData` or a 4-D image).
         radius_mm (float): Searchlight radius for ``spatial_scale='searchlight'``.
         **kwargs (dict): Forwarded to ``scipy.spatial.distance.cdist``.
 
@@ -120,50 +122,6 @@ def distance(  # nosemgrep: kwargs-internal-forwarding  # forwards to scipy.spat
 
     # spatial_scale == "roi"
     return _distance_roi(bd, metric=metric, roi_mask=roi_mask, **kwargs)
-
-
-def _resolve_atlas_label_vec(bd, roi_mask):
-    """Resolve an atlas image + label vector aligned with bd.mask.
-
-    Coerces ``roi_mask`` (BrainData / Nifti / path) to a Nifti, resamples
-    to ``bd.mask`` (nearest-neighbor) if needed, and returns
-    ``(atlas_img, label_vec, unique_labels)`` for use by per-parcel
-    operations.
-    """
-    from pathlib import Path
-
-    import nibabel as nib
-    from nilearn.image import resample_to_img
-    from nilearn.masking import apply_mask
-
-    from nltools.data import BrainData
-
-    if roi_mask is None:
-        raise ValueError("roi_mask is required when spatial_scale='roi'.")
-    if isinstance(roi_mask, BrainData):
-        roi_img = roi_mask.to_nifti()
-    elif isinstance(roi_mask, (str, Path)):
-        roi_img = nib.load(str(roi_mask))
-    else:
-        roi_img = roi_mask
-
-    if roi_img.shape != bd.mask.shape or not np.allclose(
-        roi_img.affine, bd.mask.affine
-    ):
-        roi_img = resample_to_img(
-            roi_img,
-            bd.mask,
-            interpolation="nearest",
-            force_resample=True,
-            copy_header=True,
-        )
-
-    label_vec = apply_mask(roi_img, bd.mask).astype(np.int64)
-    unique_labels = np.unique(label_vec)
-    unique_labels = unique_labels[unique_labels != 0]
-    if unique_labels.size == 0:
-        raise ValueError("roi_mask has no nonzero labels in the BrainData mask space.")
-    return roi_img, label_vec, unique_labels
 
 
 def align_per_roi(bd, target, *, method, axis, roi_mask):
@@ -193,7 +151,7 @@ def align_per_roi(bd, target, *, method, axis, roi_mask):
             ``'common_model'`` (dicts keyed by atlas label), ``'disparity'`` and
             ``'scale'`` (arrays, one entry per parcel), and ``'roi_labels'``.
     """
-    roi_img, label_vec, unique_labels = _resolve_atlas_label_vec(bd, roi_mask)
+    roi_img, label_vec, unique_labels = resolve_roi_atlas(bd, roi_mask)
 
     if method == "procrustes":
         # Need a target BrainData to slice.
@@ -285,41 +243,9 @@ def reduce_per_roi(bd, reducer, *, roi_mask):
     Returns:
         BrainData: Parcel-wise reduced values painted back to voxel space.
     """
-    from pathlib import Path
-
-    import nibabel as nib
-    from nilearn.image import resample_to_img
-    from nilearn.masking import apply_mask
-
-    from nltools.data import BrainData
     from nltools.mask import roi_to_brain_from_atlas
 
-    if roi_mask is None:
-        raise ValueError("roi_mask is required when spatial_scale='roi'.")
-
-    if isinstance(roi_mask, BrainData):
-        roi_img = roi_mask.to_nifti()
-    elif isinstance(roi_mask, (str, Path)):
-        roi_img = nib.load(str(roi_mask))
-    else:
-        roi_img = roi_mask
-
-    if roi_img.shape != bd.mask.shape or not np.allclose(
-        roi_img.affine, bd.mask.affine
-    ):
-        roi_img = resample_to_img(
-            roi_img,
-            bd.mask,
-            interpolation="nearest",
-            force_resample=True,
-            copy_header=True,
-        )
-
-    label_vec = apply_mask(roi_img, bd.mask).astype(np.int64)
-    unique_labels = np.unique(label_vec)
-    unique_labels = unique_labels[unique_labels != 0]
-    if unique_labels.size == 0:
-        raise ValueError("roi_mask has no nonzero labels in the BrainData mask space.")
+    roi_img, label_vec, unique_labels = resolve_roi_atlas(bd, roi_mask)
 
     # bd.data is (n_images, n_voxels). For 1-D (single image) reshape.
     data = bd.data
@@ -343,45 +269,12 @@ def _distance_roi(bd, *, metric, roi_mask, **kwargs):
 
     Returns a stacked Adjacency with ``SpatialScale`` provenance attached.
     """
-    from pathlib import Path
-
-    import nibabel as nib
-    from nilearn.image import resample_to_img
-    from nilearn.masking import apply_mask
     from scipy.spatial.distance import cdist
 
     from nltools.data import Adjacency, BrainData
     from nltools.data.adjacency.spatial import SpatialScale
 
-    if roi_mask is None:
-        raise ValueError("roi_mask is required when spatial_scale='roi'.")
-
-    # Coerce roi_mask to a Nifti1Image aligned with bd.mask.
-    if isinstance(roi_mask, BrainData):
-        roi_img = roi_mask.to_nifti()
-    elif isinstance(roi_mask, (str, Path)):
-        roi_img = nib.load(str(roi_mask))
-    else:
-        roi_img = roi_mask
-
-    if roi_img.shape != bd.mask.shape or not np.allclose(
-        roi_img.affine, bd.mask.affine
-    ):
-        roi_img = resample_to_img(
-            roi_img,
-            bd.mask,
-            interpolation="nearest",
-            force_resample=True,
-            copy_header=True,
-        )
-
-    # Per-mask-voxel atlas labels.
-    label_vec = apply_mask(roi_img, bd.mask).astype(np.int64)
-    unique_labels = np.unique(label_vec)
-    unique_labels = unique_labels[unique_labels != 0]
-
-    if unique_labels.size == 0:
-        raise ValueError("roi_mask has no nonzero labels in the BrainData mask space.")
+    roi_img, label_vec, unique_labels = resolve_roi_atlas(bd, roi_mask)
 
     matrices = []
     for label in unique_labels:

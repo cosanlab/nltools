@@ -1,6 +1,7 @@
 """Utilities for creating and manipulating brain masks."""
 
 __all__ = [
+    "collapse_label_stack",
     "collapse_mask",
     "create_sphere",
     "expand_mask",
@@ -121,6 +122,41 @@ def expand_mask(mask, custom_mask=None):
     out = mask.create_empty()
     out.data = np.array(tmp)
     return out
+
+
+def collapse_label_stack(stack):
+    """Collapse a stack of binary masks into a single integer label vector.
+
+    The array-level inverse of `expand_mask`: row *i* of ``stack`` becomes
+    label ``i + 1``. Voxels belonging to more than one mask are ambiguous and
+    are assigned label 0, as are voxels in no mask.
+
+    A stacked binary mask carries no label values of its own, so labels are
+    necessarily sequential in stack order. Round-tripping a 1..n atlas through
+    `expand_mask` therefore preserves its original labels; an atlas with
+    non-sequential labels (e.g. 3 and 7) comes back renumbered 1 and 2.
+
+    Args:
+        stack: array of shape ``(n_masks, n_voxels)``. Nonzero means membership.
+
+    Returns:
+        numpy.ndarray: integer labels of shape ``(n_voxels,)``.
+
+    Examples:
+        ```python
+        labels = collapse_label_stack(expand_mask(atlas).data)
+        ```
+    """
+    stack = np.asarray(stack)
+    if stack.ndim != 2:
+        raise ValueError(f"stack must be 2D (n_masks, n_voxels); got {stack.ndim}D.")
+
+    membership = stack != 0
+    ambiguous = membership.sum(axis=0) > 1
+    labels = np.zeros(stack.shape[1], dtype=np.int64)
+    for i in range(stack.shape[0]):
+        labels[membership[i] & ~ambiguous] = i + 1
+    return labels
 
 
 def collapse_mask(mask, auto_label=True, custom_mask=None):

@@ -28,6 +28,91 @@ def check_brain_data(data, mask=None):
     return BrainData(data, mask=mask)
 
 
+def resolve_roi_atlas(bd, roi_mask):
+    """Resolve ``roi_mask=`` to an atlas image + label vector aligned with ``bd.mask``.
+
+    The single source of truth for ``spatial_scale='roi'`` across
+    `BrainData.predict`, `BrainData.distance`, `BrainData.mean` / `.std` /
+    `.median`, and `BrainData.align`. Accepts every idiomatic way of expressing
+    a parcellation:
+
+    - a 3-D integer label ``Nifti1Image``, or a path to one;
+    - a `BrainData` label vector, i.e. ``BrainData(atlas_path, mask=data.mask)``;
+    - a stacked binary `BrainData` from `expand_mask`, shape
+      ``(n_parcels, n_voxels)``;
+    - a 4-D ``Nifti1Image`` of stacked binary masks.
+
+    Stacked forms are collapsed with `collapse_label_stack`, so parcels are
+    numbered 1..n in stack order and voxels shared by two masks are dropped.
+    Atlases that do not match ``bd.mask`` are resampled with nearest-neighbor
+    interpolation, which preserves integer labels.
+
+    Args:
+        bd: the `BrainData` whose ``mask`` defines the target voxel space.
+        roi_mask: the atlas, in any of the forms above.
+
+    Returns:
+        tuple: ``(roi_img, label_vec, unique_labels)`` — the atlas as a 3-D
+        ``Nifti1Image`` in ``bd.mask`` space, its per-mask-voxel integer labels
+        of shape ``(n_voxels,)``, and the sorted nonzero labels.
+
+    Raises:
+        ValueError: if ``roi_mask`` is None, or has no nonzero labels once
+            resampled into ``bd.mask`` space.
+    """
+    from pathlib import Path
+
+    import nibabel as nib
+    from nilearn.image import resample_to_img
+    from nilearn.masking import apply_mask
+
+    from nltools.mask import collapse_label_stack
+
+    from . import BrainData
+
+    if roi_mask is None:
+        raise ValueError("roi_mask is required when spatial_scale='roi'.")
+
+    if isinstance(roi_mask, (str, Path)):
+        roi_mask = nib.load(str(roi_mask))
+
+    # Stacked binary masks (expand_mask output, or a 4-D image) carry one parcel
+    # per volume; collapse them to a label vector in bd.mask space first.
+    is_stacked_img = not isinstance(roi_mask, BrainData) and len(roi_mask.shape) == 4
+    if is_stacked_img:
+        roi_mask = BrainData(roi_mask, mask=bd.mask)
+    if isinstance(roi_mask, BrainData) and roi_mask.data.ndim == 2:
+        stacked = roi_mask.copy()
+        # A single-volume stack is just a binary ROI — squeezing keeps its own
+        # values, which is right for both a lone mask and a 1xN label vector.
+        stacked.data = (
+            roi_mask.data[0]
+            if roi_mask.data.shape[0] == 1
+            else collapse_label_stack(roi_mask.data)
+        )
+        roi_mask = stacked
+
+    roi_img = roi_mask.to_nifti() if isinstance(roi_mask, BrainData) else roi_mask
+
+    if roi_img.shape != bd.mask.shape or not np.allclose(
+        roi_img.affine, bd.mask.affine
+    ):
+        roi_img = resample_to_img(
+            roi_img,
+            bd.mask,
+            interpolation="nearest",
+            force_resample=True,
+            copy_header=True,
+        )
+
+    label_vec = apply_mask(roi_img, bd.mask).astype(np.int64)
+    unique_labels = np.unique(label_vec)
+    unique_labels = unique_labels[unique_labels != 0]
+    if unique_labels.size == 0:
+        raise ValueError("roi_mask has no nonzero labels in the BrainData mask space.")
+    return roi_img, label_vec, unique_labels
+
+
 def check_brain_data_is_single(data):
     """Logical test if BrainData instance is a single image.
 

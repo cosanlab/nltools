@@ -727,44 +727,6 @@ def _run_searchlight(
 # ---------------------------------------------------------------------------
 
 
-def _resolve_roi_labels(brain_mask, roi_mask) -> tuple[np.ndarray, np.ndarray]:
-    """Resolve an atlas image into per-voxel labels on ``brain_mask``.
-
-    Loads a path, resamples (nearest) into the brain mask's grid when shapes
-    or affines differ, and returns ``(label_vec, unique_labels)`` where
-    ``label_vec`` is the ``(n_voxels,)`` int atlas label per in-mask voxel
-    and ``unique_labels`` the sorted non-zero labels. Shared by ``_run_roi``
-    and ``BrainCollection.predict_group``'s permutation null.
-    """
-    from pathlib import Path
-
-    import nibabel as nib
-    from nilearn.image import resample_to_img
-    from nilearn.masking import apply_mask
-
-    if roi_mask is None:
-        raise ValueError("roi_mask required for spatial_scale='roi'")
-
-    if isinstance(roi_mask, (str, Path)):
-        roi_mask = nib.load(roi_mask)
-
-    if roi_mask.shape != brain_mask.shape or not np.allclose(
-        roi_mask.affine, brain_mask.affine
-    ):
-        roi_mask = resample_to_img(
-            roi_mask,
-            brain_mask,
-            interpolation="nearest",
-            force_resample=True,
-            copy_header=True,
-        )
-
-    label_vec = apply_mask(roi_mask, brain_mask).astype(np.int64)
-    unique_labels = np.unique(label_vec)
-    unique_labels = unique_labels[unique_labels != 0]
-    return label_vec, unique_labels
-
-
 def _run_roi(
     bd, X, y, pipe, cv, groups, scoring, roi_mask, n_jobs, progress_bar
 ) -> Predict:
@@ -799,7 +761,9 @@ def _run_roi(
     from sklearn.base import clone
     from sklearn.metrics import check_scoring
 
-    label_vec, unique_labels = _resolve_roi_labels(bd.mask, roi_mask)
+    from .utils import resolve_roi_atlas
+
+    _, label_vec, unique_labels = resolve_roi_atlas(bd, roi_mask)
 
     n_folds = cv.get_n_splits(X, y, groups=groups)
     # Pre-compute split indices once so workers see the same splits; cv objects

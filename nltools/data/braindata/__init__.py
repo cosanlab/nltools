@@ -447,8 +447,10 @@ class BrainData:
                 transforms + reassembly, requires `roi_mask`). ``'searchlight'``
                 is not yet implemented (overlapping spheres have no canonical
                 per-voxel transform).
-            roi_mask (BrainData | Nifti1Image | str | Path | None): Atlas image
-                used when ``spatial_scale='roi'``.
+            roi_mask (BrainData | Nifti1Image | str | Path | None): Atlas for
+                ``spatial_scale='roi'``: a 3-D label image or a path to one, a
+                `BrainData` label vector, or a stacked binary mask from
+                `expand_mask` (a `BrainData` or a 4-D image).
             radius_mm (float): Reserved for ``spatial_scale='searchlight'``.
 
         Returns:
@@ -822,8 +824,10 @@ class BrainData:
                 attached for back-projection via ``Adjacency.to_brain()``.
                 ``'searchlight'`` requires ``radius_mm`` (and is not yet
                 implemented).
-            roi_mask (BrainData | Nifti1Image | str | Path | None): Atlas image
-                for ``spatial_scale='roi'``.
+            roi_mask (BrainData | Nifti1Image | str | Path | None): Atlas for
+                ``spatial_scale='roi'``: a 3-D label image or a path to one, a
+                `BrainData` label vector, or a stacked binary mask from
+                `expand_mask` (a `BrainData` or a 4-D image).
             radius_mm (float): Searchlight radius in mm. Default 10.0.
             **kwargs (dict): Additional metric options forwarded to
                 ``scipy.spatial.distance.cdist`` (e.g. ``p`` for minkowski).
@@ -1051,8 +1055,10 @@ class BrainData:
                 ``axis``. ``'roi'`` requires ``roi_mask`` and returns a
                 BrainData of the same shape with each voxel painted with
                 its parcel's mean per image (parcellation smoothing).
-            roi_mask (BrainData | Nifti1Image | str | Path | None): Atlas image
-                for ``spatial_scale='roi'``.
+            roi_mask (BrainData | Nifti1Image | str | Path | None): Atlas for
+                ``spatial_scale='roi'``: a 3-D label image or a path to one, a
+                `BrainData` label vector, or a stacked binary mask from
+                `expand_mask` (a `BrainData` or a 4-D image).
 
         Returns:
             float | np.ndarray | BrainData: Mean values.
@@ -1074,8 +1080,10 @@ class BrainData:
                 ``spatial_scale='roi'``.
             spatial_scale (str): ``'whole_brain'`` (default) or ``'roi'`` (paints
                 each voxel with its parcel's median per image).
-            roi_mask (BrainData | Nifti1Image | str | Path | None): Atlas image
-                for ``spatial_scale='roi'``.
+            roi_mask (BrainData | Nifti1Image | str | Path | None): Atlas for
+                ``spatial_scale='roi'``: a 3-D label image or a path to one, a
+                `BrainData` label vector, or a stacked binary mask from
+                `expand_mask` (a `BrainData` or a 4-D image).
 
         Returns:
             float | np.ndarray | BrainData: Median values.
@@ -1565,8 +1573,10 @@ class BrainData:
             groups (array-like, str, optional): Group labels for CV splitters
                 that need them (e.g., leave-one-run-out), or the name of a
                 ``.Y`` column holding them.
-            roi_mask (Nifti1Image or path-like, optional): Atlas image for
-                ``spatial_scale='roi'``.
+            roi_mask (BrainData | Nifti1Image | str | Path | None): Atlas for
+                ``spatial_scale='roi'``: a 3-D label image or a path to one, a
+                `BrainData` label vector, or a stacked binary mask from
+                `expand_mask` (a `BrainData` or a 4-D image).
             radius_mm (float): Searchlight radius in mm. Default ``10.0``.
             inplace (bool): If ``True``, populate result fields as
                 ``predict_*`` attributes on ``self`` and return ``self``.
@@ -1780,8 +1790,10 @@ class BrainData:
                 ``spatial_scale='roi'``.
             spatial_scale (str): ``'whole_brain'`` (default) or ``'roi'`` (paints
                 each voxel with its parcel's std per image).
-            roi_mask (BrainData | Nifti1Image | str | Path | None): Atlas image
-                for ``spatial_scale='roi'``.
+            roi_mask (BrainData | Nifti1Image | str | Path | None): Atlas for
+                ``spatial_scale='roi'``: a 3-D label image or a path to one, a
+                `BrainData` label vector, or a stacked binary mask from
+                `expand_mask` (a `BrainData` or a 4-D image).
 
         Returns:
             float | np.ndarray | BrainData: Standard deviation values.

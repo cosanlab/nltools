@@ -1,4 +1,9 @@
-from nltools.mask import create_sphere, expand_mask, roi_to_brain
+from nltools.mask import (
+    collapse_label_stack,
+    create_sphere,
+    expand_mask,
+    roi_to_brain,
+)
 from nltools.data import BrainData
 import numpy as np
 import pandas as pd
@@ -44,6 +49,49 @@ def test_expand_mask_non_contiguous_labels():
     assert len(expanded) == 2
     assert np.any(expanded[0].data == 1)
     assert np.any(expanded[1].data == 1)
+
+
+def test_collapse_label_stack_numbers_parcels_in_stack_order():
+    stack = np.array(
+        [
+            [1, 1, 0, 0, 0],
+            [0, 0, 1, 0, 0],
+            [0, 0, 0, 1, 0],
+        ]
+    )
+    np.testing.assert_array_equal(
+        collapse_label_stack(stack), np.array([1, 1, 2, 3, 0])
+    )
+
+
+def test_collapse_label_stack_drops_voxels_shared_by_two_masks():
+    # A voxel in more than one mask has no unambiguous parcel, so it gets 0
+    # rather than an arbitrary winner or a summed label.
+    stack = np.array(
+        [
+            [1, 1, 0],
+            [0, 1, 1],
+        ]
+    )
+    np.testing.assert_array_equal(collapse_label_stack(stack), np.array([1, 0, 2]))
+
+
+def test_collapse_label_stack_inverts_expand_mask():
+    s1 = create_sphere([15, 10, -8], radius=8)
+    s2 = create_sphere([-15, 10, -8], radius=8)
+    labeled = BrainData(s1)
+    data = np.zeros(labeled.data.shape)
+    data[BrainData(s1).data > 0] = 1
+    data[BrainData(s2).data > 0] = 2
+    labeled.data = data
+
+    round_tripped = collapse_label_stack(expand_mask(labeled).data)
+    np.testing.assert_array_equal(round_tripped, labeled.data.astype(np.int64))
+
+
+def test_collapse_label_stack_rejects_non_2d():
+    with pytest.raises(ValueError, match="must be 2D"):
+        collapse_label_stack(np.array([1, 2, 3]))
 
 
 def test_roi_to_brain():
