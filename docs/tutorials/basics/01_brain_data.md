@@ -17,9 +17,9 @@ downloads:
 
 [![Open in molab](https://marimo.io/molab-shield.svg)](https://molab.marimo.io/github/cosanlab/nltools/blob/master/docs/tutorials/basics/01_brain_data.py)
 
-:::{tip} Run this tutorial
+````{tip} Run this tutorial
 This page is rendered from the [marimo](https://marimo.io) notebook [`docs/tutorials/basics/01_brain_data.py`](https://github.com/cosanlab/nltools/blob/master/docs/tutorials/basics/01_brain_data.py). Click the badge to run it in the cloud (free, no install), or locally: download `01_brain_data.py` and run `uvx marimo edit --sandbox 01_brain_data.py`. Outputs below were baked in at build time.
-:::
+````
 
 The `BrainData` class is the core data structure in `nltools` for working with
 neuroimaging data. It stores data as 2D arrays (images x voxels) for efficient

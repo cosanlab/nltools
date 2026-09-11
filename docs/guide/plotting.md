@@ -2,12 +2,12 @@
 title: Plotting
 ---
 
-Each data class knows how to draw itself. [`BrainData.plot`](../api/data/brain_data.md#data-brain-data-plot)
+Each data class knows how to draw itself. [`BrainData.plot`](../api/data/brain_data.md#nltools.data.braindata.BrainData.plot)
 does most of the work: `method='glass'` for a whole-brain projection, `'slices'` for orthogonal cuts,
 `'timeseries'` or `'histogram'` for the data as numbers rather than anatomy. Surfaces are
-[`plot_surf`](../api/data/brain_data.md#data-brain-data-plot-surf) and
-[`plot_flatmap`](../api/data/brain_data.md#data-brain-data-plot-flatmap); the interactive WebGL
-viewer is [`iplot`](../api/data/brain_data.md#data-brain-data-iplot). Everything returns a
+[`plot_surf`](../api/data/brain_data.md#nltools.data.braindata.BrainData.plot_surf) and
+[`plot_flatmap`](../api/data/brain_data.md#nltools.data.braindata.BrainData.plot_flatmap); the interactive WebGL
+viewer is [`iplot`](../api/data/brain_data.md#nltools.data.braindata.BrainData.iplot). Everything returns a
 matplotlib figure or axes, takes `save=` for a path, and forwards unrecognized keyword arguments to
 the underlying nilearn or seaborn call.
 
@@ -18,17 +18,17 @@ strings like `'95%'`.
 
 Object | Plot | Notes
 --- | --- | ---
-`BrainData` volume | [`plot`](../api/data/brain_data.md#data-brain-data-plot)<code>(method='glass'&#124;'slices')</code> | `view='xyz'` picks slice axes; `cut_coords=`, `bg_img=`, `cmap=` as usual
+`BrainData` volume | [`plot`](../api/data/brain_data.md#nltools.data.braindata.BrainData.plot)<code>(method='glass'&#124;'slices')</code> | `view='xyz'` picks slice axes; `cut_coords=`, `bg_img=`, `cmap=` as usual
 `BrainData` numbers | <code>plot(method='timeseries'&#124;'histogram')</code> | <code>stat='mean'&#124;'median'&#124;'std'</code> for `'timeseries'`
-`BrainData` surface | [`plot_surf`](../api/data/brain_data.md#data-brain-data-plot-surf) | `hemi=`, `view=` (`'montage'` = lateral + medial), <code>surface='pial'&#124;'inflated'</code>
-`BrainData` flatmap | [`plot_flatmap`](../api/data/brain_data.md#data-brain-data-plot-flatmap) | Curvature underlay on by default
-`BrainData` interactive | [`iplot`](../api/data/brain_data.md#data-brain-data-iplot) / [`plot_interactive_brain`](../api/tasks/plotting.md#tasks-plotting-plot-interactive-brain) | Needs a live kernel (Jupyter, marimo); static pages show a placeholder
-`DesignMatrix` | [`plot`](../api/data/design_matrix.md#data-design-matrix-plot)<code>(method='matrix'&#124;'timeseries'&#124;'corr')</code> | `'matrix'` is the SPM-style heatmap; `'corr'` shows regressor collinearity
-`Adjacency` matrix | [`plot`](../api/data/adjacency.md#data-adjacency-plot) | `limit=` caps how many matrices from a stack are drawn
-`Adjacency` structure | [`plot_mds`](../api/data/adjacency.md#data-adjacency-plot-mds), [`plot_silhouette`](../api/data/adjacency.md#data-adjacency-plot-silhouette), [`plot_label_distance`](../api/data/adjacency.md#data-adjacency-plot-label-distance) | All take `labels=`, one per node
-Two matrices at once | [`plot_stacked_adjacency`](../api/tasks/similarity.md#tasks-similarity-plot-stacked-adjacency) | See [Similarity & RSA](similarity-and-rsa.md)
-`Predict` result | [`plot_roc`](../api/tasks/prediction.md#tasks-prediction-plot-roc), [`plot_scatter`](../api/tasks/prediction.md#tasks-prediction-plot-scatter), [`plot_dist_from_hyperplane`](../api/tasks/prediction.md#tasks-prediction-plot-dist-from-hyperplane), [`plot_probability`](../api/tasks/prediction.md#tasks-prediction-plot-probability) | Or `Roc.plot()` / `Roc.summary()`
-`decompose` output | [`component_viewer`](../api/tasks/plotting.md#tasks-plotting-component-viewer) | ipywidgets; live kernel only
+`BrainData` surface | [`plot_surf`](../api/data/brain_data.md#nltools.data.braindata.BrainData.plot_surf) | `hemi=`, `view=` (`'montage'` = lateral + medial), <code>surface='pial'&#124;'inflated'</code>
+`BrainData` flatmap | [`plot_flatmap`](../api/data/brain_data.md#nltools.data.braindata.BrainData.plot_flatmap) | Curvature underlay on by default
+`BrainData` interactive | [`iplot`](../api/data/brain_data.md#nltools.data.braindata.BrainData.iplot) / [`plot_interactive_brain`](../api/tasks/plotting.md#nltools.plotting.plot_interactive_brain) | Needs a live kernel (Jupyter, marimo); static pages show a placeholder
+`DesignMatrix` | [`plot`](../api/data/design_matrix.md#nltools.data.designmatrix.DesignMatrix.plot)<code>(method='matrix'&#124;'timeseries'&#124;'corr')</code> | `'matrix'` is the SPM-style heatmap; `'corr'` shows regressor collinearity
+`Adjacency` matrix | [`plot`](../api/data/adjacency.md#nltools.data.adjacency.Adjacency.plot) | `limit=` caps how many matrices from a stack are drawn
+`Adjacency` structure | [`plot_mds`](../api/data/adjacency.md#nltools.data.adjacency.Adjacency.plot_mds), [`plot_silhouette`](../api/data/adjacency.md#nltools.data.adjacency.Adjacency.plot_silhouette), [`plot_label_distance`](../api/data/adjacency.md#nltools.data.adjacency.Adjacency.plot_label_distance) | All take `labels=`, one per node
+Two matrices at once | [`plot_stacked_adjacency`](../api/tasks/similarity.md#nltools.plotting.plot_stacked_adjacency) | See [Similarity & RSA](similarity-and-rsa.md)
+`Predict` result | [`plot_roc`](../api/tasks/prediction.md#nltools.plotting.plot_roc), [`plot_scatter`](../api/tasks/prediction.md#nltools.plotting.plot_scatter), [`plot_dist_from_hyperplane`](../api/tasks/prediction.md#nltools.plotting.plot_dist_from_hyperplane), [`plot_probability`](../api/tasks/prediction.md#nltools.plotting.plot_probability) | Or `Roc.plot()` / `Roc.summary()`
+`decompose` output | [`component_viewer`](../api/tasks/plotting.md#nltools.plotting.component_viewer) | ipywidgets; live kernel only
 
 ## Volumes
 

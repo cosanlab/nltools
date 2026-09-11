@@ -81,8 +81,8 @@ class TestSourceBanner:
         banner = m2m.source_banner(GLM_REL)
         badge, rest = banner.split("\n\n", 1)
         assert badge == m2m.molab_badge(GLM_REL)
-        assert rest.startswith(":::{tip}")
-        assert rest.rstrip("\n").endswith(":::")
+        assert rest.startswith("````{tip}")
+        assert rest.rstrip("\n").endswith("````")
 
     def test_tip_has_local_and_cloud_instructions(self, m2m):
         banner = m2m.source_banner(GLM_REL)
@@ -93,13 +93,13 @@ class TestSourceBanner:
 
 
 class TestInsertBanner:
-    BANNER = "BADGE\n\n:::{tip} x\nbody\n:::\n"
+    BANNER = "BADGE\n\n````{tip} x\nbody\n````\n"
 
     def test_badge_directly_after_h1(self, m2m):
         body = "# Title\n\nIntro paragraph.\n"
         out = m2m.insert_banner(body, self.BANNER)
         assert out.startswith(
-            "# Title\n\nBADGE\n\n:::{tip} x\nbody\n:::\n\nIntro paragraph."
+            "# Title\n\nBADGE\n\n````{tip} x\nbody\n````\n\nIntro paragraph."
         )
 
     def test_ignores_hash_lines_inside_code_fences(self, m2m):
@@ -148,7 +148,7 @@ class TestConvert:
         assert out == nb.with_suffix(".md")
         text = out.read_text()
         assert text.startswith(m2m.frontmatter(rel))
-        assert f"# Title\n\n{m2m.molab_badge(rel)}\n\n:::{{tip}}" in text
+        assert f"# Title\n\n{m2m.molab_badge(rel)}\n\n````{{tip}}" in text
         assert "import marimo" not in text
         assert "```{code-cell} python3\n:tags: [remove-input]\nprint(1)\n```" in text
 

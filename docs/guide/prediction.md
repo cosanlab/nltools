@@ -2,13 +2,13 @@
 title: "Prediction: encoding & decoding"
 ---
 
-[`BrainData.predict`](../api/data/brain_data.md#data-brain-data-predict) is decoding: predict a
+[`BrainData.predict`](../api/data/brain_data.md#nltools.data.braindata.BrainData.predict) is decoding: predict a
 per-image label or value `y` from voxel patterns, cross-validated. One call returns a frozen
-[`Predict`](../api/data/results.md#data-results-predict) result whose `spatial_scale` field
+[`Predict`](../api/data/results.md#nltools.data.results.Predict) result whose `spatial_scale` field
 says which of its fields carry values. Encoding runs the other way, predicting voxel timeseries
 from stimulus features, and is a ridge problem. Use
-[`BrainData.fit`](../api/data/brain_data.md#data-brain-data-fit)`(model='ridge')` or the
-[`Ridge`](../api/models.md#models-ridge) estimator directly.
+[`BrainData.fit`](../api/data/brain_data.md#nltools.data.braindata.BrainData.fit)`(model='ridge')` or the
+[`Ridge`](../api/models.md#nltools.models.Ridge) estimator directly.
 
 `spatial_scale=` sets what a "pattern" means. `'whole_brain'` fits one model on every in-mask
 voxel. `'roi'` needs `roi_mask=` (a labeled parcellation) and fits one model per parcel, returning
@@ -55,11 +55,11 @@ Goal | Use | Notes
 Decode a label or value | `predict(y=, estimator=, cv=)` | `y` is an array, or a string naming a column of `.Y`
 Pick an estimator | `estimator='linear_svc'`, `'logistic_regression'`, `'linear_discriminant_analysis'`, `'ridge_classifier'`, `'ridge'`, `'lasso'`, `'linear_svr'`, or any sklearn estimator | Every shortcut is linear; a non-linear estimator raises
 Cross-validation | `cv=None` (a deterministic five folds), `cv=5`, or an sklearn splitter such as `LeaveOneGroupOut()` + `groups=` | Test folds must partition the rows, so shuffle-split and repeated splitters raise
-Stratify a continuous target | [`KFoldStratified`](../api/tasks/prediction.md#tasks-prediction-kfoldstratified) | Deals `y`-ordered samples round-robin into folds
+Stratify a continuous target | [`KFoldStratified`](../api/tasks/prediction.md#nltools.cross_validation.KFoldStratified) | Deals `y`-ordered samples round-robin into folds
 Region-by-region | `spatial_scale='roi', roi_mask=atlas` | Answers "is this region informative on its own?"
 Voxel-by-voxel | `spatial_scale='searchlight', radius=8.0` | Thousands of models; `n_jobs` defaults to `1` here on purpose
-Classifier performance | [`Roc`](../api/tasks/prediction.md#tasks-prediction-roc) | `calculate()` then `summary()` or `plot()`
-Encoding (features → voxels) | [`Ridge`](../api/models.md#models-ridge), or `fit(model='ridge', ridge_*=...)` | `per_target_alpha=True` (the default) picks a per-voxel alpha; a named mapping of feature spaces makes it banded
+Classifier performance | [`Roc`](../api/tasks/prediction.md#nltools.data.roc.Roc) | `calculate()` then `summary()` or `plot()`
+Encoding (features → voxels) | [`Ridge`](../api/models.md#nltools.models.Ridge), or `fit(model='ridge', ridge_*=...)` | `per_target_alpha=True` (the default) picks a per-voxel alpha; a named mapping of feature spaces makes it banded
 
 ## Decoding
 

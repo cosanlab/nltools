@@ -3,7 +3,7 @@ title: Intersubject correlation
 ---
 
 Intersubject correlation asks how much of a subject's timecourse is shared with everyone else
-watching the same movie. [`isc`](../api/tasks/intersubject.md#tasks-intersubject-isc) takes one
+watching the same movie. [`isc`](../api/tasks/intersubject.md#nltools.algorithms.isc) takes one
 `(n_observations, n_subjects)` array for a voxel, a parcel, or a component, correlates every pair of
 subjects, and summarizes the pairwise matrix with the median by default, following Chen et al.
 (2016). `summary='mean'` averages after a Fisher r-to-z transform instead, which avoids inflating
@@ -17,12 +17,12 @@ its kwarg is `n_samples`, not `n_permute`.
 
 Goal | Use | Notes
 --- | --- | ---
-ISC of one timeseries set | [`isc`](../api/tasks/intersubject.md#tasks-intersubject-isc)`(data, method='bootstrap')` | Returns `{'isc', 'p', 'ci', ...}`; `data` is observations × subjects
+ISC of one timeseries set | [`isc`](../api/tasks/intersubject.md#nltools.algorithms.isc)`(data, method='bootstrap')` | Returns `{'isc', 'p', 'ci', ...}`; `data` is observations × subjects
 Surrogate null instead | <code>isc(..., method='circle_shift' &#124; 'phase_randomize')</code> | Preserves temporal autocorrelation
-Leave-one-out ISC | [`isc_permutation_test`](../api/tasks/intersubject.md#tasks-intersubject-isc-permutation-test)`(summary_statistic='leave-one-out')` | The engine under `isc`, with `device='gpu'` available
-Region-to-region | [`isfc`](../api/tasks/intersubject.md#tasks-intersubject-isfc) | Takes a list of per-subject `(n_obs, n_regions)` matrices
-Moment-to-moment synchrony | [`isps`](../api/tasks/intersubject.md#tasks-intersubject-isps) | Band-limited phase synchrony; set `sampling_freq=` and the band
-Compare two groups | [`isc_group`](../api/tasks/intersubject.md#tasks-intersubject-isc-group) | `method='permute'` shuffles group labels; `'bootstrap'` resamples
+Leave-one-out ISC | [`isc_permutation_test`](../api/tasks/intersubject.md#nltools.algorithms.isc_permutation_test)`(summary_statistic='leave-one-out')` | The engine under `isc`, with `device='gpu'` available
+Region-to-region | [`isfc`](../api/tasks/intersubject.md#nltools.algorithms.isfc) | Takes a list of per-subject `(n_obs, n_regions)` matrices
+Moment-to-moment synchrony | [`isps`](../api/tasks/intersubject.md#nltools.algorithms.isps) | Band-limited phase synchrony; set `sampling_freq=` and the band
+Compare two groups | [`isc_group`](../api/tasks/intersubject.md#nltools.algorithms.isc_group) | `method='permute'` shuffles group labels; `'bootstrap'` resamples
 
 ## One timeseries
 

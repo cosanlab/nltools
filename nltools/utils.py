@@ -28,6 +28,7 @@ from contextlib import contextmanager
 from os.path import dirname, join, sep as pathsep
 
 import numpy as np
+from numpy.typing import ArrayLike
 
 
 # ---------------------------------------------------------------------------
@@ -396,7 +397,7 @@ def make_progress_bar(*, progress_bar: bool, **tqdm_kwargs):
     return tqdm(**tqdm_kwargs)
 
 
-def resolve_threshold(value, data):
+def resolve_threshold(value: float | str | None, data: ArrayLike) -> float | None:
     """Resolve a threshold spec — a number or a percentile string — to a float.
 
     The single source of truth for what `"98%"` means across the library

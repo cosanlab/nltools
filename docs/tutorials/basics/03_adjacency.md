@@ -17,9 +17,9 @@ downloads:
 
 [![Open in molab](https://marimo.io/molab-shield.svg)](https://molab.marimo.io/github/cosanlab/nltools/blob/master/docs/tutorials/basics/03_adjacency.py)
 
-:::{tip} Run this tutorial
+````{tip} Run this tutorial
 This page is rendered from the [marimo](https://marimo.io) notebook [`docs/tutorials/basics/03_adjacency.py`](https://github.com/cosanlab/nltools/blob/master/docs/tutorials/basics/03_adjacency.py). Click the badge to run it in the cloud (free, no install), or locally: download `03_adjacency.py` and run `uvx marimo edit --sandbox 03_adjacency.py`. Outputs below were baked in at build time.
-:::
+````
 
 The `Adjacency` class represents connectivity or similarity matrices. It stores
 data efficiently as the upper-triangle vector and reconstructs the full square

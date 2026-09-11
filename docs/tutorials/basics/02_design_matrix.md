@@ -17,9 +17,9 @@ downloads:
 
 [![Open in molab](https://marimo.io/molab-shield.svg)](https://molab.marimo.io/github/cosanlab/nltools/blob/master/docs/tutorials/basics/02_design_matrix.py)
 
-:::{tip} Run this tutorial
+````{tip} Run this tutorial
 This page is rendered from the [marimo](https://marimo.io) notebook [`docs/tutorials/basics/02_design_matrix.py`](https://github.com/cosanlab/nltools/blob/master/docs/tutorials/basics/02_design_matrix.py). Click the badge to run it in the cloud (free, no install), or locally: download `02_design_matrix.py` and run `uvx marimo edit --sandbox 02_design_matrix.py`. Outputs below were baked in at build time.
-:::
+````
 
 The `DesignMatrix` class is the core data structure for working with
 csv/tsv/dataframes that capture your experimental design (e.g. a GLM analysis) or

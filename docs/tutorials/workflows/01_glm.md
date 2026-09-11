@@ -17,9 +17,9 @@ downloads:
 
 [![Open in molab](https://marimo.io/molab-shield.svg)](https://molab.marimo.io/github/cosanlab/nltools/blob/master/docs/tutorials/workflows/01_glm.py)
 
-:::{tip} Run this tutorial
+````{tip} Run this tutorial
 This page is rendered from the [marimo](https://marimo.io) notebook [`docs/tutorials/workflows/01_glm.py`](https://github.com/cosanlab/nltools/blob/master/docs/tutorials/workflows/01_glm.py). Click the badge to run it in the cloud (free, no install), or locally: download `01_glm.py` and run `uvx marimo edit --sandbox 01_glm.py`. Outputs below were baked in at build time.
-:::
+````
 
 **What it answers.** *Where* in the brain does activity track your task design? The general linear model (GLM) is the mass-univariate workhorse of task fMRI: fit one regression per voxel, then test contrasts between conditions. Use it when you have a known design and want a statistical map of effects.
 

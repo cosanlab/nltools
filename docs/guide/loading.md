@@ -10,7 +10,7 @@ arguments attach per-image tables (design/covariates and targets) that travel wi
 **The mask decides the grid.** With no `mask=`, nltools uses the bundled MNI template at the
 brain space's current resolution. If your data sits on a grid no bundled template matches, say
 4 mm, nltools resamples it to the closest bundled 1/2/3 mm template and raises a
-[`ResamplingWarning`](../api/tasks/design-and-glm.md#tasks-design-and-glm-resamplingwarning)
+[`ResamplingWarning`](../api/tasks/design-and-glm.md#nltools.utils.ResamplingWarning)
 naming the fallback. To keep the native resolution, pass `mask=` with a mask in your data's own
 space. Template names follow the
 `'{res}mm-MNI152-2009{version}'` pattern, where the version code is `fsl` (default, 2/3 mm),
@@ -20,13 +20,13 @@ Goal | Use | Notes
 --- | --- | ---
 Load one or many images | `BrainData(path_or_list)` | List input stacks; mixed grids are resampled to the mask
 Use a specific grid | `BrainData(..., mask='3mm-MNI152-2009fsl')` | Also accepts a `Nifti1Image` or a mask path
-Change the global default | [`set_brainspace`](../api/tasks/loading.md#tasks-loading-set-brainspace) / [`with_brainspace`](../api/tasks/loading.md#tasks-loading-with-brainspace) | `with_brainspace` is a context manager; [`reset_brainspace`](../api/tasks/loading.md#tasks-loading-reset-brainspace) restores defaults
-Save / reload with metadata | [`BrainData.write`](../api/data/brain_data.md#data-brain-data-write) → `.h5` | HDF5 round-trips `X`, `Y`, and the mask; `.nii.gz` does not
-Example data | [`fetch_pain`](../api/tasks/loading.md#tasks-loading-fetch-pain), [`fetch_emotion_ratings`](../api/tasks/loading.md#tasks-loading-fetch-emotion-ratings), [`load_haxby_example`](../api/tasks/loading.md#tasks-loading-load-haxby-example) | Cached on first use; `load_haxby_example` is synthetic and needs no network
-Bundled masks and atlases | [`list_resources`](../api/tasks/loading.md#tasks-loading-list-resources), [`fetch_resource`](../api/tasks/loading.md#tasks-loading-fetch-resource) | Returns a local path; parcellations live under `masks/`
-Published maps | [`fetch_neurovault_collection`](../api/tasks/loading.md#tasks-loading-fetch-neurovault-collection), [`download_nifti`](../api/tasks/loading.md#tasks-loading-download-nifti) | `BrainData` also accepts a URL directly
-Build a mask | [`create_sphere`](../api/tasks/loading.md#tasks-loading-create-sphere), [`expand_mask`](../api/tasks/loading.md#tasks-loading-expand-mask), [`collapse_mask`](../api/tasks/loading.md#tasks-loading-collapse-mask) | `expand_mask` turns one labeled atlas into per-ROI binary masks
-Stack objects | [`concatenate`](../api/tasks/loading.md#tasks-loading-concatenate) | Works on lists of `BrainData` or `Adjacency`
+Change the global default | [`set_brainspace`](../api/tasks/loading.md#nltools.templates.set_brainspace) / [`with_brainspace`](../api/tasks/loading.md#nltools.templates.with_brainspace) | `with_brainspace` is a context manager; [`reset_brainspace`](../api/tasks/loading.md#nltools.templates.reset_brainspace) restores defaults
+Save / reload with metadata | [`BrainData.write`](../api/data/brain_data.md#nltools.data.braindata.BrainData.write) → `.h5` | HDF5 round-trips `X`, `Y`, and the mask; `.nii.gz` does not
+Example data | [`fetch_pain`](../api/tasks/loading.md#nltools.datasets.fetch_pain), [`fetch_emotion_ratings`](../api/tasks/loading.md#nltools.datasets.fetch_emotion_ratings), [`load_haxby_example`](../api/tasks/loading.md#nltools.datasets.load_haxby_example) | Cached on first use; `load_haxby_example` is synthetic and needs no network
+Bundled masks and atlases | [`list_resources`](../api/tasks/loading.md#nltools.templates.list_resources), [`fetch_resource`](../api/tasks/loading.md#nltools.templates.fetch_resource) | Returns a local path; parcellations live under `masks/`
+Published maps | [`fetch_neurovault_collection`](../api/tasks/loading.md#nltools.datasets.fetch_neurovault_collection), [`download_nifti`](../api/tasks/loading.md#nltools.datasets.download_nifti) | `BrainData` also accepts a URL directly
+Build a mask | [`create_sphere`](../api/tasks/loading.md#nltools.mask.create_sphere), [`expand_mask`](../api/tasks/loading.md#nltools.mask.expand_mask), [`collapse_mask`](../api/tasks/loading.md#nltools.mask.collapse_mask) | `expand_mask` turns one labeled atlas into per-ROI binary masks
+Stack objects | [`concatenate`](../api/tasks/loading.md#nltools.utils.concatenate) | Works on lists of `BrainData` or `Adjacency`
 
 ## Loading
 

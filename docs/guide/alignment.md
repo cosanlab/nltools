@@ -12,20 +12,20 @@ Pick a method by what you have and what you need back:
 Method | Use when | Trade-off
 --- | --- | ---
 `'procrustes'` (hyperalignment) | Aligning one subject to a reference subject or common model | Orthogonal rotation, no dimensionality reduction; invertible
-[`HyperAlignment`](../api/tasks/alignment.md#tasks-alignment-hyperalignment) | Building a common model from a group, iteratively | Same voxel count out; `n_iter=2` is usually enough
-[`SRM`](../api/tasks/alignment.md#tasks-alignment-srm) | You want a low-dimensional shared response and a noise model | Probabilistic, slower; `n_features=` sets the shared dimensionality
-[`DetSRM`](../api/tasks/alignment.md#tasks-alignment-detsrm) | Same, without the probabilistic machinery | Faster and deterministic; the usual default
-[`LocalAlignment`](../api/tasks/alignment.md#tasks-alignment-localalignment) | One transform per ROI or searchlight, not one for the whole brain | Respects local topography; far more compute
+[`HyperAlignment`](../api/tasks/alignment.md#nltools.algorithms.HyperAlignment) | Building a common model from a group, iteratively | Same voxel count out; `n_iter=2` is usually enough
+[`SRM`](../api/tasks/alignment.md#nltools.algorithms.SRM) | You want a low-dimensional shared response and a noise model | Probabilistic, slower; `n_features=` sets the shared dimensionality
+[`DetSRM`](../api/tasks/alignment.md#nltools.algorithms.DetSRM) | Same, without the probabilistic machinery | Faster and deterministic; the usual default
+[`LocalAlignment`](../api/tasks/alignment.md#nltools.algorithms.LocalAlignment) | One transform per ROI or searchlight, not one for the whole brain | Respects local topography; far more compute
 
 Goal | Use | Notes
 --- | --- | ---
-Align one subject to another | [`BrainData.align`](../api/data/brain_data.md#data-brain-data-align)`(target, method='procrustes')` | Returns `transformed`, `transformation_matrix`, `common_model`, `disparity`, `scale`
-Build a group common model | [`align`](../api/tasks/alignment.md#tasks-alignment-align)`(list_of_arrays, method=)` | `'procrustes'`, `'probabilistic_srm'`, `'deterministic_srm'`
+Align one subject to another | [`BrainData.align`](../api/data/brain_data.md#nltools.data.braindata.BrainData.align)`(target, method='procrustes')` | Returns `transformed`, `transformation_matrix`, `common_model`, `disparity`, `scale`
+Build a group common model | [`align`](../api/tasks/alignment.md#nltools.algorithms.align)`(list_of_arrays, method=)` | `'procrustes'`, `'probabilistic_srm'`, `'deterministic_srm'`
 Project a new subject in | `BrainData.align(common_model, method='deterministic_srm')` | The target is the fitted model array, not a subject; `transformed` comes back as an array on the model's feature axis
-Local (ROI/searchlight) | <code>BrainData.align(..., spatial_scale='roi'&#124;'searchlight')</code>, or [`LocalAlignment`](../api/tasks/alignment.md#tasks-alignment-localalignment) | Needs `roi_mask=` or `radius=`
-Raw matrix superposition | [`procrustes`](../api/tasks/alignment.md#tasks-alignment-procrustes) | Returns `(mtx1, mtx2, disparity, R, scale)`
-Test two matrices' similarity | [`procrustes_distance`](../api/tasks/alignment.md#tasks-alignment-procrustes-distance) | Permutation test on the Procrustes disparity
-Match state maps across groups | [`align_states`](../api/tasks/alignment.md#tasks-alignment-align-states) | For comparing decompositions, not timeseries
+Local (ROI/searchlight) | <code>BrainData.align(..., spatial_scale='roi'&#124;'searchlight')</code>, or [`LocalAlignment`](../api/tasks/alignment.md#nltools.algorithms.LocalAlignment) | Needs `roi_mask=` or `radius=`
+Raw matrix superposition | [`procrustes`](../api/tasks/alignment.md#nltools.algorithms.alignment.procrustes.procrustes) | Returns `(mtx1, mtx2, disparity, R, scale)`
+Test two matrices' similarity | [`procrustes_distance`](../api/tasks/alignment.md#nltools.algorithms.procrustes_distance) | Permutation test on the Procrustes disparity
+Match state maps across groups | [`align_states`](../api/tasks/alignment.md#nltools.algorithms.align_states) | For comparing decompositions, not timeseries
 
 ## Pairwise and group
 

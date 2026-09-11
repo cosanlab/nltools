@@ -3,7 +3,7 @@ title: Statistics & inference
 ---
 
 Group inference in nltools is voxelwise and mostly non-parametric.
-[`BrainData.ttest`](../api/data/brain_data.md#data-brain-data-ttest) runs a one-sample test at
+[`BrainData.ttest`](../api/data/brain_data.md#nltools.data.braindata.BrainData.ttest) runs a one-sample test at
 every voxel of a stacked `(n_subjects, n_voxels)` object and returns `{'mean', 't', 'z', 'p'}` as
 `BrainData` maps. Pass `permutation=True` for a sign-flipping null instead of the parametric t, and
 `popmean=` to test against something other than zero. Everything here also exists as a plain
@@ -24,15 +24,15 @@ Four kwargs carry most of the meaning.
 
 Goal | Use | Notes
 --- | --- | ---
-One-sample voxelwise test | [`ttest`](../api/data/brain_data.md#data-brain-data-ttest)`(popmean=0.0)` | Returns `{'mean', 't', 'z', 'p'}`
-Non-parametric one-sample | `ttest(permutation=True, n_permute=)` | Sign flipping; add `return_null=True` for the `'null_dist'` array. Also [`one_sample_permutation_test`](../api/tasks/inference.md#tasks-inference-one-sample-permutation-test)
-Non-parametric two-sample | [`two_sample_permutation_test`](../api/tasks/inference.md#tasks-inference-two-sample-permutation-test) | Group-label shuffling
-Correlated time series | [`timeseries_correlation_permutation_test`](../api/tasks/inference.md#tasks-inference-timeseries-correlation-permutation-test) | `method='circle_shift'` or `'phase_randomize'` preserves autocorrelation
-Build a timeseries null | [`circle_shift`](../api/tasks/inference.md#tasks-inference-circle-shift), [`phase_randomize`](../api/tasks/inference.md#tasks-inference-phase-randomize) | The surrogate generators used above
-Confidence intervals | [`BrainData.bootstrap`](../api/data/brain_data.md#data-brain-data-bootstrap), [`Adjacency.bootstrap`](../api/data/adjacency.md#data-adjacency-bootstrap) | Returns a `BootstrapResult`: `.estimate`, `.standard_error`, `.ci_lower`, `.ci_upper`
-Matrix comparison | [`matrix_permutation_test`](../api/tasks/similarity.md#tasks-similarity-matrix-permutation-test), [`Adjacency.ttest`](../api/data/adjacency.md#data-adjacency-ttest) | `Adjacency.ttest` takes the same kwargs and returns the same keys, one edgewise `Adjacency` each. See [Similarity & RSA](similarity-and-rsa.md)
-FDR / Holm-Bonferroni | [`fdr`](../api/tasks/inference.md#tasks-inference-fdr), [`holm_bonf`](../api/tasks/inference.md#tasks-inference-holm-bonf) | Both return a *p-threshold*, or `-1` if nothing survives
-Apply a threshold | [`threshold`](../api/tasks/inference.md#tasks-inference-threshold), [`BrainData.threshold`](../api/data/brain_data.md#data-brain-data-threshold) | The function thresholds by a p-map; the method by value (`upper=`/`lower=`)
+One-sample voxelwise test | [`ttest`](../api/data/brain_data.md#nltools.data.braindata.BrainData.ttest)`(popmean=0.0)` | Returns `{'mean', 't', 'z', 'p'}`
+Non-parametric one-sample | `ttest(permutation=True, n_permute=)` | Sign flipping; add `return_null=True` for the `'null_dist'` array. Also [`one_sample_permutation_test`](../api/tasks/inference.md#nltools.algorithms.one_sample_permutation_test)
+Non-parametric two-sample | [`two_sample_permutation_test`](../api/tasks/inference.md#nltools.algorithms.two_sample_permutation_test) | Group-label shuffling
+Correlated time series | [`timeseries_correlation_permutation_test`](../api/tasks/inference.md#nltools.algorithms.timeseries_correlation_permutation_test) | `method='circle_shift'` or `'phase_randomize'` preserves autocorrelation
+Build a timeseries null | [`circle_shift`](../api/tasks/inference.md#nltools.algorithms.circle_shift), [`phase_randomize`](../api/tasks/inference.md#nltools.algorithms.phase_randomize) | The surrogate generators used above
+Confidence intervals | [`BrainData.bootstrap`](../api/data/brain_data.md#nltools.data.braindata.BrainData.bootstrap), [`Adjacency.bootstrap`](../api/data/adjacency.md#nltools.data.adjacency.Adjacency.bootstrap) | Returns a `BootstrapResult`: `.estimate`, `.standard_error`, `.ci_lower`, `.ci_upper`
+Matrix comparison | [`matrix_permutation_test`](../api/tasks/similarity.md#nltools.algorithms.matrix_permutation_test), [`Adjacency.ttest`](../api/data/adjacency.md#nltools.data.adjacency.Adjacency.ttest) | `Adjacency.ttest` takes the same kwargs and returns the same keys, one edgewise `Adjacency` each. See [Similarity & RSA](similarity-and-rsa.md)
+FDR / Holm-Bonferroni | [`fdr`](../api/tasks/inference.md#nltools.algorithms.fdr), [`holm_bonf`](../api/tasks/inference.md#nltools.algorithms.holm_bonf) | Both return a *p-threshold*, or `-1` if nothing survives
+Apply a threshold | [`threshold`](../api/tasks/inference.md#nltools.algorithms.threshold), [`BrainData.threshold`](../api/data/brain_data.md#nltools.data.braindata.BrainData.threshold) | The function thresholds by a p-map; the method by value (`upper=`/`lower=`)
 
 ## Group test, corrected
 
@@ -72,7 +72,7 @@ boot.ci_lower, boot.ci_upper               # the 95% percentile interval
 Every statistic returns the same `BootstrapResult`: `estimate` (the statistic on the *unresampled*
 data — not the average of the draws), `standard_error` (the `ddof=1` deviation across draws), and
 `ci_lower`/`ci_upper`. All four are `BrainData` maps of identical shape.
-[`Adjacency.bootstrap`](../api/data/adjacency.md#data-adjacency-bootstrap) returns the same record
+[`Adjacency.bootstrap`](../api/data/adjacency.md#nltools.data.adjacency.Adjacency.bootstrap) returns the same record
 with `Adjacency` payloads.
 
 The six basic statistics — `'mean'`, `'median'`, `'std'`, `'sum'`, `'min'`, `'max'` — reduce the

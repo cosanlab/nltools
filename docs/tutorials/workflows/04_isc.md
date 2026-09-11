@@ -17,9 +17,9 @@ downloads:
 
 [![Open in molab](https://marimo.io/molab-shield.svg)](https://molab.marimo.io/github/cosanlab/nltools/blob/master/docs/tutorials/workflows/04_isc.py)
 
-:::{tip} Run this tutorial
+````{tip} Run this tutorial
 This page is rendered from the [marimo](https://marimo.io) notebook [`docs/tutorials/workflows/04_isc.py`](https://github.com/cosanlab/nltools/blob/master/docs/tutorials/workflows/04_isc.py). Click the badge to run it in the cloud (free, no install), or locally: download `04_isc.py` and run `uvx marimo edit --sandbox 04_isc.py`. Outputs below were baked in at build time.
-:::
+````
 
 **What it answers.** Which brain regions respond *consistently across people* to a shared naturalistic stimulus (a movie, a story)? There's no explicit design matrix to model — instead, ISC uses other subjects' responses as the model, asking where the stimulus drives a common, time-locked signal.
 

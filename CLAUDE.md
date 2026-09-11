@@ -56,11 +56,13 @@ The `uv run poe ok` gate includes the API checks required after changing a publi
 
 The package version lives only in `pyproject.toml`.
 
-`docs/api/` and marked `AUTOGEN` blocks are generated and committed. Change their source, then run the generator. Never edit generated output directly.
+Pages under `docs/api/` are hand-written mkdocstrings stubs: frontmatter, prose, and `::: dotted.path` directives whose `members:` lists decide what each page documents. Add a public object to the page that fits it, and to the `nltools.algorithms` A-Z index when it is an algorithm; `scripts/check_api_pages.py` (inside `uv run poe lint-api`) fails when an export has no home, has two, or a directive names something that does not exist. A new page also needs a `nav` entry in `zensical.toml`.
+
+Marked `AUTOGEN` blocks are generated and committed. Change their source, then run the generator. Never edit generated output directly.
 
 Marimo notebooks under `docs/tutorials/{basics,workflows}/` are tutorial sources. Edit the `.py` notebook, not its generated `.md` sibling.
 
-Use `uv run poe docs-generate` after changing docstrings, the vocabulary manifest, or tutorial `.py` files. Use `uv run poe docs-build` when the change can affect the rendered site or executed tutorials.
+Use `uv run poe docs-generate` after changing the vocabulary manifest or a tutorial `.py` file. Use `uv run poe docs-build` when the change can affect the rendered site or executed tutorials.
 
 ## Hard invariants
 

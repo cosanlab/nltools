@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Enforce the Google-style Markdown docstring conventions (CLAUDE.md).
 
-Docstrings are rendered by griffe2md + mystmd. Constructs that griffe's Google
+Docstrings are rendered by mkdocstrings-python. Constructs that griffe's Google
 parser does not understand render as literal text on the live site, so this
 check fails on them at lint time:
 

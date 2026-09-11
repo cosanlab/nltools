@@ -7,7 +7,7 @@ shells out to ``marimo export md`` (which turns ``mo.md()`` cells into prose and
 code cells into fenced blocks), then rewrites the marimo-flavored markdown into
 MyST-NB markdown that Jupyter Book v2 executes at build time to bake outputs.
 
-It is run by the ``docs-generate`` poe task alongside the griffe2md API docs, so
+It is run by the ``docs-generate`` poe task alongside the vocabulary tables, so
 building the docs regenerates the tutorial ``.md`` from the ``.py`` every time
 (deterministic output → MyST's execute cache still skips unchanged cells).
 
@@ -27,8 +27,10 @@ Transforms:
   (e.g. ``# myst: remove-cell`` to hide input *and* output, ``# myst:
   remove-stderr``);
 * ``import marimo`` lines are stripped and any cell left empty is dropped;
-* marimo ``/// name | title … ///`` fences become MyST ``:::{name} title … :::``
-  colon-fences so admonitions render.
+* marimo ``/// name | title … ///`` fences become MyST ```` ````{name} title
+  … ```` ```` backtick-fences so admonitions render. Backticks, not colons: the
+  generated pages sit inside the zensical site's ``docs_dir``, where a line
+  starting ``:::`` is an mkdocstrings directive and fails the build.
 
 Usage::
 
@@ -94,10 +96,13 @@ MARIMO_IMPORT_RE = re.compile(r"^\s*import\s+marimo\b.*$", re.MULTILINE)
 # Optional `# myst: tag1 tag2` directive on the first line of a cell.
 MYST_DIRECTIVE_RE = re.compile(r"^\s*#\s*myst:\s*(?P<tags>.+?)\s*$")
 
-# A marimo `/// name | title … ///` fence → MyST `:::` colon-fence.
+# A marimo `/// name | title … ///` fence → MyST backtick directive fence.
 MARIMO_FENCE_OPEN_RE = re.compile(
     r"^/// (?P<name>\w+)(?: \| (?P<title>.*))?$", re.MULTILINE
 )
+
+# Four backticks so a directive body can still hold an ordinary ``` code fence.
+DIRECTIVE_FENCE = "````"
 
 
 def export_marimo_md(notebook: Path) -> str:
@@ -161,16 +166,17 @@ def strip_frontmatter(text: str) -> str:
 
 
 def convert_admonitions(text: str) -> str:
-    """Convert marimo `///` fences to MyST `:::` colon-fences."""
+    """Convert marimo `///` fences to MyST backtick directive fences."""
 
     def _open(match: re.Match) -> str:
         name = match.group("name")
         title = match.group("title")
-        return f":::{{{name}}} {title}" if title else f":::{{{name}}}"
+        head = f"{DIRECTIVE_FENCE}{{{name}}}"
+        return f"{head} {title}" if title else head
 
     text = MARIMO_FENCE_OPEN_RE.sub(_open, text)
-    # Closing bare `///` fences → `:::` (only those left after the open-rewrite).
-    text = re.sub(r"^///\s*$", ":::", text, flags=re.MULTILINE)
+    # Closing bare `///` fences (only those left after the open-rewrite).
+    text = re.sub(r"^///\s*$", DIRECTIVE_FENCE, text, flags=re.MULTILINE)
     return text
 
 
@@ -209,12 +215,12 @@ def source_banner(rel: str) -> str:
     return (
         f"{molab_badge(rel)}\n"
         "\n"
-        ":::{tip} Run this tutorial\n"
+        f"{DIRECTIVE_FENCE}{{tip}} Run this tutorial\n"
         "This page is rendered from the [marimo](https://marimo.io) notebook "
         f"[`{rel}`]({github_url(rel)}). Click the badge to run it in the cloud (free, "
         f"no install), or locally: download `{name}` and run "
         f"`uvx marimo edit --sandbox {name}`. Outputs below were baked in at build time.\n"
-        ":::\n"
+        f"{DIRECTIVE_FENCE}\n"
     )
 
 

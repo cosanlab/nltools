@@ -26,7 +26,7 @@ Run linting: `uv run ruff check`
 
 Fix linting: `uv run ruff check --fix`
 
-Regenerate the docs sources (API reference pages, vocabulary tables, tutorial markdown): `uv run poe docs-generate`
+Regenerate the generated docs sources (vocabulary tables, tutorial markdown): `uv run poe docs-generate`
 
 Build the site: `uv run poe docs-build` — a strict build into `site/`, which fails on a broken internal link
 
@@ -43,3 +43,9 @@ Add or remove dependencies: `uv add/remove packagename`
 Add or remove development dependencies: `uv add/remove --dev packagename`
 
 Build package locally: `uv build`
+
+## Documentation
+
+Pages under `docs/api/` are hand-written: frontmatter, prose, and `::: dotted.path` directives that mkdocstrings renders at build time. Add a public object to the page that fits it — and to the `nltools.algorithms` A-Z index when it is an algorithm — then add any new page to the `nav` in `zensical.toml`. `uv run poe lint-api` fails when an export has no home, has two, or a directive names something that does not exist.
+
+To link into the API from a guide page, use the object's full dotted path as the anchor — `[BrainData.predict](../api/data/brain_data.md#nltools.data.braindata.BrainData.predict)` — because mkdocstrings gives every heading it emits `id="<full dotted path>"`, never a slug of the displayed name.

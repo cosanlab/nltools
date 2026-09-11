@@ -17,9 +17,9 @@ downloads:
 
 [![Open in molab](https://marimo.io/molab-shield.svg)](https://molab.marimo.io/github/cosanlab/nltools/blob/master/docs/tutorials/workflows/02_encoding.py)
 
-:::{tip} Run this tutorial
+````{tip} Run this tutorial
 This page is rendered from the [marimo](https://marimo.io) notebook [`docs/tutorials/workflows/02_encoding.py`](https://github.com/cosanlab/nltools/blob/master/docs/tutorials/workflows/02_encoding.py). Click the badge to run it in the cloud (free, no install), or locally: download `02_encoding.py` and run `uvx marimo edit --sandbox 02_encoding.py`. Outputs below were baked in at build time.
-:::
+````
 
 **What it answers.** How much of each voxel's response can a stimulus feature space explain — on *held-out* data? An encoding model is the inverse of decoding: instead of predicting the stimulus from the brain, you predict the brain from features of the stimulus, and score each voxel by its cross-validated R².
 

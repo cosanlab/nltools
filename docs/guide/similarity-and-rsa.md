@@ -4,9 +4,9 @@ title: Similarity & RSA
 
 Representational similarity analysis has two halves: turn brain patterns into a representational
 dissimilarity matrix (RDM), and compare that RDM to a model RDM.
-[`BrainData.distance`](../api/data/brain_data.md#data-brain-data-distance) does the first and
+[`BrainData.distance`](../api/data/brain_data.md#nltools.data.braindata.BrainData.distance) does the first and
 returns an [`Adjacency`](../api/data/adjacency.md), a square matrix stored as its upper triangle.
-[`Adjacency.similarity`](../api/data/adjacency.md#data-adjacency-similarity) does the second.
+[`Adjacency.similarity`](../api/data/adjacency.md#nltools.data.adjacency.Adjacency.similarity) does the second.
 
 Two kwargs are easy to mix up. `metric=` is the correlation type used to compare the two matrices
 (`'spearman'` by default, or `'pearson'` / `'kendall'`). `method=` is the *permutation scheme*:
@@ -15,16 +15,16 @@ Two kwargs are easy to mix up. `metric=` is the correlation type used to compare
 
 Goal | Use | Notes
 --- | --- | ---
-Brain RDM | [`BrainData.distance`](../api/data/brain_data.md#data-brain-data-distance)`(metric='correlation')` | Any scipy metric; `'euclidean'` is the default
+Brain RDM | [`BrainData.distance`](../api/data/brain_data.md#nltools.data.braindata.BrainData.distance)`(metric='correlation')` | Any scipy metric; `'euclidean'` is the default
 Per-ROI or per-searchlight RDMs | `distance(..., spatial_scale='roi', roi_mask=)` or `'searchlight', radius=` | Returns an ordinary stack in explicit ROI or voxel order
 Model RDM | `Adjacency(square_matrix, matrix_type='distance')` | `'similarity'` and `'directed'` are the other types
-Compare two RDMs | [`Adjacency.similarity`](../api/data/adjacency.md#data-adjacency-similarity)`(other, metric=, method='2d')` | Returns `{'correlation', 'p', ...}`; a stack returns a list
+Compare two RDMs | [`Adjacency.similarity`](../api/data/adjacency.md#nltools.data.adjacency.Adjacency.similarity)`(other, metric=, method='2d')` | Returns `{'correlation', 'p', ...}`; a stack returns a list
 Paint a stack's result on the brain | `roi_to_brain_from_atlas(...)` or `nilearn.masking.unmask(...)` | Retain the aligned atlas/ROI order or source-mask voxel order
-Compare two raw matrices | [`matrix_permutation_test`](../api/tasks/similarity.md#tasks-similarity-matrix-permutation-test) | The Mantel test on plain arrays; `include_diag=False` by default
-Row-wise pattern similarity | [`compute_similarity`](../api/tasks/similarity.md#tasks-similarity-compute-similarity) | One image against many; `metric='correlation'`, `'spearman'`, `'cosine'`, `'dot_product'`
-Average correlations | [`fisher_r_to_z`](../api/tasks/similarity.md#tasks-similarity-fisher-r-to-z) / [`fisher_z_to_r`](../api/tasks/similarity.md#tasks-similarity-fisher-z-to-r) | Also `Adjacency.r_to_z` / `.z_to_r`, returning independent copies
-Show two RDMs together | [`plot_stacked_adjacency`](../api/tasks/similarity.md#tasks-similarity-plot-stacked-adjacency) | Brain RDM above the diagonal, model RDM below
-Cluster structure | [`plot_mds`](../api/data/adjacency.md#data-adjacency-plot-mds), [`plot_silhouette`](../api/data/adjacency.md#data-adjacency-plot-silhouette), [`plot_label_distance`](../api/data/adjacency.md#data-adjacency-plot-label-distance) | All take `labels=`
+Compare two raw matrices | [`matrix_permutation_test`](../api/tasks/similarity.md#nltools.algorithms.matrix_permutation_test) | The Mantel test on plain arrays; `include_diag=False` by default
+Row-wise pattern similarity | [`compute_similarity`](../api/tasks/similarity.md#nltools.algorithms.compute_similarity) | One image against many; `metric='correlation'`, `'spearman'`, `'cosine'`, `'dot_product'`
+Average correlations | [`fisher_r_to_z`](../api/tasks/similarity.md#nltools.algorithms.fisher_r_to_z) / [`fisher_z_to_r`](../api/tasks/similarity.md#nltools.algorithms.fisher_z_to_r) | Also `Adjacency.r_to_z` / `.z_to_r`, returning independent copies
+Show two RDMs together | [`plot_stacked_adjacency`](../api/tasks/similarity.md#nltools.plotting.plot_stacked_adjacency) | Brain RDM above the diagonal, model RDM below
+Cluster structure | [`plot_mds`](../api/data/adjacency.md#nltools.data.adjacency.Adjacency.plot_mds), [`plot_silhouette`](../api/data/adjacency.md#nltools.data.adjacency.Adjacency.plot_silhouette), [`plot_label_distance`](../api/data/adjacency.md#nltools.data.adjacency.Adjacency.plot_label_distance) | All take `labels=`
 
 ## Brain RDM vs model RDM
 

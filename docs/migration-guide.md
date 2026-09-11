@@ -647,7 +647,7 @@ and `"loo"` all raise. Pass the splitter itself — `cv=LeaveOneGroupOut()` with
 integer selects that many unshuffled folds and ignores `groups`, so pass a group
 splitter when groups must stay disjoint across training and test sets. `cv=None`
 is a deterministic five-fold split. The standalone
-[`resolve_cv`](api/tasks/prediction.md#tasks-prediction-resolve-cv) helper still
+[`resolve_cv`](api/tasks/prediction.md#nltools.cross_validation.resolve_cv) helper still
 accepts the `'loo'`/`'logo'` names and still promotes an integer to a group-aware
 splitter, for callers writing their own loops. The legacy fluent `cv()` pipeline
 is removed; configure cross-validation through `BrainData.predict`.
