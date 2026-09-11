@@ -67,10 +67,18 @@ export default {
       el.appendChild(controls);
     }
 
-    const canvas = document.createElement("canvas");
+    // niivue's resize observer sizes the canvas from its *parent* and rewrites
+    // the canvas's own inline height to 100%, so the requested height has to
+    // live on a wrapper. Without it the viewer collapses to the parent's
+    // natural height (~150px) in any host that doesn't size the widget for
+    // us — static/exported pages, iframes, plain Jupyter output areas.
+    const canvasWrap = document.createElement("div");
     const height = model.get("height") || 400;
-    canvas.style.cssText = `width:100%;height:${height}px;display:block`;
-    el.appendChild(canvas);
+    canvasWrap.style.cssText = `width:100%;height:${height}px`;
+    const canvas = document.createElement("canvas");
+    canvas.style.cssText = "width:100%;height:100%;display:block";
+    canvasWrap.appendChild(canvas);
+    el.appendChild(canvasWrap);
 
     // --- niivue instance --------------------------------------------------- //
     const nv = new Niivue({
