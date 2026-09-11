@@ -115,5 +115,4 @@ Correlating two autocorrelated time series with an ordinary shuffle null gives p
 far too small. `method='circle_shift'` rotates one series; `method='phase_randomize'` scrambles its
 Fourier phases. Both preserve the autocorrelation the naive null throws away.
 
-Next: [Intersubject correlation](intersubject.md), or
-[Performance & GPU](../performance.md) for when `device='gpu'` is worth it.
+Next: [Intersubject correlation](intersubject.md).

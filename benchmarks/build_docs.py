@@ -1,9 +1,9 @@
-"""Regenerate the numeric tables in docs/performance.md from results artifacts.
+"""Regenerate the numeric tables in docs/development/benchmarks.md from results artifacts.
 
 Reads every ``benchmarks/results/*.parquet`` (+ its ``.env.json`` provenance)
 and splices Markdown tables between the ``<!-- BENCH:START -->`` /
-``<!-- BENCH:END -->`` markers in ``docs/performance.md``. The surrounding prose
-(guide, recommendations) is never touched — only the generated block.
+``<!-- BENCH:END -->`` markers in ``docs/development/benchmarks.md``. The
+surrounding prose (provenance note) is never touched — only the generated block.
 
     uv run python -m benchmarks.build_docs
 
@@ -23,7 +23,7 @@ import polars as pl
 
 REPO = Path(__file__).resolve().parent.parent
 RESULTS_DIR = REPO / "benchmarks" / "results"
-PERF_DOC = REPO / "docs" / "performance.md"
+PERF_DOC = REPO / "docs" / "development" / "benchmarks.md"
 START = "<!-- BENCH:START -->"
 END = "<!-- BENCH:END -->"
 

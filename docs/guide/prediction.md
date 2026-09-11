@@ -144,8 +144,8 @@ A scalar `alpha` with `cv=None` fits it as given; a sequence of alphas with a `c
 per voxel by default (`per_target_alpha=False` shares a single alpha). Pass `X` as a *mapping* of
 named feature spaces and `Ridge` becomes banded ridge, sampling each space's weight from a
 Dirichlet controlled by `dirichlet_concentration=` and exposing the result as
-`feature_space_weights_`. Both forms accept `device='gpu'`; see
-[Performance & GPU](../performance.md).
+`feature_space_weights_`. Both forms accept `device='gpu'`; see the `n_jobs` vs `device` guidance in
+[Statistics & inference](statistics-and-inference.md).
 
 The same fit through the facade carries a `ridge_` prefix on every estimator option, and attaches
 `ridge_weights`, `ridge_fitted_values`, and `ridge_r2`:

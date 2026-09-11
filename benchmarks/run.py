@@ -6,7 +6,7 @@
     uv run python -m benchmarks.run --dry-run       # list what would run
 
 Writes ``benchmarks/results/<host>[-<tag>].parquet`` + ``<...>.env.json``. Docs
-(`docs/performance.md`) are regenerated from that parquet, not hand-edited.
+(`docs/development/benchmarks.md`) are regenerated from that parquet, not hand-edited.
 """
 
 from __future__ import annotations

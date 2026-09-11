@@ -15,7 +15,7 @@ benchmarks/
   bench_predict.py   # BrainData.predict across whole_brain / roi / searchlight
   bench_inference.py # permutation tests (one/two-sample, correlation), CPU vs GPU
   run.py             # CLI: run domains, write results/<host>.parquet + env.json
-  build_docs.py      # regenerate docs/performance.md tables from the artifact
+  build_docs.py      # regenerate docs/development/benchmarks.md tables from the artifact
   results/           # committed parquet artifacts + env.json provenance
   tests/             # quick-mode smoke tests (not part of the package suite)
 ```
@@ -60,7 +60,7 @@ so several machines' results coexist under `results/`.
 
 ```bash
 uv run python -m benchmarks.run          # produce/refresh results/<host>.parquet
-uv run python -m benchmarks.build_docs   # splice tables into docs/performance.md
+uv run python -m benchmarks.build_docs   # splice tables into docs/development/benchmarks.md
 ```
 
 `build_docs` only rewrites the block between the `<!-- BENCH:START -->` /

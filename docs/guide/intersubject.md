@@ -49,8 +49,8 @@ phase = isps(data, sampling_freq=0.5, low_cut=0.04, high_cut=0.07)
 
 ## Gotchas
 
-- `isc_permutation_test` accepts `device="gpu"` for array-level inference. See
-  [Performance & GPU](../performance.md).
+- `isc_permutation_test` accepts `device="gpu"` for array-level inference. See the
+  `n_jobs` vs `device` guidance in [Statistics & inference](statistics-and-inference.md).
 - `exclude_self_corr=True` (the default) sets a subject's correlation with itself to NaN when the
   bootstrap draws them twice. Turning it off inflates ISC.
 - Use `n_samples` for the bootstrap and `n_permute` only where the docs say permutation. Mixing them

@@ -39,7 +39,6 @@ Page | Covers
 [Intersubject correlation](intersubject.md) | `isc`, `isfc`, `isps`, group comparisons, array-based ISC
 [Plotting](plotting.md) | Which plot for which object, thresholds, interactive viewers, saving
 [Atlases & cluster reports](atlases.md) | Bundled parcellations, anatomical labels, parcel summaries, cluster tables
-[Performance & GPU](../performance.md) | When the GPU backend pays off, and by how much
 
 ## Kwarg conventions
 
