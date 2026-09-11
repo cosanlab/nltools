@@ -141,6 +141,75 @@ class TestCell:
         assert out.html.count('class="cell-output cell-figure"') == 1
         assert plt.get_fignums() == []
 
+    def test_a_figure_detached_from_pyplot_is_still_rendered(self, docs_show):
+        """nltools' plot helpers close their figure and return it.
+
+        `flush` only sees figures pyplot still tracks, so a returned-but-closed
+        figure has to be rendered when it is shown or it is lost.
+        """
+        import matplotlib.pyplot as plt
+
+        plt.close("all")
+        out = Collector()
+        cell = docs_show.Cell(out)
+        fig, _ = plt.subplots()
+        plt.close(fig)
+
+        cell.show(fig)
+        assert out.html.count('class="cell-output cell-figure"') == 1
+        cell.flush()
+        assert out.html.count('class="cell-output cell-figure"') == 1
+
+    def test_a_figure_open_before_the_cell_is_not_rendered_or_closed(self, docs_show):
+        """A cell renders the figures it made, not the ones it inherited.
+
+        Under `pytest -n`, an unrelated test on the same worker can leave a
+        figure open; before, `flush` swept it into this cell's output.
+        """
+        import matplotlib.pyplot as plt
+
+        plt.close("all")
+        inherited, _ = plt.subplots()
+
+        out = Collector()
+        cell = docs_show.Cell(out)
+        cell.print("only text")
+        cell.flush()
+
+        assert out.html == '<pre class="cell-output">only text</pre>'
+        assert plt.get_fignums() == [inherited.number]
+        plt.close("all")
+
+    def test_an_inherited_figure_survives_a_cell_that_draws(self, docs_show):
+        import matplotlib.pyplot as plt
+
+        plt.close("all")
+        inherited, _ = plt.subplots()
+
+        out = Collector()
+        cell = docs_show.Cell(out)
+        mine, _ = plt.subplots()
+        cell.flush()
+
+        assert out.html.count('class="cell-output cell-figure"') == 1
+        assert plt.get_fignums() == [inherited.number]
+        assert mine.number not in plt.get_fignums()
+        plt.close("all")
+
+    def test_a_detached_figure_follows_the_text_the_cell_printed(self, docs_show):
+        import matplotlib.pyplot as plt
+
+        plt.close("all")
+        out = Collector()
+        cell = docs_show.Cell(out)
+        fig, _ = plt.subplots()
+        plt.close(fig)
+
+        cell.print("first")
+        cell.show(fig)
+        cell.flush()
+        assert out.html.index("first") < out.html.index("cell-figure")
+
 
 class TestRender:
     """How a displayed value becomes HTML."""

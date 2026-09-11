@@ -84,7 +84,7 @@ def plot_mds(
         **kwargs (dict): Forwarded to `sklearn.manifold.MDS`.
     """
     import matplotlib.pyplot as plt
-    from sklearn.manifold import MDS
+    from sklearn.manifold import MDS, ClassicalMDS
 
     if cmap is None:
         cmap = plt.cm.hot_r
@@ -110,8 +110,20 @@ def plot_mds(
         if len(labels) != len(labels_color):
             raise ValueError("Length of labels_color must match self.labels.")
 
-    # Run MDS (sklearn >= 1.8 API). Classical-MDS init is deterministic, so a
-    # single run suffices; both become sklearn's defaults in 1.9/1.10.
+    # Run MDS (sklearn >= 1.8 API). The classical-MDS starting configuration is
+    # built here, at the requested width, and passed to `fit_transform`, which
+    # takes precedence over the constructor's `init` — sklearn skips building
+    # its own, so this is computed once. Asking the constructor for it instead
+    # gives a 2-D start whatever `n_components` says, because it builds its
+    # `ClassicalMDS` with that class's own default, and `smacof` then adopts the
+    # start's width: a 3-D request would silently come back 2-D. `init` and
+    # `n_init` are still named because omitting either warns until they become
+    # sklearn's defaults in 1.9/1.10; classical MDS is deterministic, so one run
+    # suffices.
+    square = adj.squareform()
+    init = ClassicalMDS(n_components=n_components, metric="precomputed").fit_transform(
+        square
+    )
     mds = MDS(
         n_components=n_components,
         metric_mds=metric_mds,
@@ -121,7 +133,7 @@ def plot_mds(
         n_init=1,
         **kwargs,
     )
-    proj = mds.fit_transform(adj.squareform())
+    proj = mds.fit_transform(square, init=init)
 
     # Create Plot
     if ax is None:  # Create axis

@@ -1,4 +1,6 @@
-from nltools.mask import create_sphere, expand_mask, roi_to_brain
+import warnings
+
+from nltools.mask import collapse_mask, create_sphere, expand_mask, roi_to_brain
 import nibabel as nib
 from nltools.data import BrainData
 import numpy as np
@@ -214,3 +216,42 @@ def test_create_sphere_carries_the_mask_header():
 
     assert sphere.header.get_zooms()[:3] == mask.header.get_zooms()[:3]
     assert sphere.header["sform_code"] == mask.header["sform_code"]
+
+
+def test_expand_and_collapse_mask_are_nifti_safe():
+    # Nifti tooling (and nilearn's `new_img_like`) cannot carry 64-bit ints, so
+    # labeled masks must round-trip to NIfTI without a downcast warning.
+    s1 = create_sphere([15, 10, -8], radius=10)
+    s2 = create_sphere([-15, 10, -8], radius=10)
+
+    labeled = BrainData(s1)
+    labeled.data = np.where(BrainData(s2).data > 0, 2.0, labeled.data)
+
+    expanded = expand_mask(labeled)
+    assert expanded.data.dtype == np.int32
+
+    collapsed = collapse_mask(expanded)
+    assert collapsed.data.dtype == np.int32
+
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")
+        expanded[0].to_nifti()
+        collapsed.to_nifti()
+
+
+def test_collapse_mask_keeps_its_own_labels_as_int32():
+    # `auto_label=False` labels each region with the mask's own value. Both
+    # branches promise integer labels, so both must be NIfTI-safe.
+    s1 = create_sphere([15, 10, -8], radius=10)
+    s2 = create_sphere([-15, 10, -8], radius=10)
+
+    masks = BrainData([s1, s2])
+    masks.data = masks.data * np.array([[3.0], [7.0]])
+
+    collapsed = collapse_mask(masks, auto_label=False)
+    assert collapsed.data.dtype == np.int32
+    assert set(np.unique(collapsed.data)) == {0, 3, 7}
+
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")
+        collapsed.to_nifti()

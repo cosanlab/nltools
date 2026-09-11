@@ -327,11 +327,11 @@ shell = """cd docs && myst start"""
 
 [tool.poe.tasks.tutorials-check]
 help = "Lint tutorial marimo notebooks (static checks, no execution)"
-shell = """for nb in docs/tutorials/basics/[0-9]*.py docs/tutorials/workflows/[0-9]*.py; do echo "check $nb"; marimo check "$nb" || exit 1; done"""
+shell = """for nb in docs/tutorials/basics/[0-9]*.py docs/tutorials/data-operations/[0-9]*.py docs/tutorials/workflows/[0-9]*.py; do echo "check $nb"; marimo check "$nb" || exit 1; done"""
 
 [tool.poe.tasks.tutorials-run]
 help = "Execute each tutorial marimo notebook as a script to verify it runs end-to-end"
-shell = """for nb in docs/tutorials/basics/[0-9]*.py docs/tutorials/workflows/[0-9]*.py; do echo "run  $nb"; python "$nb" || exit 1; done"""
+shell = """for nb in docs/tutorials/basics/[0-9]*.py docs/tutorials/data-operations/[0-9]*.py docs/tutorials/workflows/[0-9]*.py; do echo "run  $nb"; python "$nb" || exit 1; done"""
 
 [tool.poe.tasks.tutorials-clean-cache]
 help = "Clear the tutorials' joblib fit caches (forces recompute). Memory('.tutorial-cache') is cwd-relative, and both `poe tutorials-run` and the docs build run from the repo root, so one cache serves both"

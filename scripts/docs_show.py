@@ -69,6 +69,7 @@ __all__ = [
     "figure_of",
     "format_cell",
     "install",
+    "is_open",
     "render",
     "run_cell",
     "svg_of",
@@ -224,13 +225,24 @@ def transform_cell(code: str) -> tuple[str, str]:
 class Cell:
     """Collects a cell's stdout and rich outputs, emitting HTML in order.
 
+    Construct one at the start of the cell: it records which figures pyplot
+    already held, so `flush` can tell the cell's own figures from inherited
+    ones.
+
     Args:
         emit: markdown-exec's buffer-backed `print` for this cell.
     """
 
     def __init__(self, emit: Callable[..., None]) -> None:
+        import matplotlib.pyplot as plt
+
         self.emit = emit
         self.stdout: list[str] = []
+        # Figure numbers pyplot was already holding when this cell started. A
+        # cell renders what it drew, not what it inherited: the docs build
+        # leaves nothing open between cells, but a test on the same pytest-xdist
+        # worker can, and that figure is not this cell's output.
+        self.inherited: set[int] = set(plt.get_fignums())
 
     def print(
         self,
@@ -252,8 +264,21 @@ class Cell:
         self.stdout.append(text)
 
     def show(self, obj: Any) -> None:
-        """Display the cell's final expression value (figures wait for flush)."""
-        if obj is None or figure_of(obj) is not None:
+        """Display the cell's final expression value.
+
+        A figure pyplot still tracks waits for `flush`, which renders every
+        open figure in creation order. A figure that is no longer tracked is
+        rendered here instead: nltools' plot helpers close the figure they
+        created before returning it, so that a live notebook does not draw it
+        twice, and `flush` would never see it.
+        """
+        figure = figure_of(obj)
+        if figure is not None:
+            if not is_open(figure):
+                self.flush_stdout()
+                self.emit(svg_of(figure))
+            return
+        if obj is None:
             return
         self.flush_stdout()
         self.emit(render(obj))
@@ -266,13 +291,20 @@ class Cell:
             self.stdout = []
 
     def flush(self) -> None:
-        """Emit pending stdout, then every open figure, then close them."""
+        """Emit pending stdout, then the figures this cell opened, and close them.
+
+        A figure pyplot was already holding when the cell started belongs to
+        whoever opened it: it is neither rendered nor closed. Figures the cell
+        detached from pyplot were already rendered by `show`.
+        """
         import matplotlib.pyplot as plt
 
         self.flush_stdout()
         for num in plt.get_fignums():
+            if num in self.inherited:
+                continue
             self.emit(svg_of(plt.figure(num)))
-        plt.close("all")
+            plt.close(num)
 
 
 def render(obj: Any) -> str:
@@ -281,6 +313,15 @@ def render(obj: Any) -> str:
     if callable(repr_html):
         return f'<div class="cell-output">{repr_html()}</div>'
     return f'<pre class="cell-output">{html.escape(repr(obj))}</pre>'
+
+
+def is_open(fig: matplotlib.figure.Figure) -> bool:
+    """Whether pyplot still tracks `fig`, and so will render it at flush.
+
+    `Figure.number` is not the test: `plt.close` hands the number back and a
+    later figure can be given it. Closing does drop the figure's manager.
+    """
+    return getattr(fig.canvas, "manager", None) is not None
 
 
 def figure_of(obj: Any) -> matplotlib.figure.Figure | None:

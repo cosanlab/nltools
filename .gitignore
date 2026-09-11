@@ -104,6 +104,7 @@ scratch/
 # patterns match the notebooks (scripts/marimo_to_zensical.py TUTORIAL_GLOBS),
 # so a hand-written page in either directory is still tracked.
 docs/tutorials/basics/[0-9]*_*.md
+docs/tutorials/data-operations/[0-9]*_*.md
 docs/tutorials/workflows/[0-9]*_*.md
 
 # The tutorials' joblib fit cache, `Memory(".tutorial-cache")`. Deliberately not

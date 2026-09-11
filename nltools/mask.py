@@ -135,10 +135,13 @@ def expand_mask(mask, custom_mask=None):
         mask = BrainData(mask, mask=custom_mask)
     if not isinstance(mask, BrainData):
         raise ValueError("Make sure mask is a nibabel or BrainData instance.")
-    mask.data = np.round(mask.data).astype(int)
+    # int32, not the platform `int`: NIfTI tooling cannot carry 64-bit ints, so
+    # nilearn downcasts them (with a warning) the moment the mask is written or
+    # plotted.
+    mask.data = np.round(mask.data).astype(np.int32)
     tmp = []
     for i in np.unique(mask.data[mask.data != 0]):
-        tmp.append((mask.data == i) * 1)
+        tmp.append((mask.data == i).astype(np.int32))
     out = mask.create_empty()
     out.data = np.array(tmp)
     return out
@@ -201,14 +204,14 @@ def collapse_mask(mask, auto_label=True, custom_mask=None):
                 np.multiply(BrainData(m_list[i], mask=custom_mask).data, intersect.data)
                 * (i + 1)
             )
-        out.data = np.sum(np.array(merge).T, 1).astype(int)
+        out.data = np.sum(np.array(merge).T, 1).astype(np.int32)
     else:
         # Collapse masks using value as label
         for i in range(len(m_list)):
             merge.append(
                 np.multiply(BrainData(m_list[i], mask=custom_mask).data, intersect.data)
             )
-        out.data = np.sum(np.array(merge).T, 1)
+        out.data = np.sum(np.array(merge).T, 1).astype(np.int32)
     return out
 
 

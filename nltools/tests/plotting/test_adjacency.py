@@ -189,3 +189,30 @@ class TestPlotMDS:
             warnings.simplefilter("error", FutureWarning)
             adj.plot_mds(n_components=2, figsize=(4, 4))
         plt.close("all")
+
+    def test_plot_mds_in_three_dimensions(self, well_separated_distance):
+        """A 3-D layout must reach three dimensions.
+
+        sklearn's `classical_mds` initializer is built with its own default of
+        two components, and `smacof` then adopts the init's width, so asking for
+        three and letting sklearn build the init silently yields two. Before the
+        fix the 3-D scatter raised `IndexError`; assert the embedding itself, so
+        a future fallback to 2-D that fails quietly is caught too.
+        """
+        from nltools.data import Adjacency
+
+        d, labels = well_separated_distance
+        adj = Adjacency(d, matrix_type="distance", labels=[str(x) for x in labels])
+        plt.close("all")
+        adj.plot_mds(n_components=3, figsize=(4, 4))
+
+        ax = plt.gcf().axes[0]
+        # mplot3d keeps the unprojected scatter data only on `_offsets3d`; its
+        # public `get_offsets` returns the 2-D screen projection.
+        coordinates = ax.collections[0]._offsets3d
+        assert len(coordinates) == 3
+        for axis_values in coordinates:
+            axis_values = np.asarray(axis_values)
+            assert axis_values.shape == (adj.n_nodes,)
+            assert np.isfinite(axis_values).all()
+        plt.close("all")

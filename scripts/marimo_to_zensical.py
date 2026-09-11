@@ -51,6 +51,7 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 # Notebooks converted by `--all` (and by the `docs-generate` poe task).
 TUTORIAL_GLOBS = [
     "docs/tutorials/basics/[0-9]*.py",
+    "docs/tutorials/data-operations/[0-9]*.py",
     "docs/tutorials/workflows/[0-9]*.py",
 ]
 

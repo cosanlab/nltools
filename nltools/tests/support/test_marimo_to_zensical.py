@@ -66,7 +66,8 @@ class TestPageSlug:
             for path in sorted(_REPO_ROOT.glob(pattern))
         ]
         slugs = [m2z.page_slug(rel) for rel in notebooks]
-        assert len(set(slugs)) == len(notebooks) == 7
+        assert notebooks, "no tutorial notebooks matched TUTORIAL_GLOBS"
+        assert len(set(slugs)) == len(notebooks)
 
 
 class TestFrontmatter:
@@ -205,6 +206,7 @@ def test_generated_pages_are_the_nav_entries():
         f"tutorials/{path.parent.name}/{path.stem}.md"
         for pattern in [
             "docs/tutorials/basics/[0-9]*.py",
+            "docs/tutorials/data-operations/[0-9]*.py",
             "docs/tutorials/workflows/[0-9]*.py",
         ]
         for path in _REPO_ROOT.glob(pattern)

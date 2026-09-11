@@ -30,6 +30,7 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 # scripts/marimo_to_zensical.py's TUTORIAL_GLOBS.
 TUTORIAL_GLOBS = [
     "docs/tutorials/basics/[0-9]*.py",
+    "docs/tutorials/data-operations/[0-9]*.py",
     "docs/tutorials/workflows/[0-9]*.py",
 ]
 

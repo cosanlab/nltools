@@ -30,6 +30,14 @@ nav = [
       "tutorials/basics/02_design_matrix.md",
       "tutorials/basics/03_adjacency.md",
     ] },
+    { "Data operations" = [
+      "tutorials/data-operations/01_download.md",
+      "tutorials/data-operations/02_masking.md",
+      "tutorials/data-operations/03_brain_space.md",
+      "tutorials/data-operations/04_neurovault.md",
+      "tutorials/data-operations/05_design_matrix.md",
+      "tutorials/data-operations/06_adjacency.md",
+    ] },
     { "Workflows" = [
       "tutorials/workflows/01_glm.md",
       "tutorials/workflows/02_encoding.md",
