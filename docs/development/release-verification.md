@@ -24,11 +24,11 @@ decisions.
 | Area | Command | Where | Pass condition |
 | --- | --- | --- | --- |
 | Project gate | `uv run poe ok` | local | Lint, format, types, API checks, and fast suite pass. |
-| Slow suite | `uv run pytest -m slow -n auto --maxprocesses=4 2>&1 \| tee slow.log` | local | All selected slow tests pass (432 passed, 5 skipped, about 6.5 minutes on the M3 at `0a4a6d3b`); every skip names an approved limitation below. |
+| Slow suite | <code>uv run pytest -m slow -n auto --maxprocesses=4 2&gt;&amp;1 &#124; tee slow.log</code> | local | All selected slow tests pass (432 passed, 5 skipped, about 6.5 minutes on the M3 at `0a4a6d3b`); every skip names an approved limitation below. |
 | MPS detection | `uv run python -c "from nltools.algorithms.backends import check_gpu_available as c; print(c())"` | local | Reports `device='mps'`. |
-| MPS execution | `uv run pytest -m '' nltools/tests/core nltools/tests/models -k "gpu or device or mps or backend" 2>&1 \| tee mps.log` | local | GPU-marked and `skipif`-gated tests run rather than skip, and pass. Explicit `device="gpu"` runs on MPS or raises; nothing falls back to CPU silently. |
+| MPS execution | <code>uv run pytest -m '' nltools/tests/core nltools/tests/models -k "gpu or device or mps or backend" 2&gt;&amp;1 &#124; tee mps.log</code> | local | GPU-marked and `skipif`-gated tests run rather than skip, and pass. Explicit `device="gpu"` runs on MPS or raises; nothing falls back to CPU silently. |
 | CUDA detection | Same detection command after `uv sync` in a fresh checkout of the release revision | `pika` | Reports `device='cuda'` with the GB10 device name. |
-| CUDA execution | `uv run pytest -m '' nltools/tests/core nltools/tests/models -k "gpu or device or cuda or backend" 2>&1 \| tee cuda.log` | `pika` | Same pass condition as MPS. Ridge, banded ridge, bootstrap, ISC, local alignment, and inference batching/OOM tests execute on CUDA. |
+| CUDA execution | <code>uv run pytest -m '' nltools/tests/core nltools/tests/models -k "gpu or device or cuda or backend" 2&gt;&amp;1 &#124; tee cuda.log</code> | `pika` | Same pass condition as MPS. Ridge, banded ridge, bootstrap, ISC, local alignment, and inference batching/OOM tests execute on CUDA. |
 | Executed tutorials | `uv run poe docs-build` | local | Site builds under `--strict`; all seven tutorials execute with no stderr. |
 | Tutorial scripts | `uv run poe tutorials` | local | Static checks pass and every notebook runs end to end as a script. |
 | Persistence | `uv run pytest nltools/tests/io_tests nltools/tests/data -k "h5 or hdf or nifti or legacy or write or load"` | local | HDF5 and NIfTI round trips pass; legacy 0.5.1 fixtures under `nltools/tests/io_tests/legacy_fixtures` load. |

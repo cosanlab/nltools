@@ -12,9 +12,8 @@ indicative rather than current. Regenerate them with `uv run python -m
 benchmarks.run` followed by `uv run python -m benchmarks.build_docs`.
 
 <!-- BENCH:START -->
-:::{note} Auto-generated
-This block is generated from `benchmarks/results/*.parquet` by `uv run python -m benchmarks.build_docs`. Do not edit by hand. One section per host — an MPS run and a CUDA run coexist.
-:::
+!!! note "Auto-generated"
+    This block is generated from `benchmarks/results/*.parquet` by `uv run python -m benchmarks.build_docs`. Do not edit by hand. One section per host — an MPS run and a CUDA run coexist.
 
 ### `Eshin-M3-Air`
 

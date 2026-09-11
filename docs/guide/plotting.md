@@ -18,12 +18,12 @@ strings like `'95%'`.
 
 Object | Plot | Notes
 --- | --- | ---
-`BrainData` volume | [`plot`](../api/data/brain_data.md#data-brain-data-plot)`(method='glass'\|'slices')` | `view='xyz'` picks slice axes; `cut_coords=`, `bg_img=`, `cmap=` as usual
-`BrainData` numbers | `plot(method='timeseries'\|'histogram')` | `stat='mean'\|'median'\|'std'` for `'timeseries'`
-`BrainData` surface | [`plot_surf`](../api/data/brain_data.md#data-brain-data-plot-surf) | `hemi=`, `view=` (`'montage'` = lateral + medial), `surface='pial'\|'inflated'`
+`BrainData` volume | [`plot`](../api/data/brain_data.md#data-brain-data-plot)<code>(method='glass'&#124;'slices')</code> | `view='xyz'` picks slice axes; `cut_coords=`, `bg_img=`, `cmap=` as usual
+`BrainData` numbers | <code>plot(method='timeseries'&#124;'histogram')</code> | <code>stat='mean'&#124;'median'&#124;'std'</code> for `'timeseries'`
+`BrainData` surface | [`plot_surf`](../api/data/brain_data.md#data-brain-data-plot-surf) | `hemi=`, `view=` (`'montage'` = lateral + medial), <code>surface='pial'&#124;'inflated'</code>
 `BrainData` flatmap | [`plot_flatmap`](../api/data/brain_data.md#data-brain-data-plot-flatmap) | Curvature underlay on by default
 `BrainData` interactive | [`iplot`](../api/data/brain_data.md#data-brain-data-iplot) / [`plot_interactive_brain`](../api/tasks/plotting.md#tasks-plotting-plot-interactive-brain) | Needs a live kernel (Jupyter, marimo); static pages show a placeholder
-`DesignMatrix` | [`plot`](../api/data/design_matrix.md#data-design-matrix-plot)`(method='matrix'\|'timeseries'\|'corr')` | `'matrix'` is the SPM-style heatmap; `'corr'` shows regressor collinearity
+`DesignMatrix` | [`plot`](../api/data/design_matrix.md#data-design-matrix-plot)<code>(method='matrix'&#124;'timeseries'&#124;'corr')</code> | `'matrix'` is the SPM-style heatmap; `'corr'` shows regressor collinearity
 `Adjacency` matrix | [`plot`](../api/data/adjacency.md#data-adjacency-plot) | `limit=` caps how many matrices from a stack are drawn
 `Adjacency` structure | [`plot_mds`](../api/data/adjacency.md#data-adjacency-plot-mds), [`plot_silhouette`](../api/data/adjacency.md#data-adjacency-plot-silhouette), [`plot_label_distance`](../api/data/adjacency.md#data-adjacency-plot-label-distance) | All take `labels=`, one per node
 Two matrices at once | [`plot_stacked_adjacency`](../api/tasks/similarity.md#tasks-similarity-plot-stacked-adjacency) | See [Similarity & RSA](similarity-and-rsa.md)

@@ -132,11 +132,10 @@ def _host_section(df_host: pl.DataFrame, host: str, env: dict) -> list[str]:
 def build_block() -> str:
     df, envs = _load()
     parts = [
-        ":::{note} Auto-generated",
-        "This block is generated from `benchmarks/results/*.parquet` by "
+        '!!! note "Auto-generated"',
+        "    This block is generated from `benchmarks/results/*.parquet` by "
         "`uv run python -m benchmarks.build_docs`. Do not edit by hand. "
         "One section per host — an MPS run and a CUDA run coexist.",
-        ":::",
         "",
     ]
     for host in df.get_column("host").unique().sort():

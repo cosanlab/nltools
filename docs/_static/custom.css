@@ -11,8 +11,8 @@
   vertical-align: middle;
 }
 
-/* Fixed colors: the book theme exposes no --color-* tokens, so a var() here
-   resolves to nothing and the badge disappears against a light page. */
+/* Fixed colors rather than theme tokens: these badges must stay legible in both
+   the light and dark palettes, and they carry meaning, not decoration. */
 .badge-feature { background-color: #059669; }
 .badge-fix { background-color: #d97706; }
 .badge-improvement { background-color: #2563eb; }

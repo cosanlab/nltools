@@ -18,7 +18,7 @@ its kwarg is `n_samples`, not `n_permute`.
 Goal | Use | Notes
 --- | --- | ---
 ISC of one timeseries set | [`isc`](../api/tasks/intersubject.md#tasks-intersubject-isc)`(data, method='bootstrap')` | Returns `{'isc', 'p', 'ci', ...}`; `data` is observations × subjects
-Surrogate null instead | `isc(..., method='circle_shift' \| 'phase_randomize')` | Preserves temporal autocorrelation
+Surrogate null instead | <code>isc(..., method='circle_shift' &#124; 'phase_randomize')</code> | Preserves temporal autocorrelation
 Leave-one-out ISC | [`isc_permutation_test`](../api/tasks/intersubject.md#tasks-intersubject-isc-permutation-test)`(summary_statistic='leave-one-out')` | The engine under `isc`, with `device='gpu'` available
 Region-to-region | [`isfc`](../api/tasks/intersubject.md#tasks-intersubject-isfc) | Takes a list of per-subject `(n_obs, n_regions)` matrices
 Moment-to-moment synchrony | [`isps`](../api/tasks/intersubject.md#tasks-intersubject-isps) | Band-limited phase synchrony; set `sampling_freq=` and the band

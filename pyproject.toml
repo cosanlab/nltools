@@ -56,6 +56,8 @@ dev = [
     "jupyter-book>=2.1.4",
     "jupytext>=1.18.1",
     "marimo>=0.23",
+    "markdown-exec>=1.12.3",
+    "mkdocstrings-python>=2.0.8",
     "mystmd>=1.10.1",
     "networkx>=3.5",
     "poethepoet>=0.40.0",
@@ -68,6 +70,7 @@ dev = [
     "torch>=2.9.0",
     "tqdm>=4.67.1",
     "ty>=0.0.4",
+    "zensical>=0.0.60",
 ]
 
 [project.urls]
@@ -282,21 +285,36 @@ python ../scripts/check_tutorial_stderr.py --docs-dir .
 """
 
 [tool.poe.tasks.docs-build]
-help = "Full docs build: regenerate sources → build + execute the site (root build; BASE_URL=/<repo> only for a subpath deploy)"
+help = "Full docs build: regenerate sources → build the zensical site into site/ with strict link checking"
 sequence = [
   { ref = "docs-generate" },
-  { ref = "docs-site" },
+  { shell = """
+set -eu
+# MyST renders into docs/_build/, which sits inside zensical's docs_dir, so its
+# thousands of intermediate markdown files would each be built as a page. Drop
+# the rendered output; the expensive execute cache (docs/_build/execute) stays.
+# Remove this step with the MyST toolchain.
+for dir in cache html site templates; do
+  if [ -d "docs/_build/$dir" ]; then rm -r "docs/_build/$dir"; fi
+done
+zensical build --strict
+""" },
 ]
+
+[tool.poe.tasks.docs-serve]
+help = "Live preview the zensical site at localhost:8000"
+cmd = "zensical serve"
 
 # What CI runs (docs-deploy.yml). A fresh checkout has neither cache, so this is
 # a no-op there; locally it guarantees every tutorial cell really re-executes and
 # every joblib-cached fit really recomputes before the stderr gate judges them.
 [tool.poe.tasks.docs-build-fresh]
-help = "Cold docs build, as CI runs it: drop the tutorials' joblib caches and the MyST execute cache, then docs-build"
+help = "Cold MyST docs build, as CI runs it: drop the tutorials' joblib caches and the MyST execute cache, then regenerate and build the MyST site"
 sequence = [
   { ref = "tutorials-clean-cache" },
   { ref = "docs-clean-cache" },
-  { ref = "docs-build" },
+  { ref = "docs-generate" },
+  { ref = "docs-site" },
 ]
 
 [tool.poe.tasks.docs-preview]

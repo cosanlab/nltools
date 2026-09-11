@@ -70,8 +70,7 @@ results and inference semantics for BrainData and Adjacency.
   user-controlled names — no underscore counts, no substring tests. Users may then name
   their regressors anything without colliding with the machinery.
 
-(canonical-api-vocabulary)=
-### Canonical API vocabulary
+### Canonical API vocabulary {#canonical-api-vocabulary}
 
 The three facades share one kwarg vocabulary (v0.6.0). The machine-readable source of
 truth is [`docs/_data/api-vocabulary.yml`](https://github.com/cosanlab/nltools/blob/main/docs/_data/api-vocabulary.yml),
@@ -82,26 +81,26 @@ public signature against in CI. The table below is rendered from it:
 | Concept | Canonical kwarg |
 |---|---|
 | Algorithm / variant choice | `method` |
-| Decoding estimator (MVPA) | `estimator: str \| BaseEstimator = 'linear_svc'` on `BrainData.predict` — a built-in shortcut name or any sklearn estimator / `Pipeline`. It names an sklearn object, so it is distinct from `method=`, which selects an algorithm variant |
-| Spatial scale | `spatial_scale` (`'whole_brain' \| 'roi' \| 'searchlight'`) |
+| Decoding estimator (MVPA) | <code>estimator: str &#124; BaseEstimator = 'linear_svc'</code> on `BrainData.predict` — a built-in shortcut name or any sklearn estimator / `Pipeline`. It names an sklearn object, so it is distinct from `method=`, which selects an algorithm variant |
+| Spatial scale | `spatial_scale` (<code>'whole_brain' &#124; 'roi' &#124; 'searchlight'</code>) |
 | Distance / similarity metric | `metric` |
-| Central tendency | `summary` (`'mean' \| 'median'`) |
-| Cross-validation spec | `cv` (`int \|` splitter `\| None`) on `BrainData.predict` — `None` is a deterministic five-fold `KFold`/`StratifiedKFold`; the `'loo'`/`'logo'` names are accepted only by `resolve_cv`, and `'loso'`/`'loro'` are gone everywhere. The grouping lives in `groups=` |
+| Central tendency | `summary` (<code>'mean' &#124; 'median'</code>) |
+| Cross-validation spec | `cv` (<code>int &#124;</code> splitter <code>&#124; None</code>) on `BrainData.predict` — `None` is a deterministic five-fold `KFold`/`StratifiedKFold`; the `'loo'`/`'logo'` names are accepted only by `resolve_cv`, and `'loso'`/`'loro'` are gone everywhere. The grouping lives in `groups=` |
 | Subject-level parallelism | `n_jobs: int = -1` |
 | GPU / CPU selection | `device: str = "cpu"` — run-or-raise: explicit `'gpu'` never silently degrades to CPU; `'auto'` is the one graceful-fallback path |
-| Backend (alignment internals) | `parallel: None \| 'cpu' \| 'gpu'` (the inference engine and `Ridge` use `device` as of v0.6.0) |
+| Backend (alignment internals) | <code>parallel: None &#124; 'cpu' &#124; 'gpu'</code> (the inference engine and `Ridge` use `device` as of v0.6.0) |
 | Alignment refinement count | `n_iter` on `SRM`, `DetSRM`, `HyperAlignment`, and `LocalAlignment` — EM iterations, coordinate-descent iterations, or template-refinement rounds, depending on the estimator; everywhere else `n_iter` is a banned alias for `n_permute`/`n_samples`/`search_iterations` |
-| Working-memory budget | `memory_budget_gb: float \| None = None` — device-neutral working-memory budget for internal batching; `None` measures the selected device with headroom |
+| Working-memory budget | <code>memory_budget_gb: float &#124; None = None</code> — device-neutral working-memory budget for internal batching; `None` measures the selected device with headroom |
 | Progress indicator | `progress_bar: bool = False` |
 | Permutation count | `n_permute` |
 | Bootstrap sample count | `n_samples` |
 | Bootstrap statistic | `statistic` on `bootstrap` — a closed set of eight names (`'mean'`, `'median'`, `'std'`, `'sum'`, `'min'`, `'max'`, `'weights'`, `'predict'`); no callables and no dynamic dispatch to other methods |
 | Interval confidence level | `confidence_level: float = 0.95` — one level in `(0, 1)`, not a `percentiles` pair; the reported bounds are the central percentile interval, elementwise marginal |
 | Retain resampled draws | `return_samples: bool = False` on `bootstrap` — keeps every replicate (bootstrap axis first); it changes retention only, never the interval |
-| Tail of test | `tail` (`2 \| 'two' \| 1 \| 'one'`; direction fixed by the test, never the data) |
+| Tail of test | `tail` (<code>2 &#124; 'two' &#124; 1 &#124; 'one'</code>; direction fixed by the test, never the data) |
 | Threshold pair | `lower`, `upper`, `binarize` (+ `threshold` where bidirectional) |
 | Display autoscaling | `autoscale: bool = True` (viewer display window; `False` = raw magnitude range) |
-| Display symmetry | `symmetric: bool \| 'auto' = 'auto'` (viewer positive/negative limbs) |
+| Display symmetry | <code>symmetric: bool &#124; 'auto' = 'auto'</code> (viewer positive/negative limbs) |
 | Diagonal flag | `include_diag: bool` |
 | Radius (mm) | `radius: float` in millimeters everywhere, following nilearn's `SearchLight` and `NiftiSpheresMasker` — `10.0` on the searchlight entry points (`BrainData.predict`, `BrainData.distance`, `BrainData.align`, `LocalAlignment`, `compute_searchlight_neighborhoods`), `3.0` on the surface plotters, and the same millimeter unit for `create_sphere` and `Simulator` geometry, converted to voxels through the image affine |
 | GLM-specific fit option | `glm_*` on `BrainData.fit` (`glm_noise_model`, `glm_bins`, `glm_n_jobs`) — a non-default one under `model='ridge'` raises `ValueError`; `random_state` keeps its bare name because both estimators use it |

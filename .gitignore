@@ -95,3 +95,6 @@ scratch/
 .playwright-cli/
 **/__pycache__/
 .kata.local.toml
+
+# Zensical site output
+/site/

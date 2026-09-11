@@ -86,4 +86,4 @@ regions = stat_map.threshold(upper=3.0).regions(min_region_size=1350)
   stored in the image, not a row number: AAL's first region is `2001`. Join on it rather than
   assuming positions line up.
 
-Next: [Working with many subjects](collections.md).
+Next: the [Tutorials](../tutorials/index.md), where these calls appear inside worked analyses.

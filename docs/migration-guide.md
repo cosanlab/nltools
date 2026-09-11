@@ -13,7 +13,7 @@ Version 0.6.0 is a **breaking release** that refactors nltools to better leverag
 | **GLM regression** | `BrainData.regress()` | `.fit(model='glm', X=…)` | **Removed** |
 | **Ridge regression** | Manual | `.fit(model='ridge')` | New |
 | **ML prediction** | `.predict(algorithm='svm', cv_dict=…)` returning dict | `.predict(y=…, spatial_scale=…, estimator=…, cv=…)` returning `Predict` dataclass with `.weight_map`, `.scores`, etc. | Unified API |
-| **Spatial scale kwarg** | N/A (or `method=` overloaded for both algorithm and spatial scale) | `spatial_scale=` (`'whole_brain' \| 'roi' \| 'searchlight'`) — distinct from `method=` (algorithm); follows the spatial-scale framing of [Jolly & Chang, 2021, *SCAN*](https://doi.org/10.1093/scan/nsab010) | **New canonical kwarg** |
+| **Spatial scale kwarg** | N/A (or `method=` overloaded for both algorithm and spatial scale) | `spatial_scale=` (<code>'whole_brain' &#124; 'roi' &#124; 'searchlight'</code>) — distinct from `method=` (algorithm); follows the spatial-scale framing of [Jolly & Chang, 2021, *SCAN*](https://doi.org/10.1093/scan/nsab010) | **New canonical kwarg** |
 | **RSA workflow** | Manual: per-ROI loop, build Adjacency stack, reduce, paint via `roi_to_brain` | `bd.distance(..., spatial_scale='roi', roi_mask=atlas).similarity(model_rdm)` followed by explicit atlas mapping with `roi_to_brain_from_atlas` | **New** |
 | **One-sample t-test** | `BrainData.ttest(threshold_dict=…)` | `BrainData.ttest(popmean=0.0, permutation=False, …)` | **Signature changed** |
 | **Two-sample t-test** | N/A | `scipy.stats.ttest_ind` on `.data`, or `nltools.algorithms.inference.two_sample_permutation_test` | New |
@@ -32,7 +32,7 @@ Version 0.6.0 is a **breaking release** that refactors nltools to better leverag
 | **`isfc` keyword-only** | `isfc(data, method='average', n_jobs=-1)` — `method`/`n_jobs` positional | `isfc(data, *, method='average', n_jobs=-1, random_state=None, progress_bar=False)` — keyword-only, with `random_state`/`progress_bar` added for parity with `isc`/`isc_group`/`isps` | **Signature changed** |
 | **Similarity diagonal** | `ignore_diagonal=False` | `include_diag=False` (polarity flipped, default now excludes diagonal) | **Changed** |
 | **Duplicate columns on append** | `append(axis=1)` accepted value-identical columns | Raises `ValueError` — value-identical columns refused | **Changed** |
-| **Cluster summary kwargs** | `cluster_summary(method=…, summary=…)` | `cluster_summary(summary=…, scope='within' \| 'between')` | **Renamed** |
+| **Cluster summary kwargs** | `cluster_summary(method=…, summary=…)` | <code>cluster_summary(summary=…, scope='within' &#124; 'between')</code> | **Renamed** |
 | **ROI extraction kwarg** | `extract_roi(metric=…)` | `extract_roi(method=…)` | **Renamed** |
 | **Mask application** | `apply_mask(mask, resample_mask_to_brain=True)` | `apply_mask(mask)` — the mask must already sit on the data's grid | **Removed** |
 | **Resampling target** | The target image also supplied the output mask | `resample(img=…)` takes only the grid from the target; the source mask is carried over with nearest-neighbor interpolation | **Changed** |
@@ -196,8 +196,7 @@ if result.ndim == 1:
 
 ## Breaking Changes
 
-(find-spikes-dedup)=
-### `find_spikes()` no longer emits duplicate regressors
+### `find_spikes()` no longer emits duplicate regressors {#find-spikes-dedup}
 
 **Status**: ✅ NEW (v0.6.0) — always deduplicated
 
@@ -221,7 +220,7 @@ decision — the colliding columns are bitwise identical, so only the retained
 *name* is at stake and nothing is lost. That is why the interim `clean=` kwarg
 was dropped and deduplication is unconditional: an opt-out would only
 manufacture straight duplicate columns, which `append(axis=1)` now refuses
-(see [](#append-duplicate-columns)).
+(see [the duplicate-column rule](#append-duplicate-columns)).
 
 **Finding no spikes also works properly now.** Polars derives a frame's height
 from its columns, so a design matrix with no regressors used to report 0 rows —
@@ -239,8 +238,7 @@ result reports `(n_tr, 0)` and contributes no columns on horizontal append.
 Explicitly sized empty inputs must match the design's row count. The default
 `DesignMatrix()` with no size or timing is an identity on either side of append.
 
-(append-duplicate-columns)=
-### `append(axis=1)` refuses value-identical columns
+### `append(axis=1)` refuses value-identical columns {#append-duplicate-columns}
 
 **Status**: ⚠️ **BREAKING** (v0.6.0)
 
@@ -255,8 +253,7 @@ Duplicate columns make the design rank deficient. Drop or modify one before
 appending. Pre-existing duplicates in the base matrix do not prevent an unrelated
 append.
 
-(designmatrix-file-round-trip)=
-### `DesignMatrix` files read back — `.csv` separator fixed, `.h5` reader added
+### `DesignMatrix` files read back — `.csv` separator fixed, `.h5` reader added {#designmatrix-file-round-trip}
 
 **Status**: ✅ **FIXED** (v0.6.0) — `.write()` and `DesignMatrix(path)` are now symmetric
 
@@ -304,8 +301,7 @@ exactly — an integer spike indicator comes back an integer instead of a float.
 A column-less matrix also records its row count, so `find_spikes()` output for
 a subject with no spikes round-trips as `(n_tr, 0)` rather than `(0, 0)`.
 
-(reserved-column-prefix)=
-### Generated columns are namespaced with `.nl_`
+### Generated columns are namespaced with `.nl_` {#reserved-column-prefix}
 
 **Status**: ⚠️ **BREAKING** (v0.6.0) — every column nltools generates was renamed
 
@@ -375,8 +371,7 @@ prefix, which identifies generated columns. Rename user columns before
 appending. `DesignMatrix` inputs may contain generated columns with the prefix.
 Convert pandas inputs with the `DesignMatrix` constructor before appending.
 
-(fit-no-implicit-design-clean)=
-### `fit()` no longer cleans the design matrix
+### `fit()` no longer cleans the design matrix {#fit-no-implicit-design-clean}
 
 **Status**: ⚠️ **BREAKING** (v0.6.0) — the `design_clean*` kwargs were removed
 
@@ -486,8 +481,7 @@ producing non-unique estimates; inspect it with `.vif()` rather than suppressing
 the warning.
 
 
-(inference-progress-bar-off)=
-### Permutation and bootstrap progress bars are off by default
+### Permutation and bootstrap progress bars are off by default {#inference-progress-bar-off}
 
 **Status**: ✅ NEW (v0.6.0) — `progress_bar=False` everywhere
 
@@ -508,8 +502,7 @@ stats = isc_permutation_test(data, progress_bar=True)
 The mechanism is also unified: all bars go through shared helpers in `nltools.utils` (`maybe_tqdm` / `make_progress_bar`) built on `tqdm.auto`, so notebooks render widget bars and terminals render text bars.
 
 
-(ttest-popmean-permutation)=
-### `BrainData.ttest(popmean=..., permutation=True)` now tests against `popmean`
+### `BrainData.ttest(popmean=..., permutation=True)` now tests against `popmean` {#ttest-popmean-permutation}
 
 **Status**: ⚠️ **BREAKING CHANGE** (v0.6.0) — silently wrong p-values fixed
 
@@ -536,8 +529,7 @@ set(res)  # {"mean", "t", "z", "p", "null_dist"}
 res["null_dist"].shape  # (5000, n_voxels)
 ```
 
-(adjacency-ttest-contract)=
-### `Adjacency.ttest` matches `BrainData.ttest`
+### `Adjacency.ttest` matches `BrainData.ttest` {#adjacency-ttest-contract}
 
 **Status**: ⚠️ **BREAKING CHANGE** (v0.6.0) — mislabeled permutation `t` fixed
 
@@ -555,8 +547,7 @@ res["mean"], res["t"], res["z"], res["p"]
 The permutation path is faster too: it calls the engine once for the whole edge matrix instead of once per edge.
 
 
-(browser-support-deferred)=
-### In-browser (WASM) support removed — returns in 0.6.1
+### In-browser (WASM) support removed — returns in 0.6.1 {#browser-support-deferred}
 
 **Status**: ⚠️ **BREAKING CHANGE** (v0.6.0) — deferred, not abandoned
 
@@ -568,8 +559,7 @@ The in-browser stack — the marimo WASM tutorial pages and the library's Pyodid
 
 Tutorials are now plain marimo `.py` notebooks (PEP 723 header: `marimo` + `nltools`) meant for local editing (`uvx marimo edit --sandbox <nb>.py`) or [molab](https://molab.marimo.io); the docs site renders executed previews of them.
 
-(stats-module-removed)=
-### `nltools.stats` removed — everything lives in `nltools.algorithms`
+### `nltools.stats` removed — everything lives in `nltools.algorithms` {#stats-module-removed}
 
 **Status**: ⚠️ **BREAKING CHANGE** (v0.6.0)
 
@@ -610,8 +600,7 @@ The same `summary` vocabulary reached the two remaining mean/median knobs on the
 
 Both renames also appear in the [Renamed kwargs](#renamed-kwargs) table.
 
-(tail-vocabulary)=
-### One canonical `tail=` vocabulary (v0.6.0)
+### One canonical `tail=` vocabulary (v0.6.0) {#tail-vocabulary}
 
 **Status**: ✅ COMPLETE (v0.6.0)
 
@@ -628,8 +617,7 @@ What changed:
 
 Code that already imported from `nltools.stats` gets the same signatures it had before — the wrappers' canonical `device=` names are now the engine's. Only code that called the `algorithms.inference` engines directly with `parallel=` needs the kwarg rename.
 
-(gpu-execution-layer)=
-### One GPU execution layer — measured budgets, OOM recovery, run-or-raise
+### One GPU execution layer — measured budgets, OOM recovery, run-or-raise {#gpu-execution-layer}
 
 **Status**: ⚠️ **BREAKING CHANGE** (v0.6.0)
 
@@ -644,8 +632,7 @@ Every GPU/batched code path now runs through one core layer in `nltools.algorith
 - **GPU Spearman results over tied data change.** The GPU rank transform mishandled ties — its tie window was off by one on both ends (the first tied element kept its raw rank, the next distinct value was averaged in, and a trailing run was skipped entirely), and its tie scan corrupted the row index for multi-row batches — so any `correlation_permutation_test(metric='spearman', device='gpu')` correlation or null distribution over data with tied values (integer ratings, discrete scores) was numerically wrong. Ranks now match `scipy.stats.rankdata(method='average')` exactly and GPU results match the CPU path; continuous (untied) data was unaffected. Re-run any analysis that recorded GPU Spearman results over tied data.
 - **GPU null distributions from `timeseries_correlation_permutation_test` change.** GPU draws now equal the CPU draws for a given seed — the GPU path previously derived circle-shift amounts through a different RNG call, breaking the deterministic cross-backend contract. The batched phase-randomization path also no longer mispairs conjugate frequencies, a bug that made the surrogate spectrum non-Hermitian and silently distorted the surrogates (statistically wrong, not just nondeterministic). Same test, same distribution family, different draws — re-run any analysis that recorded seeded GPU timeseries permutation p-values.
 
-(predict-group)=
-### Stored labels and cross-validation in BrainData decoding
+### Stored labels and cross-validation in BrainData decoding {#predict-group}
 
 `BrainData.predict(y=None)` uses a single-column `.Y`; `y='name'` and
 `groups='name'` select columns of a multi-column `.Y`. Assign labels and grouping
@@ -668,8 +655,7 @@ is removed; configure cross-validation through `BrainData.predict`.
 Collection decoding and its permutation result fields are deferred to 0.6.1;
 see [BrainCollection](#braincollection).
 
-(iplot-autoscale)=
-### `iplot()` autoscales robustly; percentile thresholds are shared and zero-aware
+### `iplot()` autoscales robustly; percentile thresholds are shared and zero-aware {#iplot-autoscale}
 
 **Status**: ⚠️ **BREAKING CHANGE** (v0.6.0)
 
@@ -689,8 +675,7 @@ Follow-up plotting consistency changes ([#490](https://github.com/cosanlab/nltoo
 **Behavior change in `threshold()`**: percentile strings (`upper="98%"`) now resolve over finite **nonzero** voxels. On a masked stat map most voxels are exactly zero, which dragged every percentile toward zero — `threshold(upper="98%")` on a sparse map previously produced a near-zero cutoff that thresholded almost nothing. Results change on any map containing zeros; pass a numeric cutoff to reproduce old outputs exactly.
 
 
-(designmatrix-pandas-polars)=
-### DesignMatrix: Pandas → Polars
+### DesignMatrix: Pandas → Polars {#designmatrix-pandas-polars}
 
 **Status**: ✅ COMPLETE (v0.6.0)
 
@@ -836,8 +821,7 @@ stats = adj.regress(dm)  # Works! Converts dm.to_numpy() internally
 
 **Timeline**: Complete in v0.6.0. All integration work finished. Tutorials and examples updated.
 
-(designmatrix-from-file)=
-### DesignMatrix accepts file paths
+### DesignMatrix accepts file paths {#designmatrix-from-file}
 
 **Status**: ⚠️ **BREAKING** (v0.6.0) — replaces standalone `onsets_to_dm`
 
@@ -934,8 +918,7 @@ HRF-convolved task regressors (`motor_c0`, …), `dm.confounds` lists the
 nuisance regressors (CSF, motion, spike censors, drift), and the
 regressors-of-interest (`vmpfc`, `vmpfc_motor`) stay out of both.
 
-(designmatrix-confounds-rename)=
-### DesignMatrix `.polys` → `.confounds` (attribute and kwargs)
+### DesignMatrix `.polys` → `.confounds` (attribute and kwargs) {#designmatrix-confounds-rename}
 
 **Status**: ⚠️ **BREAKING** (v0.6.0) — attribute rename, no compat shim
 
@@ -957,12 +940,11 @@ DesignMatrix(sampling_freq=0.5, shape=(200, 6))
   confounds (3): ['.nl_poly_0', '.nl_poly_1', '.nl_poly_2']
 ```
 
-`DesignMatrix.write()` to `.h5` writes the metadata under the key `confounds` (was `polys`), and `DesignMatrix(path)` reads it back — see [](#designmatrix-file-round-trip).
+`DesignMatrix.write()` to `.h5` writes the metadata under the key `confounds` (was `polys`), and `DesignMatrix(path)` reads it back — see [the file round-trip fixes](#designmatrix-file-round-trip).
 
 **`BrainData.X = dm` now works.** The `.X` setter previously rejected `DesignMatrix` with `TypeError`; v0.6.0 unwraps it to `dm.data` (the underlying polars DataFrame). DM-specific metadata isn't preserved on `BrainData.X`, but you no longer need the explicit `.data` step.
 
-(designmatrix-confounds-readonly)=
-### DesignMatrix `.convolved` and `.confounds` are read-only
+### DesignMatrix `.convolved` and `.confounds` are read-only {#designmatrix-confounds-readonly}
 
 **Status**: ⚠️ **BREAKING** (v0.6.0) — direct assignment now raises `AttributeError`
 
@@ -1005,8 +987,7 @@ constructor, or use `.append(other_dm, axis=1, as_confounds=True)` /
 `.append(raw_frame, axis=1)` (raw frames are auto-marked) to register confound regressors.
 ```
 
-(designmatrix-copy-constructor)=
-### `DesignMatrix(other_dm)` is now a copy-constructor
+### `DesignMatrix(other_dm)` is now a copy-constructor {#designmatrix-copy-constructor}
 
 **Status**: ✅ NEW (v0.6.0) — additive, no migration required
 
@@ -1020,8 +1001,7 @@ copy = DesignMatrix(dm, convolved=[])            # clear convolved, keep confoun
 
 In v0.5.1 this raised `TypeError: Unsupported data type`.
 
-(designmatrix-convolve-suffix)=
-### DesignMatrix.convolve() always suffixes `_c{i}`
+### DesignMatrix.convolve() always suffixes `_c{i}` {#designmatrix-convolve-suffix}
 
 **Status**: ⚠️ **BREAKING** (v0.6.0) — column-name policy changed
 
@@ -1053,8 +1033,7 @@ dm_fir.convolved           # ['face_c0', 'face_c1', 'face_c2']
 
 ## BrainData and Adjacency API Changes
 
-(braindata-mask-handling)=
-### BrainData Mask Handling
+### BrainData Mask Handling {#braindata-mask-handling}
 
 **Status**: ⚠️ Behavior clarification (v0.6.0)
 
@@ -1191,8 +1170,7 @@ resampled = brain.resample(img=target_mask).apply_mask(target_mask)
 
 ---
 
-(adjacency-shape-behavior)=
-### Adjacency.shape Now Returns Logical Shape
+### Adjacency.shape Now Returns Logical Shape {#adjacency-shape-behavior}
 
 **Status**: ✅ FIXED (v0.6.0)
 
@@ -1255,11 +1233,10 @@ adj.threshold(upper='90%')     # Keep top 10% (percentile threshold)
 | `.predict_multi()` | Will return in future Model class | N/A |
 | `summarize_bootstrap()` | `BrainData.bootstrap()`, which returns a `BootstrapResult` (`estimate`, `standard_error`, `ci_lower`, `ci_upper`). The `Z` and `p` keys are gone — see [Pattern 8](#pattern-8-bootstrap-summary-statistics). | **Medium** |
 | `BrainData.icc()` | Removed — voxelwise intraclass correlation is out of scope for v0.6.0. Compute ICC externally (e.g. `pingouin.intraclass_corr`) on extracted values. The `nltools.stats.compute_icc` helper is also removed. | **Low** |
-| `BrainData.iplot(surface=…, anatomical=…)` | `BrainData.iplot(view='ortho'\|'render', threshold=…, autoscale=…, atlas=…, bg_img=…)` — *rebuilt* on [niivue](https://niivue.com) (self-owned `anywidget` driving `@niivue/niivue`, WebGL). Live windowing (right-drag), native 4D frame scrubbing, true 3D render, and atlas overlays. `mode`/`units`/`cut_coords`/`symmetric_cmap` removed; `view='surface'` → `view='render'`. Live kernel (Jupyter, marimo). See [Pattern: interactive viewing (`iplot`)](#interactive-viewing). | **Medium** |
+| `BrainData.iplot(surface=…, anatomical=…)` | <code>BrainData.iplot(view='ortho'&#124;'render', threshold=…, autoscale=…, atlas=…, bg_img=…)</code> — *rebuilt* on [niivue](https://niivue.com) (self-owned `anywidget` driving `@niivue/niivue`, WebGL). Live windowing (right-drag), native 4D frame scrubbing, true 3D render, and atlas overlays. `mode`/`units`/`cut_coords`/`symmetric_cmap` removed; `view='surface'` → `view='render'`. Live kernel (Jupyter, marimo). See [Pattern: interactive viewing (`iplot`)](#interactive-viewing). | **Medium** |
 
-:::{note}
-`BrainData.ttest()` was briefly removed earlier in v0.6.0 development, then restored because one-sample voxelwise t-tests across stacked subject-level contrast maps are the 99% group-inference use case. The old `threshold_dict=` kwarg is gone — use the new permutation-based API instead.
-:::
+!!! note
+    `BrainData.ttest()` was briefly removed earlier in v0.6.0 development, then restored because one-sample voxelwise t-tests across stacked subject-level contrast maps are the 99% group-inference use case. The old `threshold_dict=` kwarg is gone — use the new permutation-based API instead.
 
 ### 2. Removed Classes
 
@@ -1280,12 +1257,11 @@ adj.threshold(upper='90%')     # Keep top 10% (percentile threshold)
 
 ## Migration Patterns
 
-(interactive-viewing)=
-### Pattern 0: Interactive viewing (`iplot`) — Rebuilt on niivue
+### Pattern 0: Interactive viewing (`iplot`) — Rebuilt on niivue {#interactive-viewing}
 
 **Status**: 🔧 **REBUILT** — `BrainData.iplot()` is now a WebGL [niivue](https://niivue.com) viewer instead of the nilearn HTML viewer. It is a self-owned `anywidget` (`NiivueViewer`) that drives `@niivue/niivue` (loaded from a CDN) directly through anywidget's standard model API — **not** `ipyniivue`. By default it renders an in-widget **threshold slider** above the viewer and shows the **stat-map colorbar**; niivue also gives live windowing (right-drag), native 4D frame scrubbing, true 3D rendering, and — the headline feature — direct overlays of nltools atlases (colored regions, outlines, hover-to-label).
 
-`iplot` renders in a live kernel (Jupyter, marimo desktop). In-browser (WASM) support is deferred to 0.6.1 — see [](#browser-support-deferred). It does not render in statically-built (plain-Markdown) docs — use `BrainData.plot()` there.
+`iplot` renders in a live kernel (Jupyter, marimo desktop). In-browser (WASM) support is deferred to 0.6.1 — see [the in-browser plan](#browser-support-deferred). It does not render in statically-built (plain-Markdown) docs — use `BrainData.plot()` there.
 
 **What changed:**
 
@@ -1464,8 +1440,7 @@ selection_scores = brain_data.model_.cv_scores_   # negative MSE at that alpha
 
 ---
 
-(pattern-4-machine-learning-classification-regression)=
-### Pattern 4: Machine Learning (Classification/Regression)
+### Pattern 4: Machine Learning (Classification/Regression) {#pattern-4-machine-learning-classification-regression}
 
 **Before (v0.5.1):**
 ```python
@@ -1646,16 +1621,14 @@ the working-memory budget and raises with the requirement, the budget, and the
 `memory_budget_gb=` override if it does not; it never silently reduces
 `n_samples` or drops `return_samples`.
 
-:::{note}
-`'std'` now uses `ddof=0`, matching `BrainData.std()` and NumPy's population
-standard deviation. That is distinct from `BootstrapResult.standard_error`,
-which is the `ddof=1` deviation *across replicates*.
-:::
+!!! note
+    `'std'` now uses `ddof=0`, matching `BrainData.std()` and NumPy's population
+    standard deviation. That is distinct from `BootstrapResult.standard_error`,
+    which is the `ddof=1` deviation *across replicates*.
 
 ---
 
-(pattern-9-stats-py-inference-module-migration)=
-### Pattern 9: Stats.py → Inference Module Migration
+### Pattern 9: Stats.py → Inference Module Migration {#pattern-9-stats-py-inference-module-migration}
 
 **Status**: ✅ Complete — `nltools.stats` is gone; the inference engine is the public API (see [the stats-module removal](#stats-module-removed))
 
@@ -1708,8 +1681,7 @@ result = isc_group_permutation_test(group1, group2, n_permute=1000)
 
 ---
 
-(pattern-10-fit-dataclass-braindata-fit-inplace-false)=
-### Pattern 10: Fit Dataclass (`BrainData.fit(inplace=False)`)
+### Pattern 10: Fit Dataclass (`BrainData.fit(inplace=False)`) {#pattern-10-fit-dataclass-braindata-fit-inplace-false}
 
 **Status**: ✅ NEW FEATURE (v0.6.0)
 
@@ -1856,13 +1828,12 @@ rotation = model.transform_subject(new_data)
 
 A sweep of the implemented data-class facades (`BrainData`, `Adjacency`, and `DesignMatrix`) landed in a series of `!:` commits on 2026-04-14 and 2026-04-20 to make kwarg names consistent across the public API. The canonical names are documented in `docs/_data/api-vocabulary.yml` (rendered in the [architecture docs](development/index.md)); the table below is the migration mapping for callers.
 
-(renamed-kwargs)=
-### Renamed kwargs
+### Renamed kwargs {#renamed-kwargs}
 
 | Concept | Old kwarg(s) | New kwarg | Scope |
 |---|---|---|---|
 | Algorithm / variant choice | `algorithm`, `scheme`, `kind`, `noise_model`, `extract_type`, `mode`, `perm_type` | `method` | Implemented facade methods including `BrainData.decompose`, `Adjacency.cluster`, `Adjacency.similarity`, and the permutation helpers. For `Adjacency.similarity`, `method=` selects the permutation scheme (`'1d'` / `'2d'` / `None`) and the correlation type lives in the separate `metric=` slot (`'spearman'` / `'pearson'` / `'kendall'`). **Note:** `BrainData.predict` and `BrainData.distance` use the new `spatial_scale=` kwarg (not `method=`) for selecting `'whole_brain'`/`'roi'`/`'searchlight'` — see "Spatial scale" row below. |
-| Spatial scale (whole-brain / ROI / searchlight) | `method='whole_brain'\|'roi'\|'searchlight'` (predict only — overloaded with the algorithm slot, never canonical elsewhere) | `spatial_scale='whole_brain'\|'roi'\|'searchlight'` | `BrainData.predict` and `BrainData.distance`. Companion kwargs `roi_mask=` and `radius=` are already canonical. Naming follows the spatial-scale framing of [Jolly & Chang, 2021, *SCAN*](https://doi.org/10.1093/scan/nsab010). The `method=` slot is now reserved for algorithm choice everywhere. |
+| Spatial scale (whole-brain / ROI / searchlight) | <code>method='whole_brain'&#124;'roi'&#124;'searchlight'</code> (predict only — overloaded with the algorithm slot, never canonical elsewhere) | <code>spatial_scale='whole_brain'&#124;'roi'&#124;'searchlight'</code> | `BrainData.predict` and `BrainData.distance`. Companion kwargs `roi_mask=` and `radius=` are already canonical. Naming follows the spatial-scale framing of [Jolly & Chang, 2021, *SCAN*](https://doi.org/10.1093/scan/nsab010). The `method=` slot is now reserved for algorithm choice everywhere. |
 | Classifier / sklearn estimator | `algorithm=` (predict) | `estimator=` | `BrainData.predict`. It names an sklearn object, so it stays distinct from `BrainData.fit(model=…)`, which selects an estimator class. String shortcuts: classification — `'linear_svc'`, `'logistic_regression'`, `'linear_discriminant_analysis'`, `'ridge_classifier'`; regression — `'ridge'`, `'lasso'`, `'linear_svr'`. Or pass any sklearn estimator / `Pipeline` directly, which is used exactly as given. |
 | Progress indicator | `show_progress` (defaulted `True`) | `progress_bar` (defaults `False`, matching sklearn) | Implemented facade methods and their submodules. `verbose` is kept only where it controls log-level output (info prints in `DesignMatrix.clean` / `.append`). |
 | Warning suppression in `standardize` | `verbose=`, then briefly `suppress_warnings=` | *(removed)* | `BrainData.standardize` no longer delegates to `sklearn.preprocessing.scale`, so there are no numerical warnings to suppress: it computes in float64 (exact on raw float32 BOLD), casts back to the input dtype, and maps constant voxels/observations to 0 instead of NaN. Drop the kwarg. |
@@ -1870,8 +1841,8 @@ A sweep of the implemented data-class facades (`BrainData`, `Adjacency`, and `De
 | Similarity diagonal | `ignore_diagonal=False` | `include_diag=False` | `Adjacency.similarity`. **Polarity is flipped AND the default changed**: directed matrices now exclude the (trivially 1.0) self-similarity diagonal by default. No-op for symmetric matrices, which never store the diagonal. |
 | Threshold arms on `BrainData.plot` | `thr_upper`, `thr_lower`, `kind` | `upper`, `lower`, `method` | The convenience scalar `threshold=` kwarg is unchanged. |
 | Contrast output statistic | `contrast_type` | `inference` | `BrainData.compute_contrasts` and `Glm.compute_contrasts` return the contrast effect by default — the right input to a second-level model. There is no statistic to select: `inference=True` returns one `ContrastResult` carrying effect, variance, standard error, t-statistic, z-score, one-sided p-value, and degrees of freedom together. |
-| Central tendency + cluster scope | `method=` (the `'mean'\|'median'\|None` choice), `summary=` (the within/between choice) | `summary=`, `scope=` | `Adjacency.cluster_summary` — the central tendency moved to `summary=`, and the within/between-cluster choice it displaced is now `scope='within'\|'between'`. See [the stats-module removal](#stats-module-removed) for the full `summary=` vocabulary sweep (ISC family included). |
-| ROI extraction variant | `metric=` | `method=` | `BrainData.extract_roi` — `'mean'\|'median'\|'pca'` selects an extraction *variant* (PCA is not a central tendency), so it takes the canonical `method=` name; `metric=` stays reserved for distance/similarity metrics. |
+| Central tendency + cluster scope | `method=` (the <code>'mean'&#124;'median'&#124;None</code> choice), `summary=` (the within/between choice) | `summary=`, `scope=` | `Adjacency.cluster_summary` — the central tendency moved to `summary=`, and the within/between-cluster choice it displaced is now <code>scope='within'&#124;'between'</code>. See [the stats-module removal](#stats-module-removed) for the full `summary=` vocabulary sweep (ISC family included). |
+| ROI extraction variant | `metric=` | `method=` | `BrainData.extract_roi` — <code>'mean'&#124;'median'&#124;'pca'</code> selects an extraction *variant* (PCA is not a central tendency), so it takes the canonical `method=` name; `metric=` stays reserved for distance/similarity metrics. |
 
 ### Migration examples
 
@@ -1895,8 +1866,7 @@ adj.similarity(other, include_diag=False)     # explicit + now the default for d
 
 Internal algorithm classes — `CVScheme.scheme`, `Glm.noise_model` — keep their legacy names. The class facades translate at the boundary. You only need to update code that calls the facade methods.
 
-(designmatrix-localalignment-scale)=
-### `LocalAlignment`: `scheme` → `spatial_scale`, `parcellation` → `roi_mask`
+### `LocalAlignment`: `scheme` → `spatial_scale`, `parcellation` → `roi_mask` {#designmatrix-localalignment-scale}
 
 **Status**: ⚠️ **BREAKING** (v0.6.0) — public class, no compat aliases
 
@@ -2052,8 +2022,7 @@ Also: `match_resolution()` now returns a frozen `TemplateMatch` dataclass (attri
 
 **Plotting helper re-exports** — `_plot_matplotlib` and other underscore-prefixed plotting helpers are no longer re-exported from `nltools.plotting` / `nltools`. Import them from their actual module if you really need them (internal use only).
 
-(loading-brain-images)=
-### Loading canonical brain images
+### Loading canonical brain images {#loading-brain-images}
 
 For atlases, parcellations, ROI masks, and templates, prefer
 `fetch_resource` from `nltools.templates` over hard-coded external URLs.
@@ -2251,8 +2220,7 @@ best_alpha = brain_data.model_.alpha_
 selection_scores = brain_data.model_.cv_scores_
 ```
 
-(braincollection)=
-### BrainCollection is deferred to 0.6.1
+### BrainCollection is deferred to 0.6.1 {#braincollection}
 
 `BrainCollection`, `PredictCollection`, collection execution and fit/predict
 bundles are absent from 0.6.0. The development-only `Predict.permutation_scores`
@@ -2429,8 +2397,7 @@ is_empty = brain_data.is_empty
 
 ---
 
-(new-feature-gpu-accelerated-statistical-inference)=
-## New Feature: GPU-Accelerated Statistical Inference
+## New Feature: GPU-Accelerated Statistical Inference {#new-feature-gpu-accelerated-statistical-inference}
 
 **Status**: ✅ NEW (v0.6.0)
 
@@ -2587,7 +2554,7 @@ result = one_sample_permutation_test(data, device=None)
 - **GPU acceleration**: 10-100× speedup with PyTorch backend
 - **CPU parallelization**: 4-8× speedup with joblib (default)
 - **Automatic batching**: Prevents GPU out-of-memory errors
-- **Progress bars**: opt-in via `progress_bar=True` for long-running tests (off by default — see [](#inference-progress-bar-off))
+- **Progress bars**: opt-in via `progress_bar=True` for long-running tests (off by default — see [the progress-bar default](#inference-progress-bar-off))
 
 **Correctness**:
 - **Perfect determinism**: 0.000% cross-backend variance (same seed → identical results)

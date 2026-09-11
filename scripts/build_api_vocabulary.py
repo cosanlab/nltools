@@ -39,6 +39,8 @@ from manifest import PROJECT_ROOT, load_vocab  # noqa: E402
 INDEX_MD = PROJECT_ROOT / "docs" / "development" / "index.md"
 DESIGN_TOUR = PROJECT_ROOT / "docs" / "public" / "design-tour.html"
 
+_CODE_SPAN_RE = re.compile(r"`([^`]+)`")
+
 _NUMBER_WORDS = {
     1: "One",
     2: "Two",
@@ -64,8 +66,23 @@ def _md_inline_to_html(text: str) -> str:
 
 
 def _escape_table_cell(md: str) -> str:
-    """Escape pipe characters so a Markdown value set survives inside a table cell."""
-    return md.replace("|", r"\|")
+    """Make a Markdown value set survive inside a table cell.
+
+    A pipe inside a code span has no escape both renderers accept: Python-Markdown
+    leaves the backslash visible, and markdown-it (MyST) splits the row on a raw
+    pipe. Such spans become raw `<code>` with the pipe as a character reference.
+    Pipes outside a code span take the usual backslash.
+    """
+    return _CODE_SPAN_RE.sub(_code_span_to_html, md).replace("|", r"\|")
+
+
+def _code_span_to_html(match: re.Match[str]) -> str:
+    """Return a code span as raw `<code>`, pipe included, or unchanged if it has none."""
+    span = match.group(1)
+    if "|" not in span:
+        return match.group(0)
+    escaped = span.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+    return f"<code>{escaped.replace('|', '&#124;')}</code>"
 
 
 def render_index_table(vocab: dict) -> str:

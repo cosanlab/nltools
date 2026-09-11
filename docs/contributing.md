@@ -26,7 +26,13 @@ Run linting: `uv run ruff check`
 
 Fix linting: `uv run ruff check --fix`
 
-Build docs locally: `uv run poe docs-build` (or `uv run poe docs-preview` for a live server; both execute the tutorial notebooks, reusing MyST's execute cache)
+Regenerate the docs sources (API reference pages, vocabulary tables, tutorial markdown): `uv run poe docs-generate`
+
+Build the site: `uv run poe docs-build` — a strict build into `site/`, which fails on a broken internal link
+
+Preview the site with live reload: `uv run poe docs-serve`
+
+Build the tutorials with their outputs baked in: `uv run poe docs-build-fresh` — the MyST build, which executes every notebook cell, until the notebook rendering pipeline lands
 
 Edit a tutorial: `uv run marimo edit docs/tutorials/<group>/<notebook>.py`, then `uv run poe docs-generate` to re-render its `.md`
 
