@@ -26,15 +26,15 @@ Run linting: `uv run ruff check`
 
 Fix linting: `uv run ruff check --fix`
 
-Regenerate the generated docs sources (vocabulary tables, tutorial markdown): `uv run poe docs-generate`
+Regenerate the generated docs sources (vocabulary tables, tutorial pages): `uv run poe docs-generate`
 
-Build the site: `uv run poe docs-build` — a strict build into `site/`, which fails on a broken internal link
+Build the site: `uv run poe docs-build` — a strict build into `site/` from the repo root. Every run re-executes every tutorial cell to produce its outputs, reusing the cached fits, and fails on a broken internal link, a cell that raises, or a cell that writes to stderr
 
 Preview the site with live reload: `uv run poe docs-serve`
 
-Build the tutorials with their outputs baked in: `uv run poe docs-build-fresh` — the MyST build, which executes every notebook cell, until the notebook rendering pipeline lands
+Build the site cold, as CI does: `uv run poe docs-build-fresh` — the same build with the tutorials' fit caches dropped first, so every fit really recomputes
 
-Edit a tutorial: `uv run marimo edit docs/tutorials/<group>/<notebook>.py`, then `uv run poe docs-generate` to re-render its `.md`
+Edit a tutorial: `uv run marimo edit docs/tutorials/<group>/<notebook>.py`, then `uv run poe docs-generate` to re-render its page
 
 Generate changelog: `uv run poe changelog`
 
@@ -47,5 +47,7 @@ Build package locally: `uv build`
 ## Documentation
 
 Pages under `docs/api/` are hand-written: frontmatter, prose, and `::: dotted.path` directives that mkdocstrings renders at build time. Add a public object to the page that fits it — and to the `nltools.algorithms` A-Z index when it is an algorithm — then add any new page to the `nav` in `zensical.toml`. `uv run poe lint-api` fails when an export has no home, has two, or a directive names something that does not exist.
+
+The `.md` beside each tutorial notebook is a build artifact: `docs-generate` writes it from the `.py`, and it is git-ignored. Edit the notebook. `docs-build` executes each page's cells while it builds, so the outputs on the page are the ones that code produced.
 
 To link into the API from a guide page, use the object's full dotted path as the anchor — `[BrainData.predict](../api/data/brain_data.md#nltools.data.braindata.BrainData.predict)` — because mkdocstrings gives every heading it emits `id="<full dotted path>"`, never a slug of the displayed name.

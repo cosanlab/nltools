@@ -5,20 +5,6 @@ project:
     - name: Luke J. Chang
     - name: Eshin Jolly
   github: cosanlab/nltools
-  # Notebook-execution settings (read by MyST-NB): drop the stray matplotlib repr
-  # strings (e.g. `Text(0.5, 1.0, …)`, `<Axes: …>`) that plotting cells leave as
-  # text output when their last expression isn't silenced.
-  settings:
-    output_matplotlib_strings: remove
-    # stderr policy (issue #489): tutorial cells must not *trigger* warnings — fix
-    # the analysis, never filter the warning. `remove-warn` deletes every
-    # `stream/stderr` output from the rendered page and logs one build warning per
-    # removal with the text, so nothing leaks silently; raised exceptions are a
-    # separate output type and are untouched (they fail the build under
-    # `--strict`). scripts/check_tutorial_stderr.py reads the raw execute cache
-    # and fails `docs-site` on any stderr. Once the count stays at zero, switch
-    # this to `error` so MyST itself fails the build.
-    output_stderr: remove-warn
   plugins:
     # Undo linkify's dead links on dotted identifiers (`BrainData.fit` -> http://BrainData.fit).
     - plugins/unlinkify.mjs
@@ -26,22 +12,6 @@ project:
     - file: index.md
     - file: migration-guide.md
       title: Migrating from v0.5
-    - file: tutorials/index.md
-      children:
-        - title: Basics
-          children:
-            # Tutorial pages: MyST-NB markdown auto-generated from the marimo .py
-            # notebooks by scripts/marimo_to_myst.py (run in docs-generate) and
-            # executed at build time (--execute) to bake outputs.
-            - file: tutorials/basics/01_brain_data.md
-            - file: tutorials/basics/02_design_matrix.md
-            - file: tutorials/basics/03_adjacency.md
-        - title: Workflows
-          children:
-            - file: tutorials/workflows/01_glm.md
-            - file: tutorials/workflows/02_encoding.md
-            - file: tutorials/workflows/03_mvpa.md
-            - file: tutorials/workflows/04_isc.md
     # User Guide — hand-written task pages, one per task, mirroring the
     # "Functions by task" reference pages below.
     - title: User Guide
@@ -56,10 +26,11 @@ project:
         - file: guide/intersubject.md
         - file: guide/plotting.md
         - file: guide/atlases.md
-    # The API reference is absent here on purpose. docs/api/ holds mkdocstrings
-    # directives, which only the zensical site (zensical.toml) renders; mystmd
-    # would print them verbatim. This toc carries the tutorial pages until the
-    # notebook rendering pipeline lands, and then goes away with the toolchain.
+    # Neither the API reference nor the tutorials appear here. docs/api/ holds
+    # mkdocstrings directives and the tutorial pages hold markdown-exec fences,
+    # both of which only the zensical site (zensical.toml) renders; mystmd would
+    # print them verbatim. This toc is what is left of the MyST toolchain, and it
+    # goes away with it.
     - title: Development
       children:
         - file: contributing.md

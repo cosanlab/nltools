@@ -55,9 +55,10 @@ verification unless it is still wanted.
   sampler observes about 0.03 MB because the allocation is never touched. This
   is a measurement-harness limitation, not a library defect. The test is
   deselected above and stays unchanged.
-- Nine marimo Markdown indentation warnings reproduce on unchanged tutorials
-  with exit status 0. They do not fail the stderr gate and are not release
-  blockers.
+- `marimo check` reports 54 `markdown-indentation` warnings across the seven
+  unchanged tutorial notebooks, with exit status 0. They are a formatting
+  preference in the notebook source, never reach the built pages, and are not
+  release blockers.
 - CUDA Ridge arithmetic is `float32`. CPU/GPU parity is judged within the
   suite's explicit tolerances, never byte for byte.
 - Real-data integration workflows beyond the executed tutorials are not part

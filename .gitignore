@@ -98,3 +98,14 @@ scratch/
 
 # Zensical site output
 /site/
+
+# Tutorial pages: build artifacts generated from the marimo notebooks beside
+# them by scripts/marimo_to_zensical.py (`uv run poe docs-generate`). The
+# patterns match the notebooks (scripts/marimo_to_zensical.py TUTORIAL_GLOBS),
+# so a hand-written page in either directory is still tracked.
+docs/tutorials/basics/[0-9]*_*.md
+docs/tutorials/workflows/[0-9]*_*.md
+
+# The tutorials' joblib fit cache, `Memory(".tutorial-cache")`. Deliberately not
+# under .cache/, which is zensical's and which `zensical build -c` wipes whole.
+/.tutorial-cache/

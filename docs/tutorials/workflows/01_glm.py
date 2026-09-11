@@ -5,7 +5,7 @@
 #     "nltools>=0.6.0",
 # ]
 # ///
-# GLM Analysis — marimo notebook. Source of truth for the docs page; rendered to MyST by scripts/marimo_to_myst.py.
+# GLM Analysis — marimo notebook. Source of truth for the docs page; rendered to the docs page by scripts/marimo_to_zensical.py.
 import marimo
 
 __generated_with = "0.23.9"
@@ -60,7 +60,7 @@ def _():
 
     # Memoize per-subject fits to disk (.cache/ is git-ignored) so re-running
     # the notebook reloads results instead of refitting every voxel.
-    memory = Memory(".cache/tutorials", verbose=0)
+    memory = Memory(".tutorial-cache", verbose=0)
     return BrainData, DesignMatrix, concatenate, detrend, fdr, memory, np, threshold
 
 

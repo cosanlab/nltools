@@ -5,7 +5,7 @@
 #     "nltools>=0.6.0",
 # ]
 # ///
-# Encoding Models — marimo notebook. Source of truth for the docs page; rendered to MyST by scripts/marimo_to_myst.py.
+# Encoding Models — marimo notebook. Source of truth for the docs page; rendered to the docs page by scripts/marimo_to_zensical.py.
 import marimo
 
 __generated_with = "0.23.9"
@@ -57,7 +57,7 @@ def _():
     from nltools.utils import concatenate
 
     # Memoize the (slow) multi-run load to disk (.cache/ is git-ignored).
-    memory = Memory(".cache/tutorials", verbose=0)
+    memory = Memory(".tutorial-cache", verbose=0)
     return BrainData, Memory, concatenate, memory, np
 
 

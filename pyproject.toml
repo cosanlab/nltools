@@ -227,43 +227,29 @@ help = "Test support utilities"
 cmd = "pytest nltools/tests/support -n auto --maxprocesses=4 -x"
 
 [tool.poe.tasks.docs-clean]
-help = "Clean built docs (preserves execute cache so unchanged cells don't re-run)"
+help = "Clean the MyST site's build output"
 shell = """cd docs && myst clean --site --html --temp --logs --cache --exports --templates -y"""
 
-[tool.poe.tasks.docs-clean-cache]
-help = "Clear MyST execute cache to force re-running all code cells on next build"
-shell = """cd docs && myst clean --execute -y"""
-
 [tool.poe.tasks.docs-generate]
-help = "Generate the API vocabulary tables and tutorial markdown (marimo → MyST-NB) from source"
+help = "Generate the API vocabulary tables and the tutorial pages (marimo → markdown-exec) from source"
 shell = """
 set -eu
 python scripts/build_api_vocabulary.py
-python scripts/marimo_to_myst.py --all
+python scripts/marimo_to_zensical.py --all
 """
 
-# Build + EXECUTE the MyST site: runs every tutorial code-cell through a Jupyter
-# kernel to bake outputs (figures, prints). Leave BASE_URL unset for a root build
-# (local, and the nltools.org deploy); set it (e.g. /nltools) only for a subpath
-# deploy such as a fork's GitHub Pages project page.
+# Build the MyST site. It carries the static pages only: the tutorials render
+# through zensical (`docs-build`) and the API reference through mkdocstrings.
+# Leave BASE_URL unset for a root build (local, and the nltools.org deploy); set
+# it (e.g. /nltools) only for a subpath deploy such as a fork's GitHub Pages
+# project page.
 [tool.poe.tasks.docs-site]
-help = "Build the MyST site, executing tutorials (via the execute cache) to bake outputs; fails on a raising cell (--strict) or any cell stderr (BASE_URL=/<repo> only for a subpath deploy; SITE_URL overrides the https://nltools.org sitemap host)"
+help = "Build the MyST site (static pages only; BASE_URL=/<repo> only for a subpath deploy; SITE_URL overrides the https://nltools.org sitemap host)"
 shell = """
 set -eu
-# MyST executes tutorial code-cells through a Jupyter kernel named `python3` (see
-# each page's kernelspec). Register it into the active venv so a fresh env (CI, a
-# new clone) can execute — idempotent, and a no-op harm if already present.
-python -m ipykernel install --sys-prefix --name python3 --display-name 'Python 3' >/dev/null 2>&1 || true
 cd docs
-# The kernel must not inherit a developer's ~/.ipython profile (e.g.
-# ast_node_interactivity='all' prints every bare expression and duplicates
-# figures); an empty IPYTHONDIR keeps executed outputs identical to CI.
-mkdir -p _build/ipython
-export IPYTHONDIR="$PWD/_build/ipython"
-# --strict exits non-zero on build *errors* (warnings are only summarized): a
-# tutorial cell that raises is a file error, so it fails the build instead of
-# silently truncating the page.
-myst build --site --html --execute --strict
+# --strict exits non-zero on build *errors* (warnings are only summarized).
+myst build --site --html --strict
 # Standalone interactive Design Tour page (not a MyST page; copied verbatim).
 cp public/design-tour.html _build/html/design-tour.html
 # MyST does not apply BASE_URL to the literal `url:` Design Tour TOC link. On a
@@ -276,48 +262,68 @@ fi
 # Rewrite it to the public origin so search engines index the deployed URLs.
 export SITE_URL="${SITE_URL:-https://nltools.org}"
 find _build/html -type f \\( -name '*.html' -o -name '*.json' -o -name '*.xml' -o -name '*.txt' \\) -exec perl -pi -e 's{http://localhost:3000}{$ENV{SITE_URL}}g' {} +
-# stderr gate (issue #489): myst.yml's `output_stderr: remove-warn` strips stderr
-# from the rendered pages, so inspect the raw kernel outputs in the execute cache
-# and fail if any tutorial cell warned.
-python ../scripts/check_tutorial_stderr.py --docs-dir .
 """
 
+# Zensical builds every file under `docs_dir` into the site and offers no way to
+# exclude one, so whatever else lands there ships with the site: MyST's rendered
+# output (thousands of intermediate files) and marimo's editor session state
+# (several MB of cached notebook outputs). The MyST half goes away with that
+# toolchain.
+[tool.poe.tasks.docs-prune]
+help = "Drop the build leftovers under docs/ that zensical would otherwise copy into the site"
+shell = """
+set -eu
+if [ -d docs/_build ]; then rm -r docs/_build; fi
+rm -r docs/tutorials/*/__marimo__ 2>/dev/null || true
+"""
+
+# Build + EXECUTE the site: markdown-exec runs every tutorial cell in the build
+# process to produce its outputs (figures, tables, prints). `-c` drops zensical's
+# page cache first, so every build really re-executes: the cache is keyed on page
+# content, which does not change when the library under test does, and a build
+# that skips the tutorials also skips the gate that judges them. Run it from the
+# repo root — the notebooks cache their fits in `Memory(".tutorial-cache")`, a
+# path relative to the working directory, so a build started anywhere else
+# recomputes every fit into a new cache. A cell that raises, or that writes to
+# stderr, fails the build (scripts/docs_show.py).
 [tool.poe.tasks.docs-build]
-help = "Full docs build: regenerate sources → build the zensical site into site/ with strict link checking"
+help = "Full docs build from the repo root: regenerate sources → build the zensical site into site/, re-executing every tutorial against the cached fits, with strict link checking"
 sequence = [
   { ref = "docs-generate" },
+  { ref = "docs-prune" },
   { shell = """
 set -eu
-# MyST renders into docs/_build/, which sits inside zensical's docs_dir, so its
-# thousands of intermediate markdown files would each be built as a page. Drop
-# the rendered output; the expensive execute cache (docs/_build/execute) stays.
-# Remove this step with the MyST toolchain.
-for dir in cache html site templates; do
-  if [ -d "docs/_build/$dir" ]; then rm -r "docs/_build/$dir"; fi
-done
-zensical build --strict
+# The tutorial pages import scripts/docs_show.py while they execute.
+export PYTHONPATH="$PWD/scripts${PYTHONPATH:+:$PYTHONPATH}"
+zensical build --strict -c
+python scripts/check_tutorial_pages.py
 """ },
 ]
 
+# Incremental on purpose: the preview re-executes only the pages that changed,
+# so editing a guide page does not re-run seven tutorials. `docs-build` is what
+# gates them.
 [tool.poe.tasks.docs-serve]
-help = "Live preview the zensical site at localhost:8000"
-cmd = "zensical serve"
+help = "Live preview the zensical site at localhost:8000, re-executing a tutorial only when its page changes (run from the repo root, as docs-build is)"
+shell = """
+set -eu
+export PYTHONPATH="$PWD/scripts${PYTHONPATH:+:$PYTHONPATH}"
+zensical serve
+"""
 
-# What CI runs (docs-deploy.yml). A fresh checkout has neither cache, so this is
-# a no-op there; locally it guarantees every tutorial cell really re-executes and
-# every joblib-cached fit really recomputes before the stderr gate judges them.
+# What CI runs (docs-deploy.yml). A fresh checkout has no caches, so this is a
+# no-op there; locally it guarantees every tutorial cell really re-executes and
+# every joblib-cached fit really recomputes before the build judges them.
 [tool.poe.tasks.docs-build-fresh]
-help = "Cold MyST docs build, as CI runs it: drop the tutorials' joblib caches and the MyST execute cache, then regenerate and build the MyST site"
+help = "Cold docs build, as CI runs it: drop the tutorials' joblib fit caches, then run the docs build so every fit really recomputes"
 sequence = [
   { ref = "tutorials-clean-cache" },
-  { ref = "docs-clean-cache" },
-  { ref = "docs-generate" },
-  { ref = "docs-site" },
+  { ref = "docs-build" },
 ]
 
 [tool.poe.tasks.docs-preview]
-help = "Live preview the MyST site with executed tutorial outputs (reuses the execute cache; only changed cells re-run)"
-shell = """cd docs && mkdir -p _build/ipython && IPYTHONDIR="$PWD/_build/ipython" myst start --execute"""
+help = "Live preview the MyST site"
+shell = """cd docs && myst start"""
 
 [tool.poe.tasks.tutorials-check]
 help = "Lint tutorial marimo notebooks (static checks, no execution)"
@@ -328,8 +334,8 @@ help = "Execute each tutorial marimo notebook as a script to verify it runs end-
 shell = """for nb in docs/tutorials/basics/[0-9]*.py docs/tutorials/workflows/[0-9]*.py; do echo "run  $nb"; python "$nb" || exit 1; done"""
 
 [tool.poe.tasks.tutorials-clean-cache]
-help = "Clear the tutorials' joblib fit caches (forces recompute). Memory('.cache/tutorials') is cwd-relative: repo root for `poe tutorials-run`, and docs/tutorials/<section>/ for the MyST build, whose kernels run with cwd = the page's directory"
-shell = """rm -rf .cache/tutorials docs/.cache/tutorials docs/tutorials/*/.cache"""
+help = "Clear the tutorials' joblib fit caches (forces recompute). Memory('.tutorial-cache') is cwd-relative, and both `poe tutorials-run` and the docs build run from the repo root, so one cache serves both"
+shell = """rm -r .tutorial-cache 2>/dev/null || true"""
 
 [tool.poe.tasks.tutorials]
 help = "Static-check tutorial notebooks, then verify they run end-to-end"

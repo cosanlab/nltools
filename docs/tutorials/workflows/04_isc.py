@@ -5,7 +5,7 @@
 #     "nltools>=0.6.0",
 # ]
 # ///
-# Inter-Subject Correlation — marimo notebook. Source of truth for the docs page; rendered to MyST by scripts/marimo_to_myst.py.
+# Inter-Subject Correlation — marimo notebook. Source of truth for the docs page; rendered to the docs page by scripts/marimo_to_zensical.py.
 import marimo
 
 __generated_with = "0.23.9"
@@ -56,7 +56,7 @@ def _():
     from nltools.mask import roi_to_brain_from_atlas
     from nltools.templates import fetch_resource
 
-    memory = Memory(".cache/tutorials", verbose=0)
+    memory = Memory(".tutorial-cache", verbose=0)
     return (
         BrainData,
         fetch_resource,

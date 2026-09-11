@@ -5,7 +5,7 @@
 #     "nltools>=0.6.0",
 # ]
 # ///
-# Multivariate Pattern Analysis — marimo notebook. Source of truth for the docs page; rendered to MyST by scripts/marimo_to_myst.py.
+# Multivariate Pattern Analysis — marimo notebook. Source of truth for the docs page; rendered to the docs page by scripts/marimo_to_zensical.py.
 import marimo
 
 __generated_with = "0.23.9"
@@ -57,7 +57,7 @@ def _():
     from nltools.data import Adjacency, BrainData
     from nltools.templates import fetch_resource
 
-    memory = Memory(".cache/tutorials", verbose=0)
+    memory = Memory(".tutorial-cache", verbose=0)
     return Adjacency, BrainData, fetch_resource, memory, np, pd
 
 

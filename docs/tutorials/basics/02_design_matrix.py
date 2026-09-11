@@ -5,7 +5,7 @@
 #     "nltools>=0.6.0",
 # ]
 # ///
-# DesignMatrix basics — marimo notebook. Source of truth for the docs page; rendered to MyST by scripts/marimo_to_myst.py.
+# DesignMatrix basics — marimo notebook. Source of truth for the docs page; rendered to the docs page by scripts/marimo_to_zensical.py.
 
 import marimo
 
