@@ -576,35 +576,15 @@ def _run_roi(
     ``estimator`` are all None for the whole call (matches whole_brain's
     behavior for non-linear models).
     """
-    from pathlib import Path
-
-    import nibabel as nib
     from joblib import Parallel, delayed
-    from nilearn.image import resample_to_img
-    from nilearn.masking import apply_mask
     from sklearn.base import clone
     from sklearn.metrics import check_scoring
 
-    if roi_mask is None:
-        raise ValueError("roi_mask required for spatial_scale='roi'")
+    from .analysis import _resolve_atlas_label_vec
 
-    if isinstance(roi_mask, (str, Path)):
-        roi_mask = nib.load(roi_mask)
-
-    if roi_mask.shape != bd.mask.shape or not np.allclose(
-        roi_mask.affine, bd.mask.affine
-    ):
-        roi_mask = resample_to_img(
-            roi_mask,
-            bd.mask,
-            interpolation="nearest",
-            force_resample=True,
-            copy_header=True,
-        )
-
-    label_vec = apply_mask(roi_mask, bd.mask).astype(np.int64)
-    unique_labels = np.unique(label_vec)
-    unique_labels = unique_labels[unique_labels != 0]
+    # Same atlas resolution as distance()/mean()/align(): accepts a BrainData
+    # label vector, a Nifti image, or a path, and resamples into bd.mask space.
+    _, label_vec, unique_labels = _resolve_atlas_label_vec(bd, roi_mask)
 
     n_folds = cv.get_n_splits(X, y, groups=groups)
     # Pre-compute split indices once so workers see the same splits; cv objects

@@ -535,10 +535,47 @@ class TestROIDispatch:
             len(msgs) <= 2
         )  # one from per-parcel quiet=True (suppressed) + one aggregate
 
+    # ---------------------------------------------------------------------------
+    # Pipeline auto-detect — model=Pipeline triggers standardize=False default
+    # ---------------------------------------------------------------------------
 
-# ---------------------------------------------------------------------------
-# Pipeline auto-detect — model=Pipeline triggers standardize=False default
-# ---------------------------------------------------------------------------
+    @pytest.mark.parametrize("form", ["braindata", "path"])
+    def test_roi_accepts_braindata_and_path_atlas(
+        self, minimal_brain_data, tmp_path, form
+    ):
+        """Regression: predict(spatial_scale='roi') used to hand a BrainData
+        atlas straight to nilearn's resampler, which iterated it as a list of
+        images and raised IndexError. Every roi_mask form distance()/mean()
+        accept must resolve to the same parcellation here.
+        """
+        from nltools.data import BrainData
+
+        n = minimal_brain_data.shape[0]
+        y = np.array([0] * (n // 2) + [1] * (n - n // 2))
+        atlas_img = self._build_atlas(minimal_brain_data, n_rois=2)
+        if form == "braindata":
+            roi_mask = BrainData(atlas_img, mask=minimal_brain_data.mask)
+        else:
+            roi_mask = tmp_path / "atlas.nii.gz"
+            atlas_img.to_filename(str(roi_mask))
+
+        # LinearSVC is not deterministic unseeded; pin it so the two forms
+        # are compared on identical fits.
+        kw = {
+            "y": y,
+            "spatial_scale": "roi",
+            "cv": 3,
+            "model": "svm",
+            "n_jobs": 1,
+            "random_state": 0,
+        }
+        expected = minimal_brain_data.predict(roi_mask=atlas_img, **kw)
+        result = minimal_brain_data.predict(roi_mask=roi_mask, **kw)
+        assert list(result.roi_labels) == [1, 2]
+        np.testing.assert_allclose(result.scores, expected.scores)
+        np.testing.assert_allclose(
+            result.accuracy_map.data, expected.accuracy_map.data, equal_nan=True
+        )
 
 
 class TestPipelineStandardizeDetect:
