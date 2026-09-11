@@ -24,8 +24,15 @@ class Roc:
     Args:
         input_values (array-like): 1-D continuous decision values, one per observation.
         binary_outcome (array-like): Boolean class label per observation.
-        method (str): Threshold-selection variant, one of `'optimal_overall'`,
-            `'optimal_balanced'`, `'minimum_sdt_bias'`.
+        method (str): Threshold-selection variant, naming what the chosen
+            threshold maximizes or minimizes: `'optimal_overall'` maximizes the
+            number of correct classifications, so the larger class dominates;
+            `'optimal_balanced'` maximizes balanced accuracy, the mean of
+            sensitivity and specificity, weighting the two classes equally;
+            `'minimum_sdt_bias'` minimizes the signal-detection response bias
+            `c`, which places the threshold midway between the two classes'
+            estimated distributions. With equal class sizes the first two often
+            agree.
         forced_choice (array-like, optional): Subject id per observation for
             forced-choice classification (each subject contributes one positive and
             one negative observation).
@@ -124,7 +131,10 @@ class Roc:
                 `fpr` and `tpr`. Defaults to a dense grid over the range of
                 `input_values`.
             method (str, optional): Threshold-selection variant, one of
-                `'optimal_overall'`, `'optimal_balanced'`, `'minimum_sdt_bias'`.
+                `'optimal_overall'` (maximize correct classifications),
+                `'optimal_balanced'` (maximize balanced accuracy, the mean of
+                sensitivity and specificity), or `'minimum_sdt_bias'` (minimize
+                signal-detection response bias).
                 Defaults to `None`, which uses the instance's configured `method`
                 (set at construction, or by assigning `self.method` directly). An
                 explicit value overrides the configured `method` for this call only
@@ -227,8 +237,11 @@ class Roc:
         if self.forced_choice is None:
             resolved_method = self.method if method is None else method
             if resolved_method == "optimal_balanced":
-                mn = (self.tpr + self.fpr) / 2
-                self.class_thr = self.criterion_values[np.argmax(mn)]
+                # Balanced accuracy is the mean of sensitivity and specificity.
+                # Averaging tpr with fpr instead maximizes at the lowest
+                # criterion value, where everything is called positive.
+                balanced_accuracy = (self.tpr + (1 - self.fpr)) / 2
+                self.class_thr = self.criterion_values[np.argmax(balanced_accuracy)]
             elif resolved_method == "optimal_overall":
                 n_corr_t = self.tpr * self.n_true
                 n_corr_f = (1 - self.fpr) * self.n_false

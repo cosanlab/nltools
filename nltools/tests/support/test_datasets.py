@@ -105,6 +105,38 @@ class TestFetchNeurovaultCollection:
         )
 
     @patch("nltools.datasets.fetch_neurovault_ids")
+    def test_verbose_zero_is_silent(self, mock_fetch, capsys):
+        """`verbose=0` must mean no output.
+
+        nilearn resolves its data directory with `get_dataset_dir("neurovault",
+        data_dir)` and does not forward the caller's verbosity, so it announces
+        the absolute path of that directory whatever we ask for. Anything that
+        renders a captured session — a notebook, the docs build — then publishes
+        the path of the machine that ran it.
+        """
+        mock_fetch.side_effect = lambda **kwargs: (
+            print(
+                "[fetch_neurovault_ids] Dataset directory found: /home/a/nilearn_data"
+            )
+            or {"images": [], "images_meta": []}
+        )
+
+        fetch_neurovault_collection(123, verbose=0)
+
+        assert capsys.readouterr().out == ""
+
+    @patch("nltools.datasets.fetch_neurovault_ids")
+    def test_a_nonzero_verbose_still_reports(self, mock_fetch, capsys):
+        """Silencing applies to `verbose=0` only; asking for output still gets it."""
+        mock_fetch.side_effect = lambda **kwargs: (
+            print("downloading") or {"images": [], "images_meta": []}
+        )
+
+        fetch_neurovault_collection(123, verbose=1)
+
+        assert "downloading" in capsys.readouterr().out
+
+    @patch("nltools.datasets.fetch_neurovault_ids")
     def test_fetch_error_handling(self, mock_fetch):
         """Should handle fetch errors gracefully"""
         mock_fetch.side_effect = Exception("Network error")

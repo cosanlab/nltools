@@ -207,6 +207,7 @@ def test_generated_pages_are_the_nav_entries():
         for pattern in [
             "docs/tutorials/basics/[0-9]*.py",
             "docs/tutorials/data-operations/[0-9]*.py",
+            "docs/tutorials/analysis/[0-9]*.py",
             "docs/tutorials/workflows/[0-9]*.py",
         ]
         for path in _REPO_ROOT.glob(pattern)

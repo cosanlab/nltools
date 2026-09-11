@@ -115,6 +115,11 @@ This definition also applies to autoregressive fits. Nilearn's internal
 whitened-design predictions must not become the public prediction or residual
 contract.
 
+A constant target has zero variance, so Nilearn's ratio is undefined for it.
+Copying the value preserves the non-finite result and must not surface NumPy's
+divide warning: an empty voxel inside a mask is ordinary input, not a fault the
+caller can act on.
+
 `r2_` is copied from each fitted Nilearn `RegressionResults.r_square` before
 the full results are discarded. It is Nilearn's variance ratio:
 

@@ -260,7 +260,9 @@ def _(data):
     with tempfile.TemporaryDirectory() as _tmpdir:
         _path = os.path.join(_tmpdir, "pain_subset.nii.gz")
         data[:3].write(_path)
-        print(f"{os.path.getsize(_path) / 1e6:.1f} MB written to {_path}")
+        print(
+            f"{os.path.getsize(_path) / 1e6:.1f} MB written to {os.path.basename(_path)}"
+        )
     return
 
 

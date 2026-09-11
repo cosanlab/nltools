@@ -52,6 +52,7 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 TUTORIAL_GLOBS = [
     "docs/tutorials/basics/[0-9]*.py",
     "docs/tutorials/data-operations/[0-9]*.py",
+    "docs/tutorials/analysis/[0-9]*.py",
     "docs/tutorials/workflows/[0-9]*.py",
 ]
 

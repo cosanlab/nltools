@@ -211,7 +211,9 @@ def _(mo):
 
     `similarity` compares two matrices and tests the result by permutation. It
     returns the correlation and a p-value; pass `random_state` to make the
-    permutations reproducible.
+    permutations reproducible. `n_jobs=1` keeps the 5,000 permutations in this
+    process: on a matrix this small, starting worker processes costs more than
+    the parallelism saves.
     """)
     return
 
@@ -221,6 +223,7 @@ def _(Adjacency, blocks, m1):
     blocks.similarity(
         Adjacency(m1, matrix_type="similarity", labels=blocks.labels),
         metric="spearman",
+        n_jobs=1,
         random_state=0,
     )
     return

@@ -394,3 +394,34 @@ class TestInstall:
 
         docs_show.install("docs/tutorials/basics/01_brain_data.py")
         assert markdown_exec.formatters["python"] is docs_show.format_cell
+
+
+class TestLibraryOutput:
+    """A library's own `print` belongs on the page, in order with the cell's."""
+
+    def test_a_library_printing_through_builtin_print_reaches_the_page(self, page):
+        # `transform_cell` rebinds `print` in the page's globals, which a
+        # function defined in another module never resolves: it finds the
+        # builtin through its own globals. `Roc.summary` is the real case; a
+        # function exec'd into a namespace of its own is the same situation.
+        code = "\n".join(
+            [
+                "elsewhere = {}",
+                "exec('def announce():\\n    print(\"from a library\")', elsewhere)",
+                "print('before')",
+                "elsewhere['announce']()",
+                "print('after')",
+            ]
+        )
+        output = page.format_cell(code=code, md=None, session="basics-01-brain-data")
+        assert "from a library" in output
+        assert (
+            output.index("before")
+            < output.index("from a library")
+            < output.index("after")
+        )
+
+    def test_stdout_is_restored_after_a_cell(self, page, capsys):
+        page.run_cell("x = 1", session="basics-01-brain-data")
+        sys.stdout.write("outside a cell")
+        assert "outside a cell" in capsys.readouterr().out

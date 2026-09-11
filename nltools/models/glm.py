@@ -125,14 +125,21 @@ def _extract_fit_state(
     first = next(iter(results.values()))
     coefficients = np.zeros((len(feature_names), n_targets), dtype=first.theta.dtype)
     dispersion = np.zeros(n_targets, dtype=np.asarray(first.dispersion).dtype)
-    r_square = np.zeros(n_targets, dtype=np.asarray(first.r_square).dtype)
     covariances = {}
-    for label, result in results.items():
-        target_mask = labels == label
-        coefficients[:, target_mask] = result.theta
-        dispersion[target_mask] = result.dispersion
-        r_square[target_mask] = result.r_square
-        covariances[label] = np.array(result.cov, copy=True)
+    # Nilearn computes `r_square` as a bare division by the target's own
+    # variance, so a constant target — an empty voxel inside a mask, which any
+    # real brain mask contains — makes it 0/0 or x/0. The ratio is genuinely
+    # undefined there and comes back non-finite; reading it must not raise
+    # numpy's RuntimeWarning on the caller's behalf. The values are copied, not
+    # recomputed, so nothing else about them changes.
+    with np.errstate(divide="ignore", invalid="ignore"):
+        r_square = np.zeros(n_targets, dtype=np.asarray(first.r_square).dtype)
+        for label, result in results.items():
+            target_mask = labels == label
+            coefficients[:, target_mask] = result.theta
+            dispersion[target_mask] = result.dispersion
+            r_square[target_mask] = result.r_square
+            covariances[label] = np.array(result.cov, copy=True)
 
     state = GlmFitState(
         feature_names=feature_names,
@@ -284,7 +291,9 @@ class Glm:
             `variance(whitened_design @ coef_) / variance(whitened_y)`. For OLS
             the whitening is the identity, so with an intercept in the design
             this equals conventional R-squared; for autoregressive noise models
-            it is a pseudo-R-squared in the whitened space. A float for a
+            it is a pseudo-R-squared in the whitened space. A constant target
+            has zero variance, so its ratio is undefined and comes back
+            non-finite rather than raising a warning. A float for a
             one-dimensional `y`, otherwise shape `(n_targets,)`.
         n_samples_ (int): Fitted sample count.
         n_features_in_ (int): Fitted feature count.

@@ -16,7 +16,10 @@ __all__ = [
     "load_haxby_example",
 ]
 
+import io
+from contextlib import nullcontext, redirect_stdout
 from pathlib import Path
+
 from nltools.data import BrainData, DesignMatrix
 from nltools.data.designmatrix.io import events_to_dm
 from nltools.templates import fetch_resource
@@ -87,7 +90,9 @@ def fetch_neurovault_collection(collection_id, data_dir=None, verbose=1):
         collection_id (int): Neurovault collection ID
         data_dir (str, optional): Directory to store downloaded data.
             If None, uses nilearn's default data directory.
-        verbose (int, optional): Verbosity level. Default: 1
+        verbose (int, optional): Verbosity level; `0` is silent, including the
+            data-directory line nilearn reports whatever it is asked for.
+            Default: 1
 
     Returns:
         tuple[pl.DataFrame, list[str]]: `(metadata, files)` — the image metadata
@@ -103,9 +108,17 @@ def fetch_neurovault_collection(collection_id, data_dir=None, verbose=1):
         raise ValueError("collection_id must be a positive integer")
 
     try:
-        nv_data = fetch_neurovault_ids(
-            collection_ids=[collection_id], data_dir=data_dir, verbose=verbose
-        )
+        # nilearn resolves its data directory with `get_dataset_dir("neurovault",
+        # data_dir)` without forwarding `verbose`, so it announces that
+        # directory's absolute path however quietly it was asked to work.
+        # `verbose=0` has to mean silence: anything that captures a session and
+        # publishes it — a notebook, the docs build — would otherwise carry the
+        # path of the machine that ran it.
+        quiet = redirect_stdout(io.StringIO()) if verbose == 0 else nullcontext()
+        with quiet:
+            nv_data = fetch_neurovault_ids(
+                collection_ids=[collection_id], data_dir=data_dir, verbose=verbose
+            )
 
         files = nv_data["images"]
         metadata = pl.DataFrame(nv_data["images_meta"])

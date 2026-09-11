@@ -32,3 +32,24 @@ def test_predict_emits_no_warnings(glm_design, fitted_glm):
     with warnings.catch_warnings():
         warnings.simplefilter("error")
         fitted_glm.predict(glm_design)
+
+
+def test_a_constant_target_fits_without_warning(glm_design, glm_targets):
+    """A voxel with no variance has an undefined R-squared, not a warning.
+
+    Nilearn divides the fitted variance by the target's own variance, so a
+    constant target — an empty voxel inside a mask, which any real brain mask
+    contains — makes that ratio 0/0 or x/0. Copying the value must not emit
+    numpy's `RuntimeWarning`.
+    """
+    import numpy as np
+
+    targets = np.array(glm_targets, copy=True)
+    targets[:, 0] = 3.0
+
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")
+        model = Glm().fit(glm_design, targets)
+
+    assert not np.isfinite(model.r2_[0])
+    assert np.isfinite(model.r2_[1:]).all()

@@ -116,6 +116,20 @@ def test_roc_signatures_reject_stray_kwargs():
         )
 
 
+def _make_imbalanced_roc_data(seed=0, n_positive=40, n_negative=10):
+    """Two separable Gaussian classes of unequal size.
+
+    Weighting the classes equally and weighting the observations equally pick
+    different thresholds here, which is what makes them distinguishable.
+    """
+    rng = np.random.default_rng(seed)
+    pos = rng.normal(1.0, 1.0, n_positive)
+    neg = rng.normal(-1.0, 1.0, n_negative)
+    input_values = np.concatenate([pos, neg])
+    binary_outcome = np.array([True] * n_positive + [False] * n_negative)
+    return input_values, binary_outcome
+
+
 def _make_forced_choice_data(seed=1, n_subjects=15):
     """Paired positive/negative decision values, one subject per index."""
     rng = np.random.default_rng(seed)
@@ -129,7 +143,10 @@ def _make_forced_choice_data(seed=1, n_subjects=15):
 
 def test_calculate_defaults_to_constructor_method():
     """q31x fvgk (#12): calculate() with no method= uses the constructor's method."""
-    input_values, binary_outcome = _make_roc_data()
+    # Imbalanced classes, so the balanced and overall rules genuinely disagree:
+    # with equal class sizes they pick the same threshold and the guard below
+    # would pass for the wrong reason.
+    input_values, binary_outcome = _make_imbalanced_roc_data()
 
     roc = Roc(
         input_values=input_values,
@@ -211,3 +228,29 @@ def test_plot_does_not_mutate_calculate_results():
     assert hasattr(roc, "gaussian_specificity")
     assert hasattr(roc, "gaussian_ppv")
     assert hasattr(roc, "gaussian_auc")
+
+
+def test_optimal_balanced_maximizes_balanced_accuracy():
+    """`optimal_balanced` weights the two classes equally.
+
+    Maximizing `(tpr + fpr) / 2` is maximized by calling every observation
+    positive, so the rule always collapsed to the lowest criterion value:
+    perfect sensitivity, zero specificity. Balanced accuracy is
+    `(tpr + (1 - fpr)) / 2`.
+    """
+    input_values, binary_outcome = _make_roc_data()
+    roc = Roc(
+        input_values=input_values,
+        binary_outcome=binary_outcome,
+        method="optimal_balanced",
+    )
+    roc.calculate()
+
+    # The behavioural guard first: the old rule scored specificity 0.00 on every
+    # dataset, so this pair is what was red.
+    assert roc.sensitivity > 0.5
+    assert roc.specificity > 0.5
+    # Then the rule itself, so a threshold that merely happens to be decent
+    # cannot pass for the argmax of balanced accuracy.
+    balanced = (roc.tpr + (1 - roc.fpr)) / 2
+    assert roc.class_thr == roc.criterion_values[np.argmax(balanced)]

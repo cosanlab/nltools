@@ -2,7 +2,7 @@
 title: Tutorials
 ---
 
-Learn how to use nltools through hands-on examples. Start with the **Basics** for the core data structures, work through **Data operations** for the everyday tasks that surround an analysis, then read a **Workflow** end to end.
+Learn how to use nltools through hands-on examples. Start with the **Basics** for the core data structures, work through **Data operations** for the everyday tasks that surround an analysis, pick the **Analysis** that answers your question, then read a **Workflow** end to end.
 
 Tutorials are worked analyses you read start to finish; when you already know what you want to do and just need the right call and its gotchas, go to the [User Guide](../guide/index.md) instead.
 
@@ -26,6 +26,17 @@ Task-focused walkthroughs of the everyday operations: getting data in, restricti
 - [NeuroVault I/O](data-operations/04_neurovault.md) — download a collection or a single image, and upload your own maps.
 - [Design Matrices](data-operations/05_design_matrix.md) — build a design by hand or from onsets files, convolve it, stack runs, and check it is estimable.
 - [Adjacency Matrices](data-operations/06_adjacency.md) — similarity and distance matrices, regression over edges, MDS, and graphs.
+
+## Analysis
+
+One analysis family per page: the question it answers, the call that runs it, and how to read what comes back.
+
+- [Univariate Regression](analysis/01_univariate_regression.md) — a two-level GLM: one regression per subject, then a group test with FDR correction.
+- [Multivariate Prediction](analysis/02_multivariate_prediction.md) — predict a continuous variable from the whole pattern, with estimators and cross-validation schemes compared.
+- [Multivariate Classification](analysis/03_multivariate_classification.md) — decode two conditions, then evaluate with single-interval and forced-choice ROC.
+- [Similarity and Distance](analysis/04_similarity.md) — pairwise distance between images, and the response of each image to one pattern.
+- [Functional Alignment](analysis/05_hyperalignment.md) — hyperalignment and the shared response model, including back-projection and adding a new subject.
+- [Decomposition](analysis/06_decomposition.md) — factor a dataset into components and see what they track.
 
 ## Workflows
 

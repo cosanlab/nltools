@@ -38,6 +38,14 @@ nav = [
       "tutorials/data-operations/05_design_matrix.md",
       "tutorials/data-operations/06_adjacency.md",
     ] },
+    { "Analysis" = [
+      "tutorials/analysis/01_univariate_regression.md",
+      "tutorials/analysis/02_multivariate_prediction.md",
+      "tutorials/analysis/03_multivariate_classification.md",
+      "tutorials/analysis/04_similarity.md",
+      "tutorials/analysis/05_hyperalignment.md",
+      "tutorials/analysis/06_decomposition.md",
+    ] },
     { "Workflows" = [
       "tutorials/workflows/01_glm.md",
       "tutorials/workflows/02_encoding.md",

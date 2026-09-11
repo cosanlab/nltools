@@ -7,7 +7,9 @@ formatter that behaves like a notebook cell instead:
   anything else with ``_repr_html_`` as HTML; other values as text)
 - every matplotlib figure the cell created is rendered as inline SVG at the end
   of the cell, then closed (what the inline backend does)
-- ``print`` output appears in order, in a preformatted block
+- ``print`` output appears in order, in a preformatted block — including
+  what a library the cell calls prints, since stdout is redirected into the
+  cell for as long as it runs
 - the source shown to readers is the cell exactly as written
 
 It is also the tutorials' build-time gate. A cell that raises fails the build,
@@ -49,7 +51,7 @@ import io
 import linecache
 import sys
 from collections.abc import Callable
-from contextlib import redirect_stderr
+from contextlib import redirect_stderr, redirect_stdout
 from typing import Any
 
 import markdown_exec
@@ -82,6 +84,10 @@ __all__ = [
 # the page's first (hidden) cell, which makes the first visible cell number 1.
 _notebook = "<unknown notebook>"
 _cell_index = 0
+
+# The `Cell` collecting output right now, or None between cells. `_CellStdout`
+# reads it to route a library's `print` into the cell that provoked it.
+_current_cell: Cell | None = None
 
 
 class CellFailure(SuperFencesException):
@@ -159,14 +165,14 @@ def unique_line_anchors(html_output: str, index: int) -> str:
 
 def run_cell(code: str, **kwargs: Any) -> str:
     """Execute one cell, failing the build if it raises or writes to stderr."""
-    global _cell_index
+    global _cell_index, _current_cell
     _cell_index += 1
     where = f"{_notebook}, cell {_cell_index}"
     stderr = io.StringIO()
     output = ""
     failure = ""
     try:
-        with redirect_stderr(stderr):
+        with redirect_stderr(stderr), redirect_stdout(_CellStdout(sys.stdout)):
             output = _run_python(code, **kwargs)
     except ExecutionError as error:
         failure = f"{where} raised:\n\n{unfence(str(error))}"
@@ -178,12 +184,43 @@ def run_cell(code: str, **kwargs: Any) -> str:
                 "Tutorial cells must not trigger warnings: fix the analysis, "
                 "never filter the warning."
             )
+    finally:
+        # A cell that raised never reached its `flush`, so clear the binding
+        # here rather than leaving a dead cell to catch the next page's output.
+        _current_cell = None
     if failure:
         # zensical prints the traceback of an exception raised while rendering
         # but not its message, so the message goes to stderr itself.
         print(f"\ndocs_show: {failure}\n", file=sys.stderr)
         raise CellFailure(failure)
     return output
+
+
+class _CellStdout(io.TextIOBase):
+    """Routes everything written to stdout while a cell runs into that cell.
+
+    `transform_cell` rebinds `print` in the page's globals, which catches what
+    the cell itself prints but not what a library it calls prints: a function
+    defined in another module resolves `print` through its own globals and lands
+    on the real stdout, where it reaches the build log instead of the page.
+    Redirecting the stream catches both, in one ordered stream, which is what a
+    notebook shows.
+
+    Args:
+        fallback: The stream to write to when no cell is running.
+    """
+
+    def __init__(self, fallback: Any) -> None:
+        self.fallback = fallback
+
+    def write(self, text: str) -> int:
+        if _current_cell is None:
+            return self.fallback.write(text)
+        _current_cell.write(text)
+        return len(text)
+
+    def writable(self) -> bool:
+        return True
 
 
 def unfence(text: str) -> str:
@@ -236,8 +273,13 @@ class Cell:
     def __init__(self, emit: Callable[..., None]) -> None:
         import matplotlib.pyplot as plt
 
+        global _current_cell
+
         self.emit = emit
         self.stdout: list[str] = []
+        # Anything written to stdout from here on belongs to this cell, whoever
+        # wrote it; `run_cell` clears the binding when the cell is done.
+        _current_cell = self
         # Figure numbers pyplot was already holding when this cell started. A
         # cell renders what it drew, not what it inherited: the docs build
         # leaves nothing open between cells, but a test on the same pytest-xdist
@@ -261,6 +303,10 @@ class Cell:
             if flush:
                 file.flush()
             return
+        self.stdout.append(text)
+
+    def write(self, text: str) -> None:
+        """Collect raw stdout text, in order with the cell's own `print` output."""
         self.stdout.append(text)
 
     def show(self, obj: Any) -> None:
