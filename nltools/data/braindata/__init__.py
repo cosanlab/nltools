@@ -1131,7 +1131,7 @@ class BrainData:
 
         return apply_func(self, np.median, axis)
 
-    def multivariate_similarity(self, images, method="ols", tail=2):
+    def multivariate_similarity(self, images, tail=2):
         """Predict a BrainData spatial distribution from a linear combination.
 
         The predictors may be other BrainData instances or nibabel images.
@@ -1139,7 +1139,6 @@ class BrainData:
         Args:
             images (BrainData | Nifti1Image | list): Predictor image(s) — a
                 BrainData stack of weight maps or nibabel images.
-            method (str): Regression method. Default: 'ols'.
             tail (int | str): ``2`` or ``'two'`` for two-tailed (default); ``1`` or
                 ``'one'`` for one-tailed (positive direction) regression p-values.
 
@@ -1149,7 +1148,7 @@ class BrainData:
         """
         from .analysis import multivariate_similarity
 
-        return multivariate_similarity(self, images, method=method, tail=tail)
+        return multivariate_similarity(self, images, tail=tail)
 
     def plot(  # nosemgrep: kwargs-internal-forwarding  # forwards to nilearn plotting functions
         self,

@@ -16,6 +16,7 @@ from nltools.models.ridge import (
     _prepare_feature_space_weights,
     _refit_fixed_hyperparameters,
     _scoped_himalaya_backend,
+    _working_dtype,
 )
 
 
@@ -997,6 +998,19 @@ class TestDeviceAndMemory:
         large = Ridge(alpha=ALPHAS, cv=kfold(), memory_budget_gb=8.0).fit(X, Y)
         np.testing.assert_allclose(small.coef_, large.coef_, rtol=1e-8, atol=1e-10)
 
+    def test_per_target_alpha_refit_gets_a_smaller_batch(self):
+        from nltools.algorithms.backends import Backend
+        from nltools.models.ridge import _refit_targets_batch
+
+        shape = {"n_samples": 200, "n_targets": 5000, "itemsize": 8, "n_features": 50}
+        shared = _refit_targets_batch(
+            Backend("numpy"), 0.5, per_target_alpha=False, **shape
+        )
+        per_target = _refit_targets_batch(
+            Backend("numpy"), 0.5, per_target_alpha=True, **shape
+        )
+        assert per_target < shared
+
     def test_batch_sizes_shrink_with_the_budget(self):
         from nltools.algorithms.backends import Backend
         from nltools.models.ridge import _batch_sizes
@@ -1053,7 +1067,7 @@ class TestDeviceAndMemory:
         if model.backend_.device != "mps":
             pytest.skip("resolved backend is not MPS")
         # The fit itself runs in float32 (MPS supports nothing else) ...
-        assert model._working_dtype([X], Y, model.backend_) == np.dtype(np.float32)
+        assert _working_dtype([X], Y, model.backend_) == np.dtype(np.float32)
         assert _himalaya_backend_name(model.backend_) == "torch_mps"
         # ... and the fitted state comes back as CPU float64 NumPy.
         assert model.coef_.dtype == np.float64

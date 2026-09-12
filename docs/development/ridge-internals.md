@@ -199,7 +199,8 @@ argmin_b ||X b - y||² + Σ_k (alpha / gamma[k]) ||b_k||²
 
 Targets that selected the same weight vector share one decomposition. The
 grouping is an implementation detail and never changes the result — a test
-compares the grouped solve against one call per target.
+compares the grouped solve against one call per target. Weights shared by every
+target (the common case) short-circuit to a single group without sorting.
 
 The banded path does not double-refit: `solve_group_ridge_random_search` with
 `return_weights=True` already multiplies its primal weights by `sqrt(gamma)`,
@@ -235,16 +236,19 @@ a fit cannot leak its device into unrelated code.
 
 Batch sizes are derived, never passed by the user. `memory_budget_gb=None`
 measures the device through `backends.device_memory_budget`; an explicit
-positive value is the budget verbatim. `_batch_sizes` supplies only the
-Himalaya-shaped working-set estimates and hands them to
-`backends.auto_batch_size`:
+positive value is the budget verbatim. Two sizing functions supply only the
+Himalaya-shaped working-set estimates and hand them to
+`backends.auto_batch_size`. `_batch_sizes` sizes a whole cross-validated or
+banded fit; `_refit_targets_batch` sizes the fixed-hyperparameter refit, whose
+dominant allocation depends on whether the targets share an alpha:
 
-| Himalaya batch | Dominant allocation |
-|---|---|
-| `n_alphas_batch` | decomposition matrices, `(n_alphas_batch, n_features, n_samples)` |
-| `n_targets_batch` | fold predictions, `(n_alphas_batch, n_samples, n_targets_batch)` |
-| `n_targets_batch_refit` | refit weights, `(n_alphas_batch, n_features, n_targets_batch)` |
-| refit target batch | `solve_ridge_svd`'s `(n_targets_batch, n_samples, n_samples)` block |
+| Function | Batch | Dominant allocation |
+|---|---|---|
+| `_batch_sizes` | `n_alphas_batch` | decomposition matrices, `(n_alphas_batch, n_features, n_samples)` |
+| `_batch_sizes` | `n_targets_batch` | fold predictions, `(n_alphas_batch, n_samples, n_targets_batch)` |
+| `_batch_sizes` | `n_targets_batch_refit` | refit weights, `(n_alphas_batch, n_features, n_targets_batch)` |
+| `_refit_targets_batch` | `per_target_alpha=True` | `solve_ridge_svd`'s `(n_targets_batch, n_samples, n_samples)` block |
+| `_refit_targets_batch` | `per_target_alpha=False` | one shared shrinkage operator, so `(n_samples + n_features)` per target |
 
 All budget arithmetic, the saturation ceiling, and OOM recovery live in
 `backends.py`. That is a hard invariant: an algorithm may estimate its own
@@ -255,9 +259,8 @@ working set but must never compute a budget.
 The nltools `Backend` in `nltools/algorithms/backends.py` remains the device
 abstraction for alignment and the bootstrap engines, and `Ridge.backend_` is
 the resolved instance (its `.name` reports `numpy`, `torch-cuda`, or
-`torch-mps`). Neither Ridge nor the ridge bootstrap calls `Backend.svd` any more — Himalaya
-owns every decomposition — but alignment (`algorithms/alignment/local.py`)
-still does, including its MPS float64 workaround.
+`torch-mps`). Himalaya owns every decomposition on the ridge paths; `Backend` supplies the
+device, the array module, and the memory budget only.
 
 `Backend` instances are picklable: `backend_` is public fitted state, so a
 fitted `Ridge` has to survive `copy.deepcopy`, `BrainData.copy()`, and

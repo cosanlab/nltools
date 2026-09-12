@@ -4,7 +4,9 @@ import itertools
 
 import numpy as np
 from scipy.spatial.distance import cdist
-from scipy.stats import rankdata, t as t_dist
+from scipy.stats import rankdata
+
+from .regression import regress
 
 __all__ = [
     "compute_multivariate_similarity",
@@ -168,7 +170,7 @@ def compute_similarity(data1, data2, metric="correlation"):
     return out
 
 
-def compute_multivariate_similarity(y, X, method="ols", tail=2):
+def compute_multivariate_similarity(y, X, tail=2):
     """Compute multivariate similarity by regressing one pattern on several.
 
     The array engine behind `BrainData.multivariate_similarity`: predicts the
@@ -180,7 +182,6 @@ def compute_multivariate_similarity(y, X, method="ols", tail=2):
         X (np.ndarray): Predictor patterns, shape (n_features, n_predictors) (the
             transpose is accepted). An intercept column is always prepended, so
             do not include one.
-        method (str): Regression method; only 'ols' is implemented. Defaults to 'ols'.
         tail (int): 2 for two-sided p-values, 1 for an upper-tail test. Defaults to 2.
 
     Returns:
@@ -193,13 +194,10 @@ def compute_multivariate_similarity(y, X, method="ols", tail=2):
         ```python
         y = np.random.randn(100)
         X = np.random.randn(100, 5)
-        result = compute_multivariate_similarity(y, X, method="ols")
+        result = compute_multivariate_similarity(y, X)
         result["beta"].shape  # → (6,)  5 predictors + intercept
         ```
     """
-    if method != "ols":
-        raise NotImplementedError(f"method '{method}' not implemented")
-
     # Ensure y is 1D
     y = np.atleast_1d(y)
     if y.ndim > 1:
@@ -226,32 +224,13 @@ def compute_multivariate_similarity(y, X, method="ols", tail=2):
     # Add intercept (first column)
     X_with_intercept = np.hstack([np.ones((X.shape[0], 1)), X])
 
-    # OLS regression: b = (X'X)^(-1) X'y
-    b = np.dot(np.linalg.pinv(X_with_intercept), y)
-    res = y - np.dot(X_with_intercept, b)
-    # Unbiased estimator of residual standard error: sqrt(RSS / df)
-    # This is correct for both intercept and intercept-free models
-    # See GH #287 for details on why np.std(res, ddof=p) is biased
-    n, p = X_with_intercept.shape
-    sigma = np.sqrt(np.dot(res, res) / (n - p))
+    b, _, t_out, p, _, res = regress(X_with_intercept, y, tail=tail)
 
-    # Compute standard errors
-    XtX_inv = np.linalg.inv(np.dot(X_with_intercept.T, X_with_intercept))
-    se_diag = np.sqrt(np.diagonal(XtX_inv))
-    stderr = se_diag * sigma
-
-    # t-statistics
-    t_out = b / stderr
-
-    # Degrees of freedom
-    df = X_with_intercept.shape[0] - X_with_intercept.shape[1]
-
-    from .inference.validation import validate_tail_parameter
-
-    if validate_tail_parameter(tail) == "upper":
-        p = 1 - t_dist.cdf(t_out, df)
-    else:
-        p = 2 * (1 - t_dist.cdf(np.abs(t_out), df))
+    n, p_cols = X_with_intercept.shape
+    df = n - p_cols
+    # Unbiased estimator of residual standard error: sqrt(RSS / df); correct for
+    # both intercept and intercept-free models. See GH #287.
+    sigma = float(np.sqrt(np.dot(res, res) / df))
 
     return {
         "beta": b,

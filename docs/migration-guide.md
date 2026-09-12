@@ -96,16 +96,18 @@ Several modules have been reorganized. The old import paths will raise `ModuleNo
 | `from nltools.simulator import Simulator` | `from nltools import Simulator` | Moved to `nltools.data.simulator` |
 | `from nltools.simulator import SimulateGrid` | `from nltools import SimulateGrid` | Moved to `nltools.data.simulator` |
 | `from nltools.file_reader import onsets_to_dm` | **Removed** | Folded into `DesignMatrix.__init__` — `DesignMatrix(events_path, run_length=N, TR=t)` HRF-convolves by default (`hrf_model='glover'`, matches nilearn); pass `hrf_model=None` for raw boxcar |
-| `from nltools.external import glover_hrf` | `from nltools.algorithms.hrf import glover_hrf` | Moved to `nltools.algorithms` |
+| `from nltools.external import glover_hrf` | `from nilearn.glm.first_level import glover_hrf` | **Removed — use nilearn directly.** The same holds for `spm_hrf`, `spm_time_derivative`, `glover_time_derivative`, and `spm_dispersion_derivative`: nltools' wrappers only forwarded to nilearn, so call nilearn. You rarely need to: `DesignMatrix(..., TR=t)` and `.convolve()` still apply the canonical Glover HRF with no import on your part, and a custom kernel is `convolve(conv_func=<array>)`, which v0.5.1 also accepted. |
 | `from nltools.utils import get_anatomical` | **Removed** | Use `nilearn.datasets.load_mni152_brain_mask()` |
-| `from nltools.stats import regress` | `from nltools.algorithms import regress` | Standalone OLS helper: `regress(X, Y)`; only `BrainData.regress()` was removed |
+| `from nltools.stats import regress` | `from nltools.algorithms import regress` | Standalone OLS helper: `regress(X, Y)`; only `BrainData.regress()` was removed. Drop the old `mode=`/`method=` keyword — see [`method=` removed from the OLS entry points](#ols-method-removed) |
 
 **Example migrations:**
 ```python
 # OLD: glover_hrf
 from nltools.external import glover_hrf
 # NEW:
-from nltools.algorithms.hrf import glover_hrf
+from nilearn.glm.first_level import glover_hrf
+# The kernels differ slightly from v0.5.1's: those were nipy-derived
+# implementations sampled at oversampling=16, nilearn's default is 50.
 
 # OLD: onsets_to_dm (file path → convolved DM in one call)
 from nltools.file_reader import onsets_to_dm
@@ -612,6 +614,37 @@ What changed:
 - **The GLM exception**: GLM contrast inference — `compute_contrasts(..., inference=True)` — reports nilearn's **one-sided** upper-tail p-value, matching the nilearn/SPM directional-contrast convention ("A > B" is the hypothesis; flip the contrast for the other direction). This is the one documented deviation from the two-tailed default.
 
 Code that already imported from `nltools.stats` gets the same signatures it had before, minus `parallel=`: pass `n_jobs=` to choose a worker count.
+
+### `method=` removed from the OLS entry points {#ols-method-removed}
+
+**Status**: **BREAKING** — passing the keyword now raises `TypeError`
+
+`regress`, `nltools.algorithms.compute_multivariate_similarity`, and
+`BrainData.multivariate_similarity` each carried a `method=` keyword whose only
+legal value was `'ols'`. v0.5.1's robust and ARMA fits were already gone — 0.6.0
+rejected `mode=` outright and raised `NotImplementedError` for
+`method='robust'`/`'arma'`, directing those callers to statsmodels — so the
+keyword had nothing left to select. Drop it:
+
+```python
+# OLD
+regress(X, Y, method='ols')
+brain.multivariate_similarity(images, method='ols')
+# NEW
+regress(X, Y)
+brain.multivariate_similarity(images)
+```
+
+`Adjacency.regress(method=)` is unaffected and keeps its keyword.
+
+**Rank-deficient predictors in `multivariate_similarity`.** The standard errors
+now come from `np.linalg.pinv(X.T @ X)` instead of `np.linalg.inv`, matching
+`regress` and every other OLS path in the library. A rank-deficient set of
+predictor images used to produce `nan` or wildly inflated standard errors (with
+a numpy `RuntimeWarning`); it now returns the least-norm solution. Full-rank
+results are numerically unchanged. One further consequence of sharing `regress`:
+a coefficient whose standard error is at or below `1e-6` reports `t = 0` and
+`p = 1` rather than `inf`/`nan`.
 
 ### Stored labels and cross-validation in BrainData decoding {#predict-group}
 
@@ -2293,7 +2326,7 @@ is_empty = brain_data.is_empty
 - [ ] Replace pandas concatenation with `dm.append(...)`. Pass raw Polars frames directly; convert pandas frames with `DesignMatrix(frame, sampling_freq=dm.sampling_freq, confounds=list(frame.columns))` first.
 - [ ] Update column lookups after `.convolve()`: `dm_conv["stim"]` → `dm_conv["stim_c0"]`. Includes `compute_contrasts("A - B")` strings → `compute_contrasts("A_c0 - B_c0")`. See [DesignMatrix.convolve() always suffixes](#designmatrix-convolve-suffix).
 - [ ] Stop introducing value-identical columns via `append(axis=1)` — value-identical columns now raise `ValueError`; drop or modify one copy before appending. See [append(axis=1) refuses value-identical columns](#append-duplicate-columns).
-- [ ] Update `from nltools.external import glover_hrf` → `from nltools.algorithms.hrf import glover_hrf`
+- [ ] Update `from nltools.external import glover_hrf` → `from nilearn.glm.first_level import glover_hrf`
 - [ ] Update `from nltools.simulator import ...` → `from nltools import ...` or `from nltools.data import ...`
 - [ ] Replace stateful `nltools.prefs` template configuration with `set_brainspace()` / `get_brainspace()` / `with_brainspace()`
 - [ ] Remove `from nltools.utils import get_anatomical` — use `nilearn.datasets.load_mni152_template()`

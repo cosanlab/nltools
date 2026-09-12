@@ -16,7 +16,7 @@ from scipy.stats import t as t_dist
 __all__ = ["regress"]
 
 
-def regress(X, Y, *, method: str = "ols", stats: str = "full", tail: int | str = 2):
+def regress(X, Y, *, stats: str = "full", tail: int | str = 2):
     """Fit an OLS regression of `Y` on `X`.
 
     Does not add an intercept; include one in `X` explicitly. If `Y` is 2D, a
@@ -25,8 +25,6 @@ def regress(X, Y, *, method: str = "ols", stats: str = "full", tail: int | str =
     Args:
         X (np.ndarray): Design matrix, shape (n_samples, n_regressors).
         Y (np.ndarray): Response, shape (n_samples,) or (n_samples, n_targets).
-        method (str): Only 'ols' is implemented; for robust or ARMA fits use
-            statsmodels. Defaults to 'ols'.
         stats (str): 'full' returns the 6-tuple below, 'betas' returns just `b`,
             'tstats' returns `(b, t)`. Defaults to 'full'.
         tail (int | str): 2 or 'two' for two-tailed p-values (default); 1 or
@@ -41,11 +39,6 @@ def regress(X, Y, *, method: str = "ols", stats: str = "full", tail: int | str =
     """
     from .inference.validation import validate_tail_parameter
 
-    if method != "ols":
-        raise NotImplementedError(
-            f"regress(method={method!r}) is not supported in v0.6.0. "
-            "Only 'ols' is available; use statsmodels for robust/ARMA fits."
-        )
     if stats not in ("full", "betas", "tstats"):
         raise ValueError("stats must be one of 'full', 'betas', 'tstats'")
     tail_internal = validate_tail_parameter(tail)

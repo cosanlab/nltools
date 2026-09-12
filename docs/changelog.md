@@ -225,6 +225,12 @@ All notable changes to nltools are documented here.
 - <span class="badge badge-feature">Feature</span> warn on near-collinear full-rank designs
 
 ### Improvements
+- ⚠ **Breaking** <span class="badge badge-improvement">Improvement</span> drop the HRF wrappers from `nltools.algorithms`
+    - `glover_hrf`, `spm_hrf`, and the time and dispersion derivatives only forwarded to nilearn. Import them from `nilearn.glm.first_level` instead. `DesignMatrix(..., TR=t)` and `.convolve()` still apply the canonical Glover HRF with no import on the caller's part.
+- ⚠ **Breaking** <span class="badge badge-improvement">Improvement</span> drop the single-valued `method=` keyword from the OLS entry points
+    - `regress`, `compute_multivariate_similarity`, and `BrainData.multivariate_similarity` accepted only `method='ols'`. Passing the keyword now raises `TypeError`. `Adjacency.regress(method=)` is unaffected.
+- <span class="badge badge-improvement">Improvement</span> unfitted `Ridge` and `Glm` raise sklearn's `NotFittedError`
+    - It subclasses `ValueError`, so existing `except ValueError` handlers still catch it.
 - <span class="badge badge-improvement">Improvement</span> refactor and improve brain data dunder math. improve first tutorial
 - <span class="badge badge-improvement">Improvement</span> refactor onsets_to_dm to wrap new nilearn functionality instead
 - <span class="badge badge-improvement">Improvement</span> Convert .shape(), .isempty(), .dtype() to properties + quick fixes
@@ -447,6 +453,8 @@ All notable changes to nltools are documented here.
     - **Breaking:** `nltools.algorithms.align(..., method='procrustes', axis=1)` on `BrainData` input now raises `ValueError`. The axis=1 transform spans images on both axes, so it has no voxel axis to be returned on; the call previously produced a `BrainData` whose matrix width did not match its own mask. numpy input at `axis=1` is unaffected.
 
 ### Bug Fixes
+- ⚠ **Breaking** <span class="badge badge-fix">Bug Fix</span> `compute_multivariate_similarity` takes its standard errors from a pseudo-inverse
+    - Rank-deficient predictor images used to give `nan` or wildly inflated standard errors; they now give the least-norm solution, matching `regress`. Full-rank results are unchanged.
 - <span class="badge badge-fix">Bug Fix</span> fix formatting
 - <span class="badge badge-fix">Bug Fix</span> fix warnings 1
 - <span class="badge badge-fix">Bug Fix</span> fix warnings 2

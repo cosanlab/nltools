@@ -542,19 +542,6 @@ class TestPredict:
         with pytest.raises(ValueError, match="condition_c"):
             fitted_glm.predict(extra)
 
-    def test_duplicate_columns_raise_value_error(self, glm_design, fitted_glm):
-        # Polars cannot build a frame with a repeated name, so the guard is
-        # exercised through a subclass that reports one.
-        class DuplicatedDesign(DesignMatrix):
-            @property
-            def columns(self):
-                return ["condition_a", "condition_a", "intercept"]
-
-        duplicated = glm_design.copy()
-        duplicated.__class__ = DuplicatedDesign
-        with pytest.raises(ValueError, match="[Dd]uplicate"):
-            fitted_glm.predict(duplicated)
-
     @pytest.mark.parametrize("frame", ["numpy", "pandas"])
     def test_non_design_matrix_raises_type_error(self, glm_design, fitted_glm, frame):
         import pandas as pd

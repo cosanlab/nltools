@@ -428,17 +428,13 @@ class Glm:
 
         Raises:
             TypeError: If `X` is not a `DesignMatrix`.
-            ValueError: If the model is not fitted, or `X` has duplicate,
-                missing, or additional columns.
+            ValueError: If the model is not fitted, or `X` has missing or
+                additional columns.
         """
         _check_is_fitted(self)
         _check_design_matrix(X, "predict")
 
         columns = list(X.columns)
-        duplicates = sorted({name for name in columns if columns.count(name) > 1})
-        if duplicates:
-            raise ValueError(f"X has duplicate column names: {duplicates}.")
-
         missing = sorted(set(self.feature_names_in_) - set(columns))
         additional = sorted(set(columns) - set(self.feature_names_in_))
         if missing or additional:

@@ -102,25 +102,14 @@ def _batch_sizes(
     n_alphas: int,
     itemsize: int,
 ) -> dict[str, int]:
-    """Derive Himalaya's target, refit, and alpha batch sizes from a budget.
+    """Size the batches of a whole cross-validated or banded fit.
 
     Only the per-item working-set estimates live here; the budget itself and
-    the batch arithmetic come from `nltools.algorithms.backends`.
-
-    The estimates follow Himalaya's dominant allocations: the decomposition
-    matrices are `(n_alphas_batch, n_features, n_samples)`, the cross-validated
-    predictions are `(n_alphas_batch, n_samples, n_targets_batch)`, and the
-    refit weights are `(n_features, n_targets_batch_refit)`.
-
-    Args:
-        backend (Backend): Resolved backend the fit runs on.
-        memory_budget_gb (float | None): Explicit budget in GB, or None to
-            measure the device.
-        n_samples (int): Number of training samples.
-        n_features (int): Total number of features across feature spaces.
-        n_targets (int): Number of targets.
-        n_alphas (int): Number of candidate alphas.
-        itemsize (int): Bytes per element of the working dtype.
+    the batch arithmetic come from `nltools.algorithms.backends`. The estimates
+    follow Himalaya's dominant allocations: decomposition matrices of
+    `(n_alphas_batch, n_features, n_samples)`, cross-validated predictions of
+    `(n_alphas_batch, n_samples, n_targets_batch)`, and refit weights of
+    `(n_features, n_targets_batch_refit)`.
 
     Returns:
         dict[str, int]: `n_targets_batch`, `n_targets_batch_refit`, and
@@ -164,22 +153,12 @@ def _refit_targets_batch(
     per_target_alpha: bool,
     n_features: int,
 ) -> int:
-    """Target batch size for the fixed-hyperparameter refit.
+    """Size the target batch of the fixed-hyperparameter refit.
 
     With one shared alpha Himalaya reuses a single shrinkage operator, so a
     target costs only its own columns of `Y` and of the weights. With a
     per-target alpha it instead holds an `(n_targets_batch, n_samples,
     n_samples)` block, which dominates everything else.
-
-    Args:
-        backend (Backend | None): Resolved backend the refit runs on.
-        memory_budget_gb (float | None): Explicit budget in GB, or None to
-            measure the device.
-        n_samples (int): Number of samples in the solve.
-        n_targets (int): Number of targets.
-        itemsize (int): Bytes per element of the working dtype.
-        per_target_alpha (bool): Whether each target has its own alpha.
-        n_features (int): Total feature count across spaces.
 
     Returns:
         int: Target batch size in `[1, n_targets]`.
@@ -388,8 +367,12 @@ def _weight_groups(feature_space_weights, n_targets):
     if feature_space_weights is None:
         return [(None, np.arange(n_targets))]
     gammas = np.asarray(feature_space_weights, dtype=np.float64)
+    # Every target sharing one weight vector is the common case (shared weights,
+    # or a search that converged on the same row). Skip the sort in np.unique.
     if gammas.ndim == 1:
-        gammas = np.repeat(gammas[:, None], n_targets, axis=1)
+        return [(gammas, np.arange(n_targets))]
+    if bool(np.all(gammas == gammas[:, :1])):
+        return [(gammas[:, 0], np.arange(n_targets))]
     _, inverse = np.unique(gammas.T, axis=0, return_inverse=True)
     inverse = np.asarray(inverse).ravel()
     return [
@@ -573,7 +556,8 @@ class Ridge:
 
     Fits `argmin_b ||X @ b - y||^2 + alpha * ||b||^2` without an intercept.
     Callers own preprocessing: `Ridge` never centers, scales, standardizes, or
-    adds an intercept column.
+    adds an intercept column. Constructor arguments are validated once, at
+    construction, and must not be reassigned afterwards.
 
     A two-dimensional `X` fits ordinary Ridge. A mapping from names to
     two-dimensional arrays fits banded Ridge, which searches feature-space
@@ -685,7 +669,8 @@ class Ridge:
         self.random_state = random_state
         self.progress_bar = progress_bar
         self.is_fitted_ = False
-        self._validate_parameters()
+        #: The normalized alpha `fit` solves with; `alpha` is validated once here.
+        self._normalized_alpha = self._validate_parameters()
 
     # ---------------------------------------------------------------- validation
 
@@ -914,20 +899,6 @@ class Ridge:
             )
         return [array], None
 
-    def _working_dtype(self, spaces, y, backend) -> np.dtype:
-        """Choose the floating dtype the fit runs in.
-
-        Args:
-            spaces (list[np.ndarray]): Feature matrices.
-            y (np.ndarray): Targets.
-            backend (Backend): Resolved backend.
-
-        Returns:
-            np.dtype: `float32` on MPS, which is float32-only, otherwise the
-                promoted dtype of the inputs with a `float32` floor.
-        """
-        return _working_dtype(spaces, y, backend)
-
     # ----------------------------------------------------------------------- fit
 
     def fit(self, X, y) -> Ridge:
@@ -948,7 +919,7 @@ class Ridge:
             ValueError: If any input or argument combination is invalid.
             RuntimeError: If `device='gpu'` and no accelerator is available.
         """
-        alpha = self._validate_parameters()
+        alpha = self._normalized_alpha
         spaces, names = self._as_feature_spaces(X)
         is_banded = names is not None
 
@@ -979,7 +950,7 @@ class Ridge:
             self._check_banded_only_arguments_unused()
 
         backend = resolve_backend("cpu" if self.device == "cpu" else "gpu")
-        dtype = self._working_dtype(spaces, y_2d, backend)
+        dtype = _working_dtype(spaces, y_2d, backend)
         spaces = [np.ascontiguousarray(space, dtype=dtype) for space in spaces]
         targets = np.ascontiguousarray(y_2d, dtype=dtype)
 
@@ -994,14 +965,22 @@ class Ridge:
             # never runs the cross-validation or alpha loops the others measure.
             self._fit_fixed_alpha(spaces, targets, float(alpha))
         else:
-            batches = self._himalaya_batch_sizes(
-                backend,
-                n_samples=n_samples,
-                n_features=n_features,
-                n_targets=n_targets,
-                n_alphas=alphas.size,
-                itemsize=dtype.itemsize,
-            )
+            try:
+                batches = _batch_sizes(
+                    backend,
+                    self.memory_budget_gb,
+                    n_samples=n_samples,
+                    n_features=n_features,
+                    n_targets=n_targets,
+                    n_alphas=alphas.size,
+                    itemsize=dtype.itemsize,
+                )
+            except ValueError as error:
+                raise ValueError(
+                    f"memory_budget_gb={self.memory_budget_gb!r} is too small for a "
+                    f"fit with n_samples={n_samples}, n_features={n_features}, "
+                    f"n_targets={n_targets}, n_alphas={alphas.size} ({error})"
+                ) from error
             if is_banded:
                 self._fit_banded(spaces, targets, alphas, dtype, batches)
             else:
@@ -1015,32 +994,6 @@ class Ridge:
             self._squeeze_single_target()
         self.is_fitted_ = True
         return self
-
-    def _himalaya_batch_sizes(self, backend, **shape) -> dict[str, int]:
-        """Size Himalaya's internal batches, naming `memory_budget_gb` on failure.
-
-        Args:
-            backend (Backend): Resolved backend the fit runs on.
-            **shape (int): The `n_samples`, `n_features`, `n_targets`,
-                `n_alphas`, and `itemsize` arguments of `_batch_sizes`.
-
-        Returns:
-            dict[str, int]: Himalaya's target, refit, and alpha batch sizes.
-
-        Raises:
-            ValueError: If no batch fits the budget, naming `memory_budget_gb`
-                and the fit shape.
-        """
-        try:
-            return _batch_sizes(backend, self.memory_budget_gb, **shape)
-        except ValueError as error:
-            raise ValueError(
-                f"memory_budget_gb={self.memory_budget_gb!r} is too small for a "
-                f"fit with n_samples={shape['n_samples']}, "
-                f"n_features={shape['n_features']}, "
-                f"n_targets={shape['n_targets']}, "
-                f"n_alphas={shape['n_alphas']} ({error})"
-            ) from error
 
     def _fit_fixed_alpha(self, spaces, targets, alpha) -> None:
         """Solve a fixed-alpha ordinary Ridge and store the fitted state.

@@ -109,79 +109,75 @@ def _transform_outliers(data, cutoff, replace_with_cutoff, method):
         raise ValueError("Data must be a Polars DataFrame or Series")
 
     # Transform each column if a DataFrame, if Series just transform data
-    if isinstance(df, pl.DataFrame):
-        transformed_cols = []
-        for col in df.columns:
-            # Get the series for calculations
-            series = df[col]
+    transformed_cols = []
+    for col in df.columns:
+        # Get the series for calculations
+        series = df[col]
 
-            # Calculate cutoff values
-            if isinstance(cutoff, dict):
-                if "quantile" in cutoff:
-                    quantiles = cutoff["quantile"]
-                    # Use numpy quantile to match pandas interpolation behavior
-                    series_array = series.to_numpy()
-                    lower_q = float(np.quantile(series_array, quantiles[0]))
-                    upper_q = (
-                        float(np.quantile(series_array, quantiles[1]))
-                        if len(quantiles) > 1
-                        else lower_q
-                    )
-                elif "std" in cutoff:
-                    mean_val = series.mean()
-                    std_val = series.std()
-                    lower_q = mean_val - std_val * cutoff["std"][0]
-                    upper_q = mean_val + std_val * cutoff["std"][1]
-                else:
-                    raise ValueError(
-                        "cutoff must be a dictionary with quantile or std keys."
-                    )
-
-                # If replace_with_cutoff is false, replace with true existing values closest to cutoff
-                if method == "winsorize" and not replace_with_cutoff:
-                    filtered_lower = series.filter(series > lower_q)
-                    filtered_upper = series.filter(series < upper_q)
-                    if len(filtered_lower) > 0:
-                        lower_q = filtered_lower.min()
-                    if len(filtered_upper) > 0:
-                        upper_q = filtered_upper.max()
-
-                # Apply transformation using Polars expressions with column reference
-                if method == "trim":
-                    # Replace outliers with null (NaN)
-                    transformed_expr = (
-                        pl.when(pl.col(col) < lower_q)
-                        .then(None)
-                        .when(pl.col(col) > upper_q)
-                        .then(None)
-                        .otherwise(pl.col(col))
-                    )
-                elif method == "winsorize":
-                    # Replace outliers with cutoff values
-                    transformed_expr = (
-                        pl.when(pl.col(col) < lower_q)
-                        .then(lower_q)
-                        .when(pl.col(col) > upper_q)
-                        .then(upper_q)
-                        .otherwise(pl.col(col))
-                    )
-                else:
-                    raise ValueError(f"Unknown method: {method}")
-
-                transformed_cols.append(transformed_expr.alias(col))
+        # Calculate cutoff values
+        if isinstance(cutoff, dict):
+            if "quantile" in cutoff:
+                quantiles = cutoff["quantile"]
+                # Use numpy quantile to match pandas interpolation behavior
+                series_array = series.to_numpy()
+                lower_q = float(np.quantile(series_array, quantiles[0]))
+                upper_q = (
+                    float(np.quantile(series_array, quantiles[1]))
+                    if len(quantiles) > 1
+                    else lower_q
+                )
+            elif "std" in cutoff:
+                mean_val = series.mean()
+                std_val = series.std()
+                lower_q = mean_val - std_val * cutoff["std"][0]
+                upper_q = mean_val + std_val * cutoff["std"][1]
             else:
                 raise ValueError(
                     "cutoff must be a dictionary with quantile or std keys."
                 )
 
-        # Use with_columns to update all columns at once
-        result_df = df.with_columns(transformed_cols)
+            # If replace_with_cutoff is false, replace with true existing values closest to cutoff
+            if method == "winsorize" and not replace_with_cutoff:
+                filtered_lower = series.filter(series > lower_q)
+                filtered_upper = series.filter(series < upper_q)
+                if len(filtered_lower) > 0:
+                    lower_q = filtered_lower.min()
+                if len(filtered_upper) > 0:
+                    upper_q = filtered_upper.max()
 
-        # Return Series if input was Series, otherwise DataFrame
-        if return_series:
-            return result_df.to_series(0)
-        return result_df
-    raise ValueError("Data must be a Polars or pandas DataFrame or Series")
+            # Apply transformation using Polars expressions with column reference
+            if method == "trim":
+                # Replace outliers with null (NaN)
+                transformed_expr = (
+                    pl.when(pl.col(col) < lower_q)
+                    .then(None)
+                    .when(pl.col(col) > upper_q)
+                    .then(None)
+                    .otherwise(pl.col(col))
+                )
+            elif method == "winsorize":
+                # Replace outliers with cutoff values
+                transformed_expr = (
+                    pl.when(pl.col(col) < lower_q)
+                    .then(lower_q)
+                    .when(pl.col(col) > upper_q)
+                    .then(upper_q)
+                    .otherwise(pl.col(col))
+                )
+            else:
+                raise ValueError(f"Unknown method: {method}")
+
+            transformed_cols.append(transformed_expr.alias(col))
+        else:
+            raise ValueError("cutoff must be a dictionary with quantile or std keys.")
+
+    # Use with_columns to update all columns at once
+    result_df = df.with_columns(transformed_cols)
+
+    # Return Series if input was Series, otherwise DataFrame
+    if return_series:
+        return result_df.to_series(0)
+    return result_df
 
 
 def find_spikes(

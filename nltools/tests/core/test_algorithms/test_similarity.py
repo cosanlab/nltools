@@ -98,48 +98,72 @@ class TestComputeSimilarity:
 class TestComputeMultivariateSimilarity:
     """Test OLS regression-based multivariate similarity."""
 
-    def test_ols_basic(self):
+    def test_matches_the_pinned_ols_reference(self):
+        """The returned keys, shapes, types and numbers are pinned."""
         np.random.seed(42)
         y = np.random.randn(100)
         X = np.random.randn(100, 5)
-        result = compute_multivariate_similarity(y, X, method="ols")
+        result = compute_multivariate_similarity(y, X)
 
-        required_keys = ["beta", "t", "p", "df", "sigma", "residual"]
-        for key in required_keys:
-            assert key in result
-
+        assert set(result) == {"beta", "t", "p", "df", "sigma", "residual"}
         assert result["beta"].shape == (6,)  # +1 for intercept
         assert result["t"].shape == (6,)
         assert result["p"].shape == (6,)
+        assert result["residual"].shape == (100,)
         assert isinstance(result["df"], (int, np.integer))
         assert isinstance(result["sigma"], (float, np.floating))
-        assert result["residual"].shape == (100,)
-        assert np.all(result["p"] >= 0) and np.all(result["p"] <= 1)
-        assert result["df"] > 0
-        assert result["sigma"] >= 0
+        assert result["df"] == 94
 
-    def test_ols_residuals(self):
-        np.random.seed(42)
-        y = np.random.randn(100)
-        X = np.random.randn(100, 5)
-        result = compute_multivariate_similarity(y, X, method="ols")
-        expected = y - (result["beta"][0] + np.dot(X, result["beta"][1:]))
-        np.testing.assert_allclose(result["residual"], expected, rtol=1e-10)
+        np.testing.assert_allclose(
+            result["beta"],
+            [
+                -0.10849785827695631,
+                0.09364741258617441,
+                0.08596014163021565,
+                0.042854585427877456,
+                0.09116099699604027,
+                -0.08188422884282083,
+            ],
+            rtol=1e-12,
+        )
+        np.testing.assert_allclose(
+            result["t"],
+            [
+                -1.1430139753361808,
+                0.9173498174692328,
+                0.9504989127675603,
+                0.44499909916504043,
+                0.9349766579090509,
+                -0.8864999687308583,
+            ],
+            rtol=1e-12,
+        )
+        assert result["p"].shape == (6,)
+        np.testing.assert_allclose(result["sigma"], 0.9151390832701242, rtol=1e-12)
+        np.testing.assert_allclose(
+            result["residual"] @ result["residual"], 78.72307692247742, rtol=1e-12
+        )
 
     def test_ols_transposed_input(self):
+        """A (n_predictors, n_features) X is transposed into place."""
         np.random.seed(42)
         y = np.random.randn(100)
         X = np.random.randn(100, 5)
-        r1 = compute_multivariate_similarity(y, X, method="ols")
-        r2 = compute_multivariate_similarity(y, X.T, method="ols")
+        r1 = compute_multivariate_similarity(y, X)
+        r2 = compute_multivariate_similarity(y, X.T)
         np.testing.assert_allclose(r1["beta"], r2["beta"], rtol=1e-10)
 
-    def test_invalid_method(self):
+    def test_rank_deficient_predictors_give_finite_statistics(self):
+        """A redundant predictor yields the least-norm solution, not nan."""
         np.random.seed(42)
-        with pytest.raises(NotImplementedError):
-            compute_multivariate_similarity(
-                np.random.randn(100), np.random.randn(100, 5), method="ridge"
-            )
+        y = np.random.randn(100)
+        X = np.random.randn(100, 5)
+        # The last column duplicates the intercept, so the design is singular.
+        result = compute_multivariate_similarity(y, np.hstack([X, np.ones((100, 1))]))
+
+        assert np.isfinite(result["beta"]).all()
+        assert np.isfinite(result["t"]).all()
+        assert np.isfinite(result["p"]).all()
 
 
 class TestTransformPairwise:

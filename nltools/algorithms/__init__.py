@@ -13,7 +13,6 @@ focused submodules underneath:
   points
 - **inference**: permutation tests, bootstrap resampling, and intersubject
   statistics (ISC/ISFC/ISPS), parallelized across joblib workers
-- **hrf**: hemodynamic response functions
 
 Ridge regression lives in `nltools.models.Ridge`, which delegates its numerics
 to the Himalaya library.
@@ -38,9 +37,6 @@ __all__ = [
     "find_spikes",
     "fisher_r_to_z",
     "fisher_z_to_r",
-    "glover_dispersion_derivative",
-    "glover_hrf",
-    "glover_time_derivative",
     "holm_bonf",
     "isc",
     "isc_group",
@@ -56,9 +52,6 @@ __all__ = [
     "procrustes",
     "procrustes_distance",
     "regress",
-    "spm_dispersion_derivative",
-    "spm_hrf",
-    "spm_time_derivative",
     "threshold",
     "timeseries_correlation_permutation_test",
     "transform_pairwise",
@@ -82,14 +75,6 @@ from .corrections import fdr, holm_bonf, multi_threshold, threshold
 from ..data.braindata.neighborhoods import (
     SphereNeighborhoods,
     compute_searchlight_neighborhoods,
-)
-from .hrf import (
-    glover_dispersion_derivative,
-    glover_hrf,
-    glover_time_derivative,
-    spm_dispersion_derivative,
-    spm_hrf,
-    spm_time_derivative,
 )
 from .inference import (
     circle_shift,

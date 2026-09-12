@@ -61,7 +61,7 @@ def convolve(
         downstream metadata propagation through ``.append()`` stays in
         sync with the dataframe.
     """
-    from nltools.algorithms.hrf import glover_hrf
+    from nilearn.glm.first_level import glover_hrf
 
     if dm.sampling_freq is None:
         raise ValueError(
@@ -112,7 +112,7 @@ def convolve(
             raise ValueError(
                 f"String conv_func must be 'hrf', got '{conv_func}'. "
                 "Use conv_func='hrf' or provide a numpy array. "
-                "Tip: Use nltools.algorithms.hrf.glover_hrf() to generate custom HRFs."
+                "Tip: Use nilearn.glm.first_level.glover_hrf() to generate custom HRFs."
             )
         # Generate Glover HRF at this sampling frequency
         # TR = 1 / sampling_freq
@@ -122,7 +122,7 @@ def convolve(
             raise ValueError(
                 f"HRF function must be 1D (shape: (samples,)) or 2D (shape: (samples, n_kernels)). "
                 f"Got shape: {conv_func.shape}. "
-                "Tip: Use nltools.algorithms.hrf.glover_hrf() to generate HRFs."
+                "Tip: Use nilearn.glm.first_level.glover_hrf() to generate HRFs."
             )
     else:
         raise TypeError(

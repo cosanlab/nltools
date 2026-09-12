@@ -415,6 +415,13 @@ class TestDetSRMContract:
         with pytest.raises(ValueError, match="not enough subjects"):
             detsrm.fit(single_subject)
 
+    def test_detsrm_fit_mismatched_timepoints(self):
+        """Subjects with different sample counts are refused (GH #410)."""
+        np.random.seed(111)
+        data = [np.random.randn(100, 50), np.random.randn(100, 60)]
+        with pytest.raises(ValueError, match="Different number of samples"):
+            DetSRM().fit(data)
+
     def test_detsrm_fit_sets_attributes(self, multi_subject_data):
         """Test that DetSRM fit() creates required attributes."""
         detsrm = DetSRM(n_features=10, n_iter=2)

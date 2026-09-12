@@ -1,33 +1,9 @@
-"""Tests for the shared `_check_is_fitted` helper and `Ridge` input validation."""
+"""Tests for `Ridge` input validation."""
 
 import numpy as np
 import pytest
 
 from nltools.models import Ridge
-from nltools.models.validation import _check_is_fitted
-
-
-class Estimator:
-    """Minimal stand-in for an estimator that uses the shared helpers."""
-
-    def __init__(self):
-        self.is_fitted_ = False
-
-
-class TestCheckIsFitted:
-    """`_check_is_fitted` gates use of an unfitted estimator."""
-
-    def test_unfitted_raises(self):
-        """An unfitted estimator raises `ValueError` naming its class."""
-        with pytest.raises(ValueError, match="Estimator instance is not fitted yet"):
-            _check_is_fitted(Estimator())
-
-    def test_fitted_passes(self):
-        """A fitted estimator passes silently."""
-        model = Estimator()
-        model.is_fitted_ = True
-
-        assert _check_is_fitted(model) is None
 
 
 class TestRidgeInputValidation:

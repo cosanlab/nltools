@@ -162,13 +162,6 @@ def test_regress_no_intercept_uses_uncentered_rss():
     assert sigma > np.std(res, ddof=p_reg)
 
 
-def test_regress_non_ols_method_raises(ols_data):
-    """Only 'ols' is supported; legacy methods raise NotImplementedError."""
-    X, _, y = ols_data
-    with pytest.raises(NotImplementedError):
-        regress(X, y, method="robust")
-
-
 def test_regress_invalid_stats_raises(ols_data):
     """An unknown stats value is rejected with ValueError."""
     X, _, y = ols_data
