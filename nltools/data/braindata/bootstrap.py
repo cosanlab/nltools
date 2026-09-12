@@ -116,7 +116,7 @@ def bootstrap(
     )
 
     _validate_statistic(statistic)
-    _validate_arguments(n_samples, confidence_level, memory_budget_gb, device)
+    _validate_device(device)
 
     if statistic in SIMPLE_STATS:
         _reject_model_arguments(statistic, X, X_test, device)
@@ -234,32 +234,18 @@ def _validate_statistic(statistic):
     )
 
 
-def _validate_arguments(n_samples, confidence_level, memory_budget_gb, device):
-    """Check every mode-independent argument before any resampling begins.
+def _validate_device(device):
+    """Reject a device name before the statistic decides what to do with it.
 
-    Range-checking only. The quality advisory for a low `n_samples` belongs to
-    the engine, which every path reaches, so the user sees it exactly once.
+    The range checks on `n_samples`, `confidence_level` and `memory_budget_gb`
+    belong to the engine, which every path reaches.
 
     Args:
-        n_samples (int): Requested replicate count.
-        confidence_level (float): Requested interval level.
-        memory_budget_gb (float | None): Requested working-memory budget.
         device (str): Requested compute device.
 
     Raises:
-        TypeError: If an argument has the wrong type.
-        ValueError: If an argument is out of range, or `device` is not
-            ``'cpu'`` or ``'gpu'``.
+        ValueError: If `device` is not ``'cpu'`` or ``'gpu'``.
     """
-    from nltools.algorithms.inference.bootstrap import (
-        _validate_confidence_level,
-        _validate_memory_budget,
-        _validate_n_samples,
-    )
-
-    _validate_n_samples(n_samples)
-    _validate_confidence_level(confidence_level)
-    _validate_memory_budget(memory_budget_gb)
     if device not in ("cpu", "gpu"):
         raise ValueError(f"device must be 'cpu' or 'gpu', got {device!r}")
 
@@ -367,21 +353,19 @@ def _resolve_device(device):
     """Resolve the bootstrap `device` request to a GPU backend, or None for CPU.
 
     Args:
-        device (str): ``'cpu'`` or ``'gpu'``.
+        device (str): ``'cpu'`` or ``'gpu'``, already checked by
+            `_validate_device`.
 
     Returns:
         Backend | None: A resolved GPU backend, or None to stay on the CPU.
 
     Raises:
-        ValueError: If `device` is not one of the two supported values, or
-            ``'gpu'`` was requested with no accelerator available.
+        ValueError: If ``'gpu'`` was requested with no accelerator available.
     """
     from nltools.algorithms.backends import check_gpu_available, resolve_backend
 
     if device == "cpu":
         return None
-    if device != "gpu":
-        raise ValueError(f"device must be 'cpu' or 'gpu', got {device!r}")
     if not check_gpu_available()[0]:
         raise ValueError(
             "GPU requested via device='gpu' but no CUDA or MPS device is "

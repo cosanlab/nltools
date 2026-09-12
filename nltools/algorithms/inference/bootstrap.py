@@ -28,6 +28,9 @@ from .validation import (
     validate_bootstrap_data,
     validate_array_shape,
     validate_array_shape_range,
+    validate_confidence_level,
+    validate_memory_budget,
+    validate_n_samples,
     validate_shape_compatibility,
 )
 from ..random import generate_bootstrap_indices
@@ -38,67 +41,6 @@ from nltools.utils import find_stack_level
 # Constants for supported methods
 SIMPLE_METHODS = ["mean", "median", "std", "sum", "min", "max"]
 FITTED_METHODS = ["weights", "predict"]
-
-
-def _validate_bootstrap_method(method: str) -> None:
-    """Validate a bootstrap method name.
-
-    Args:
-        method (str): Method name to validate.
-
-    Raises:
-        ValueError: If the method is not supported.
-    """
-    validate_bootstrap_method(method, SIMPLE_METHODS, FITTED_METHODS)
-
-
-def _validate_bootstrap_data(data: np.ndarray, method: str) -> None:
-    """Validate input data for bootstrapping; warn when there are fewer than 10 samples.
-
-    Args:
-        data (np.ndarray): Data to validate.
-        method (str): Bootstrap method.
-
-    Raises:
-        ValueError: If the data is invalid (wrong shape, too few samples, etc.).
-    """
-    validate_bootstrap_data(data, method)
-
-    # Warn if very few samples
-    n_samples = data.shape[0] if data.ndim == 2 else len(data)
-    if n_samples < 10:
-        warnings.warn(
-            f"Only {n_samples} samples available. Bootstrap works best with n >= 30. "
-            f"Results may be unreliable with very small sample sizes.",
-            UserWarning,
-            stacklevel=find_stack_level(),
-        )
-
-
-def _validate_n_samples(n_samples: int) -> None:
-    """Reject a replicate count a bootstrap cannot be computed from.
-
-    Two replicates are the fewest a `ddof=1` standard error can be computed
-    from, so that is the hard floor. The separate quality advisory lives in
-    `_advise_on_n_samples`, so a facade can range-check early without emitting
-    the warning the engine will emit.
-
-    Args:
-        n_samples (int): Number of bootstrap replicates.
-
-    Raises:
-        TypeError: If `n_samples` is not an integer.
-        ValueError: If `n_samples` is below 2.
-    """
-    if isinstance(n_samples, bool) or not isinstance(n_samples, (int, np.integer)):
-        raise TypeError(f"n_samples must be an integer, got {type(n_samples).__name__}")
-
-    if n_samples < 2:
-        raise ValueError(
-            f"n_samples must be at least 2, got {n_samples}. "
-            f"A bootstrap standard error needs at least two replicates. "
-            f"Recommended: n_samples >= 1000 for confidence intervals."
-        )
 
 
 def _advise_on_n_samples(n_samples: int) -> None:
@@ -120,54 +62,19 @@ def _advise_on_n_samples(n_samples: int) -> None:
         )
 
 
-def _validate_confidence_level(confidence_level: float) -> None:
-    """Validate the interval confidence level.
+def _advise_on_sample_size(data: np.ndarray) -> None:
+    """Warn when the sample the bootstrap resamples from is very small.
 
     Args:
-        confidence_level (float): Requested level.
-
-    Raises:
-        TypeError: If `confidence_level` is not a real number.
-        ValueError: If it is not finite and strictly between zero and one.
+        data (np.ndarray): The validated 1D or 2D data.
     """
-    if isinstance(confidence_level, bool) or not isinstance(
-        confidence_level, (int, float, np.integer, np.floating)
-    ):
-        raise TypeError(
-            f"confidence_level must be a number, got {type(confidence_level).__name__}"
-        )
-    value = float(confidence_level)
-    if not np.isfinite(value) or not 0 < value < 1:
-        raise ValueError(
-            f"confidence_level must be finite and strictly between 0 and 1, got "
-            f"{confidence_level!r}. Use 0.95 for a 95% interval."
-        )
-
-
-def _validate_memory_budget(memory_budget_gb: float | None) -> None:
-    """Validate an explicit working-memory budget.
-
-    Args:
-        memory_budget_gb (float | None): Budget in GB, or None to measure the
-            device.
-
-    Raises:
-        TypeError: If a supplied budget is not a real number.
-        ValueError: If a supplied budget is not finite and positive.
-    """
-    if memory_budget_gb is None:
-        return
-    if isinstance(memory_budget_gb, bool) or not isinstance(
-        memory_budget_gb, (int, float, np.integer, np.floating)
-    ):
-        raise TypeError(
-            f"memory_budget_gb must be a number or None, got "
-            f"{type(memory_budget_gb).__name__}"
-        )
-    value = float(memory_budget_gb)
-    if not np.isfinite(value) or value <= 0:
-        raise ValueError(
-            f"memory_budget_gb must be finite and positive, got {memory_budget_gb!r}."
+    n_samples = data.shape[0] if data.ndim == 2 else len(data)
+    if n_samples < 10:
+        warnings.warn(
+            f"Only {n_samples} samples available. Bootstrap works best with n >= 30. "
+            f"Results may be unreliable with very small sample sizes.",
+            UserWarning,
+            stacklevel=find_stack_level(),
         )
 
 
@@ -653,14 +560,16 @@ def _bootstrap_simple_cpu_parallel(
         _estimate_data_size_mb,
     )
 
-    _validate_bootstrap_method(method)
-    _validate_n_samples(n_samples)
-    _advise_on_n_samples(n_samples)
-    _validate_confidence_level(confidence_level)
-    _validate_memory_budget(memory_budget_gb)
+    validate_bootstrap_method(method, SIMPLE_METHODS, FITTED_METHODS)
+    validate_n_samples(n_samples)
+    validate_confidence_level(confidence_level)
+    validate_memory_budget(memory_budget_gb)
 
     data = np.asarray(data, dtype=np.float64)
-    _validate_bootstrap_data(data, method)
+    validate_bootstrap_data(data, method)
+
+    _advise_on_n_samples(n_samples)
+    _advise_on_sample_size(data)
 
     single_feature = data.ndim == 1
     if single_feature:
@@ -875,10 +784,10 @@ def _bootstrap_ridge_weights_cpu_parallel(
     for space in spaces:
         validate_array_shape(space, 2, name="X")
         validate_shape_compatibility(space, y, X_name="X", y_name="y")
-    _validate_n_samples(n_samples)
+    validate_n_samples(n_samples)
+    validate_confidence_level(confidence_level)
+    validate_memory_budget(memory_budget_gb)
     _advise_on_n_samples(n_samples)
-    _validate_confidence_level(confidence_level)
-    _validate_memory_budget(memory_budget_gb)
 
     if y.ndim == 1:
         y = y[:, np.newaxis]
@@ -1020,10 +929,10 @@ def _bootstrap_ridge_predict_cpu_parallel(
         raise ValueError(
             f"X and X_pred must have same n_features: {n_features} != {X_pred.shape[1]}"
         )
-    _validate_n_samples(n_samples)
+    validate_n_samples(n_samples)
+    validate_confidence_level(confidence_level)
+    validate_memory_budget(memory_budget_gb)
     _advise_on_n_samples(n_samples)
-    _validate_confidence_level(confidence_level)
-    _validate_memory_budget(memory_budget_gb)
 
     if y.ndim == 1:
         y = y[:, np.newaxis]
@@ -1223,10 +1132,10 @@ def _bootstrap_ridge_gpu_batched(
         backend = auto_select_backend(n_obs, n_features)
     _validate_gpu_backend(backend)
 
-    _validate_n_samples(n_samples)
+    validate_n_samples(n_samples)
+    validate_confidence_level(confidence_level)
+    validate_memory_budget(memory_budget_gb)
     _advise_on_n_samples(n_samples)
-    _validate_confidence_level(confidence_level)
-    _validate_memory_budget(memory_budget_gb)
 
     bootstrap_memory_preflight(
         output_shape,

@@ -19,7 +19,7 @@ Goal | Use | Notes
 --- | --- | ---
 ISC of one timeseries set | [`isc`](../api/tasks/intersubject.md#nltools.algorithms.isc)`(data, method='bootstrap')` | Returns `{'isc', 'p', 'ci', ...}`; `data` is observations × subjects
 Surrogate null instead | <code>isc(..., method='circle_shift' &#124; 'phase_randomize')</code> | Preserves temporal autocorrelation
-Leave-one-out ISC | [`isc_permutation_test`](../api/tasks/intersubject.md#nltools.algorithms.isc_permutation_test)`(summary_statistic='leave-one-out')` | The engine under `isc`
+Leave-one-out ISC | [`isc`](../api/tasks/intersubject.md#nltools.algorithms.isc)`(data, summary_statistic='leave-one-out')` | Each subject against the mean of the others
 Region-to-region | [`isfc`](../api/tasks/intersubject.md#nltools.algorithms.isfc) | Takes a list of per-subject `(n_obs, n_regions)` matrices
 Moment-to-moment synchrony | [`isps`](../api/tasks/intersubject.md#nltools.algorithms.isps) | Band-limited phase synchrony; set `sampling_freq=` and the band
 Compare two groups | [`isc_group`](../api/tasks/intersubject.md#nltools.algorithms.isc_group) | `method='permute'` shuffles group labels; `'bootstrap'` resamples

@@ -40,6 +40,7 @@ def isc(
     *,
     n_samples=5000,
     summary="median",
+    summary_statistic="pairwise",
     method="bootstrap",
     ci_percentile=95,
     exclude_self_corr=True,
@@ -50,38 +51,48 @@ def isc(
     random_state=None,
     progress_bar=False,
 ):
-    """Compute pairwise intersubject correlation from an observations-by-subjects array.
+    """Compute intersubject correlation across the subject axis of an aligned array.
 
-    Pairwise ISC is summarized with the median, as Chen et al. (2016) recommend;
+    ISC is summarized with the median, as Chen et al. (2016) recommend;
     `summary='mean'` instead averages after the Fisher r-to-z transform and
     converts back, which avoids inflating the estimate.
 
     Three null distributions are available. The default subject-wise bootstrap
     (Chen et al., 2016) resamples subjects with replacement and recomputes the
-    pairwise similarity matrix; a subject drawn twice correlates perfectly with
-    itself, so those entries are set to NaN when `exclude_self_corr=True`.
-    P-values use the percentile method, as in Brainiak. The classic surrogate
-    methods instead circle-shift or phase-randomize each time series (Lancaster
-    et al., 2018), preserving its temporal autocorrelation, and recompute ISC.
-
-    Runs on plain arrays with observations aligned across subjects.
-    `isc_permutation_test` exposes the same engine with leave-one-out ISC.
+    chosen summary statistic — for `'pairwise'`, the similarity matrix, where a
+    subject drawn twice correlates perfectly with itself, so those entries are
+    set to NaN when `exclude_self_corr=True`. P-values use the percentile
+    method, as in Brainiak. The classic surrogate methods instead circle-shift
+    or phase-randomize each time series (Lancaster et al., 2018), preserving
+    its temporal autocorrelation, and recompute ISC.
 
     Args:
         data (np.ndarray | pl.DataFrame | pd.DataFrame): Observations by
-            subjects; ISC is computed across the columns.
+            subjects, shape `(n_observations, n_subjects)`, with ISC computed
+            across the columns; or `(n_observations, n_subjects, n_voxels)` for
+            a per-voxel result, in which case `'isc'`, `'p'` and both `'ci'`
+            bounds are arrays of length `n_voxels`. DataFrame inputs are 2D
+            only.
         n_samples (int): Number of bootstrap draws or surrogate permutations.
             Defaults to 5000.
         summary (str): `'median'` (default) or `'mean'`.
+        summary_statistic (str): Which cross-subject comparison to summarize.
+            `'pairwise'` (default) correlates every pair of subjects,
+            `O(n_subjects²)`; `'leave-one-out'` correlates each subject with
+            the mean of the others, `O(n_subjects)`. Leave-one-out gives
+            systematically larger values because the averaged reference is less
+            noisy than a single subject (Chen et al., 2016, Figure 3).
         method (str): `'bootstrap'` (default), `'circle_shift'`, or
             `'phase_randomize'`.
         ci_percentile (int): Confidence-interval width in percent. Defaults to 95.
         exclude_self_corr (bool): Set self-correlations (the same subject
-            bootstrapped twice) to NaN. Defaults to True.
+            bootstrapped twice) to NaN. Applies to the pairwise statistic only.
+            Defaults to True.
         tail (int | str): `2` or `'two'` (two-tailed, default) or `1` or `'one'`
             (one-tailed, ISC > 0).
         metric (str): Pairwise similarity metric; any metric accepted by
-            sklearn's `pairwise_distances`. Defaults to `'correlation'`.
+            sklearn's `pairwise_distances`. Applies to the pairwise statistic
+            only. Defaults to `'correlation'`.
         return_null (bool): Include the null distribution in the result.
             Defaults to False.
         n_jobs (int): CPU workers for the resamples; -1 (default) picks the
@@ -91,8 +102,9 @@ def isc(
         progress_bar (bool): Display a progress bar. Defaults to False.
 
     Returns:
-        dict: Keys `'isc'` (float, observed ISC), `'p'` (float), `'ci'` (tuple
-            `(lower, upper)`), and — when `return_null=True` — `'null_dist'`
+        dict: Keys `'isc'` (observed ISC), `'p'`, and `'ci'` (tuple
+            `(lower, upper)`) — floats for 2D data, arrays of length
+            `n_voxels` for 3D — and, when `return_null=True`, `'null_dist'`
             (np.ndarray).
 
     References:
@@ -114,13 +126,12 @@ def isc(
         raise ValueError("summary must be ['mean', 'median']")
 
     # The engine speaks the same canonical vocabulary (summary=, metric=), so
-    # this wrapper only maps n_samples -> n_permute and pins the classic
-    # pairwise behavior.
+    # this wrapper only maps n_samples -> n_permute.
     return isc_permutation_test(
         data,
         n_permute=n_samples,  # Map n_samples -> n_permute
         summary=summary,
-        summary_statistic="pairwise",  # Explicitly set to match original behavior
+        summary_statistic=summary_statistic,
         method=method,
         ci_percentile=ci_percentile,
         tail=tail,

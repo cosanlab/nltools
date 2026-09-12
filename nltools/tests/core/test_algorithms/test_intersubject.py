@@ -35,6 +35,40 @@ class TestISC:
         pl_result = isc(pl_df, n_samples=50, random_state=1)
         np.testing.assert_allclose(pl_result["isc"], np_result["isc"])
 
+    def test_summary_statistic_selects_leave_one_out(self):
+        """`summary_statistic='leave-one-out'` reaches the engine's LOO path."""
+        data = np.random.default_rng(3).standard_normal((60, 3))
+
+        loo = isc(data, summary_statistic="leave-one-out", n_samples=20, random_state=0)
+
+        expected = np.median(
+            [
+                np.corrcoef(
+                    data[:, i],
+                    data[:, [j for j in range(3) if j != i]].mean(axis=1),
+                )[0, 1]
+                for i in range(3)
+            ]
+        )
+        np.testing.assert_allclose(loo["isc"], expected, rtol=1e-12)
+
+        pairwise = isc(data, n_samples=20, random_state=0)
+        assert not np.isclose(loo["isc"], pairwise["isc"])
+
+    def test_three_dimensional_input_returns_one_value_per_voxel(self):
+        """A `(n_obs, n_subjects, n_voxels)` array gives one result per voxel."""
+        rng = np.random.default_rng(7)
+        shared = np.repeat(rng.standard_normal((40, 1)), 4, axis=1)
+        noise = rng.standard_normal((40, 4))
+        data = np.stack([shared, noise], axis=-1)
+
+        result = isc(data, n_samples=20, random_state=0)
+
+        assert result["isc"].shape == (2,)
+        assert result["p"].shape == (2,)
+        assert result["ci"][0].shape == (2,)
+        assert np.isclose(result["isc"][0], 1.0)
+
 
 class TestISCGroup:
     """Test group-level ISC comparison."""

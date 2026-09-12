@@ -1,6 +1,7 @@
 """Tests for bootstrap inference utilities."""
 
 import tracemalloc
+import warnings
 
 import numpy as np
 import pytest
@@ -641,6 +642,17 @@ class TestBootstrapValidation:
             _bootstrap_simple_cpu_parallel(
                 self.DATA, "mean", n_samples=10, memory_budget_gb=value
             )
+
+    def test_an_invalid_argument_raises_without_the_low_replicate_advisory(self):
+        """Validation runs first, so a rejected run emits no quality advisory."""
+        with warnings.catch_warnings(record=True) as recorded:
+            warnings.simplefilter("always")
+            with pytest.raises(ValueError, match="confidence_level"):
+                _bootstrap_simple_cpu_parallel(
+                    self.DATA, "mean", n_samples=10, confidence_level=1.5
+                )
+
+        assert not [w for w in recorded if issubclass(w.category, UserWarning)]
 
     @pytest.mark.parametrize("removed", ["save_boots", "percentiles", "tail"])
     def test_removed_keywords_raise_type_error(self, removed):

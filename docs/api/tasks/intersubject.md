@@ -4,7 +4,7 @@ title: Intersubject correlation
 
 # Intersubject correlation
 
-Measure time-locked responses shared across subjects. `isc` correlates each subject's timeseries with the rest of the group and bootstraps a confidence interval. `isfc` does the same across regions, `isps` measures phase synchrony, and `isc_group` compares two groups by permutation. The two `*_permutation_test` functions are the engines underneath, shared with the [permutation tests](inference.md).
+Measure time-locked responses shared across subjects. `isc` correlates subjects with one another — every pair by default, or each subject against the mean of the others with `summary_statistic='leave-one-out'` — and bootstraps a confidence interval. `isfc` does the same across regions, `isps` measures phase synchrony, and `isc_group` compares two groups by permutation. The two `*_permutation_test` functions are the engines underneath, shared with the [permutation tests](inference.md).
 
 ::: nltools.algorithms
     options:

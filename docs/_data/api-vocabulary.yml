@@ -50,6 +50,9 @@ vocabulary:
   - concept: "Central tendency"
     kwarg: "summary"
     index_md: "`summary` (`'mean' | 'median'`)"
+  - concept: "ISC summary statistic"
+    kwarg: "summary_statistic"
+    index_md: "`summary_statistic` (`'pairwise' | 'leave-one-out'`) on the ISC entry points — which cross-subject comparison is summarized, distinct from `summary`, which is the `'mean'`/`'median'` central tendency applied to it"
   - concept: "Cross-validation spec"
     kwarg: "cv"
     index_md: "`cv` (`int |` splitter `| None`) on `BrainData.predict` — `None` is a deterministic five-fold `KFold`/`StratifiedKFold`; the `'loo'`/`'logo'` names are accepted only by `resolve_cv`, and `'loso'`/`'loro'` are gone everywhere. The grouping lives in `groups=`"
@@ -278,6 +281,11 @@ enforcement:
     # Only autoregressive fits reach nilearn's parallel path, so the default
     # OLS fit never spawns workers.
     - {path: "nltools/models/glm.py", function: "Glm.__init__", kwarg: "n_jobs", reason: "nilearn's run_glm parallelizes AR groups only; documented in the docstring"}
+    # Single-argument shared validators: the one positional parameter names the
+    # keyword being checked. The keyword-only contract governs entry-point
+    # signatures, which is where a caller can pass it by name.
+    - {path: "nltools/algorithms/inference/validation.py", function: "validate_confidence_level", kwarg: "confidence_level", reason: "the validator's only argument is the value it checks"}
+    - {path: "nltools/algorithms/inference/validation.py", function: "validate_memory_budget", kwarg: "memory_budget_gb", reason: "the validator's only argument is the value it checks"}
   # Keyword-only `*`-marker carve-outs (scripts/check_kwonly.py). These
   # functions deliberately mirror numpy signatures so they are drop-in
   # substitutes inside backend-generic code (numpy accepts

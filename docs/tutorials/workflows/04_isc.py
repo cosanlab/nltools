@@ -51,7 +51,7 @@ def _():
     import numpy as np
     from joblib import Memory
 
-    from nltools.algorithms.inference.isc import isc_permutation_test
+    from nltools.algorithms import isc
     from nltools.data import BrainData
     from nltools.mask import roi_to_brain_from_atlas
     from nltools.templates import fetch_resource
@@ -60,7 +60,7 @@ def _():
     return (
         BrainData,
         fetch_resource,
-        isc_permutation_test,
+        isc,
         memory,
         np,
         roi_to_brain_from_atlas,
@@ -114,19 +114,19 @@ def _(mo):
         r"""
     ### Compute ISC + group inference
 
-    `isc_permutation_test` does both stages in one call: it computes the per-region ISC (`summary_statistic="pairwise"`) and returns a permutation p-value per region.
+    `isc` does both stages in one call: it computes the per-region ISC (`summary_statistic="pairwise"`) and returns a bootstrap p-value per region.
     """
     )
     return
 
 
 @app.cell
-def _(isc_data, isc_permutation_test, np):
-    pairwise = isc_permutation_test(
+def _(isc, isc_data, np):
+    pairwise = isc(
         isc_data,
         summary_statistic="pairwise",
         summary="median",
-        n_permute=1000,
+        n_samples=1000,
         random_state=0,
         progress_bar=False,
     )
@@ -179,14 +179,14 @@ def _(mo):
 
 
 @app.cell
-def _(isc_data, isc_permutation_test, isc_values, np):
+def _(isc, isc_data, isc_values, np):
     import matplotlib.pyplot as plt
 
-    loo = isc_permutation_test(
+    loo = isc(
         isc_data,
         summary_statistic="leave-one-out",
         summary="median",
-        n_permute=1000,
+        n_samples=1000,
         random_state=0,
         progress_bar=False,
     )
@@ -215,7 +215,7 @@ def _(mo):
     | Stage | What it does | Key API |
     |---|---|---|
     | Region timeseries | Extract region means per subject, stack to `(time, subjects, regions)` | `BrainData(func, mask=).extract_roi(atlas).T` |
-    | Compute + test | Per-region ISC + permutation p-value | `isc_permutation_test(data, summary_statistic="pairwise", n_permute=)` |
+    | Compute + test | Per-region ISC + bootstrap p-value | `isc(data, summary_statistic="pairwise", n_samples=)` |
     | Leave-one-out | Each subject vs. the group mean | `summary_statistic="leave-one-out"` |
     | Project to brain | Paint per-region values onto voxels | `roi_to_brain_from_atlas(values, atlas=, source_mask=)` |
 

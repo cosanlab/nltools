@@ -88,6 +88,7 @@ public signature against in CI. The table below is rendered from it:
 | Spatial scale | `spatial_scale` (<code>'whole_brain' &#124; 'roi' &#124; 'searchlight'</code>) |
 | Distance / similarity metric | `metric` |
 | Central tendency | `summary` (<code>'mean' &#124; 'median'</code>) |
+| ISC summary statistic | `summary_statistic` (<code>'pairwise' &#124; 'leave-one-out'</code>) on the ISC entry points — which cross-subject comparison is summarized, distinct from `summary`, which is the `'mean'`/`'median'` central tendency applied to it |
 | Cross-validation spec | `cv` (<code>int &#124;</code> splitter <code>&#124; None</code>) on `BrainData.predict` — `None` is a deterministic five-fold `KFold`/`StratifiedKFold`; the `'loo'`/`'logo'` names are accepted only by `resolve_cv`, and `'loso'`/`'loro'` are gone everywhere. The grouping lives in `groups=` |
 | Subject-level parallelism | `n_jobs: int = -1` |
 | GPU / CPU selection | `device: str = "cpu"` on the ridge entry points — `Ridge`, `BrainData.fit(ridge_device=)` and `BrainData.bootstrap` — the only paths with a GPU implementation. Run-or-raise: explicit `'gpu'` either runs on the GPU or raises, and there is no `'auto'` |
