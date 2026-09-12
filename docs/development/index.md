@@ -83,6 +83,7 @@ public signature against in CI. The table below is rendered from it:
 <!-- AUTOGEN:api-vocabulary:index-table — generated from docs/_data/api-vocabulary.yml by scripts/build_api_vocabulary.py; run `uv run poe docs-generate` to update, do not edit by hand -->
 | Concept | Canonical kwarg |
 |---|---|
+| Second operand of a data-class method | `data` — the object a data class is combined with or compared against: `BrainData.append`, `Adjacency.append`, `DesignMatrix.append`, `BrainData.similarity` and `Adjacency.similarity` all name it `data` and take it as their only positional parameter, with everything after it keyword-only |
 | Algorithm / variant choice | `method` — on `BrainData.standardize` and `DesignMatrix.standardize` it is one closed set: `*, method: str = 'center'` (<code>'center' &#124; 'zscore'</code>) |
 | Decoding estimator (MVPA) | <code>estimator: str &#124; BaseEstimator = 'linear_svc'</code> on `BrainData.predict` — a built-in shortcut name or any sklearn estimator / `Pipeline`. It names an sklearn object, so it is distinct from `method=`, which selects an algorithm variant |
 | Spatial scale | `spatial_scale` (<code>'whole_brain' &#124; 'roi' &#124; 'searchlight'</code>) |
@@ -104,6 +105,8 @@ public signature against in CI. The table below is rendered from it:
 | Threshold pair | `lower`, `upper`, `binarize` (+ `threshold` where bidirectional) |
 | Display autoscaling | `autoscale: bool = True` (viewer display window; `False` = raw magnitude range) |
 | Display symmetry | <code>symmetric: bool &#124; 'auto' = 'auto'</code> (viewer positive/negative limbs) |
+| Plot axis | <code>ax: matplotlib.axes.Axes &#124; None = None</code> on the data-class plotters (`BrainData.plot`, `Adjacency.plot`, `DesignMatrix.plot`) and the Adjacency helper plots, following matplotlib and seaborn; the fsaverage surface entry points keep nilearn's `axes=` because they forward it verbatim to nilearn |
+| Plotted panel cap | `limit: int = 3` on `BrainData.plot` and `Adjacency.plot` — how many images or matrices of a stack are rendered; keyword-only on both |
 | Diagonal flag | `include_diag: bool` |
 | Radius (mm) | `radius: float` in millimeters everywhere, following nilearn's `SearchLight` and `NiftiSpheresMasker` — `10.0` on the searchlight entry points (`BrainData.predict`, `BrainData.distance`, `compute_searchlight_neighborhoods`), `3.0` on the surface plotters, and the same millimeter unit for `create_sphere` and `Simulator` geometry, converted to voxels through the image affine |
 | GLM-specific fit option | `glm_*` on `BrainData.fit` (`glm_noise_model`, `glm_bins`, `glm_n_jobs`) — a non-default one under `model='ridge'` raises `ValueError`; `random_state` keeps its bare name because both estimators use it |

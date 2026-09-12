@@ -496,9 +496,7 @@ class BrainData:
 
         return align(self, target, method=method, axis=axis)
 
-    def append(  # nosemgrep: kwargs-internal-forwarding  # forwards to polars.concat
-        self, data, *, ignore_attrs=False, **kwargs
-    ):
+    def append(self, data, *, ignore_attrs=False):
         """Append data to BrainData instance.
 
         Args:
@@ -506,9 +504,6 @@ class BrainData:
             ignore_attrs (bool): Clear both X and Y on the result when True.
                 Otherwise, each metadata frame must be empty on both inputs or
                 have compatible columns on both inputs. Default False.
-            **kwargs (dict): Currently ignored. X/Y are concatenated with polars'
-                ``pl.concat(..., how="vertical_relaxed")``, which takes no
-                caller-supplied options.
 
         Returns:
             BrainData: Independently owned data with concatenated row metadata.
@@ -1801,11 +1796,11 @@ class BrainData:
         return scale_data(self, scale_val, axis)
 
     @coalesced_gc()
-    def similarity(self, image, metric="correlation"):
+    def similarity(self, data, *, metric="correlation"):
         """Calculate similarity to a single BrainData or nibabel image.
 
         Args:
-            image (BrainData | Nifti1Image): Image to evaluate similarity against.
+            data (BrainData | Nifti1Image): Image to evaluate similarity against.
             metric (str): Type of similarity: ``'correlation'`` (default),
                 ``'pearson'``, ``'rank_correlation'``, ``'spearman'``,
                 ``'dot_product'``, or ``'cosine'``.
@@ -1815,7 +1810,7 @@ class BrainData:
         """
         from .analysis import similarity
 
-        return similarity(self, image, metric=metric)
+        return similarity(self, data, metric=metric)
 
     def smooth(self, fwhm):
         """Apply spatial smoothing using nilearn smooth_img().

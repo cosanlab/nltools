@@ -372,21 +372,20 @@ class Adjacency:
         """
         return apply_stat(self, np.nanmedian, axis)
 
-    def plot(  # nosemgrep: kwargs-internal-forwarding  # forwards to matplotlib via plot_adjacency
-        self, limit=3, axes=None, *args, **kwargs
+    def plot(  # nosemgrep: kwargs-internal-forwarding  # forwards to seaborn via plot_adjacency
+        self, *, limit=3, ax=None, **kwargs
     ):
         """Create a heatmap of an Adjacency matrix.
 
         Args:
             limit (int): Number of heatmaps to plot if the object contains multiple
                 matrices. Default 3.
-            axes (matplotlib.axes.Axes, optional): Axis to draw on (single matrix only).
-            *args (tuple): Forwarded positionally to `seaborn.heatmap`.
+            ax (matplotlib.axes.Axes, optional): Axis to draw on (single matrix only).
             **kwargs (dict): Forwarded to `seaborn.heatmap`.
         """
         from .plotting import plot_adjacency
 
-        return plot_adjacency(self, limit, axes, *args, **kwargs)
+        return plot_adjacency(self, limit=limit, ax=ax, **kwargs)
 
     def plot_label_distance(self, labels=None, ax=None):
         """Create a violin plot of within- and between-label distances.

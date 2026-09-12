@@ -575,7 +575,7 @@ class DesignMatrix:
 
     def append(
         self,
-        dm: DesignMatrix | list[DesignMatrix],
+        data: DesignMatrix | list[DesignMatrix],
         *,
         axis: int = 0,
         keep_separate: bool = True,
@@ -587,7 +587,7 @@ class DesignMatrix:
         """Concatenate design matrices.
 
         Args:
-            dm (DesignMatrix or list of DesignMatrix): Design matrix/matrices to append.
+            data (DesignMatrix or list of DesignMatrix): Design matrix/matrices to append.
             axis (int): 0 for row-wise (vertical), 1 for column-wise (horizontal).
                 Default: 0.
             keep_separate (bool): Whether to separate confound columns across runs
@@ -597,7 +597,7 @@ class DesignMatrix:
             fill_na (int, float, or None): Value to fill NaN values during
                 vertical concatenation, or None to preserve nulls. Default: 0.
             as_confounds (bool): Only applies when ``axis=1``. If True, mark all
-                columns from ``dm`` as nuisance/confounds in the result — they
+                columns from ``data`` as nuisance/confounds in the result — they
                 get skipped by ``.convolve()`` and separated across runs on
                 later vertical appends. Default: False.
             progress_bar (bool): Print messages about confound separation. Default: False.
@@ -609,7 +609,7 @@ class DesignMatrix:
 
         return append(
             self,
-            dm,
+            data,
             axis=axis,
             keep_separate=keep_separate,
             unique_cols=unique_cols,

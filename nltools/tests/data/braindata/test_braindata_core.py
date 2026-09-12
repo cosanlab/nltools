@@ -293,6 +293,11 @@ class TestBrainDataCore:
             == minimal_brain_data.shape[0] * 2
         )
 
+    def test_append_rejects_unknown_keyword(self, minimal_brain_data):
+        """An unexpected keyword raises instead of being silently swallowed."""
+        with pytest.raises(TypeError):
+            minimal_brain_data.append(minimal_brain_data, foo=1)
+
     # ==================== Statistical Methods ====================
 
     def test_distance(self, minimal_brain_data):

@@ -3,38 +3,36 @@
 import numpy as np
 
 
-def plot_adjacency(adj, limit=3, axes=None, *args, **kwargs):
+def plot_adjacency(adj, *, limit=3, ax=None, **kwargs):
     """Create a heatmap of an Adjacency matrix.
 
     Args:
         adj (Adjacency): Adjacency object to plot.
         limit (int): Number of heatmaps to plot if the object contains multiple
             matrices. Default 3.
-        axes (matplotlib.axes.Axes, optional): Axis to draw on (single matrix only).
-        *args (tuple): Forwarded positionally to `seaborn.heatmap`.
+        ax (matplotlib.axes.Axes, optional): Axis to draw on (single matrix only).
         **kwargs (dict): Forwarded to `seaborn.heatmap`.
     """
     import matplotlib.pyplot as plt
     import seaborn as sns
 
     if adj.is_single_matrix:
-        if axes is None:
-            _, axes = plt.subplots(nrows=1, figsize=(7, 5))
+        if ax is None:
+            _, ax = plt.subplots(nrows=1, figsize=(7, 5))
         if adj.labels:
             sns.heatmap(
                 adj.squareform(),
                 square=True,
-                ax=axes,
+                ax=ax,
                 xticklabels=adj.labels,
                 yticklabels=adj.labels,
-                *args,
                 **kwargs,
             )
         else:
-            sns.heatmap(adj.squareform(), square=True, ax=axes, *args, **kwargs)
+            sns.heatmap(adj.squareform(), square=True, ax=ax, **kwargs)
     else:
-        if axes is not None:
-            print("axes is ignored when plotting multiple images")
+        if ax is not None:
+            print("ax is ignored when plotting multiple images")
         n_subs = np.minimum(len(adj), limit)
         _, a = plt.subplots(nrows=n_subs, figsize=(7, len(adj) * 5))
         for i in range(n_subs):
@@ -45,11 +43,10 @@ def plot_adjacency(adj, limit=3, axes=None, *args, **kwargs):
                     xticklabels=adj.labels[i],
                     yticklabels=adj.labels[i],
                     ax=a[i],
-                    *args,
                     **kwargs,
                 )
             else:
-                sns.heatmap(adj[i].squareform(), square=True, ax=a[i], *args, **kwargs)
+                sns.heatmap(adj[i].squareform(), square=True, ax=a[i], **kwargs)
     return
 
 

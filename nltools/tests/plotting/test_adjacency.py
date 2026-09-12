@@ -216,3 +216,19 @@ class TestPlotMDS:
             assert axis_values.shape == (adj.n_nodes,)
             assert np.isfinite(axis_values).all()
         plt.close("all")
+
+
+class TestAdjacencyPlot:
+    def test_plot_draws_on_supplied_ax(self, well_separated_distance):
+        """`Adjacency.plot(ax=...)` draws the heatmap on the caller's axis."""
+        from nltools.data import Adjacency
+
+        distance, _ = well_separated_distance
+        adj = Adjacency(distance, matrix_type="distance")
+        plt.close("all")
+        _, ax = plt.subplots(1)
+        n_before = len(plt.get_fignums())
+        adj.plot(ax=ax)
+        assert len(plt.get_fignums()) == n_before
+        assert ax.collections
+        plt.close("all")

@@ -35,6 +35,9 @@ stats:
   compute_backends: 2
 
 vocabulary:
+  - concept: "Second operand of a data-class method"
+    kwarg: "data"
+    index_md: "`data` — the object a data class is combined with or compared against: `BrainData.append`, `Adjacency.append`, `DesignMatrix.append`, `BrainData.similarity` and `Adjacency.similarity` all name it `data` and take it as their only positional parameter, with everything after it keyword-only"
   - concept: "Algorithm / variant choice"
     kwarg: "method"
     index_md: "`method` — on `BrainData.standardize` and `DesignMatrix.standardize` it is one closed set: `*, method: str = 'center'` (`'center' | 'zscore'`)"
@@ -98,6 +101,12 @@ vocabulary:
   - concept: "Display symmetry"
     kwarg: "symmetric"
     index_md: "`symmetric: bool | 'auto' = 'auto'` (viewer positive/negative limbs)"
+  - concept: "Plot axis"
+    kwarg: "ax"
+    index_md: "`ax: matplotlib.axes.Axes | None = None` on the data-class plotters (`BrainData.plot`, `Adjacency.plot`, `DesignMatrix.plot`) and the Adjacency helper plots, following matplotlib and seaborn; the fsaverage surface entry points keep nilearn's `axes=` because they forward it verbatim to nilearn"
+  - concept: "Plotted panel cap"
+    kwarg: "limit"
+    index_md: "`limit: int = 3` on `BrainData.plot` and `Adjacency.plot` — how many images or matrices of a stack are rendered; keyword-only on both"
   - concept: "Diagonal flag"
     kwarg: "include_diag"
     index_md: "`include_diag: bool`"

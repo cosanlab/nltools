@@ -36,6 +36,15 @@ class TestDesignMatrixConcatenation:
         assert dm_combined.shape == (2, 2), "Should have 2 rows, 2 columns"
         assert set(dm_combined.columns) == {"a", "b"}
 
+    def test_append_operand_is_named_data(self):
+        """The appended matrix is `data=`; v0.5.1's `dm=` spelling is gone."""
+        dm1 = DesignMatrix({"a": [1, 2]}, sampling_freq=1)
+        dm2 = DesignMatrix({"a": [3, 4]}, sampling_freq=1)
+
+        assert dm1.append(data=dm2).shape == (4, 1)
+        with pytest.raises(TypeError):
+            dm1.append(dm=dm2)
+
     def test_horizontal_append_multiple_columns(self):
         """
         Horizontal append can add multiple columns at once.

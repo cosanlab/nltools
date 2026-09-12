@@ -399,6 +399,13 @@ class TestBrainDataAnalysis:
         r = minimal_brain_data.similarity(minimal_brain_data[0], metric="correlation")
         assert len(r) == minimal_brain_data.shape[0]
 
+    def test_similarity_operand_is_named_data(self, minimal_brain_data):
+        """The compared image is `data=`; v0.5.1's `image=` spelling is gone."""
+        r = minimal_brain_data.similarity(data=minimal_brain_data[0])
+        assert len(r) == minimal_brain_data.shape[0]
+        with pytest.raises(TypeError):
+            minimal_brain_data.similarity(image=minimal_brain_data[0])
+
     @pytest.mark.slow
     def test_decompose(self, sim_brain_data):
         """Test decomposition with PCA, ICA, NMF, and Factor Analysis."""

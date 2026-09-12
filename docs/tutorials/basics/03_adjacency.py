@@ -223,11 +223,11 @@ def _(adj, np):
 @app.cell
 def _(adj, binary, plt, thresh):
     _fig, _axes = plt.subplots(1, 3, figsize=(15, 4))
-    adj.plot(axes=_axes[0])
+    adj.plot(ax=_axes[0])
     _axes[0].set_title("Original")
-    thresh.plot(axes=_axes[1])
+    thresh.plot(ax=_axes[1])
     _axes[1].set_title("Thresholded (> 0.3)")
-    binary.plot(axes=_axes[2])
+    binary.plot(ax=_axes[2])
     _axes[2].set_title("Binarized")
     _fig.tight_layout()
     return
