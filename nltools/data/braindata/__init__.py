@@ -17,9 +17,7 @@ if TYPE_CHECKING:
     from nltools.data.designmatrix import DesignMatrix
     from nltools.data.results import Predict
 
-from nltools.utils import coalesced_gc
-
-from .utils import check_brain_data
+from .utils import check_brain_data, coalesced_gc
 
 __all__ = ["BrainData"]
 
@@ -198,13 +196,13 @@ class BrainData:
 
     def __copy__(self):
         """Create an independent snapshot of all data and fitted state."""
-        from .utils import _copy_complete
+        from ..ownership import _copy_complete
 
         return _copy_complete(self)
 
     def __deepcopy__(self, memo):
         """Create an independent snapshot of all data and fitted state."""
-        from .utils import _copy_complete
+        from ..ownership import _copy_complete
 
         return _copy_complete(self, memo)
 
@@ -398,7 +396,7 @@ class BrainData:
 
     @X.setter
     def X(self, value):
-        from .validation import validate_frame
+        from ..validation import validate_frame
 
         self._X = validate_frame(value, frame_type="X")
 
@@ -409,7 +407,7 @@ class BrainData:
 
     @Y.setter
     def Y(self, value):
-        from .validation import validate_frame
+        from ..validation import validate_frame
 
         self._Y = validate_frame(value, frame_type="Y")
 
@@ -773,7 +771,7 @@ class BrainData:
         Returns:
             BrainData: An independent copy, including fitted state.
         """
-        from .utils import _copy_complete
+        from ..ownership import _copy_complete
 
         return _copy_complete(self)
 

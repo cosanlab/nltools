@@ -33,6 +33,7 @@ Get data into nltools. [BrainData](../data/brain_data.md) and the other data cla
         - fetch_neurovault_collection
         - load_haxby_example
         - download_nifti
+        - get_resource_path
 
 ## Masks and ROIs
 
@@ -50,7 +51,7 @@ Get data into nltools. [BrainData](../data/brain_data.md) and the other data cla
 
 ## Combining objects
 
-::: nltools.utils
+::: nltools.data.combine
     options:
       show_root_heading: false
       show_root_toc_entry: false

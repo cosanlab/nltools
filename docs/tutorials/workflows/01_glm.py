@@ -56,7 +56,7 @@ def _():
 
     from nltools.data import BrainData, DesignMatrix
     from nltools.algorithms import fdr, threshold
-    from nltools.utils import concatenate
+    from nltools import concatenate
 
     # Memoize per-subject fits to disk (.cache/ is git-ignored) so re-running
     # the notebook reloads results instead of refitting every voxel.

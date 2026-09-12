@@ -7,7 +7,7 @@ iterating over local brain regions.
 Examples:
     ```python
     import nibabel as nib
-    from nltools.data.braindata.neighborhoods import compute_searchlight_neighborhoods
+    from nltools.algorithms.neighborhoods import compute_searchlight_neighborhoods
 
     mask = nib.load("mask.nii.gz")
     neighborhoods = compute_searchlight_neighborhoods(mask, radius=10.0)

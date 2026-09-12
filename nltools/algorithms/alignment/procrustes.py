@@ -10,8 +10,7 @@ from scipy.spatial import procrustes as procrust
 from sklearn.metrics import pairwise_distances
 from sklearn.utils import check_random_state
 
-from ..inference.utils import _compute_pvalue
-from ..inference.validation import validate_tail_parameter
+from ..validation import _compute_pvalue, validate_tail_parameter
 from .srm import SRM, DetSRM
 
 

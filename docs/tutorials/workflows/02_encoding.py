@@ -54,7 +54,7 @@ def _():
     from joblib import Memory
 
     from nltools.data import BrainData
-    from nltools.utils import concatenate
+    from nltools import concatenate
 
     # Memoize the (slow) multi-run load to disk (.cache/ is git-ignored).
     memory = Memory(".tutorial-cache", verbose=0)

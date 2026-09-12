@@ -11,14 +11,11 @@ from scipy.stats import ttest_1samp
 
 from .utils import (
     _generate_sign_flips,
-    _compute_pvalue,
     _signed_z_from_p,
     maybe_tqdm,
 )
-from .validation import (
-    validate_tail_parameter,
-    validate_array_shape_range,
-)
+from .validation import validate_array_shape_range
+from ..validation import _compute_pvalue, validate_tail_parameter
 
 
 def _one_sample_permutation_cpu_parallel(

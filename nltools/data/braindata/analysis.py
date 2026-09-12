@@ -400,7 +400,7 @@ def _distance_searchlight(bd, *, metric, radius, **kwargs):
 
     from nltools.data import Adjacency
 
-    from .neighborhoods import compute_searchlight_neighborhoods
+    from nltools.algorithms.neighborhoods import compute_searchlight_neighborhoods
 
     nbrs = compute_searchlight_neighborhoods(bd.mask, radius=radius)
     n_voxels = nbrs.n_voxels
@@ -937,9 +937,8 @@ def threshold_data(
         bd (BrainData): Data to threshold.
         upper (float | str | None): Upper cutoff. A string like ``'98%'``
             resolves as a percentile over the finite **nonzero** voxels (via
-            `nltools.utils.resolve_threshold` — zeros on a masked map are
-            absence of data and would skew the percentile). ``None`` for
-            one-sided thresholding.
+            `resolve_threshold`; zeros on a masked map are absence of data and
+            would skew the percentile). ``None`` for one-sided thresholding.
         lower (float | str | None): Lower cutoff, with the same percentile
             semantics as ``upper``. ``None`` for one-sided thresholding.
         binarize (bool): Return a binary image respecting the thresholds if
@@ -982,7 +981,7 @@ def threshold_data(
         if coerce_nan:
             b.data = np.nan_to_num(b.data)
 
-        from nltools.utils import resolve_threshold
+        from .utils import resolve_threshold
 
         threshold_val = resolve_threshold(threshold_val, b.data)
 
@@ -1010,7 +1009,7 @@ def threshold_data(
     if coerce_nan:
         b.data = np.nan_to_num(b.data)
 
-    from nltools.utils import resolve_threshold
+    from .utils import resolve_threshold
 
     upper = resolve_threshold(upper, b.data)
     lower = resolve_threshold(lower, b.data)

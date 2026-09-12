@@ -15,7 +15,7 @@ import pytest
 
 from nltools.data import DesignMatrix
 from nltools.data.designmatrix.io import events_to_dm
-from nltools.utils import get_resource_path
+from nltools.datasets import get_resource_path
 
 
 @pytest.fixture

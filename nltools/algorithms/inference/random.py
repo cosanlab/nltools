@@ -7,7 +7,7 @@ across CPU and GPU execution.
 
 Examples:
     ```python
-    from nltools.algorithms.random import generate_seeds
+    from nltools.algorithms.inference.random import generate_seeds
 
     seeds = generate_seeds(100, random_state=42)
     # Hand one seed to each parallel worker for deterministic results

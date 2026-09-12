@@ -141,7 +141,7 @@ def regress(adj, X, method="ols", tail=2):
     from nltools.algorithms.regression import regress as ols_regress
     from nltools.data.adjacency import Adjacency
     from nltools.data.designmatrix import DesignMatrix
-    from nltools.algorithms.inference.validation import validate_tail_parameter
+    from nltools.algorithms.validation import validate_tail_parameter
     from .state import common_labels, result, validate_compatible
 
     validate_tail_parameter(tail)

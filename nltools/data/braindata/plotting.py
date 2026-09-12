@@ -40,23 +40,6 @@ def _image_world_bounds(nifti_img, axis_letter: str) -> tuple[float, float]:
     return float(world[:, axis_idx].min()), float(world[:, axis_idx].max())
 
 
-def _require_standard_space(bd, op_name: str, *, remedy: str) -> None:
-    """Raise if ``bd`` is not in a standard MNI space supported by templates.
-
-    Used to gate plotting paths that draw against MNI-aligned scaffolding
-    (glass-brain outlines, fsaverage surfaces, template backgrounds).
-    Native-space data would render in misleading positions.
-    """
-    from nltools.templates import is_standard_space
-
-    ok, reason = is_standard_space(bd.mask.affine)
-    if ok:
-        return
-    raise ValueError(
-        f"{op_name} requires data in standard MNI space, but {reason}. {remedy}"
-    )
-
-
 def plot_brain(
     bd,
     *,
@@ -261,7 +244,7 @@ def plot_brain(
         else:
             obj = sub
 
-        from nltools.utils import resolve_threshold
+        from .utils import resolve_threshold
 
         threshold_use = resolve_threshold(threshold, np.abs(obj.data))
         if threshold_use is not None and threshold_use < 0:

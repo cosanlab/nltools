@@ -33,7 +33,7 @@ from .validation import (
     validate_n_samples,
     validate_shape_compatibility,
 )
-from ..random import generate_bootstrap_indices
+from .random import generate_bootstrap_indices
 from .utils import make_progress_bar
 from nltools.utils import find_stack_level
 

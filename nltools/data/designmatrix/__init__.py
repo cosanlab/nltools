@@ -18,8 +18,8 @@ from typing import TYPE_CHECKING
 import numpy as np
 import polars as pl
 
+from ..ownership import copy_frame
 from .utils import (
-    copy_frame,
     copy_with,
     df_passthrough,
     effective_frame,
@@ -335,7 +335,7 @@ class DesignMatrix:
             self._run_count = 1 if self.shape[0] > 0 else 0
             if self.multi:
                 # Files predating explicit run counts encode identities in names.
-                from nltools.utils import parse_run_separated
+                from .utils import parse_run_separated
 
                 runs = [parse_run_separated(c) for c in self.columns]
                 self._run_count = max(

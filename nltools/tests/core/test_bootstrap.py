@@ -558,7 +558,7 @@ class TestBootstrapRidgePredict:
             _bootstrap_design,
             _refit_resample,
         )
-        from nltools.algorithms.random import generate_bootstrap_indices
+        from nltools.algorithms.inference.random import generate_bootstrap_indices
 
         X, y, X_test, coef = self._problem()
         result = _bootstrap_ridge_predict_cpu_parallel(

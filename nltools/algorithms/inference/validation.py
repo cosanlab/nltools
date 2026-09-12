@@ -1,59 +1,20 @@
-"""Shared input validation for the algorithms module.
+"""Shared input validation for the inference module.
 
 One home for the argument checks the permutation, bootstrap, and matrix tests
 share, so every entry point raises the same `ValueError` for the same mistake.
+The `tail` vocabulary is wider than inference, so it lives one level up in
+`nltools.algorithms.validation`.
 
 Examples:
     ```python
-    from nltools.algorithms.inference.validation import validate_tail_parameter
+    from nltools.algorithms.inference.validation import validate_square_matrix
 
-    validate_tail_parameter(2)  # → 'two'
-    validate_tail_parameter("invalid")  # raises ValueError
+    validate_square_matrix(np.eye(3))  # → None
+    validate_square_matrix(np.zeros((2, 3)))  # raises ValueError
     ```
 """
 
 import numpy as np
-
-from .utils import _normalize_tail_internal
-
-
-def validate_tail_parameter(tail: int | str) -> str:
-    """Validate the public tail vocabulary and normalize to the internal form.
-
-    The public vocabulary is deliberately two-valued: the *direction* of a
-    one-tailed test is fixed by the test's convention, never chosen from the
-    data (a data-driven direction would silently halve every p-value). A fixed
-    direction across all tests is what keeps multiple-comparison correction
-    (FDR, Bonferroni) valid (GH #315).
-
-    Args:
-        tail (int | str): `2` or `'two'` (the default everywhere) for a
-            two-tailed test (`|obs|` vs `|null|`); `1` or `'one'` for a
-            one-tailed test in the test's canonical positive direction
-            (correlation/ISC/similarity > 0, mean > popmean, group1 > group2).
-            To test the negative direction, negate your data, swap the groups,
-            or flip the contrast.
-
-    Returns:
-        str: Normalized internal tail, `'two'` or `'upper'`.
-
-    Raises:
-        ValueError: If `tail` is not a valid option (including the removed
-            `'upper'`/`'lower'`/`-1` forms).
-    """
-    # One mapping table lives in `_normalize_tail_internal`; the public layer
-    # only rejects the internal-only directional forms it must not accept.
-    if tail not in (-1, "upper", "lower"):
-        try:
-            return _normalize_tail_internal(tail)
-        except ValueError:
-            pass
-    raise ValueError(
-        f"tail must be 2|'two' (two-tailed) or 1|'one' (one-tailed, the test's "
-        f"positive direction), got {tail!r}. The 'upper'/'lower'/-1 forms were "
-        "removed in v0.6.0: to test the negative direction, negate your data, "
-        "swap the groups, or flip the contrast."
-    )
 
 
 def validate_array_shape(

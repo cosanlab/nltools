@@ -67,12 +67,12 @@ class Adjacency:
         return perform_arithmetic(self, y, np.add, "add")
 
     def __copy__(self):
-        from nltools.data.braindata.utils import _copy_complete
+        from nltools.data.ownership import _copy_complete
 
         return _copy_complete(self)
 
     def __deepcopy__(self, memo):
-        from nltools.data.braindata.utils import _copy_complete
+        from nltools.data.ownership import _copy_complete
 
         return _copy_complete(self, memo)
 

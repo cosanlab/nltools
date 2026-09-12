@@ -29,8 +29,10 @@ results when present. Mutating the copy must not affect the source. Python's
 is no public shallow-copy operation.
 
 One internal graph-copy engine owns object allocation, `deepcopy` memo handling,
-attribute traversal, and alias preservation. Callers use narrow semantic entry
-points rather than selecting independent copy flags:
+attribute traversal, and alias preservation. It is shared with `Adjacency`, so it
+lives in `nltools/data/ownership.py`; the result constructors built on it stay in
+`nltools/data/braindata/utils.py`. Callers use narrow semantic entry points rather
+than selecting independent copy flags:
 
 ```python
 _copy_complete(source, memo=None)
@@ -47,7 +49,8 @@ _result_with_mask(
 )
 ```
 
-`copy()`, `__copy__`, and `__deepcopy__` delegate to `_copy_complete`.
+`copy()`, `__copy__`, and `__deepcopy__` delegate to `_copy_complete`
+(`nltools/data/ownership.py`).
 `_copy_for_fit` excludes every attribute in `_FIT_STATE_ATTRIBUTES` before
 copying retained state, so `fit(inplace=False)` does not copy an old estimator
 merely to delete it. Both copy operations independently own every retained

@@ -26,7 +26,7 @@ Check the design | [`vif`](../api/data/design_matrix.md#nltools.data.designmatri
 Drop redundant columns | [`clean`](../api/data/design_matrix.md#nltools.data.designmatrix.DesignMatrix.clean) | Removes columns correlated above `thresh` (default `0.95`)
 Fit a first-level model | [`BrainData.fit`](../api/data/brain_data.md#nltools.data.braindata.BrainData.fit)`(model='glm', X=design)` | `model='ridge'` for the penalized fit; see [Prediction](prediction.md)
 Contrasts | [`compute_contrasts`](../api/data/brain_data.md#nltools.data.braindata.BrainData.compute_contrasts)`("A - B", inference=)` | Effect map by default; `inference=True` returns a `ContrastResult`
-Group test | [`concatenate`](../api/tasks/loading.md#nltools.utils.concatenate) → [`ttest`](../api/data/brain_data.md#nltools.data.braindata.BrainData.ttest) | Returns `{'mean', 't', 'z', 'p'}` of `BrainData`
+Group test | [`concatenate`](../api/tasks/loading.md#nltools.data.combine.concatenate) → [`ttest`](../api/data/brain_data.md#nltools.data.braindata.BrainData.ttest) | Returns `{'mean', 't', 'z', 'p'}` of `BrainData`
 Correct and threshold | [`fdr`](../api/tasks/inference.md#nltools.algorithms.fdr), [`holm_bonf`](../api/tasks/inference.md#nltools.algorithms.holm_bonf), [`threshold`](../api/tasks/inference.md#nltools.algorithms.threshold) | See [Statistics & inference](statistics-and-inference.md)
 
 ## First level
@@ -72,7 +72,7 @@ This estimates variance *across* effect maps; it does not propagate first-level 
 ## Group level
 
 ```python
-from nltools.utils import concatenate
+from nltools import concatenate
 from nltools.algorithms import fdr, threshold
 
 group = concatenate(betas)                                # (n_subjects, n_voxels)

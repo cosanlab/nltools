@@ -455,8 +455,8 @@ def compute_display_window(
 
     ``threshold`` / ``lower`` / ``upper`` accept percentile strings
     (``"98%"``), resolved over the finite nonzero **magnitudes** via
-    `nltools.utils.resolve_threshold` — the viewer's window is a divergent
-    magnitude window, so its percentiles are magnitude percentiles.
+    `resolve_threshold`: the viewer's window is a divergent magnitude window,
+    so its percentiles are magnitude percentiles.
 
     ``symmetric='auto'`` mirrors the positive and negative limbs only for
     mixed-signed data. ``False`` scales each present sign independently;
@@ -484,7 +484,7 @@ def compute_display_window(
     """
     import numpy as np
 
-    from nltools.utils import resolve_threshold
+    from .utils import resolve_threshold
 
     if not isinstance(autoscale, bool):
         raise TypeError("autoscale must be a bool")

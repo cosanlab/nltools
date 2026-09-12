@@ -225,6 +225,14 @@ All notable changes to nltools are documented here.
 - <span class="badge badge-feature">Feature</span> warn on near-collinear full-rank designs
 
 ### Improvements
+- <span class="badge badge-improvement">Improvement</span> `concatenate` is a top-level name
+    - `from nltools import concatenate` replaces `from nltools.utils import concatenate`. The function is unchanged; it stacks a list of `BrainData` or `Adjacency` objects.
+- <span class="badge badge-improvement">Improvement</span> `get_resource_path` moved to `nltools.datasets`
+    - `from nltools.datasets import get_resource_path` replaces `from nltools.utils import get_resource_path`. It still returns the path to the bundled `nltools/resources/` directory.
+- <span class="badge badge-improvement">Improvement</span> drop `nltools.utils.all_same`
+    - A one-line `np.array_equal` fold with no caller left in the library. Use `all(np.array_equal(x, items[0]) for x in items)`.
+- <span class="badge badge-improvement">Improvement</span> each helper now lives with the domain it serves
+    - `nltools.utils` is down to warning attribution, the two warning categories, optional imports and progress bars. The searchlight neighborhoods moved to `nltools.algorithms.neighborhoods`, the reserved-column-name helpers into the `DesignMatrix` package, and the shared copy, frame-validation and concatenation helpers to `nltools/data/`. Every user-facing import path is unchanged apart from the two named above.
 - <span class="badge badge-improvement">Improvement</span> the surface plotters render one fixed look
     - `plot_surf` and `plot_flatmap` (and their `BrainData` methods) no longer take `radius`, `interpolation`, `axes`, `zoom`, `bg_on_data`, `with_curvature`, `curvature_contrast`, `curvature_brightness` or `colorbar_orientation`. Every default is now the behaviour: a 3 mm linear `vol_to_surf` ball, a curvature underlay, and one horizontal colorbar on a figure the plotter owns. The keywords people actually tune (`hemi`, `view`, `surface`, `template`, `threshold`, `cmap`, `vmin`, `vmax`, `transparency`, `colorbar`, `figsize`, `title`, `save`) are unchanged.
 - <span class="badge badge-improvement">Improvement</span> `plot_flatmap` no longer raises on a percentile that matches no vertices

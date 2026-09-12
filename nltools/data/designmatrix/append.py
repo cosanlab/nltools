@@ -13,13 +13,12 @@ from typing import TYPE_CHECKING
 
 import polars as pl
 
-from nltools.utils import (
+from .utils import (
     RESERVED_PREFIX,
+    copy_with,
     is_reserved_name,
     run_separated_name,
 )
-
-from .utils import copy_with
 
 if TYPE_CHECKING:
     from nltools.data.designmatrix import DesignMatrix

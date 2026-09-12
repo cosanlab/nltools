@@ -1,4 +1,4 @@
-"""Tests for nltools.data.braindata.validation helpers."""
+"""Tests for the shared frame validation in nltools.data.validation."""
 
 from pathlib import Path
 
@@ -6,7 +6,7 @@ import numpy as np
 import polars as pl
 import pytest
 
-from nltools.data.braindata.validation import validate_frame
+from nltools.data.validation import validate_frame
 
 
 class TestValidateFrame:

@@ -24,11 +24,8 @@ import numpy as np
 from typing import Literal
 from sklearn.utils import check_random_state
 
-from .utils import (
-    _compute_pvalue,
-    maybe_tqdm,
-)
-from .validation import validate_tail_parameter
+from .utils import maybe_tqdm
+from ..validation import _compute_pvalue, validate_tail_parameter
 from .correlation import _select_corr_func
 
 

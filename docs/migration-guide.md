@@ -91,7 +91,7 @@ from nltools import BrainData
 
 **Status**: **BREAKING** — old module paths no longer exist
 
-Several modules have been reorganized. The old import paths will raise `ModuleNotFoundError`.
+Several modules and names have been reorganized. A moved module raises `ModuleNotFoundError`; a name that moved out of a module that still exists raises `ImportError`.
 
 | v0.5.1 Import | v0.6.0 Import | Status |
 |----------------|---------------|--------|
@@ -100,6 +100,9 @@ Several modules have been reorganized. The old import paths will raise `ModuleNo
 | `from nltools.file_reader import onsets_to_dm` | **Removed** | Folded into `DesignMatrix.__init__` — `DesignMatrix(events_path, run_length=N, TR=t)` HRF-convolves by default (`hrf_model='glover'`, matches nilearn); pass `hrf_model=None` for raw boxcar |
 | `from nltools.external import glover_hrf` | `from nilearn.glm.first_level import glover_hrf` | **Removed — use nilearn directly.** The same holds for `spm_hrf`, `spm_time_derivative`, `glover_time_derivative`, and `spm_dispersion_derivative`: nltools' wrappers only forwarded to nilearn, so call nilearn. You rarely need to: `DesignMatrix(..., TR=t)` and `.convolve()` still apply the canonical Glover HRF with no import on your part, and a custom kernel is `convolve(kernel=<array>)`, which v0.5.1 accepted as `conv_func=`. |
 | `from nltools.utils import get_anatomical` | **Removed** | Use `nilearn.datasets.load_mni152_brain_mask()` |
+| `from nltools.utils import concatenate` | `from nltools import concatenate` | Same function; stacks a list of `BrainData` or `Adjacency` objects |
+| `from nltools.utils import get_resource_path` | `from nltools.datasets import get_resource_path` | Same function; returns the bundled `nltools/resources/` directory |
+| `from nltools.utils import all_same` | **Removed** | Use `all(np.array_equal(x, items[0]) for x in items)` |
 | `from nltools.stats import regress` | `from nltools.algorithms import regress` | Standalone OLS helper: `regress(X, Y)`; only `BrainData.regress()` was removed. Drop the old `mode=`/`method=` keyword — see [`method=` removed from the OLS entry points](#ols-method-removed) |
 
 **Example migrations:**
@@ -363,17 +366,6 @@ betas = fit.betas[dm.columns.index("cosine_1")]
 dm[".nl_poly_0"]
 dm.columns.index(".nl_r0_poly_0")
 betas = fit.betas[dm.columns.index(".nl_cosine_1")]
-```
-
-Selecting all generated columns is now a prefix test rather than a pattern
-guess, and `nltools.utils.RESERVED_PREFIX` holds the token so you never need to
-hard-code it:
-
-```python
-from nltools.utils import RESERVED_PREFIX, is_reserved_name
-
-generated = [c for c in dm.columns if is_reserved_name(c)]
-task_only = [c for c in dm.columns if not c.startswith(RESERVED_PREFIX)]
 ```
 
 `append(axis=1)` refuses a raw Polars frame whose columns use the reserved
@@ -678,7 +670,7 @@ see [BrainCollection](#braincollection).
 `iplot()` previously opened with its display window at the raw data min/max, so a couple of outlier voxels set the entire color scale — a single-subject beta map rendered as washed-out noise with a featureless 3D render ([#479](https://github.com/cosanlab/nltools/issues/479)). Three related changes:
 
 - **Robust autoscaling by default** — new kwarg `autoscale: bool = True`. The default window's ceiling is the 98th percentile of the finite **nonzero** magnitudes, so a couple of outlier voxels no longer set the whole scale — 98 is the upper edge of the "robust range" convention used by `fslstats -r` and by [niivue](https://niivue.com) itself. The floor is an epsilon, never above the smallest nonzero magnitude: zeros render transparent, every real voxel stays visible, and you threshold up from there. `autoscale=False` uses the raw magnitude range from zero to the largest absolute value. For a custom percentile window pass `lower`/`upper` (e.g. `lower="60%", upper="98%"`); explicit `threshold`/`lower`/`upper` always override the corresponding edge.
-- **Percentile strings everywhere the vocabulary appears**: `iplot(upper="98%")` now works, resolved by the shared `nltools.utils.resolve_threshold` — the same helper `threshold()` uses. In `iplot`, percentiles resolve over the finite nonzero *magnitudes* (its window is a divergent magnitude window); in `threshold()`, over the finite nonzero *signed* values.
+- **Percentile strings everywhere the vocabulary appears**: `iplot(upper="98%")` now works, resolved by one shared internal helper — the same one `threshold()` uses. In `iplot`, percentiles resolve over the finite nonzero *magnitudes* (its window is a divergent magnitude window); in `threshold()`, over the finite nonzero *signed* values.
 - **The slider always shows the rendered window.** `cal_min`/`cal_max` are now always computed in Python and passed explicitly — previously the traits could be `None` ("niivue auto") while the slider handles sat at the raw extremes, so the handles showed one window while niivue rendered another, and the first slider touch destroyed the auto window.
 
 Follow-up plotting consistency changes ([#490](https://github.com/cosanlab/nltools/issues/490)) align default color ranges across renderers with nilearn's sign-dependent behavior:

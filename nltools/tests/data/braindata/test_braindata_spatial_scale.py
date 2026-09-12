@@ -108,7 +108,7 @@ class TestDistanceSearchlight:
         assert not hasattr(result, "spatial_scale")
 
     def test_per_center_rdm_matches_manual(self, minimal_brain_data):
-        from nltools.data.braindata.neighborhoods import (
+        from nltools.algorithms.neighborhoods import (
             compute_searchlight_neighborhoods,
         )
         from sklearn.metrics import pairwise_distances

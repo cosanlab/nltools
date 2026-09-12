@@ -1448,7 +1448,7 @@ class TestGlmFacadeContract:
 
     def test_second_level_glm_workflow(self, minimal_brain_data):
         from nltools.data import DesignMatrix
-        from nltools.utils import concatenate
+        from nltools import concatenate
 
         first_level_design = self._design(minimal_brain_data)
         effects = []

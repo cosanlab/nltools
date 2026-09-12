@@ -72,10 +72,7 @@ from .alignment import (
     procrustes_distance,
 )
 from .corrections import fdr, holm_bonf, multi_threshold, threshold
-from ..data.braindata.neighborhoods import (
-    SphereNeighborhoods,
-    compute_searchlight_neighborhoods,
-)
+from .neighborhoods import SphereNeighborhoods, compute_searchlight_neighborhoods
 from .inference import (
     circle_shift,
     correlation_permutation_test,

@@ -4,9 +4,93 @@ These are internal utilities used by the facade and submodules — not part of t
 public API.
 """
 
-from copy import deepcopy
+import gc
+import os
+from contextlib import contextmanager
 
 import numpy as np
+from numpy.typing import ArrayLike
+
+from ..ownership import _copy_graph
+
+
+@contextmanager
+def coalesced_gc():
+    """Collapse nilearn's forced per-copy `gc.collect()` calls into one per operation.
+
+    nilearn runs a full `gc.collect()` after every masked-array copy it makes; a
+    masking-heavy operation — a GLM fit that re-validates the same mask and
+    builds several result maps — fires dozens. With torch/nilearn/sklearn
+    resident each sweep costs ~0.1s, so the storm dominates the wall-clock of
+    otherwise-trivial numerical work.
+
+    This no-ops the interim collects and runs a single real collect on exit,
+    so peak memory stays bounded to one operation's worth of cyclic garbage
+    (nilearn's collect is a peak-memory optimization, not a correctness
+    requirement — suppressing it only defers reclamation). Opt out with
+    `NLTOOLS_NO_GC_COALESCE=1`.
+
+    Because `@contextmanager` results double as decorators, this can also be
+    used as `@coalesced_gc()` on an operation-boundary method.
+
+    Nesting is safe: each frame restores whatever it saved, so only the
+    outermost frame restores the real `gc.collect` and runs the final sweep;
+    inner frames' exit-time collect is a no-op.
+
+    Caveat: this swaps a process-global builtin. It is safe under the default
+    loky (process) worker backend — each worker has its own `gc`. Under a
+    *threading* backend there is a brief window where a concurrent thread sees
+    the no-op collect; `NLTOOLS_NO_GC_COALESCE=1` is the escape hatch there.
+    """
+    if os.environ.get("NLTOOLS_NO_GC_COALESCE"):
+        yield
+        return
+    saved = gc.collect  # may already be the no-op if we're nested
+    gc.collect = lambda *a, **k: 0
+    try:
+        yield
+    finally:
+        gc.collect = saved  # only the outermost frame restores the real collect
+        gc.collect()  # no-op if still nested; one real sweep at the top
+
+
+def resolve_threshold(value: float | str | None, data: ArrayLike) -> float | None:
+    """Resolve a threshold spec — a number or a percentile string — to a float.
+
+    The single source of truth for what `"98%"` means across the library
+    (`BrainData.threshold` and `BrainData.iplot` both route through it).
+    Numbers and None pass through unchanged. A percentile string is resolved
+    against the **finite nonzero** values of `data`: on a masked stat map
+    most voxels are exactly zero (absence of data), and including them drags
+    every percentile toward zero.
+
+    Args:
+        value: A number (returned as-is), None (returned as-is), or a string
+            like `"98%"`.
+        data: Array-like the percentile is computed over. Callers choose the
+            frame of reference — e.g. `iplot` passes magnitudes
+            (`np.abs(data)`) because its window is a magnitude window, while
+            `threshold` passes signed values.
+
+    Returns:
+        float | None: The resolved threshold.
+
+    Raises:
+        ValueError: If `value` is a string without a trailing `%`.
+    """
+    if value is None or not isinstance(value, str):
+        return value
+    if not value.endswith("%"):
+        raise ValueError(
+            f"string threshold must be a percentile like '98%', got {value!r}"
+        )
+    pct = float(value[:-1])
+    vals = np.asarray(data, dtype=float).ravel()
+    vals = vals[np.isfinite(vals)]
+    vals = vals[vals != 0]
+    if vals.size == 0:
+        return 0.0
+    return float(np.percentile(vals, pct))
 
 
 def _is_default(value, default):
@@ -92,73 +176,6 @@ def _clear_fit_state(bd):
             delattr(bd, name)
 
 
-def _copy_graph(source, *, memo=None, exclude=(), replacements=None):
-    """Copy one retained object graph, preserving its internal aliases."""
-    if memo is None:
-        memo = {}
-    if id(source) in memo:
-        return memo[id(source)]
-    new = type(source).__new__(type(source))
-    memo[id(source)] = new
-    values = {
-        key: value for key, value in source.__dict__.items() if key not in exclude
-    }
-    if replacements is not None:
-        values.update(replacements)
-    _copy_object_frames(values, memo)
-    for key, value in values.items():
-        setattr(new, key, deepcopy(value, memo))
-    return new
-
-
-def _copy_object_frames(values, memo):
-    """Prepare Polars Object cells for deepcopy without sharing Python objects."""
-    import polars as pl
-
-    frames = []
-    seen = set()
-
-    def discover(value):
-        if id(value) in seen or id(value) in memo:
-            return
-        seen.add(id(value))
-        if isinstance(value, pl.DataFrame):
-            frames.append(value)
-            for series in value:
-                if series.dtype == pl.Object:
-                    for cell in series:
-                        discover(cell)
-        elif isinstance(value, dict):
-            for key, item in value.items():
-                discover(key)
-                discover(item)
-        elif isinstance(value, (list, tuple)):
-            for item in value:
-                discover(item)
-
-    discover(values)
-    # Register all frames first, including frames referred to by Object cells.
-    # The common memo preserves cycles and cell aliases across metadata frames.
-    for frame in frames:
-        memo[id(frame)] = frame.clone()
-    for frame in frames:
-        for index, series in enumerate(frame):
-            if series.dtype == pl.Object:
-                memo[id(frame)].replace_column(
-                    index,
-                    pl.Series(
-                        series.name,
-                        [deepcopy(cell, memo) for cell in series],
-                        dtype=pl.Object,
-                    ),
-                )
-
-
-def _copy_complete(source, memo=None):
-    """Return a complete independently owned snapshot."""
-    return _copy_graph(source, memo=memo)
-
-
 def _copy_for_fit(source):
     """Copy retained state without traversing obsolete fitted attributes."""
     return _copy_graph(source, exclude=_FIT_STATE_ATTRIBUTES)
@@ -166,7 +183,7 @@ def _copy_for_fit(source):
 
 def _row_values(data, X, Y):
     """Validate the complete replacement row state before graph construction."""
-    from .validation import validate_frame
+    from ..validation import validate_frame
 
     data = np.asarray(data)
     count = 0 if data.size == 0 else (1 if data.ndim == 1 else data.shape[0])

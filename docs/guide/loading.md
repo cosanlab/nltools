@@ -26,7 +26,7 @@ Example data | [`fetch_pain`](../api/tasks/loading.md#nltools.datasets.fetch_pai
 Bundled masks and atlases | [`list_resources`](../api/tasks/loading.md#nltools.templates.list_resources), [`fetch_resource`](../api/tasks/loading.md#nltools.templates.fetch_resource) | Returns a local path; parcellations live under `masks/`
 Published maps | [`fetch_neurovault_collection`](../api/tasks/loading.md#nltools.datasets.fetch_neurovault_collection), [`download_nifti`](../api/tasks/loading.md#nltools.datasets.download_nifti) | `BrainData` also accepts a URL directly
 Build a mask | [`create_sphere`](../api/tasks/loading.md#nltools.mask.create_sphere), [`expand_mask`](../api/tasks/loading.md#nltools.mask.expand_mask), [`collapse_mask`](../api/tasks/loading.md#nltools.mask.collapse_mask) | `expand_mask` turns one labeled atlas into per-ROI binary masks
-Stack objects | [`concatenate`](../api/tasks/loading.md#nltools.utils.concatenate) | Works on lists of `BrainData` or `Adjacency`
+Stack objects | [`concatenate`](../api/tasks/loading.md#nltools.data.combine.concatenate) | Works on lists of `BrainData` or `Adjacency`
 
 ## Loading
 

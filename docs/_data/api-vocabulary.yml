@@ -310,4 +310,3 @@ enforcement:
     - {path: "nltools/algorithms/backends.py", function: "zeros_like", reason: "mirrors np.zeros_like"}
     - {path: "nltools/algorithms/backends.py", function: "ones_like", reason: "mirrors np.ones_like"}
     - {path: "nltools/algorithms/backends.py", function: "full_like", reason: "mirrors np.full_like"}
-    - {path: "nltools/algorithms/backends.py", function: "assert_array_almost_equal", reason: "mirrors np.testing.assert_array_almost_equal"}

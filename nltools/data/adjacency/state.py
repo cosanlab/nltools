@@ -9,9 +9,8 @@ import numpy as np
 import polars as pl
 from scipy.spatial.distance import squareform
 
-from nltools.data.braindata.utils import _copy_graph, _copy_object_frames
-from nltools.data.braindata.validation import validate_frame
-from nltools.data.designmatrix.utils import copy_frame
+from nltools.data.ownership import _copy_graph, _copy_object_frames, copy_frame
+from nltools.data.validation import validate_frame
 
 
 @dataclass(frozen=True)

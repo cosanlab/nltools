@@ -56,7 +56,7 @@ def _():
     from nltools.algorithms import fdr, threshold
     from nltools.data import DesignMatrix
     from nltools.datasets import fetch_pain
-    from nltools.utils import concatenate
+    from nltools import concatenate
 
     memory = Memory(".tutorial-cache", verbose=0)
 

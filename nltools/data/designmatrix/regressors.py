@@ -24,9 +24,14 @@ from nilearn.glm.first_level import (
     spm_time_derivative,
 )
 
-from nltools.utils import DesignMatrixWarning, find_stack_level, reserved_name
+from nltools.utils import DesignMatrixWarning, find_stack_level
 
-from .utils import copy_with, get_data_columns, has_run_separated_drift
+from .utils import (
+    copy_with,
+    get_data_columns,
+    has_run_separated_drift,
+    reserved_name,
+)
 
 if TYPE_CHECKING:
     from . import DesignMatrix

@@ -4,8 +4,6 @@ import numpy as np
 import polars as pl
 import nibabel as nib
 
-from nltools.utils import reserved_name
-
 __all__ = ["find_spikes", "trim", "winsorize", "zscore"]
 
 
@@ -263,14 +261,14 @@ def find_spikes(
 
     if global_spike_cutoff is not None:
         for i, loc in enumerate(global_outliers):
-            col_name = reserved_name(f"global_spike{i + 1}")
+            col_name = f"global_spike{i + 1}"
             col_values = [0] * len(global_mn)
             col_values[int(loc)] = 1
             outlier_data[col_name] = col_values
 
     if diff_spike_cutoff is not None:
         for i, loc in enumerate(frame_outliers):
-            col_name = reserved_name(f"diff_spike{i + 1}")
+            col_name = f"diff_spike{i + 1}"
             col_values = [0] * len(global_mn)
             col_values[int(loc)] = 1
             outlier_data[col_name] = col_values
@@ -281,7 +279,7 @@ def find_spikes(
     # on the flagged position, keeping the global detection so the tie-break
     # is deterministic rather than insertion-ordered. (Only the name is at
     # stake: the colliding columns are bitwise identical.)
-    global_prefix = reserved_name("global_spike")
+    global_prefix = "global_spike"
     seen: dict[int, str] = {}
     for name in [c for c in outlier_data if c.startswith(global_prefix)] + [
         c for c in outlier_data if not c.startswith(global_prefix)
@@ -299,16 +297,14 @@ def find_spikes(
     if TR is not None:
         sampling_freq = 1.0 / TR
 
-    from nltools.data import DesignMatrix
+    from nltools.data.designmatrix.utils import design_from_generated
 
-    if not outlier_data:
-        # No spikes is a normal outcome, not an error. Polars cannot express
-        # "n rows, 0 columns", so hand the row count to DesignMatrix explicitly
-        # — otherwise the result reports 0 rows and downstream `.append()`
-        # rejects it for not matching the rest of the design.
-        return DesignMatrix(
-            pl.DataFrame(), sampling_freq=sampling_freq, n_rows=len(global_mn)
-        )
-
-    df = pl.DataFrame(outlier_data)
-    return DesignMatrix(df, sampling_freq=sampling_freq, confounds=list(df.columns))
+    # No spikes is a normal outcome, not an error. Polars cannot express
+    # "n rows, 0 columns", so hand the row count over explicitly — otherwise
+    # the result reports 0 rows and downstream `.append()` rejects it for not
+    # matching the rest of the design.
+    return design_from_generated(
+        pl.DataFrame(outlier_data),
+        sampling_freq=sampling_freq,
+        n_rows=None if outlier_data else len(global_mn),
+    )

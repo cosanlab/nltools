@@ -4,7 +4,7 @@ title: Searchlight neighborhoods
 
 # Searchlight neighborhoods
 
-::: nltools.data.braindata.neighborhoods
+::: nltools.algorithms.neighborhoods
     options:
       show_root_heading: false
       show_root_toc_entry: false

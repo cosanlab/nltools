@@ -45,7 +45,7 @@ def _():
     from joblib import Memory
 
     from nltools.datasets import fetch_pain
-    from nltools.utils import concatenate
+    from nltools import concatenate
 
     memory = Memory(".tutorial-cache", verbose=0)
 

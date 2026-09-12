@@ -148,7 +148,7 @@ class Roc:
             tail (int | str): `2`/`'two'` for two-tailed (default); `1`/`'one'` for
                 one-tailed (accuracy > chance) in the binomial test for `accuracy_p`.
         """
-        from nltools.algorithms.inference.validation import validate_tail_parameter
+        from nltools.algorithms.validation import validate_tail_parameter
 
         binom_alternative = (
             "two-sided" if validate_tail_parameter(tail) == "two" else "greater"

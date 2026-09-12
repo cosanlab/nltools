@@ -476,7 +476,7 @@ class TestRidgeBootstrapContract:
             _bootstrap_design,
             _refit_resample,
         )
-        from nltools.algorithms.random import generate_bootstrap_indices
+        from nltools.algorithms.inference.random import generate_bootstrap_indices
 
         spaces = self._fitted_banded(masked)
         result = masked.bootstrap(

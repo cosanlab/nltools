@@ -26,8 +26,8 @@ from scipy.stats import rankdata
 from sklearn.utils import check_random_state
 from sklearn.metrics import pairwise_distances
 
-from .utils import _compute_pvalue, EPSILON, maybe_tqdm
-from .validation import validate_tail_parameter
+from .utils import EPSILON, maybe_tqdm
+from ..validation import _compute_pvalue, validate_tail_parameter
 
 
 # ============================================================================

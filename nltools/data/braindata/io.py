@@ -380,7 +380,7 @@ def load_from_list(bd, data_list):
             and stack.
     """
     import nibabel as nib
-    from nltools.utils import concatenate
+    from ..combine import concatenate
     from nltools.data.braindata.validation import validate_list_data
 
     list_type = validate_list_data(data_list)

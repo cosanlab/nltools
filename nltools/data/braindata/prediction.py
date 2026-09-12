@@ -776,7 +776,7 @@ def _run_searchlight(
     """
     from joblib import Parallel, delayed
 
-    from .neighborhoods import compute_searchlight_neighborhoods
+    from nltools.algorithms.neighborhoods import compute_searchlight_neighborhoods
 
     neighborhoods = compute_searchlight_neighborhoods(bd.mask, radius=radius)
 

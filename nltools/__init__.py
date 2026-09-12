@@ -20,6 +20,7 @@ __all__ = [
     "__version__",
     "algorithms",
     "collapse_mask",
+    "concatenate",
     "create_sphere",
     "cross_validation",
     "data",
@@ -47,6 +48,7 @@ from .data import (
     SimulateGrid,
     Roc,
 )
+from .data.combine import concatenate
 from .templates import (
     BrainSpaceConfig,
     get_brainspace,

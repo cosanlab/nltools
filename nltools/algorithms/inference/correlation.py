@@ -14,12 +14,8 @@ from collections.abc import Callable
 from scipy.stats import rankdata, kendalltau
 from sklearn.utils import check_random_state
 
-from .utils import (
-    _compute_pvalue,
-    EPSILON,
-    maybe_tqdm,
-)
-from .validation import validate_tail_parameter
+from .utils import EPSILON, maybe_tqdm
+from ..validation import _compute_pvalue, validate_tail_parameter
 
 
 def _pearson_correlation(x: np.ndarray, y: np.ndarray) -> np.ndarray | float:

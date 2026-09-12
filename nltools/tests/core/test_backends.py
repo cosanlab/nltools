@@ -153,7 +153,8 @@ def test_assert_array_almost_equal_precision_adjustment():
     """assert_array_almost_equal should auto-adjust precision for MPS"""
     import torch
     import warnings
-    from nltools.algorithms.backends import Backend, assert_array_almost_equal
+    from nltools.algorithms.backends import Backend
+    from nltools.tests.support.arrays import assert_array_almost_equal
 
     # Skip if MPS not available
     if not _torch_available():

@@ -20,15 +20,19 @@ logic lives in pure functions.**
 | Layer | Role | Where |
 |---|---|---|
 | **Imperative shell** | Three data classes that hold state and delegate. Each is a *facade over a submodule package* (io, modeling, plotting, …). | `nltools/data/{braindata,adjacency,designmatrix}/` |
-| **Functional core** | Pure functions — the actual computation. Containers in, containers out. Every user-facing function is importable flat from `nltools.algorithms`. | `nltools/algorithms/` (`corrections`, `outliers`, `signal`, `similarity`, `regression`, …), `utils`, `cross_validation`, `mask` |
+| **Functional core** | Pure functions — the actual computation. Containers in, containers out. Every user-facing function is importable flat from `nltools.algorithms`. | `nltools/algorithms/` (`corrections`, `outliers`, `signal`, `similarity`, `regression`, `neighborhoods`, …), `utils` (stack levels, warning categories, optional imports, progress bars), `cross_validation`, `mask` |
 | **Algorithm substrate** | Heavy numerical machinery with its own backend/parallel story. | `nltools/algorithms/{alignment,inference}/` |
 
 The three facades and their submodules:
 
 - **`BrainData`** — `io` · `analysis` · `modeling` · `prediction` · `bootstrap` ·
-  `neighborhoods` · `plotting` · `viewer` · `validation`
+  `plotting` · `viewer` · `validation`
 - **`Adjacency`** — `io` · `modeling` · `stats` · `plotting`
 - **`DesignMatrix`** — `append` · `transforms` · `regressors` · `diagnostics` · `io` · `plotting`
+
+Three modules sit at `nltools/data/` level because more than one class needs them:
+`ownership` (buffer-owning copies), `validation` (X/Y frame ingress) and `combine`
+(`concatenate`).
 
 The [DesignMatrix contract](specs/designmatrix.md) defines direct Polars method
 access, result ownership, metadata propagation and persistence.
@@ -66,8 +70,11 @@ results and inference semantics for BrainData and Adjacency.
   invents rather than the user — polynomial drift (`.nl_poly_0`), DCT cosines
   (`.nl_cosine_1`), spike indicators (`.nl_global_spike1`), and the run-separated
   variants a multi-run append produces (`.nl_r0_poly_0`) — is built with
-  `nltools.utils.reserved_name()` / `run_separated_name()`. Code that needs to
-  recognize nltools' own columns tests the prefix (`is_reserved_name`,
+  `nltools.data.designmatrix.utils.reserved_name()` / `run_separated_name()`. The
+  `DesignMatrix` package is the only writer of the namespace: code elsewhere that
+  generates columns (`find_spikes`) names them plainly and hands the frame to
+  `designmatrix.utils.design_from_generated`, which applies the prefix. Code that
+  needs to recognize nltools' own columns tests the prefix (`is_reserved_name`,
   `parse_run_separated`, or a domain predicate built on them like
   `designmatrix.utils.is_generated_intercept`) and **never** pattern-matches
   user-controlled names — no underscore counts, no substring tests. Users may then name

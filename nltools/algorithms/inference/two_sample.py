@@ -8,15 +8,10 @@ given `random_state` gives the same result at any worker count.
 
 import numpy as np
 
-from .utils import (
-    _compute_pvalue,
-    maybe_tqdm,
-)
-from .validation import (
-    validate_tail_parameter,
-    validate_array_shape_range,
-)
-from ..random import generate_seeds
+from .utils import maybe_tqdm
+from .validation import validate_array_shape_range
+from ..validation import _compute_pvalue, validate_tail_parameter
+from .random import generate_seeds
 
 
 def _two_sample_permutation_cpu_parallel(

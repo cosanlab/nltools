@@ -228,7 +228,7 @@ def _(mo):
 def _(DesignMatrix):
     import os
 
-    from nltools.utils import get_resource_path
+    from nltools.datasets import get_resource_path
 
     RUN_TR = 2.0
     onsets_file = os.path.join(get_resource_path(), "onsets_example.csv")

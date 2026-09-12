@@ -263,6 +263,23 @@ def _normalize_surf_hemis(hemi):
     return hemis
 
 
+def _require_standard_space(bd, op_name: str, *, remedy: str) -> None:
+    """Raise if ``bd`` is not in a standard MNI space supported by templates.
+
+    Used to gate plotting paths that draw against MNI-aligned scaffolding
+    (glass-brain outlines, fsaverage surfaces, template backgrounds).
+    Native-space data would render in misleading positions.
+    """
+    from nltools.templates import is_standard_space
+
+    ok, reason = is_standard_space(bd.mask.affine)
+    if ok:
+        return
+    raise ValueError(
+        f"{op_name} requires data in standard MNI space, but {reason}. {remedy}"
+    )
+
+
 def _require_plottable_brain(brain, op_name, remedy):
     """Reject empty or native-space `BrainData` before any surface work.
 
@@ -278,7 +295,6 @@ def _require_plottable_brain(brain, op_name, remedy):
         ValueError: If `brain` is an empty or non-standard-space `BrainData`.
     """
     from nltools.data import BrainData
-    from nltools.data.braindata.plotting import _require_standard_space
 
     if not isinstance(brain, BrainData):
         return

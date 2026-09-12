@@ -5,6 +5,8 @@ from pathlib import Path
 import numpy as np
 import polars as pl
 
+from nltools.io.h5 import _read_polars_frame, _reject_legacy_h5, _require_h5
+
 
 def write(adj, file_name, method="long"):
     """Write an Adjacency to a `.csv` or `.h5` file.
@@ -87,7 +89,6 @@ def to_graph(adj):
 def read_h5(file_name):
     """Read the current vector layout into a normalized Adjacency."""
     from . import Adjacency
-    from nltools.io.h5 import _read_polars_frame, _reject_legacy_h5, _require_h5
 
     _require_h5()
     import h5py
