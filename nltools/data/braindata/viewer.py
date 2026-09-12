@@ -350,7 +350,12 @@ def gzip_nifti(raw: bytes) -> bytes:
     Returns:
         Gzip-compressed NIfTI bytes.
     """
-    return raw if raw[:2] == b"\x1f\x8b" else gzip.compress(raw)
+    # mtime=0: gzip otherwise stamps the wall clock into the header, so the
+    # same volume serialized twice yields different bytes. Static-site
+    # builders (marimo-book) content-address these buffers and re-export a
+    # notebook once per slider value; a deterministic stream lets identical
+    # volumes de-duplicate to one file.
+    return raw if raw[:2] == b"\x1f\x8b" else gzip.compress(raw, mtime=0)
 
 
 def bd_to_nifti_bytes(bd) -> bytes:

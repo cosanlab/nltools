@@ -212,3 +212,20 @@ class TestResolveBackground:
         # background without any network fetch.
         affine = np.diag([2.0, 3.0, 4.0, 1.0])
         assert resolve_background(affine, None) is None
+
+
+def test_gzip_nifti_is_deterministic_across_calls():
+    """Same payload → identical bytes (gzip MTIME pinned), so content-addressed
+    consumers de-duplicate identical volumes."""
+    import gzip
+    import time
+
+    from nltools.data.braindata.viewer import gzip_nifti
+
+    raw = b"\x5c\x01\x00\x00" + bytes(range(256)) * 16
+    a = gzip_nifti(raw)
+    time.sleep(1.1)
+    b = gzip_nifti(raw)
+    assert a == b
+    assert gzip.decompress(a) == raw
+    assert gzip_nifti(a) == a  # already-gzipped input passes through
