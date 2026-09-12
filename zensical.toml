@@ -20,9 +20,7 @@ watch = ["scripts/docs_show.py"]
 nav = [
   { "Home" = "index.md" },
   { "Migrating from v0.5" = "migration-guide.md" },
-  # Tutorial pages are generated from the marimo notebooks that sit beside them
-  # (scripts/marimo_to_zensical.py, run by `docs-generate`) and executed by
-  # markdown-exec while the site builds. They are build artifacts, not sources.
+  # Old tutorials ported from 0.5.x
   { "Tutorials" = [
     { "Overview" = "tutorials/index.md" },
     { "Basics" = [
@@ -38,6 +36,19 @@ nav = [
       "tutorials/data-operations/05_design_matrix.md",
       "tutorials/data-operations/06_adjacency.md",
     ] },
+  ] },
+  # Hand-written task pages, one per task, mirroring "Functions by task" below.
+  { "User Guide" = [
+    { "Overview" = "guide/index.md" },
+    "guide/loading.md",
+    "guide/design-and-glm.md",
+    "guide/prediction.md",
+    "guide/similarity-and-rsa.md",
+    "guide/alignment.md",
+    "guide/statistics-and-inference.md",
+    "guide/intersubject.md",
+    "guide/plotting.md",
+    "guide/atlases.md",
     { "Analysis" = [
       "tutorials/analysis/01_univariate_regression.md",
       "tutorials/analysis/02_multivariate_prediction.md",
@@ -53,94 +64,16 @@ nav = [
       "tutorials/workflows/04_isc.md",
     ] },
   ] },
-  # Hand-written task pages, one per task, mirroring "Functions by task" below.
-  { "User Guide" = [
-    { "Overview" = "guide/index.md" },
-    "guide/loading.md",
-    "guide/design-and-glm.md",
-    "guide/prediction.md",
-    "guide/similarity-and-rsa.md",
-    "guide/alignment.md",
-    "guide/statistics-and-inference.md",
-    "guide/intersubject.md",
-    "guide/plotting.md",
-    "guide/atlases.md",
-  ] },
-  # Hand-written mkdocstrings stubs (scripts/check_api_pages.py keeps them and
-  # this nav honest). Task pages re-cut the public functions by what a user wants
-  # to do; the per-module reference sits last, under Development.
+  # Auto-generated API reference
   { "Reference" = [
-    { "Data classes" = [
-      "api/data/brain_data.md",
-      "api/data/adjacency.md",
-      "api/data/design_matrix.md",
-      { "Prediction results" = "api/data/results.md" },
-      "api/models.md",
+    { "Adjacency" = "api/data/adjacency.md"},
+    { "BrainData" = "api/data/brain_data.md"},
+    { "DesignMatrix" = "api/data/design_matrix.md"},
+    { "ROC" = "api/data/roc.md"},
+    { "Simulator" = "api/data/simulator.md"},
     ] },
-    { "Functions by task" = [
-      "api/tasks/loading.md",
-      "api/tasks/preprocessing.md",
-      "api/tasks/design-and-glm.md",
-      "api/tasks/prediction.md",
-      "api/tasks/similarity.md",
-      "api/tasks/alignment.md",
-      "api/tasks/inference.md",
-      "api/tasks/intersubject.md",
-      "api/tasks/plotting.md",
-      "api/tasks/atlases.md",
-      "api/tasks/simulation.md",
-    ] },
-    { "nltools.algorithms (A–Z index)" = "api/algorithms.md" },
-    { "Searchlight neighborhoods" = "api/neighborhoods.md" },
-  ] },
   { "Development" = [
     "contributing.md",
-    { "Architecture" = "development/index.md" },
-    "development/ridge-internals.md",
-    "development/inference-internals.md",
-    "development/benchmarks.md",
-    "development/execution-model.md",
-    "development/release-verification.md",
-    { "Design tour" = "public/design-tour.html" },
-    { "Specifications" = [
-      "development/specs/braindata.md",
-      "development/specs/adjacency.md",
-      "development/specs/designmatrix.md",
-      "development/specs/braincollection.md",
-      "development/specs/glm.md",
-      "development/specs/ridge.md",
-      "development/specs/ttest.md",
-    ] },
-    { "Internal modules" = [
-      "api/backends.md",
-      "api/cache.md",
-      "api/utils.md",
-      "api/templates.md",
-      "api/algorithms/decoding.md",
-      "api/algorithms/inference.md",
-      { "BrainData internals" = [
-        "api/data/braindata_io.md",
-        "api/data/braindata_analysis.md",
-        "api/data/braindata_modeling.md",
-        "api/data/braindata_prediction.md",
-        "api/data/braindata_bootstrap.md",
-        "api/data/braindata_plotting.md",
-      ] },
-      { "Adjacency internals" = [
-        "api/data/adjacency_stats.md",
-        "api/data/adjacency_modeling.md",
-        "api/data/adjacency_plotting.md",
-        "api/data/adjacency_io.md",
-      ] },
-      { "DesignMatrix internals" = [
-        "api/data/design_matrix_transforms.md",
-        "api/data/design_matrix_regressors.md",
-        "api/data/design_matrix_append.md",
-        "api/data/design_matrix_diagnostics.md",
-        "api/data/design_matrix_plotting.md",
-        "api/data/design_matrix_io.md",
-      ] },
-    ] },
     "changelog.md",
   ] },
 ]
