@@ -10,18 +10,6 @@ import numpy as np
 import polars as pl
 
 
-def test_is_single_matrix(data):
-    """Check whether data represents a single matrix (1-D vector).
-
-    Args:
-        data: numpy array of adjacency data.
-
-    Returns:
-        bool: True if data is 1-D (single matrix in vector form).
-    """
-    return len(data.shape) == 1
-
-
 def perform_arithmetic(adj, y, op, op_name, reverse=False):
     """Perform arithmetic operation with validation.
 

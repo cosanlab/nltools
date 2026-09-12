@@ -7,11 +7,11 @@
 # This file is the machine-readable source for the canonical-kwarg vocabulary. It
 # feeds TWO consumers, both wired into `poe lint-api`:
 #
-#   1. Docs rendering — `scripts/build_api_vocabulary.py` injects rendered tables into
-#      docs/development/index.md (2-column prose table) and docs/public/design-tour.html
-#      (3-column table + "exceptions" callout) between `<!-- AUTOGEN:api-vocabulary -->`
-#      marker pairs. Edit HERE, then `uv run poe docs-generate` to propagate; the
-#      `--check` mode fails CI if the committed tables have drifted.
+#   1. Docs rendering — `scripts/build_api_vocabulary.py` injects a rendered table into
+#      docs/development/index.md (2-column prose table) between
+#      `<!-- AUTOGEN:api-vocabulary -->` marker pairs. Edit HERE, then
+#      `uv run poe docs-generate` to propagate; the `--check` mode fails CI if the
+#      committed table has drifted.
 #   2. Code enforcement — `scripts/check_api_vocabulary.py` walks every public `def`
 #      in nltools/ with `ast` and validates signatures against the `enforcement:`
 #      section below: banned alias kwargs and per-kwarg semantic contracts (e.g.
@@ -22,12 +22,8 @@
 # keep in sync — edit the vocabulary/rules here and regenerate.
 #
 # Per-row fields:
-#   concept    — the concept the kwarg names (shared by both tables).
-#   kwarg      — the bare canonical name; the design-tour "Canonical kwarg" cell
-#                renders it as <code>{kwarg}</code>.
-#   tour_note  — the design-tour "Notes" cell, written in Markdown. Inline
-#                `code` spans and *emphasis* are converted to HTML; `·` chips are
-#                literal. Used only by the design tour.
+#   concept    — the concept the kwarg names.
+#   kwarg      — the bare canonical name.
 #   index_md   — the index.md "Canonical kwarg" cell, written as raw Markdown
 #                (e.g. a `code` span, possibly with a value set or qualifier).
 #                Table pipes are escaped automatically at render time — author
@@ -41,115 +37,89 @@ stats:
 vocabulary:
   - concept: "Algorithm / variant choice"
     kwarg: "method"
-    tour_note: "not `algorithm`/`scheme`/`kind`"
     index_md: "`method`"
   - concept: "Decoding estimator (MVPA)"
     kwarg: "estimator"
-    tour_note: "an sklearn *object* or a shortcut name — `method` names an algorithm variant"
     index_md: "`estimator: str | BaseEstimator = 'linear_svc'` on `BrainData.predict` — a built-in shortcut name or any sklearn estimator / `Pipeline`. It names an sklearn object, so it is distinct from `method=`, which selects an algorithm variant"
   - concept: "Spatial scale"
     kwarg: "spatial_scale"
-    tour_note: "`'whole_brain'` · `'roi'` · `'searchlight'`"
     index_md: "`spatial_scale` (`'whole_brain' | 'roi' | 'searchlight'`)"
   - concept: "Distance / similarity metric"
     kwarg: "metric"
-    tour_note: "kept separate from `method`"
     index_md: "`metric`"
   - concept: "Central tendency"
     kwarg: "summary"
-    tour_note: "`'mean'` · `'median'` — never `metric`"
     index_md: "`summary` (`'mean' | 'median'`)"
   - concept: "Cross-validation spec"
     kwarg: "cv"
-    tour_note: "`None` = deterministic 5-fold · `int` folds · sklearn splitter — `'loo'`/`'logo'` are `resolve_cv`-only"
     index_md: "`cv` (`int |` splitter `| None`) on `BrainData.predict` — `None` is a deterministic five-fold `KFold`/`StratifiedKFold`; the `'loo'`/`'logo'` names are accepted only by `resolve_cv`, and `'loso'`/`'loro'` are gone everywhere. The grouping lives in `groups=`"
   - concept: "Subject-level parallelism"
     kwarg: "n_jobs"
-    tour_note: "default `-1`"
     index_md: "`n_jobs: int = -1`"
   - concept: "GPU / CPU selection"
     kwarg: "device"
-    tour_note: "orthogonal to `n_jobs` — explicit `'gpu'` runs or raises"
     index_md: "`device: str = \"cpu\"` — run-or-raise: explicit `'gpu'` never silently degrades to CPU; `'auto'` is the one graceful-fallback path"
   - concept: "Backend (alignment internals)"
     kwarg: "parallel"
-    tour_note: "`None` · `'cpu'` · `'gpu'` — inference and ridge use `device`"
     index_md: "`parallel: None | 'cpu' | 'gpu'` (the inference engine and `Ridge` use `device` as of v0.6.0)"
   - concept: "Alignment refinement count"
     kwarg: "n_iter"
-    tour_note: "SRM/DetSRM/HyperAlignment/LocalAlignment only — elsewhere `n_iter` is a banned alias"
     index_md: "`n_iter` on `SRM`, `DetSRM`, `HyperAlignment`, and `LocalAlignment` — EM iterations, coordinate-descent iterations, or template-refinement rounds, depending on the estimator; everywhere else `n_iter` is a banned alias for `n_permute`/`n_samples`/`search_iterations`"
   - concept: "Working-memory budget"
     kwarg: "memory_budget_gb"
-    tour_note: "device-neutral · `None` measures the device"
     index_md: "`memory_budget_gb: float | None = None` — device-neutral working-memory budget for internal batching; `None` measures the selected device with headroom"
   - concept: "Progress indicator"
     kwarg: "progress_bar"
-    tour_note: "`verbose` reserved for log-level"
     index_md: "`progress_bar: bool = False`"
   - concept: "Permutation count"
     kwarg: "n_permute"
-    tour_note: "distinct from…"
     index_md: "`n_permute`"
   - concept: "Bootstrap sample count"
     kwarg: "n_samples"
-    tour_note: "…the bootstrap count"
     index_md: "`n_samples`"
   - concept: "Bootstrap statistic"
     kwarg: "statistic"
-    tour_note: "a closed set of eight names — not `stat`, never a callable"
     index_md: "`statistic` on `bootstrap` — a closed set of eight names (`'mean'`, `'median'`, `'std'`, `'sum'`, `'min'`, `'max'`, `'weights'`, `'predict'`); no callables and no dynamic dispatch to other methods"
   - concept: "Interval confidence level"
     kwarg: "confidence_level"
-    tour_note: "one level, not a percentile pair"
     index_md: "`confidence_level: float = 0.95` — one level in `(0, 1)`, not a `percentiles` pair; the reported bounds are the central percentile interval, elementwise marginal"
   - concept: "Retain resampled draws"
     kwarg: "return_samples"
-    tour_note: "retention only — it never changes interval semantics"
     index_md: "`return_samples: bool = False` on `bootstrap` — keeps every replicate (bootstrap axis first); it changes retention only, never the interval"
   - concept: "Tail of test"
     kwarg: "tail"
-    tour_note: "`2`/`'two'` default · `1`/`'one'` = the test's positive direction"
     index_md: "`tail` (`2 | 'two' | 1 | 'one'`; direction fixed by the test, never the data)"
   - concept: "Threshold pair"
     kwarg: "lower, upper, binarize"
-    tour_note: "convenience `threshold` where bidirectional"
     index_md: "`lower`, `upper`, `binarize` (+ `threshold` where bidirectional)"
   - concept: "Display autoscaling"
     kwarg: "autoscale"
-    tour_note: "`True` = robust percentile window · `False` = raw magnitude range"
     index_md: "`autoscale: bool = True` (viewer display window; `False` = raw magnitude range)"
   - concept: "Display symmetry"
     kwarg: "symmetric"
-    tour_note: "`'auto'` = symmetric only for mixed-signed maps · `True` forces symmetry · `False` scales limbs independently"
     index_md: "`symmetric: bool | 'auto' = 'auto'` (viewer positive/negative limbs)"
   - concept: "Diagonal flag"
     kwarg: "include_diag"
-    tour_note: "not `ignore_diagonal` — inverted sense"
     index_md: "`include_diag: bool`"
   - concept: "Radius (mm)"
     kwarg: "radius"
-    tour_note: "millimeters everywhere, following nilearn's `SearchLight` / `NiftiSpheresMasker`"
     index_md: "`radius: float` in millimeters everywhere, following nilearn's `SearchLight` and `NiftiSpheresMasker` — `10.0` on the searchlight entry points (`BrainData.predict`, `BrainData.distance`, `BrainData.align`, `LocalAlignment`, `compute_searchlight_neighborhoods`), `3.0` on the surface plotters, and the same millimeter unit for `create_sphere` and `Simulator` geometry, converted to voxels through the image affine"
   - concept: "GLM-specific fit option"
     kwarg: "glm_*"
-    tour_note: "`glm_noise_model` · `glm_bins` · `glm_n_jobs` — `random_state` stays bare"
     index_md: "`glm_*` on `BrainData.fit` (`glm_noise_model`, `glm_bins`, `glm_n_jobs`) — a non-default one under `model='ridge'` raises `ValueError`; `random_state` keeps its bare name because both estimators use it"
   - concept: "Ridge-specific fit option"
     kwarg: "ridge_*"
-    tour_note: "`ridge_alpha` · `ridge_cv` · `ridge_device` · … — `random_state` stays bare"
     index_md: "`ridge_*` on `BrainData.fit` (`ridge_alpha`, `ridge_cv`, `ridge_search_iterations`, `ridge_dirichlet_concentration`, `ridge_device`, `ridge_memory_budget_gb`, `ridge_per_target_alpha`, `ridge_prefer_conservative_alpha`, `ridge_progress_bar`) — each maps onto the identically-named `Ridge` argument, and a non-default one under `model='glm'` raises `ValueError`"
   - concept: "Contrast inference toggle"
     kwarg: "inference"
-    tour_note: "`False` returns the effect · `True` returns a `ContrastResult`"
     index_md: "`inference: bool = False` on `compute_contrasts` — the effect alone by default (what a second-level model consumes); `True` returns the full `ContrastResult`"
 
-# Deliberate deviations from the table (design-tour "exceptions" callout).
-# Each entry names the module `path` (prefix-matched, like exclude_paths),
-# function, and kwarg it exempts — the checker suppresses that exact
-# (path, function, kwarg) triple, so a same-named def elsewhere is still
-# checked — and carries `text`, the Markdown → HTML sentence the design tour
-# renders. Keep in sync with CLAUDE.md exceptions F175/F105/F077.
+# Deliberate deviations from the table. Each entry names the module `path`
+# (prefix-matched, like exclude_paths), function, and kwarg it exempts — the
+# checker suppresses that exact (path, function, kwarg) triple, so a
+# same-named def elsewhere is still checked — and carries `text`, a
+# human-readable rationale for the deviation. Keep in sync with CLAUDE.md
+# exceptions F175/F105/F077.
 exceptions:
   - path: "nltools/data/braindata/__init__.py"
     function: "BrainData.fit"

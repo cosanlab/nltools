@@ -105,6 +105,21 @@ class TestCoalescedGC:
             assert np.array_equal(a, b), f"{attr} differs between coalesced/passthrough"
 
 
+class TestAttemptToImport:
+    """``attempt_to_import`` returns the module or ``None`` — no side-registry."""
+
+    def test_returns_module_on_success(self):
+        from nltools.utils import attempt_to_import
+
+        mod = attempt_to_import("numpy")
+        assert mod is np
+
+    def test_returns_none_on_missing_module(self):
+        from nltools.utils import attempt_to_import
+
+        assert attempt_to_import("no_such_module_nltools_test") is None
+
+
 class TestProgressHelpers:
     """``maybe_tqdm``/``make_progress_bar`` are the single library-wide progress mechanism."""
 
@@ -132,8 +147,6 @@ class TestProgressHelpers:
 
         with make_progress_bar(progress_bar=False, total=5, desc="x") as bar:
             bar.update(2)
-            bar.set_postfix(a=1)
-            bar.set_description("y")
         assert capsys.readouterr().err == ""
 
     def test_only_utils_imports_tqdm(self):

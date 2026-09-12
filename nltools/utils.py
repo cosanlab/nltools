@@ -18,7 +18,6 @@ __all__ = [
     "run_separated_name",
 ]
 
-import collections
 import contextlib
 import gc
 import inspect
@@ -229,11 +228,7 @@ def get_resource_path():
     return join(dirname(__file__), "resources") + pathsep
 
 
-module_names = {}
-Dependency = collections.namedtuple("Dependency", "package value")
-
-
-def attempt_to_import(dependency, name=None, fromlist=None):
+def attempt_to_import(dependency, fromlist=None):
     """Attempt to import an optional dependency, returning None if unavailable.
 
     This function is used to handle optional dependencies gracefully. If the
@@ -242,8 +237,6 @@ def attempt_to_import(dependency, name=None, fromlist=None):
 
     Args:
         dependency (str): The module name to import (e.g. `'torch'`, `'cupy'`).
-        name (str, optional): Key to record the dependency under in the module-level
-            `module_names` registry. Defaults to `dependency`.
         fromlist (list[str], optional): Names to import from the module (passed to
             `__import__`).
 
@@ -257,13 +250,10 @@ def attempt_to_import(dependency, name=None, fromlist=None):
             ...  # use torch
         ```
     """
-    if name is None:
-        name = dependency
     try:
         mod = __import__(dependency, fromlist=fromlist)
     except ImportError:
         mod = None
-    module_names[name] = Dependency(dependency, mod)
     return mod
 
 
@@ -329,12 +319,6 @@ class _NullProgressBar:
     def close(self) -> None:
         pass
 
-    def set_postfix(self, *args, **kwargs) -> None:
-        pass
-
-    def set_description(self, *args, **kwargs) -> None:
-        pass
-
     def __enter__(self) -> "_NullProgressBar":
         return self
 
@@ -386,8 +370,8 @@ def make_progress_bar(*, progress_bar: bool, **tqdm_kwargs):
 
     Returns:
         tqdm | _NullProgressBar: A `tqdm` instance, or a `_NullProgressBar` exposing
-            the same subset of its interface (`update`, `close`, `set_postfix`,
-            `set_description`, and the context-manager protocol).
+            the same subset of its interface (`update`, `close`, and the
+            context-manager protocol).
     """
     if not progress_bar:
         return _NullProgressBar()

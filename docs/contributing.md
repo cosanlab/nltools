@@ -50,4 +50,4 @@ Pages under `docs/api/` are hand-written: frontmatter, prose, and `::: dotted.pa
 
 The `.md` beside each tutorial notebook is a build artifact: `docs-generate` writes it from the `.py`, and it is git-ignored. Edit the notebook. `docs-build` executes each page's cells while it builds, so the outputs on the page are the ones that code produced; `docs-serve` replays the outputs it recorded for a page whose cells did not change.
 
-To link into the API from a guide page, use the object's full dotted path as the anchor — `[BrainData.predict](../api/data/brain_data.md#nltools.data.braindata.BrainData.predict)` — because mkdocstrings gives every heading it emits `id="<full dotted path>"`, never a slug of the displayed name.
+To link into the API from a guide page, use the object's full dotted path as the anchor — `[BrainData.predict](api/data/brain_data.md#nltools.data.braindata.BrainData.predict)` — because mkdocstrings gives every heading it emits `id="<full dotted path>"`, never a slug of the displayed name.

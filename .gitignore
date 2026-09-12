@@ -2,8 +2,6 @@
 ###################
 *.pyc
 docs/_build
-docs/_build/html/try-it-jupyterlite/
-docs/auto_examples
 *.log
 *.egg*
 build/
@@ -18,11 +16,9 @@ dev/
 *.sql
 *.sqlite
 *.json
-!docs/jupyterlite/jupyter_lite_config.json
 
 # iPython Notebook Caches #
 ###########################
-scripts/nilearn_cache/
 .ipynb_checkpoints
 
 # OS generated files #
@@ -54,7 +50,6 @@ htmlcov/
 ######
 examples/**/*.nii.gz
 data.nii.gz
-docs/backreferences/
 environment.yml
 rep_id.csv
 y.csv
@@ -66,25 +61,14 @@ dev.ipynb
 .venv
 docs/**/*.nii.gz
 .ruff_cache/
-**/haxbydata/
-**Haxby*.ipynb
 audit/
 claude-research/
-
-# .beads/ runtime files ignored via .beads/.gitignore (issues.jsonl tracked)
-.github/copilot-instructions.md
-nltools/tests/data/haxby/
 
 # Nifti templates + parcellations — fetched lazily from
 # https://huggingface.co/datasets/nltools/niftis on first use
 nltools/resources/niftis/
 
-# Dolt database files (added by bd init)
-.dolt/
 *.db
-old-tutorials/
-docs/tutorials/workflows/archive
-dartbrains/
 scripts/sub-*
 *.nii.gz
 scratch/

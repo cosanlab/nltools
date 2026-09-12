@@ -13,7 +13,6 @@ from nltools.utils import attempt_to_import
 # Optional dependencies
 ipywidgets = attempt_to_import(
     "ipywidgets",
-    name="ipywidgets",
     fromlist=["interact", "fixed", "widgets", "BoundedFloatText", "BoundedIntText"],
 )
 

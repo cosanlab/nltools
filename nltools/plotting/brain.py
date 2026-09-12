@@ -24,7 +24,6 @@ from nltools.utils import attempt_to_import, find_stack_level
 # Optional dependencies
 ipywidgets = attempt_to_import(
     "ipywidgets",
-    name="ipywidgets",
     fromlist=["interact", "fixed", "widgets", "BoundedFloatText", "BoundedIntText"],
 )
 

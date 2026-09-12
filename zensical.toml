@@ -1,9 +1,4 @@
 # Zensical site configuration. Build: `uv run poe docs-build`. Preview: `uv run poe docs-serve`.
-#
-# Transitional: the MyST toolchain (docs/myst.yml and the `docs-site` /
-# `docs-preview` tasks) still builds the non-tutorial pages. Zensical reads every
-# markdown file under `docs_dir`, so `docs-build` clears MyST's rendered output
-# first.
 
 [project]
 site_name = "nltools"

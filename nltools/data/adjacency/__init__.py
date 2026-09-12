@@ -11,7 +11,7 @@ from .utils import apply_stat, perform_arithmetic
 __all__ = ["Adjacency"]
 
 # Optional dependencies
-nx = attempt_to_import("networkx", "nx")
+nx = attempt_to_import("networkx")
 
 MAX_INT = np.iinfo(np.int32).max
 

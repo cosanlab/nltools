@@ -1343,7 +1343,7 @@ def is_oom_error(exc: BaseException) -> bool:
     return isinstance(exc, RuntimeError) and "out of memory" in str(exc).lower()
 
 
-def empty_device_cache() -> None:
+def _empty_device_cache() -> None:
     """Release cached device memory.
 
     No-op without torch or a GPU.
@@ -1398,7 +1398,7 @@ def compute_oom_safe(fn, *arrays, min_chunk: int = 1):
     except Exception as exc:
         if not is_oom_error(exc):
             raise
-        empty_device_cache()
+        _empty_device_cache()
         if n <= min_chunk:
             raise MemoryError(
                 f"Device out of memory even for a single item (chunk of {n}). "
