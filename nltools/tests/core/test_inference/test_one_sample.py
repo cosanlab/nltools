@@ -27,7 +27,6 @@ class TestOneSamplePermutation:
 
         assert "mean" in result
         assert "p" in result
-        assert "device" in result
 
         if n_features == 1:
             assert isinstance(result["mean"], (float, np.floating))
@@ -162,9 +161,7 @@ class TestOneSamplePermutationStatisticalCorrectness:
         np.random.seed(42)
         data = np.random.randn(n_samples) + true_mean
 
-        result = one_sample_permutation_test(
-            data, n_permute=100, random_state=42, device=None
-        )
+        result = one_sample_permutation_test(data, n_permute=100, random_state=42)
 
         # Computed mean should be close to true mean
         # Tolerance: rtol=0.1 (10% as specified in plan)
@@ -264,7 +261,7 @@ class TestOneSamplePermutationStatisticalCorrectness:
         data = np.random.randn(n_samples)  # Mean ~ 0
 
         result = one_sample_permutation_test(
-            data, n_permute=n_permute, return_null=True, random_state=42, device=None
+            data, n_permute=n_permute, return_null=True, random_state=42
         )
 
         # Null distribution mean should be close to 0 (within sampling error)

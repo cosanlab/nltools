@@ -65,8 +65,7 @@ def isc(
     et al., 2018), preserving its temporal autocorrelation, and recompute ISC.
 
     Runs on plain arrays with observations aligned across subjects.
-    `isc_permutation_test` exposes the same engine with `device='gpu'` and
-    leave-one-out ISC.
+    `isc_permutation_test` exposes the same engine with leave-one-out ISC.
 
     Args:
         data (np.ndarray | pl.DataFrame | pd.DataFrame): Observations by
@@ -93,8 +92,8 @@ def isc(
 
     Returns:
         dict: Keys `'isc'` (float, observed ISC), `'p'` (float), `'ci'` (tuple
-            `(lower, upper)`), `'device'`, and — when `return_null=True` —
-            `'null_dist'` (np.ndarray).
+            `(lower, upper)`), and — when `return_null=True` — `'null_dist'`
+            (np.ndarray).
 
     References:
         Chen, G., Shin, Y. W., Taylor, P. A., Glen, D. R., Reynolds, R. C.,
@@ -165,7 +164,7 @@ def isc_group(
     P-values use the percentile method (Hall & Wilson, 1991).
 
     Runs on plain arrays; `isc_group_permutation_test` exposes the same engine
-    with `device='gpu'` and leave-one-out ISC.
+    with leave-one-out ISC.
 
     Args:
         group1 (np.ndarray | pl.DataFrame | pd.DataFrame): Observations by
@@ -194,7 +193,7 @@ def isc_group(
 
     Returns:
         dict: Keys `'isc_group_difference'` (float, observed difference), `'p'`
-            (float), `'ci'` (tuple `(lower, upper)`), `'device'`, and — when
+            (float), `'ci'` (tuple `(lower, upper)`), and — when
             `return_null=True` — `'null_dist'` (np.ndarray).
 
     References:

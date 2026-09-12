@@ -1,34 +1,15 @@
 ---
 title: Inference internals
-description: Permutation and bootstrap testing in nltools — algorithms, deterministic RNG, p-values, and numerical stability.
+description: Non-parametric permutation and bootstrap testing on CPU workers — algorithms, deterministic RNG, p-values, and numerical stability.
 ---
 
 # Inference internals
 
-Non-parametric permutation and bootstrap testing, with optional CPU-parallel and GPU
-backends. This is design reference for the `nltools/algorithms/inference/` module; for
-the public functions see [Statistics & inference](../api/tasks/inference.md) and
+Non-parametric permutation and bootstrap testing on CPU workers. This is design
+reference for the `nltools/algorithms/inference/` module; for the public
+functions see [Statistics & inference](../api/tasks/inference.md) and
 [Intersubject correlation](../api/tasks/intersubject.md), or the
 [`nltools.algorithms.inference` module page](../api/algorithms/inference.md).
-
-## Backend selection
-
-Every permutation/bootstrap entry point takes `device: None | 'cpu' | 'gpu'` (the
-canonical vocabulary — renamed from `parallel=` in v0.6.0; not a `backend=` argument):
-
-| `device=` | Meaning | Trade-off |
-|---|---|---|
-| `None` | Sequential NumPy | simple, deterministic, slow |
-| `'cpu'` | Joblib CPU-parallel | fast, no GPU needed |
-| `'gpu'` | PyTorch, batched | large speedup on big problems; requires a GPU |
-
-Matrix permutation (Mantel) is CPU/`None` only — GPU indexing is inefficient for the
-symmetric double-permutation, enforced by a validation guard.
-
-Every entry point validates `device=` up front through the shared
-`validate_device_parameter` (run-or-raise: an invalid value is a `ValueError`, never a
-warn-and-fall-back-to-CPU). `phase_randomize` additionally accepts `'auto'`
-(GPU if present, else CPU) via the validator's `allow_auto=` flag.
 
 ## Core algorithms
 
@@ -77,11 +58,6 @@ methods preserve temporal structure, randomizing only one variable:
    never reversed (a reversed pairing leaves the spectrum non-Hermitian, and taking
    `.real` of the ifft silently distorts the surrogate).
 
-The GPU paths reuse the CPU derivations exactly — per-seed shift amounts via
-`_circle_shift_amounts` (the same `randint(1, n)` draw `circle_shift` makes) and
-per-seed phase draws from the same `RandomState` stream — so device changes only the
-arithmetic (float32 rounding), never which permutations are evaluated.
-
 ### Matrix permutation (Mantel test)
 
 Test the correlation between two matrices via symmetric permutation:
@@ -105,9 +81,9 @@ Two computation modes:
 2. **Pairwise** — all `n(n-1)/2` correlations; traditional, complete structure.
 
 Null via subject-wise bootstrap (resample with replacement), circle shift, or phase
-randomize; the LOO/pairwise compute has a GPU path selectable with `device='gpu'`. A
-companion `isc_group_permutation_test` tests a two-group ISC difference. `isc_test`
-re-centers the bootstrap null at zero before computing p (fixing a pre-0.6.0 regression).
+randomize. A companion `isc_group_permutation_test` tests a two-group ISC
+difference. `isc_test` re-centers the bootstrap null at zero before computing p
+(fixing a pre-0.6.0 regression).
 
 ### Bootstrap inference
 
@@ -217,11 +193,11 @@ where `count` = number of null statistics ≥ |observed|. This prevents `p = 0`
 standard practice (scipy, FSL, AFNI). Two-tailed uses `|null| ≥ |observed|`; one-tailed
 `'upper'`/`'lower'` are also supported.
 
-## Deterministic RNG (cross-backend consistency)
+## Deterministic RNG (worker-count consistency)
 
 The load-bearing pattern (matching MNE-Python): pre-generate an independent seed per
 permutation, then give each permutation its own `RandomState`. This makes results
-identical across backends and joblib worker execution orders.
+identical regardless of joblib worker count.
 
 ```python
 MAX_INT = 2**31 - 1
@@ -232,10 +208,9 @@ for i in range(n_permute):
 ```
 
 The randomizations (seeds, sign-flip matrices) are generated **before** the parallel
-block; joblib workers only *consume* them and never touch RNG state — so
-NumPy ↔ CPU-parallel results are bit-identical, and NumPy ↔ GPU differ only by float32
-rounding. Memory cost is negligible (4 bytes/permutation plus a bounded sign-flip
-matrix).
+block; joblib workers only *consume* them and never touch RNG state — so results
+are bit-identical for any `n_jobs`. Memory cost is negligible (4 bytes per
+permutation plus a bounded sign-flip matrix).
 
 ## CPU parallelization (joblib)
 
@@ -251,39 +226,10 @@ Worker count is adaptively capped by a memory budget (`_auto_n_jobs_cpu`, living
 and never exceeds `max_jobs` (pass `min(requested, cpu_count)` to cap an explicit
 request).
 
-## GPU batching (PyTorch)
-
-Permutations are processed in memory-bounded batches. The budget and batch math live
-in the core execution layer (`algorithms.backends`) — the single source of truth for
-every batched code path in the package:
-
-- `device_memory_budget(backend, max_gpu_memory_gb, cap_for_batching=...)`: `None`
-  (the default everywhere) **measures** the device — free CUDA memory with headroom,
-  or available system RAM for MPS/CPU — while an explicit GB value is used verbatim.
-  Batch-sizing call sites pass `cap_for_batching=True`, which caps a *measured*
-  budget at `BATCH_WORKING_SET_CEILING_GB` (8 GB): working sets beyond the
-  saturation ceiling add allocation latency without throughput gain and starve
-  unified-memory hosts. The cap is sizing-only — an explicit `max_gpu_memory_gb` is
-  never capped, and capacity reasoning (OOM recovery, single-item-too-large errors)
-  uses the true measured budget.
-- `auto_batch_size(n_items, bytes_per_item, budget_gb=..., overhead=..., min_batch=...)`:
-  the one batch calculator; each algorithm supplies only its per-item working-set
-  estimate (`n_samples * n_features * 4` float32 bytes for the permutation engines,
-  `n² * n_features * 4` for Kendall's pairwise-sign tensors).
-- `compute_oom_safe(fn, *arrays)`: reactive recovery — on device OOM the cache is
-  emptied, the **already-generated** batch inputs are split in half along axis 0, and
-  the halves retried. RNG draws happen before device compute in every batched loop,
-  so recovery reuses the exact same permutations; outputs match the unsplit
-  computation to within float32 reduction order (~1 ulp — torch blocks reductions
-  differently per batch shape). Pinned by `test_oom_recovery.py`.
-
-Device compute is float32 (negligible p-value impact vs float64). Spearman's GPU path
-ranks with `_rank_transform_gpu` — a per-row stable sort whose tied runs get their
-mean rank, parity-tested against `scipy.stats.rankdata(method='average')` — then runs
-the vectorized Pearson on the ranks. Kendall has a real GPU kernel: tie-corrected
-tau-b via pre-computed pairwise sign tensors (permutations only re-index them, and the
-tie denominator is permutation-invariant), parity-tested against
-`scipy.stats.kendalltau`.
+Batch and memory arithmetic for the one remaining batched path — the Ridge
+bootstrap on the GPU — lives in `algorithms.backends` and is documented in
+[Ridge internals](ridge-internals.md); the permutation engines here allocate
+nothing beyond one worker's copy of the data.
 
 ## Numerical stability
 
@@ -295,8 +241,8 @@ from .utils import EPSILON        # 1e-10
 correlation = numerator / (denominator + EPSILON)
 ```
 
-`EPSILON = 1e-10` sits well above float64 machine epsilon (2.2e-16), is small enough for
-negligible error, and is safe for float32 GPU math (machine epsilon 1.2e-7). Kendall
+`EPSILON = 1e-10` sits well above float64 machine epsilon (2.2e-16) and is small enough
+for negligible error. Kendall
 guards NaN → 0.0; the bootstrap accumulator propagates non-finite replicate values
 rather than substituting `nan*` reductions.
 
@@ -312,10 +258,10 @@ Guidance, not hard limits:
 
 ## Key design decisions
 
-- **Pre-generate randomizations** — reproducibility (same seed → identical results across
-  backends), inspectable null distributions, and replication of published results.
-- **Independent `RandomState` per permutation** — eliminates joblib worker-order effects
-  and gives perfect cross-backend consistency.
+- **Pre-generate randomizations** — reproducibility (same seed → identical results),
+  inspectable null distributions, and replication of published results.
+- **Independent `RandomState` per permutation** — eliminates joblib worker-order effects,
+  so the worker count is numerically invisible.
 - **Phipson-Smyth correction** — prevents `p = 0`; standard in neuroimaging software.
 - **Welford plus a bounded tail for bootstrap** — numerically stable and single-pass,
   and the exact percentile interval at `O((1 - c) * B * output_shape)` retained memory
@@ -332,9 +278,8 @@ Guidance, not hard limits:
 
 ## Performance
 
-CPU-parallel gives a several-fold speedup over sequential; the GPU path gives a much
-larger one on big problems (many voxels / many permutations). Actual timings are
-hardware-dependent — benchmark on your own machine.
+Spreading permutations across workers gives a several-fold speedup over a single
+worker. Actual timings are hardware-dependent — benchmark on your own machine.
 
 ## References
 

@@ -4,11 +4,6 @@ import pytest
 import numpy as np
 
 from nltools.algorithms import two_sample_permutation_test
-from nltools.tests.core.test_inference import (
-    TOLERANCE_GPU_VALUE,
-    TOLERANCE_GPU_PVALUE,
-)
-from nltools.algorithms.backends import check_gpu_available
 
 
 class TestTwoSamplePermutation:
@@ -31,7 +26,6 @@ class TestTwoSamplePermutation:
 
         assert "mean_diff" in result
         assert "p" in result
-        assert "device" in result
 
         if n_features == 1:
             assert isinstance(result["mean_diff"], (float, np.floating))
@@ -123,7 +117,7 @@ class TestTwoSamplePermutation:
         data2 = np.random.randn(25, 50)
 
         result = two_sample_permutation_test(
-            data1, data2, n_permute=500, device="cpu", n_jobs=2, random_state=42
+            data1, data2, n_permute=500, n_jobs=2, random_state=42
         )
 
         # Mean difference should match observed
@@ -132,43 +126,6 @@ class TestTwoSamplePermutation:
 
         # P-values should be valid
         assert np.all((result["p"] >= 0) & (result["p"] <= 1))
-        assert result["device"] == "cpu"
-
-    @pytest.mark.slow
-    @pytest.mark.gpu
-    @pytest.mark.skipif(not check_gpu_available()[0], reason="GPU not available")
-    def test_gpu_batching_correctness(self):
-        """Test that GPU batching produces same results as NumPy."""
-        np.random.seed(42)
-        data1 = np.random.randn(20, 5000)
-        data2 = np.random.randn(25, 5000)
-
-        # NumPy backend
-        result_numpy = two_sample_permutation_test(
-            data1, data2, n_permute=500, device=None, random_state=42
-        )
-
-        # GPU backend with small memory budget to force batching
-        result_gpu = two_sample_permutation_test(
-            data1,
-            data2,
-            n_permute=500,
-            device="gpu",
-            max_gpu_memory_gb=0.5,
-            random_state=42,
-        )
-
-        # Results should match (float32 vs float64 precision)
-        np.testing.assert_allclose(
-            result_numpy["mean_diff"],
-            result_gpu["mean_diff"],
-            rtol=TOLERANCE_GPU_VALUE,  # float32 vs float64 differences
-        )
-        np.testing.assert_allclose(
-            result_numpy["p"],
-            result_gpu["p"],
-            rtol=TOLERANCE_GPU_PVALUE,  # P-values accumulate more FP error
-        )
 
 
 # ============================================================================

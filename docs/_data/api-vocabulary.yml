@@ -58,7 +58,7 @@ vocabulary:
     index_md: "`n_jobs: int = -1`"
   - concept: "GPU / CPU selection"
     kwarg: "device"
-    index_md: "`device: str = \"cpu\"` — run-or-raise: explicit `'gpu'` never silently degrades to CPU; `'auto'` is the one graceful-fallback path"
+    index_md: "`device: str = \"cpu\"` on the ridge entry points — `Ridge`, `BrainData.fit(ridge_device=)` and `BrainData.bootstrap` — the only paths with a GPU implementation. Run-or-raise: explicit `'gpu'` either runs on the GPU or raises, and there is no `'auto'`"
   - concept: "Alignment refinement count"
     kwarg: "n_iter"
     index_md: "`n_iter` on `SRM` and `DetSRM` — EM iterations or coordinate-descent iterations; everywhere else `n_iter` is a banned alias for `n_permute`/`n_samples`/`search_iterations`"
@@ -245,17 +245,14 @@ enforcement:
       keyword_only: true
       hint: "canonical form is `*, return_samples: bool = False` — retention only; it must never change interval or estimate semantics"
     device:
-      allowed_defaults: ["cpu", "auto"]
-      hint: "canonical form is `device: str = 'cpu'` ('auto' where supported); run-or-raise — explicit 'gpu' either runs on the GPU or raises, never a silent CPU fallback ('auto' is the one graceful path)"
+      allowed_defaults: ["cpu"]
+      hint: "canonical form is `device: str = 'cpu'` on the ridge fit and the ridge bootstrap, the only GPU paths; run-or-raise — explicit 'gpu' either runs on the GPU or raises, never a silent CPU fallback, and there is no 'auto' value"
       # Backend's own methods use `device=None` to mean "the backend's device".
       exclude_paths: ["nltools/algorithms/backends.py"]
     memory_budget_gb:
       allowed_defaults: [null]
       keyword_only: true
       hint: "canonical form is `*, memory_budget_gb: float | None = None` — the device-neutral working-memory budget; None measures the selected device via backends.device_memory_budget, an explicit positive GB value is used verbatim"
-    max_gpu_memory_gb:
-      allowed_defaults: [null]
-      hint: "canonical form is `max_gpu_memory_gb: float | None = None` — None measures the device via backends.device_memory_budget (batch sizing then caps the measured budget at the saturation ceiling); an explicit GB is used verbatim, uncapped"
     spatial_scale:
       allowed_defaults: ["whole_brain", "roi", "searchlight"]
       hint: "spatial_scale selector values are 'whole_brain' | 'roi' | 'searchlight'"

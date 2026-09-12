@@ -1,7 +1,11 @@
 """The run-or-raise device policy: explicit GPU requests never silently degrade.
 
-Policy (docs/development/index.md): an explicit ``device='gpu'`` either runs on
-the GPU or raises; ``'auto'`` is the one documented graceful-fallback path.
+GPU execution in nltools means Himalaya ridge fitting (``Ridge(device='gpu')``)
+and the ridge bootstrap (``BrainData.bootstrap(device='gpu')``); nothing else
+runs on a GPU. Both resolve their backend through ``resolve_backend``, so an
+explicit ``'gpu'`` either runs on the GPU or raises. ``'auto'`` is the internal
+selector ``auto_select_backend`` uses and is the one graceful-fallback path; no
+user-facing signature accepts it.
 """
 
 import pytest

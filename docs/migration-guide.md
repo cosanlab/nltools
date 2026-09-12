@@ -23,7 +23,6 @@ Version 0.6.0 is a **breaking release** that refactors nltools to better leverag
 | **Multi-subject** | `Brain_Collection` | Collection orchestration is deferred to 0.6.1; use an explicit per-subject `BrainData` workflow in 0.6.0 | **Deferred** |
 | **SRM** | N/A | `SRM` / `DetSRM` classes | **New** |
 | **Procrustes `transformation_matrix`** (`BrainData.align`, `align` on numpy input) | Back-project with `transformed @ T` | Back-project with `transformed @ T.T` | **Transposed** |
-| **GPU inference** | N/A | `inference` module | **New** |
 | **Algorithm kwarg** | `algorithm=`, `scheme=`, `kind=`, `noise_model=`, `extract_type=`, `mode=`, `perm_type=` | `method=` (or `spatial_scale=` for spatial scale; `Adjacency.similarity` keeps the correlation type in the separate `metric=` slot) | **Renamed** |
 | **Progress flag** | `show_progress=True` | `progress_bar=False` | **Renamed + default flipped** |
 | **Simulator geometry** | `Simulator` radii in voxels, centers as voxel indices | Radii in millimeters, centers as world (MNI) coordinates, converted through the mask affine (`radius=` keeps its name everywhere, in millimeters, as in nilearn); defaults were rescaled so the simulated region keeps its v0.5.1 physical size, and `create_sphere` now raises `ValueError` for a center whose sphere holds no in-mask voxel instead of returning an empty image | **Units changed** |
@@ -586,10 +585,7 @@ The implementations moved into focused submodules (the flat import above is all 
 | `nltools.stats.intersubject` | `nltools.algorithms.inference.intersubject` | `isc`, `isc_group`, `isfc`, `isps` |
 | `nltools.stats.permutation` | *(deleted — the wrappers are gone)* | the `nltools.algorithms` exports **are** the `algorithms.inference` engine functions |
 
-Two kwarg renames rode along, applying the canonical `device=` vocabulary to the inference engine itself (the old `nltools.stats` wrappers used to translate these names at the boundary):
-
-- **`parallel=` → `device=`** on every `algorithms.inference` entry point (`one_sample_permutation_test`, `two_sample_permutation_test`, `correlation_permutation_test`, `timeseries_correlation_permutation_test`, `matrix_permutation_test`, `isc_permutation_test`, `isc_group_permutation_test`). Values are unchanged: `'cpu'` (joblib), `'gpu'` (PyTorch), `None` (single-threaded). Result dicts likewise report a `'device'` key instead of `'parallel'`.
-- **`phase_randomize(backend=)` → `phase_randomize(device=)`** with `'cpu' | 'gpu' | 'auto'` replacing `'numpy' | 'torch'`.
+The `parallel=` keyword is gone from every `algorithms.inference` entry point (`one_sample_permutation_test`, `two_sample_permutation_test`, `correlation_permutation_test`, `timeseries_correlation_permutation_test`, `matrix_permutation_test`, `isc_permutation_test`, `isc_group_permutation_test`). Each spreads its permutations across `n_jobs` joblib workers, and a seeded run gives the same numbers at every worker count. `phase_randomize` likewise takes no execution selector: it is `phase_randomize(data, *, random_state=None)`.
 
 The ISC family was canonicalized the same way: `isc_permutation_test` / `isc_group_permutation_test` rename `metric=` (the `'median'|'mean'` central-tendency choice) to **`summary=`** and `sim_metric=` (the similarity metric) to **`metric=`**; `isc_group()` likewise takes `summary=` instead of `metric=`. All ISC results (including wrappers) now expose the null under the engine-standard **`null_dist`** key — the legacy `null_distribution` key is gone — and the `isc` / `isc_group` wrappers expose `progress_bar: bool = False`.
 
@@ -615,20 +611,7 @@ What changed:
 - **No knob where only one tail is valid**: `distance_correlation` (dcorr ≥ 0), ANOVA's F, `isps`' Rayleigh test, and SRM variance components keep their statistically forced one-tailed p-values, unchanged.
 - **The GLM exception**: GLM contrast inference — `compute_contrasts(..., inference=True)` — reports nilearn's **one-sided** upper-tail p-value, matching the nilearn/SPM directional-contrast convention ("A > B" is the hypothesis; flip the contrast for the other direction). This is the one documented deviation from the two-tailed default.
 
-Code that already imported from `nltools.stats` gets the same signatures it had before — the wrappers' canonical `device=` names are now the engine's. Only code that called the `algorithms.inference` engines directly with `parallel=` needs the kwarg rename.
-
-### One GPU execution layer — measured budgets, OOM recovery, run-or-raise {#gpu-execution-layer}
-
-**Status**: ⚠️ **BREAKING CHANGE** (v0.6.0)
-
-Every GPU/batched code path now runs through one core layer in `nltools.algorithms.backends` (`device_memory_budget`, `auto_batch_size`, `compute_oom_safe`), replacing five independent batch-size calculators and their hard-coded memory constants. Three things change for users:
-
-- **`max_gpu_memory_gb` defaults to `None` = measured, everywhere.** Previously every GPU entry point assumed a fixed 4 GB budget regardless of hardware — a 2 GB card would OOM under the default while a 24 GB card ran at a fraction of capacity. `None` now measures the device at call time (free CUDA memory with headroom; available system RAM for MPS/CPU). When sizing batches, a measured budget is additionally capped at an 8 GB saturation ceiling — larger per-batch working sets add allocation latency without computing any faster, and on unified-memory systems they starve the host. Passing an explicit number behaves exactly as before: it is used verbatim, uncapped. Batch size never affects seeded results, only memory/speed.
-- **Device OOM is recovered, not fatal.** If a batch still exhausts device memory, the already-generated batch inputs are split and retried at smaller sizes (`compute_oom_safe`). Because RNG draws happen before the device compute, recovery reuses the exact same permutations; the recovered result matches the uninterrupted one to within float32 reduction order (~1 ulp — backends block reductions differently per batch shape). Only when a *single* item cannot fit does the run fail, with a `MemoryError` naming the fix.
-- **Run-or-raise policy**: an explicit `device='gpu'` / `parallel='gpu'` either runs on the GPU or raises — never a silent CPU fallback. `'auto'` remains the one documented graceful path. Concretely:
-  - `correlation_permutation_test(metric='kendall', device='gpu')` no longer warns and falls back to CPU — Kendall now has a real GPU kernel (tie-corrected tau-b via pre-computed pairwise sign tensors, parity-tested against `scipy.stats.kendalltau`).
-- **GPU Spearman results over tied data change.** The GPU rank transform mishandled ties — its tie window was off by one on both ends (the first tied element kept its raw rank, the next distinct value was averaged in, and a trailing run was skipped entirely), and its tie scan corrupted the row index for multi-row batches — so any `correlation_permutation_test(metric='spearman', device='gpu')` correlation or null distribution over data with tied values (integer ratings, discrete scores) was numerically wrong. Ranks now match `scipy.stats.rankdata(method='average')` exactly and GPU results match the CPU path; continuous (untied) data was unaffected. Re-run any analysis that recorded GPU Spearman results over tied data.
-- **GPU null distributions from `timeseries_correlation_permutation_test` change.** GPU draws now equal the CPU draws for a given seed — the GPU path previously derived circle-shift amounts through a different RNG call, breaking the deterministic cross-backend contract. The batched phase-randomization path also no longer mispairs conjugate frequencies, a bug that made the surrogate spectrum non-Hermitian and silently distorted the surrogates (statistically wrong, not just nondeterministic). Same test, same distribution family, different draws — re-run any analysis that recorded seeded GPU timeseries permutation p-values.
+Code that already imported from `nltools.stats` gets the same signatures it had before, minus `parallel=`: pass `n_jobs=` to choose a worker count.
 
 ### Stored labels and cross-validation in BrainData decoding {#predict-group}
 
@@ -1604,7 +1587,7 @@ result = isc_group(group1, group2, n_samples=1000)
 result = isfc(data)
 ```
 
-For direct engine access (GPU support, `n_permute` vocabulary, `null_dist` key):
+For direct engine access (`n_permute` vocabulary, `null_dist` key):
 
 ```python
 from nltools.algorithms.inference import (
@@ -1622,9 +1605,9 @@ result = isc_group_permutation_test(group1, group2, n_permute=1000)
 **Key Changes**:
 - `isc()` / `isc_group()` keep `n_samples=` (bootstrap vocabulary); everything else is canonical — `summary='median'|'mean'` for the central tendency (previously `metric=` on `isc_group`), `metric=` for the similarity metric, and a `null_dist` result key (the old `null_distribution` key is gone)
 - `isfc()` remains a functional-connectivity calculation and does not perform permutation inference
-- GPU acceleration is available on the engine functions with `device="gpu"`; CPU parallelization with `device="cpu"` and `n_jobs=-1`
+- The engine functions spread their resamples across `n_jobs` joblib workers (`-1` = all cores)
 
-**Performance**: 4-8× CPU speedup, 10-100× GPU speedup
+**Performance**: 4-8× speedup from parallel workers
 
 #### Removed Functions
 
@@ -1706,44 +1689,6 @@ estimate = np.mean(draws, axis=0)
 standard_error = np.std(draws, axis=0, ddof=1)
 ci_lower, ci_upper = np.percentile(draws, [2.5, 97.5], axis=0)
 ```
-
----
-
-### Pattern 12: GPU Acceleration
-
-**Status**: ✅ NEW FEATURE (v0.6.0)
-
-**New Feature**: GPU-accelerated permutation tests (10-100× speedup).
-
-**Requirements**:
-- PyTorch installed
-- CUDA-capable GPU (optional; CPU parallelization available)
-
-**Usage**:
-```python
-from nltools.algorithms.inference import one_sample_permutation_test
-
-# CPU (default)
-result = one_sample_permutation_test(data, n_permute=1000)
-
-# GPU (automatic batching; the memory budget is measured from the device —
-# pass max_gpu_memory_gb=<GB> only to cap it explicitly)
-result = one_sample_permutation_test(
-    data,
-    n_permute=1000,
-    device='gpu',
-)
-
-# CPU parallel (4-8× speedup)
-result = one_sample_permutation_test(
-    data,
-    n_permute=1000,
-    device='cpu',
-    n_jobs=-1  # Use all cores
-)
-```
-
-See the [GPU-Accelerated Statistical Inference](#new-feature-gpu-accelerated-statistical-inference) section below for more details.
 
 ---
 
@@ -1917,7 +1862,7 @@ This is a **position-only** break — callers passing these as keywords are unaf
 
 - `BrainData.bootstrap` — keyword-only after `statistic`; `X`, `X_test`, `confidence_level`, `device`, `memory_budget_gb` and `return_samples` all precede `n_jobs`/`random_state`
 - `BrainData.fit` — `progress_bar` now trails `scale`/`scale_value`
-- `Adjacency.bootstrap` — `confidence_level`, `memory_budget_gb` and `return_samples` precede `n_jobs`/`random_state`
+- `Adjacency.bootstrap` — `confidence_level` and `return_samples` precede `n_jobs`/`random_state`
 - `Adjacency.plot_mds` — `n_jobs` moved to the end (after `ax`)
 
 ---
@@ -2197,8 +2142,9 @@ The [collection specification](development/specs/braincollection.md) and
 
 For 0.6.0, apply `BrainData` methods to each subject and concatenate the resulting
 maps for group analysis, as shown in the [GLM workflow](tutorials/workflows/01_glm.md).
-BrainData decoding, ROI/searchlight analyses, Glm/Ridge, alignment, GPU inference,
-and shared BrainData/DesignMatrix/Adjacency HDF5 persistence remain supported.
+BrainData decoding, ROI/searchlight analyses, Glm/Ridge, alignment, permutation
+and bootstrap inference, and shared BrainData/DesignMatrix/Adjacency HDF5
+persistence remain supported.
 NeuroVault dataset collections are unrelated and remain available.
 
 ### Niimg-like inputs in analysis functions
@@ -2364,30 +2310,30 @@ is_empty = brain_data.is_empty
 
 ---
 
-## New Feature: GPU-Accelerated Statistical Inference {#new-feature-gpu-accelerated-statistical-inference}
+## New Feature: The Statistical Inference Module {#new-feature-statistical-inference-module}
 
 **Status**: ✅ NEW (v0.6.0)
 
-nltools v0.6.0 introduces a comprehensive GPU-accelerated inference module for permutation testing and bootstrap resampling, providing **10-100× speedup** over CPU-only implementations.
+nltools v0.6.0 introduces a consolidated inference module for permutation testing and bootstrap resampling.
 
 ### Overview
 
 **New module**: `nltools.algorithms.inference`
 - **Focused submodules**: one_sample, two_sample, correlation, timeseries, matrix, isc, intersubject, bootstrap, utils, validation
-- **Deterministic across backends**: same seed → identical results on CPU serial, CPU parallel, and GPU
-- **GPU-optional**: Works on CPU-only systems with parallel speedup (4-8×)
+- **Deterministic**: same seed → identical results at any `n_jobs`
+- **Parallel by default**: permutations spread across joblib workers (4-8× speedup)
 - **The public API**: these engine functions are exactly what `nltools.algorithms` exports
 
 ### Available Functions
 
 | Function | Description | Performance |
 |----------|-------------|-------------|
-| `one_sample_permutation_test()` | Sign-flipping test (mean ≠ 0) | 10-100× GPU, 4-8× CPU-parallel |
-| `two_sample_permutation_test()` | Group comparison (mean₁ ≠ mean₂) | 10-100× GPU, 4-8× CPU-parallel |
-| `correlation_permutation_test()` | Correlation significance (Pearson/Spearman/Kendall) | 10-100× GPU, 4-8× CPU-parallel |
-| `timeseries_correlation_permutation_test()` | Time-series correlation (preserves autocorrelation) | GPU-batched, 4-8× CPU-parallel |
-| `matrix_permutation_test()` | Mantel test for matrix correlation | 6× CPU-parallel |
-| `isc_permutation_test()` | Intersubject correlation (LOO/Pairwise) | 15-30× GPU, 4-8× CPU-parallel |
+| `one_sample_permutation_test()` | Sign-flipping test (mean ≠ 0) | 4-8× parallel |
+| `two_sample_permutation_test()` | Group comparison (mean₁ ≠ mean₂) | 4-8× parallel |
+| `correlation_permutation_test()` | Correlation significance (Pearson/Spearman/Kendall) | 4-8× parallel |
+| `timeseries_correlation_permutation_test()` | Time-series correlation (preserves autocorrelation) | 4-8× parallel |
+| `matrix_permutation_test()` | Mantel test for matrix correlation | 6× parallel |
+| `isc_permutation_test()` | Intersubject correlation (LOO/Pairwise) | 4-8× parallel |
 | `circle_shift()` | Circular rotation for time series | - |
 | `phase_randomize()` | FFT-based phase shuffling | - |
 
@@ -2405,11 +2351,10 @@ from nltools.algorithms.inference import (
     isc_permutation_test
 )
 
-# One-sample test with GPU acceleration
+# One-sample test
 result = one_sample_permutation_test(
     data,
     n_permute=5000,
-    device='gpu',
     random_state=42
 )
 
@@ -2418,7 +2363,6 @@ result = two_sample_permutation_test(
     data1, data2,
     n_permute=5000,
     tail=2,  # 2 | 'two' (two-tailed) or 1 | 'one' (one-tailed) — see the tail vocabulary section
-    device='gpu'
 )
 
 # Correlation test with multiple metrics
@@ -2426,7 +2370,6 @@ result = correlation_permutation_test(
     x, y,
     n_permute=5000,
     metric='spearman',  # 'pearson', 'spearman', or 'kendall'
-    device='gpu'
 )
 
 # Matrix permutation with extraction modes
@@ -2443,7 +2386,6 @@ result = isc_permutation_test(
     n_permute=5000,
     summary_statistic='pairwise',  # 'pairwise' or 'leave-one-out'
     method='bootstrap',  # 'bootstrap', 'circle_shift', or 'phase_randomize'
-    device='gpu'
 )
 ```
 
@@ -2487,14 +2429,13 @@ from nltools.algorithms.inference import isc_permutation_test
 data = np.random.randn(100, 20)  # (n_observations, n_subjects)
 result = isc_permutation_test(data, n_permute=5000)
 
-# Voxel-wise ISC with GPU
+# Voxel-wise ISC
 data = np.random.randn(100, 50, 5000)  # (n_obs, n_subjects, n_voxels)
 result = isc_permutation_test(
     data,
     n_permute=5000,
     summary_statistic='leave-one-out',  # or 'pairwise'
     method='bootstrap',
-    device='gpu'
 )
 
 # Direct inference returns:
@@ -2503,30 +2444,25 @@ result = isc_permutation_test(
 # - null_dist: Null ISC values (if return_null=True)
 ```
 
-**3. Parallel Options**
+**3. Worker Count**
 ```python
-# CPU-parallel (default, memory-efficient)
-result = one_sample_permutation_test(data, device='cpu')
+# All cores (the default)
+result = one_sample_permutation_test(data, n_jobs=-1)
 
-# GPU-batched (10-100× faster for large problems)
-result = one_sample_permutation_test(data, device='gpu')
-
-# Serial execution
-result = one_sample_permutation_test(data, device=None)
+# One worker, for debugging — identical numbers, just slower
+result = one_sample_permutation_test(data, n_jobs=1)
 ```
 
 ### Key Improvements
 
 **Performance**:
-- **GPU acceleration**: 10-100× speedup with PyTorch backend
-- **CPU parallelization**: 4-8× speedup with joblib (default)
-- **Automatic batching**: Prevents GPU out-of-memory errors
+- **Parallel by default**: 4-8× speedup with joblib
 - **Progress bars**: opt-in via `progress_bar=True` for long-running tests (off by default — see [the progress-bar default](#inference-progress-bar-off))
 
 **Correctness**:
-- **Perfect determinism**: 0.000% cross-backend variance (same seed → identical results)
+- **Perfect determinism**: same seed → identical results at any worker count
 - **Validated against literature**: Nichols & Holmes 2002, Chen et al. 2016, Theiler et al. 1992
-- **Comprehensive testing**: mathematical correctness verified per test, including CPU/GPU draw identity
+- **Comprehensive testing**: mathematical correctness verified per test
 
 **Usability**:
 - **Comprehensive error messages**: Clear validation and actionable suggestions
@@ -2537,7 +2473,7 @@ result = one_sample_permutation_test(data, device=None)
 ### Migration Checklist
 
 - [ ] Update unsuffixed permutation function names by adding the `_test` suffix; import them from `nltools.algorithms`
-- [ ] Add `device='gpu'` for GPU acceleration (optional)
+- [ ] Replace any `parallel=` argument with `n_jobs=`
 - [ ] Update `metric` parameter for correlation tests
 - [ ] Use `method='circle_shift'` or `method='phase_randomize'` for time series
 - [ ] Consider using ISC for multi-subject analyses

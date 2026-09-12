@@ -1,50 +1,33 @@
 """
-Tests for GPU-accelerated Intersubject Correlation (ISC) module.
+Tests for the Intersubject Correlation (ISC) module.
 
-Test organization follows the TDD plan (2025-10-30-isc-tdd-plan.md):
+Test organization:
     Phase 1: Leave-One-Out (LOO) Computation
     Phase 2: Pairwise Computation
     Phase 3: LOO Bootstrap
     Phase 4: Pairwise Bootstrap
     Phase 5: Main Function
     Integration Tests
-    Performance Benchmarks (tier2)
-
-Tier 1: Fast tests (~1-2min, run on every iteration)
-Tier 2: GPU and benchmark tests (~5-7min, run before commits)
 
 Testing Strategy & Tolerances:
 
-    This test suite uses different tolerance levels for different comparison types.
-    Following the pattern from test_inference.py:
-
-    1. Backend Consistency (NumPy vs PyTorch):
-       - Tolerance: EXACT (rtol=1e-5)
-       - Why: Same algorithm, same random seed, only float precision differs
-       - Tests verify implementations are mathematically identical
-
-    2. GPU Precision (GPU float32 vs CPU float64):
-       - Values: rtol=1e-3 (0.1% error)
-       - P-values: rtol=5e-3 (0.5% error)
-       - Why: GPU uses float32, CPU uses float64; P-values accumulate more error
+    Worker-count consistency (n_jobs=1 vs n_jobs=-1):
+        Tolerance: EXACT (rtol=1e-5). Seeds are drawn before the joblib block
+        and consumed in index order, so the worker count only changes
+        scheduling, never arithmetic.
 """
-
-import time
 
 import numpy as np
 import pytest
 from scipy.spatial.distance import squareform
 
 from nltools.algorithms.inference.isc import (
-    _batch_correlation_gpu,
-    _batch_corrcoef_gpu,
     _bootstrap_loo_cpu_parallel,
     _bootstrap_loo_numpy,
     _bootstrap_pairwise_cpu_parallel,
     _bootstrap_pairwise_numpy,
     _compute_loo_isc,
     _compute_pairwise_isc,
-    _pairwise_gpu_batch_sizes,
     isc_permutation_test,
 )
 
@@ -53,31 +36,8 @@ from nltools.algorithms.inference.isc import (
 # Test Constants - DO NOT MODIFY without updating docstring above
 # =============================================================================
 
-# Tolerance for backend consistency (NumPy vs PyTorch with same seed)
-# These should be EXACT matches (same algorithm, only precision differs)
+# Tolerance for worker-count consistency (same seeds, different n_jobs)
 TOLERANCE_EXACT = 1e-5
-
-# Tolerance for GPU vs CPU comparisons (float32 vs float64)
-TOLERANCE_GPU_VALUE = 1e-3  # 0.1% error for computed values
-TOLERANCE_GPU_PVALUE = 5e-3  # 0.5% error for P-values (more FP error)
-
-
-def _gpu_available():
-    """Check whether PyTorch can use CUDA or MPS."""
-    from nltools.algorithms.backends import check_gpu_available
-
-    return check_gpu_available()[0]
-
-
-def test_pairwise_gpu_batch_sizes_rejects_one_item_over_budget():
-    """A hard memory limit must not be exceeded to fit a minimum batch."""
-    with pytest.raises(ValueError, match="one item requires"):
-        _pairwise_gpu_batch_sizes(
-            n_voxels=1,
-            n_subjects=100,
-            n_permute=1,
-            max_gpu_memory_gb=0.0001,
-        )
 
 
 # =============================================================================
@@ -90,7 +50,7 @@ def test_compute_loo_isc_single_feature_basic():
     np.random.seed(42)
     data = np.random.randn(100, 5)  # 100 timepoints, 5 subjects
 
-    loo_values = _compute_loo_isc(data, backend="numpy")
+    loo_values = _compute_loo_isc(data)
 
     assert loo_values.shape == (5,)
 
@@ -106,29 +66,14 @@ def test_compute_loo_isc_voxelwise_shape():
     np.random.seed(42)
     data = np.random.randn(100, 5, 10)  # 10 voxels
 
-    loo_values = _compute_loo_isc(data, backend="numpy")
+    loo_values = _compute_loo_isc(data)
 
     assert loo_values.shape == (5, 10)
 
     # Each voxel computed independently
     for v in range(10):
-        voxel_loo = _compute_loo_isc(data[:, :, v], backend="numpy")
+        voxel_loo = _compute_loo_isc(data[:, :, v])
         assert np.allclose(loo_values[:, v], voxel_loo)
-
-
-@pytest.mark.slow
-def test_compute_loo_isc_gpu_matches_numpy():
-    """GPU LOO matches NumPy within float32 tolerance."""
-    _ = pytest.importorskip("torch")
-
-    np.random.seed(42)
-    data = np.random.randn(100, 10, 100)  # 100 voxels (smaller for testing)
-
-    loo_numpy = _compute_loo_isc(data, backend="numpy")
-    loo_gpu = _compute_loo_isc(data, backend="torch")
-
-    # GPU uses float32, CPU uses float64 - use GPU precision tolerance
-    np.testing.assert_allclose(loo_numpy, loo_gpu, rtol=TOLERANCE_GPU_VALUE, atol=1e-7)
 
 
 def test_compute_loo_isc_deterministic():
@@ -136,34 +81,10 @@ def test_compute_loo_isc_deterministic():
     np.random.seed(42)
     data = np.random.randn(100, 5, 10)
 
-    loo1 = _compute_loo_isc(data, backend="numpy")
-    loo2 = _compute_loo_isc(data, backend="numpy")
+    loo1 = _compute_loo_isc(data)
+    loo2 = _compute_loo_isc(data)
 
     assert np.array_equal(loo1, loo2)
-
-
-@pytest.mark.slow
-def test_batch_correlation_gpu_correctness():
-    """Batch correlation on GPU matches manual computation."""
-    torch = pytest.importorskip("torch")
-
-    np.random.seed(42)
-    # Create simple test data
-    x = np.random.randn(100, 5)  # 100 observations, 5 features
-    y = np.random.randn(100, 5)
-
-    # Convert to GPU
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    x_gpu = torch.tensor(x, dtype=torch.float32, device=device)
-    y_gpu = torch.tensor(y, dtype=torch.float32, device=device)
-
-    # Compute on GPU
-    corr_gpu = _batch_correlation_gpu(x_gpu, y_gpu).cpu().numpy()
-
-    # Verify against NumPy for each feature
-    for i in range(5):
-        expected = np.corrcoef(x[:, i], y[:, i])[0, 1]
-        assert np.isclose(corr_gpu[i], expected, rtol=1e-5)
 
 
 # =============================================================================
@@ -176,7 +97,7 @@ def test_compute_pairwise_isc_single_feature_condensed():
     np.random.seed(42)
     data = np.random.randn(100, 5)
 
-    pairwise = _compute_pairwise_isc(data, backend="numpy")
+    pairwise = _compute_pairwise_isc(data)
 
     # 5 subjects → 10 pairs
     assert pairwise.shape == (10,)
@@ -192,53 +113,14 @@ def test_compute_pairwise_isc_voxelwise_shape():
     np.random.seed(42)
     data = np.random.randn(100, 5, 10)
 
-    pairwise = _compute_pairwise_isc(data, backend="numpy")
+    pairwise = _compute_pairwise_isc(data)
 
     assert pairwise.shape == (10, 10)  # 10 pairs × 10 voxels
 
     # Verify each voxel independently
     for v in range(10):
-        voxel_pair = _compute_pairwise_isc(data[:, :, v], backend="numpy")
+        voxel_pair = _compute_pairwise_isc(data[:, :, v])
         assert np.allclose(pairwise[:, v], voxel_pair)
-
-
-@pytest.mark.slow
-def test_compute_pairwise_isc_gpu_matches_numpy():
-    """GPU pairwise matches NumPy within float32 tolerance."""
-    _ = pytest.importorskip("torch")
-
-    np.random.seed(42)
-    data = np.random.randn(100, 10, 100)  # 100 voxels
-
-    pair_numpy = _compute_pairwise_isc(data, backend="numpy")
-    pair_gpu = _compute_pairwise_isc(data, backend="torch")
-
-    # GPU uses float32, CPU uses float64 - use GPU precision tolerance
-    np.testing.assert_allclose(
-        pair_numpy, pair_gpu, rtol=TOLERANCE_GPU_VALUE, atol=1e-7
-    )
-
-
-@pytest.mark.slow
-def test_batch_corrcoef_gpu_correctness():
-    """Batch corrcoef on GPU matches NumPy."""
-    torch = pytest.importorskip("torch")
-
-    # Create test data (n_voxels, n_subjects, n_observations)
-    np.random.seed(42)
-    data = np.random.randn(5, 10, 100)
-
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    data_gpu = torch.tensor(data, dtype=torch.float32, device=device)
-    corr_gpu = _batch_corrcoef_gpu(data_gpu).cpu().numpy()
-
-    # Verify against NumPy for each voxel
-    # GPU uses float32, CPU uses float64 - use GPU precision tolerance
-    for v in range(5):
-        corr_numpy = np.corrcoef(data[v])
-        np.testing.assert_allclose(
-            corr_gpu[v], corr_numpy, rtol=TOLERANCE_GPU_VALUE, atol=1e-7
-        )
 
 
 # =============================================================================
@@ -481,62 +363,24 @@ def test_isc_voxelwise_shape():
     assert result["ci"][1].shape == (50,)
 
 
-def test_isc_backend_consistency_numpy_cpu_parallel():
-    """NumPy and CPU-parallel backends give identical results."""
+def test_isc_worker_count_is_numerically_invisible():
+    """Worker count never changes a seeded ISC result."""
     np.random.seed(42)
     data = np.random.randn(100, 10, 20)
 
-    result_numpy = isc_permutation_test(
-        data, device=None, n_permute=100, random_state=42, progress_bar=False
+    result_serial = isc_permutation_test(
+        data, n_permute=100, n_jobs=1, random_state=42, progress_bar=False
     )
 
     result_parallel = isc_permutation_test(
-        data, device="cpu", n_permute=100, random_state=42, progress_bar=False
+        data, n_permute=100, n_jobs=-1, random_state=42, progress_bar=False
     )
 
-    # Both use float64 CPU - should be exact matches
     np.testing.assert_allclose(
-        result_numpy["isc"], result_parallel["isc"], rtol=TOLERANCE_EXACT, atol=1e-10
+        result_serial["isc"], result_parallel["isc"], rtol=TOLERANCE_EXACT, atol=1e-10
     )
     np.testing.assert_allclose(
-        result_numpy["p"], result_parallel["p"], rtol=TOLERANCE_EXACT, atol=1e-10
-    )
-
-
-@pytest.mark.slow
-@pytest.mark.skipif(not _gpu_available(), reason="GPU not available")
-def test_isc_gpu_matches_cpu():
-    """GPU backend matches CPU within float32 tolerance."""
-    _ = pytest.importorskip("torch")
-
-    np.random.seed(42)
-    data = np.random.randn(100, 10, 100)  # 100 voxels
-
-    result_cpu = isc_permutation_test(
-        data,
-        summary_statistic="leave-one-out",
-        device="cpu",
-        n_permute=100,
-        random_state=42,
-        progress_bar=False,
-    )
-
-    result_gpu = isc_permutation_test(
-        data,
-        summary_statistic="leave-one-out",
-        device="gpu",
-        n_permute=100,
-        random_state=42,
-        progress_bar=False,
-    )
-
-    # GPU uses float32, CPU uses float64 - use GPU precision tolerances
-    np.testing.assert_allclose(
-        result_cpu["isc"], result_gpu["isc"], rtol=TOLERANCE_GPU_VALUE, atol=1e-7
-    )
-    # P-values accumulate more FP error, use GPU p-value tolerance
-    np.testing.assert_allclose(
-        result_cpu["p"], result_gpu["p"], rtol=TOLERANCE_GPU_PVALUE, atol=1e-7
+        result_serial["p"], result_parallel["p"], rtol=TOLERANCE_EXACT, atol=1e-10
     )
 
 
@@ -640,142 +484,6 @@ def test_isc_chen_bootstrap_correctness():
 
 
 # =============================================================================
-# Performance Benchmarks (Tier 2, optional with GPU)
-# =============================================================================
-
-
-@pytest.mark.slow
-@pytest.mark.skipif(not _gpu_available(), reason="GPU not available")
-def test_isc_gpu_speedup_loo():
-    """GPU provides speedup for voxel-wise LOO computation."""
-    torch = pytest.importorskip("torch")
-
-    if not torch.cuda.is_available():
-        pytest.skip("GPU not available")
-
-    np.random.seed(42)
-    data = np.random.randn(100, 50, 5000)  # 5K voxels
-
-    import time
-
-    start = time.time()
-    _ = isc_permutation_test(
-        data,
-        summary_statistic="leave-one-out",
-        device="cpu",
-        n_permute=100,
-        progress_bar=False,
-    )
-    cpu_time = time.time() - start
-
-    start = time.time()
-    _ = isc_permutation_test(
-        data,
-        summary_statistic="leave-one-out",
-        device="gpu",
-        n_permute=100,
-        progress_bar=False,
-    )
-    gpu_time = time.time() - start
-
-    speedup = cpu_time / gpu_time
-    print(f"\nLOO GPU Speedup: {speedup:.1f}×")
-
-    # Expect at least 3× speedup (conservative for testing)
-    assert speedup > 3.0
-
-
-@pytest.mark.slow
-@pytest.mark.skipif(not _gpu_available(), reason="GPU not available")
-def test_isc_gpu_pairwise_matches_cpu():
-    """GPU pairwise ISC matches CPU within float32 tolerance.
-
-    Correctness guard for the fully-GPU pairwise path: `device='gpu'` runs the
-    observed compute on the torch backend (on-device upper-triangle extraction)
-    AND the bootstrap on-device (`_bootstrap_pairwise_gpu`). The GPU bootstrap
-    draws the *same* subject resamples the CPU path would (deterministic
-    cross-backend RNG via `_pairwise_bootstrap_indices`), so the ISC and p-value
-    maps agree within float32 tolerance. See `test_isc_gpu_pairwise_speedup` for
-    the performance guard.
-    """
-    _ = pytest.importorskip("torch")
-
-    np.random.seed(42)
-    data = np.random.randn(80, 20, 200)  # (n_obs, n_subjects, n_voxels)
-
-    result_cpu = isc_permutation_test(
-        data,
-        summary_statistic="pairwise",
-        device="cpu",
-        n_permute=100,
-        random_state=42,
-        progress_bar=False,
-    )
-    result_gpu = isc_permutation_test(
-        data,
-        summary_statistic="pairwise",
-        device="gpu",
-        n_permute=100,
-        random_state=42,
-        progress_bar=False,
-    )
-
-    np.testing.assert_allclose(
-        result_cpu["isc"], result_gpu["isc"], rtol=TOLERANCE_GPU_VALUE, atol=1e-6
-    )
-    np.testing.assert_allclose(
-        result_cpu["p"], result_gpu["p"], rtol=TOLERANCE_GPU_PVALUE, atol=1e-6
-    )
-
-
-@pytest.mark.gpu
-@pytest.mark.slow
-@pytest.mark.skipif(not _gpu_available(), reason="GPU not available")
-def test_isc_gpu_pairwise_speedup():
-    """GPU pairwise ISC is meaningfully faster than CPU on a whole-brain-scale run.
-
-    Guards the perf goal of the GPU pairwise path (on-device triangle extraction +
-    on-device bootstrap): the bulk of the work — the ``n_permute`` bootstrap
-    iterations — now runs on the GPU instead of a CPU ``squareform`` loop. On a
-    GB10 this measures ~3.8× at (100, 50, 5000) / n_permute=1000; the assertion
-    uses a conservative ~2× floor so it stays green across GPU tiers and shared-box
-    load while still catching a regression back to the CPU-bound behavior.
-
-    Requires CUDA (``@pytest.mark.gpu``); a torch-CPU/MPS box has no GPU bootstrap
-    to accelerate, so the comparison would be meaningless there.
-    """
-    torch = pytest.importorskip("torch")
-    if not torch.cuda.is_available():
-        pytest.skip("CUDA GPU required for the pairwise ISC speedup guard")
-
-    rng = np.random.RandomState(0)
-    data = rng.randn(100, 50, 5000).astype(np.float32)
-    kwargs = {
-        "summary_statistic": "pairwise",
-        "n_permute": 1000,
-        "random_state": 42,
-        "progress_bar": False,
-    }
-
-    # Warm up CUDA context/kernels so the GPU timing excludes one-time init.
-    isc_permutation_test(data[:, :, :100], device="gpu", **{**kwargs, "n_permute": 10})
-
-    t0 = time.perf_counter()
-    isc_permutation_test(data, device="cpu", **kwargs)
-    t_cpu = time.perf_counter() - t0
-
-    t0 = time.perf_counter()
-    isc_permutation_test(data, device="gpu", **kwargs)
-    t_gpu = time.perf_counter() - t0
-
-    speedup = t_cpu / t_gpu
-    assert speedup > 2.0, (
-        f"GPU pairwise ISC not meaningfully faster: CPU={t_cpu:.2f}s GPU={t_gpu:.2f}s "
-        f"(speedup={speedup:.2f}x, expected > 2x; ~3.8x on a GB10)"
-    )
-
-
-# =============================================================================
 # Edge Cases and Input Validation
 # =============================================================================
 
@@ -870,8 +578,9 @@ def test_isc_exclude_self_corr_parameter():
     assert isinstance(result_include["isc"], (float, np.floating))
 
 
-def test_isc_exclude_self_corr_affects_bootstrap():
-    """exclude_self_corr parameter affects bootstrap distribution."""
+@pytest.mark.parametrize("n_jobs", [1, -1])
+def test_isc_exclude_self_corr_affects_bootstrap(n_jobs):
+    """exclude_self_corr parameter affects bootstrap distribution at any worker count."""
     # Create data that will produce duplicate subjects in bootstrap
     np.random.seed(42)
     data = np.random.randn(100, 5)  # Small n_subjects increases chance of duplicates
@@ -882,6 +591,7 @@ def test_isc_exclude_self_corr_affects_bootstrap():
         method="bootstrap",
         n_permute=500,
         exclude_self_corr=True,
+        n_jobs=n_jobs,
         random_state=42,
         return_null=True,
         progress_bar=False,
@@ -893,6 +603,7 @@ def test_isc_exclude_self_corr_affects_bootstrap():
         method="bootstrap",
         n_permute=500,
         exclude_self_corr=False,
+        n_jobs=n_jobs,
         random_state=42,
         return_null=True,
         progress_bar=False,
@@ -989,67 +700,6 @@ def test_isc_metric_affects_pairwise_computation():
     assert isinstance(result_cosine["isc"], (float, np.floating))
 
 
-def test_isc_gpu_pairwise_non_correlation_raises():
-    """GPU pairwise ISC only implements metric='correlation'.
-
-    Requesting `device='gpu'` with a non-correlation summary is contradictory —
-    the GPU pairwise kernel computes correlation only. It must fail fast with a
-    clear ValueError (consistent with the sibling `isc_group_permutation_test`),
-    not silently ignore the GPU request. The guard runs before any torch call,
-    so no GPU/CUDA is needed to exercise it.
-
-    (Pre-0.6.0 this asserted a UserWarning + CPU fallback via the removed
-    `backend=` kwarg; that behavior no longer exists.)
-    """
-    np.random.seed(42)
-    data = np.random.randn(100, 10, 50)  # (n_obs, n_subjects, n_voxels)
-
-    with pytest.raises(ValueError, match="only supports metric='correlation'"):
-        isc_permutation_test(
-            data,
-            summary_statistic="pairwise",
-            metric="euclidean",
-            device="gpu",
-            n_permute=10,
-            random_state=42,
-            progress_bar=False,
-        )
-
-
-@pytest.mark.skipif(not _gpu_available(), reason="GPU not available")
-def test_isc_pairwise_gpu_engages_torch_backend(monkeypatch):
-    """device='gpu' must route the pairwise compute to the torch backend.
-
-    Regression guard for the wiring fix: the observed pairwise ISC previously
-    hardcoded `backend='numpy'` even under `device='gpu'`, making the GPU a
-    silent no-op. Spy on `_compute_pairwise_isc` and assert it receives a
-    resolved accelerator backend.
-    """
-    pytest.importorskip("torch")
-    from nltools.algorithms.inference import isc as isc_mod
-
-    seen = []
-    orig = isc_mod._compute_pairwise_isc
-
-    def _spy(data, backend="numpy", metric="correlation"):
-        seen.append(backend)
-        return orig(data, backend=backend, metric=metric)
-
-    monkeypatch.setattr(isc_mod, "_compute_pairwise_isc", _spy)
-
-    np.random.seed(0)
-    data = np.random.randn(60, 8, 40)
-    isc_mod.isc_permutation_test(
-        data,
-        summary_statistic="pairwise",
-        device="gpu",
-        n_permute=10,
-        random_state=0,
-        progress_bar=False,
-    )
-    assert any(getattr(backend, "is_gpu", False) for backend in seen)
-
-
 def test_isc_exclude_self_corr_pairwise_only():
     """exclude_self_corr only applies to pairwise bootstrap."""
     np.random.seed(42)
@@ -1139,7 +789,7 @@ def test_compute_pairwise_isc_spearman_single_feature():
     data = np.random.randn(100, 5)  # 100 timepoints, 5 subjects
 
     # Compute using our function
-    result = _compute_pairwise_isc(data, backend="numpy", metric="spearman")
+    result = _compute_pairwise_isc(data, metric="spearman")
 
     # Manual computation: rank-transform then Pearson correlation
     data_ranked = np.array([rankdata(data[:, i], method="average") for i in range(5)]).T
@@ -1159,7 +809,7 @@ def test_compute_pairwise_isc_spearman_voxelwise():
     data = np.random.randn(100, 5, 10)  # 100 timepoints, 5 subjects, 10 voxels
 
     # Compute using our function
-    result = _compute_pairwise_isc(data, backend="numpy", metric="spearman")
+    result = _compute_pairwise_isc(data, metric="spearman")
 
     # Verify shape
     n_pairs = 5 * (5 - 1) // 2
@@ -1184,7 +834,7 @@ def test_compute_pairwise_isc_cosine_single_feature():
     data = np.random.randn(100, 5)  # 100 timepoints, 5 subjects
 
     # Compute using our optimized function
-    result = _compute_pairwise_isc(data, backend="numpy", metric="cosine")
+    result = _compute_pairwise_isc(data, metric="cosine")
 
     # Compute using sklearn (baseline for correctness)
     dist_matrix = pairwise_distances(data.T, metric="cosine")
@@ -1204,7 +854,7 @@ def test_compute_pairwise_isc_cosine_voxelwise():
     data = np.random.randn(100, 5, 10)  # 100 timepoints, 5 subjects, 10 voxels
 
     # Compute using our optimized function
-    result = _compute_pairwise_isc(data, backend="numpy", metric="cosine")
+    result = _compute_pairwise_isc(data, metric="cosine")
 
     # Verify shape
     n_pairs = 5 * (5 - 1) // 2
@@ -1228,7 +878,7 @@ def test_compute_pairwise_isc_cosine_handles_zero_norm():
     data_zero[:, 0] = 0.0  # First subject has zero norm
 
     # Should not raise error
-    result = _compute_pairwise_isc(data_zero, backend="numpy", metric="cosine")
+    result = _compute_pairwise_isc(data_zero, metric="cosine")
 
     # Should produce valid results (may have NaN or 0 for zero-norm pairs)
     assert result.shape == (10,)  # 5*4/2 = 10 pairs
@@ -1245,7 +895,7 @@ def test_compute_pairwise_isc_euclidean_single_feature():
     data = np.random.randn(100, 5)  # 100 timepoints, 5 subjects
 
     # Compute using our optimized function
-    result = _compute_pairwise_isc(data, backend="numpy", metric="euclidean")
+    result = _compute_pairwise_isc(data, metric="euclidean")
 
     # Compute using sklearn (baseline for correctness)
     dist_matrix = pairwise_distances(data.T, metric="euclidean")
@@ -1265,7 +915,7 @@ def test_compute_pairwise_isc_euclidean_voxelwise():
     data = np.random.randn(100, 5, 10)  # 100 timepoints, 5 subjects, 10 voxels
 
     # Compute using our optimized function
-    result = _compute_pairwise_isc(data, backend="numpy", metric="euclidean")
+    result = _compute_pairwise_isc(data, metric="euclidean")
 
     # Verify shape
     n_pairs = 5 * (5 - 1) // 2
@@ -1327,7 +977,7 @@ def _generate_shared_signal_isc(
 
 
 class TestISCStatisticalCorrectness:
-    """Test statistical correctness of ISC permutation tests (not just CPU/GPU consistency)."""
+    """Test statistical correctness of ISC permutation tests."""
 
     @pytest.mark.slow
     @pytest.mark.parametrize("method", ["circle_shift", "phase_randomize"])

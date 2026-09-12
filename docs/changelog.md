@@ -202,7 +202,7 @@ All notable changes to nltools are documented here.
     - **Breaking:** all generated DesignMatrix / find_spikes column names gained the `.nl_` prefix, and run-separated columns changed shape from `{run}_{col}` to `.nl_r{run}_{col}`. Code selecting generated columns by name must be updated; see the (reserved-column-prefix) section of the migration guide.
 - ⚠ **Breaking** <span class="badge badge-feature">Feature</span> one core GPU execution layer — measured budgets, OOM recovery, run-or-raise
 
-    - **Breaking:** SRM/DetSRM.fit() no longer accepts max_gpu_memory_gb and parallel='gpu' raises; LocalAlignment rejects unknown parallel= values and gpu-without-torch; max_gpu_memory_gb defaults changed from 4.0 to None (measured) across inference/ridge/braindata entry points; seeded null distributions from BrainCollection.permutation_test/ permutation_test2 change (engine RNG replaces the hand-rolled loop). Migration guide: (gpu-execution-layer).
+    - **Breaking:** SRM/DetSRM.fit() no longer accepts max_gpu_memory_gb and parallel='gpu' raises; LocalAlignment rejects unknown parallel= values and gpu-without-torch; max_gpu_memory_gb defaults changed from 4.0 to None (measured) across inference/ridge/braindata entry points; seeded null distributions from BrainCollection.permutation_test/ permutation_test2 change (engine RNG replaces the hand-rolled loop).
 - ⚠ **Breaking** <span class="badge badge-feature">Feature</span> carve out predict_group(); remove the legacy cv() pipeline
 
     - **Breaking:** BrainCollection.predict(y=...) raises (use predict_group); BrainCollection.cv() and BrainCollectionPipeline are removed. Migration guide: (predict-group).
@@ -423,6 +423,11 @@ All notable changes to nltools are documented here.
 - ⚠ **Breaking** <span class="badge badge-improvement">Improvement</span> canonicalize cluster_summary and extract_roi kwargs
 
     - **Breaking:** Adjacency.cluster_summary renames method= -> summary= ('mean'|'median'|None central tendency) and its old summary= (within/between scope) -> scope=. BrainData.extract_roi renames metric= -> method= ('mean'|'median'|'pca' selects an extraction variant; metric stays reserved for similarity metrics). Closes the last two mean/median-vocabulary violations flagged in the #474 consolidation follow-up.
+- ⚠ **Breaking** <span class="badge badge-improvement">Improvement</span> GPU execution means ridge only — delete the GPU permutation and ISC paths
+
+    - **Breaking:** `device=` and `max_gpu_memory_gb=` are gone from the seven inference engines (`one_sample_permutation_test`, `two_sample_permutation_test`, `correlation_permutation_test`, `timeseries_correlation_permutation_test`, `matrix_permutation_test`, `isc_permutation_test`, `isc_group_permutation_test`), `phase_randomize` is now `phase_randomize(data, *, random_state=None)`, and every permutation and ISC result dict drops its `'device'` key. Each engine has one execution path — joblib workers sized by `n_jobs` — and a seeded run is bit-identical at every worker count, so nothing numerical changes. All 0.6.0-dev-only names no v0.5.1 user can see.
+    - **Breaking:** `Adjacency.bootstrap` drops `memory_budget_gb=`; the engine measures the host. Also 0.6.0-dev-only.
+    - Deletes the torch permutation batchers, the ISC GPU kernels, `inference/utils._auto_batch_size`, the two `validate_device_parameter*` validators, and seventeen uncalled `Backend` methods. GPU execution is now exactly Himalaya ridge fitting (`Ridge(device='gpu')`, `BrainData.fit(ridge_device='gpu')`) and the ridge bootstrap (`BrainData.bootstrap(device='gpu')`), which are unchanged and still run-or-raise.
 - <span class="badge badge-improvement">Improvement</span> isc_test p-values via the shared _compute_pvalue helper
 - <span class="badge badge-improvement">Improvement</span> thread tail through the bootstrap engines; drop the facade closures
 - <span class="badge badge-improvement">Improvement</span> one GPU bootstrap driver, two thin wrappers

@@ -31,15 +31,13 @@ rules:
   # A return-value convention (not a kwarg one), so this rule is NOT path-scoped
   # to public defs — result dicts are built in the algorithm layer, and the
   # convention binds every layer that emits a correlation result. The canonical
-  # keys are `'correlation'` (observed correlation) + `'p'` + `'device'`,
-  # matching correlation_permutation_test / matrix_permutation_test and the
+  # keys are `'correlation'` (observed correlation) and `'p'`, matching
+  # correlation_permutation_test / matrix_permutation_test and the
   # `Adjacency.similarity` contract. The banned alias is `'r'` (which drifted
   # into docstrings; the code was already consistent — this keeps it that way).
   # Distance correlation is the documented exception: it uses `'dcorr'`.
-  # The device field is `'device'` (renamed from `'parallel'` in v0.6.0);
-  # `'backend'` is intentionally NOT
-  # banned because the backends layer legitimately reports a backend *name*
-  # (e.g. 'torch-cuda') under that key — a distinct concept from the selector.
+  # `'backend'` is intentionally NOT banned because the backends layer
+  # legitimately reports a backend *name* (e.g. 'torch-cuda') under that key.
   - id: banned-result-key-correlation
     languages: [python]
     severity: ERROR

@@ -12,7 +12,7 @@ focused submodules underneath:
 - **alignment**: SRM/DetSRM and the functional `align`/`procrustes` entry
   points
 - **inference**: permutation tests, bootstrap resampling, and intersubject
-  statistics (ISC/ISFC/ISPS) with CPU-parallel and GPU backends
+  statistics (ISC/ISFC/ISPS), parallelized across joblib workers
 - **hrf**: hemodynamic response functions
 
 Ridge regression lives in `nltools.models.Ridge`, which delegates its numerics

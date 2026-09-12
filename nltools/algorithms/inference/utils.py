@@ -1,4 +1,4 @@
-"""Shared helpers for the permutation tests: p-values, z-from-p, batch sizing."""
+"""Shared helpers for the permutation tests: p-values and z-from-p."""
 
 import numpy as np
 from ...utils import _NullProgressBar, make_progress_bar, maybe_tqdm  # noqa: F401
@@ -13,12 +13,9 @@ from ..random import generate_sign_flips as _generate_sign_flips_from_random
 # Value: 1e-10 is standard in scientific computing for float64 precision
 # - Well above machine epsilon (2.22e-16 for float64)
 # - Small enough not to affect correlation values
-# - Also safe for float32 GPU operations (machine epsilon 1.19e-07)
 # - Matches established practice in neuroimaging libraries
 EPSILON = 1e-10
 
-
-# Re-export from shared random utilities for backward compatibility
 _generate_sign_flips = _generate_sign_flips_from_random
 
 
@@ -156,53 +153,3 @@ def _compute_pvalue(
     p_values = numer / denom
 
     return p_values
-
-
-# Re-export from shared random utilities for backward compatibility
-
-
-def _auto_batch_size(
-    n_permute: int,
-    n_samples: int,
-    n_features: int,
-    max_memory_gb: float | None = None,
-    backend=None,
-) -> tuple[int, int]:
-    """Determine the GPU permutation batch size for a memory budget.
-
-    Thin adapter over the core layer in `nltools.algorithms.backends`:
-    supplies the permutation-test working-set estimate (the `data_perm`
-    tensor, `(batch_size, n_samples, n_features)` float32); the budget and
-    clamp policy live in `auto_batch_size`.
-
-    Args:
-        n_permute (int): Total number of permutations to compute.
-        n_samples (int): Number of samples in the dataset.
-        n_features (int): Number of features (voxels).
-        max_memory_gb (float | None): Explicit memory budget in GB. None
-            (default) measures the device via `device_memory_budget`.
-        backend (Backend | None): Resolved `Backend` the work runs on (used only
-            to measure the budget when `max_memory_gb` is None).
-
-    Returns:
-        tuple[int, int]: `(batch_size, n_batches)` — permutations per batch and
-            the number of batches needed.
-
-    Examples:
-        ```python
-        # Small problem: all permutations fit in one batch
-        batch_size, n_batches = _auto_batch_size(1000, 30, 1000, max_memory_gb=4.0)
-        n_batches  # → 1
-
-        # Large problem: several batches
-        batch_size, n_batches = _auto_batch_size(10000, 30, 50000, max_memory_gb=4.0)
-        n_batches > 1  # → True
-        ```
-    """
-    from nltools.algorithms.backends import auto_batch_size, device_memory_budget
-
-    budget_gb = device_memory_budget(
-        backend, max_gpu_memory_gb=max_memory_gb, cap_for_batching=True
-    )
-    bytes_per_perm = n_samples * n_features * 4  # float32 data_perm row
-    return auto_batch_size(n_permute, bytes_per_perm, budget_gb=budget_gb)

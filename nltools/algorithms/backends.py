@@ -21,7 +21,6 @@ from nltools.utils import find_stack_level
 # Track if we've warned about MPS initialization to avoid spam
 _already_warned_mps_init = [False]
 # Track if we've warned about float64 conversion to avoid spam
-_already_warned_float64 = [False]
 
 
 def _array_module_for(name):
@@ -123,7 +122,9 @@ class Backend:
         """Explain a missing array module rather than raising a bare AttributeError.
 
         Only reached when normal lookup fails, which for `xp` means this backend
-        was unpickled on a host without the device it was fitted on.
+        was unpickled on a host without the device it was fitted on. Pinned by
+        `test_ridge.py::TestSerialization::test_gpu_fitted_model_round_trips_through_pickle`
+        and `::test_unpickling_never_switches_device`.
 
         Args:
             name (str): The attribute being looked up.
@@ -186,7 +187,7 @@ class Backend:
 
     @property
     def is_gpu(self):
-        """True if backend is using a GPU device (CUDA or MPS)."""
+        """True when the resolved device is a GPU (`'cuda'` or `'mps'`)."""
         return self.device in ("cuda", "mps")
 
     def _init_auto(self):
@@ -200,37 +201,6 @@ class Backend:
         else:
             # Fall back to NumPy
             self._init_numpy()
-
-    def to_device(self, arr: np.ndarray):
-        """Transfer an array to the backend device as float32.
-
-        Args:
-            arr (np.ndarray): Input numpy array.
-
-        Returns:
-            np.ndarray | torch.Tensor: The array on the device (a numpy array for
-                the numpy backend, a tensor for torch backends).
-        """
-        if self.name == "numpy":
-            # NumPy backend: ensure float32
-            return arr.astype(np.float32)
-        # PyTorch backend: convert to tensor and move to device
-        import torch
-
-        # Check for float64 conversion and warn if needed
-        if arr.dtype == np.float64 and self.device == "mps":
-            if not _already_warned_float64[0]:
-                warnings.warn(
-                    f"GPU backend {self.name} requires single precision floats (float32), "
-                    f"got input in float64. Data will be automatically cast to float32. "
-                    "This may result in reduced numerical precision.",
-                    UserWarning,
-                    stacklevel=find_stack_level(),
-                )
-                _already_warned_float64[0] = True
-
-        tensor = torch.from_numpy(arr.astype(np.float32))
-        return tensor.to(self._torch_device)
 
     def to_numpy(self, arr):
         """Convert an array back to NumPy.
@@ -250,66 +220,6 @@ class Backend:
         if isinstance(arr, torch.Tensor):
             return arr.cpu().numpy()
         return arr
-
-    def svd(self, X, full_matrices=False):
-        """Compute the singular value decomposition `X = U @ diag(s) @ Vt`.
-
-        The numpy backend also accepts a 3D stack of matrices (SVD of each,
-        results stacked along axis 0). MPS devices compute the SVD in float64 on
-        the CPU and return float32 results on the device.
-
-        Args:
-            X (np.ndarray | torch.Tensor): Input matrix of shape (n_samples, n_features).
-            full_matrices (bool): If False, return the reduced SVD. Defaults to False.
-
-        Returns:
-            tuple[np.ndarray | torch.Tensor, ...]: `(U, s, Vt)` — the left singular
-                vectors, singular values, and transposed right singular vectors.
-        """
-        if self.name == "numpy":
-            try:
-                import scipy.linalg as linalg
-
-                use_scipy = True
-            except ImportError:
-                linalg = np.linalg
-                use_scipy = False
-
-            if X.ndim == 2 or not use_scipy:
-                return linalg.svd(X, full_matrices=full_matrices)
-            if X.ndim == 3:
-                UsV = [linalg.svd(Xi, full_matrices=full_matrices) for Xi in X]
-                return tuple(map(np.stack, zip(*UsV)))
-            raise NotImplementedError("SVD only supports 2D and 3D arrays")
-        if self.device == "mps":
-            import torch
-
-            X_device = X.device
-            X_cpu = X.cpu().to(torch.float64)
-            U, s, Vt = torch.linalg.svd(X_cpu, full_matrices=full_matrices)
-            U = U.to(dtype=torch.float32, device=X_device)
-            s = s.to(dtype=torch.float32, device=X_device)
-            Vt = Vt.to(dtype=torch.float32, device=X_device)
-            return U, s, Vt
-        import torch
-
-        return torch.linalg.svd(X, full_matrices=full_matrices)
-
-    def matmul(self, A, B):
-        """Matrix multiplication.
-
-        Args:
-            A (np.ndarray | torch.Tensor): First matrix.
-            B (np.ndarray | torch.Tensor): Second matrix.
-
-        Returns:
-            np.ndarray | torch.Tensor: `A @ B`.
-        """
-        if self.name == "numpy":
-            return A @ B
-        import torch
-
-        return torch.matmul(A, B)
 
     # ------------------------------------------------------------------
     # Static utilities
@@ -409,301 +319,17 @@ class Backend:
             arr = np.asarray(x, dtype=self.dtype_to_str(dtype))
             return torch.as_tensor(arr, dtype=dtype, device=device)
 
-    def asarray_like(self, x, ref):
-        """Convert `x` to an array matching `ref`'s dtype (and device for torch).
-
-        Args:
-            x (array-like | torch.Tensor): Input data.
-            ref (np.ndarray | torch.Tensor): Reference array whose dtype and device to match.
-
-        Returns:
-            np.ndarray | torch.Tensor: Backend array with the same dtype and device as `ref`.
-        """
-        if self.name == "numpy":
-            return np.asarray(x, dtype=ref.dtype)
-        import torch
-
-        return torch.as_tensor(x, dtype=ref.dtype, device=ref.device)
-
-    def check_arrays(self, *inputs):
-        """Coerce all inputs to the same dtype (and device) as the first.
-
-        None values are passed through. Lists of arrays are converted
-        element-wise.
-
-        Args:
-            *inputs (array-like | list | None): Arrays, lists of arrays, or None.
-
-        Returns:
-            list: Converted arrays in the same order as the inputs.
-        """
-        result = []
-        first = self.asarray(inputs[0])
-        result.append(first)
-        dtype = first.dtype
-        for item in inputs[1:]:
-            if item is None:
-                result.append(None)
-            elif isinstance(item, list):
-                result.append([self.asarray(el, dtype=dtype) for el in item])
-            else:
-                result.append(self.asarray(item, dtype=dtype))
-        return result
-
     # ------------------------------------------------------------------
     # Array creation with shape override
     # ------------------------------------------------------------------
-
-    def _resolve_torch_device(self, array=None, device=None):
-        """Resolve the target torch device: explicit `device`, else `array.device`, else the backend default.
-
-        Args:
-            array (torch.Tensor | None): Reference tensor whose device to reuse.
-            device (str | torch.device | None): Explicit device; wins when given.
-
-        Returns:
-            torch.device | str: The device to allocate on.
-        """
-        if device is not None:
-            return device
-        if array is not None and hasattr(array, "device"):
-            return array.device
-        return self._torch_device
-
-    def zeros_like(self, array, shape=None, dtype=None, device=None):
-        """Create an array of zeros, optionally with a different shape.
-
-        Args:
-            array (np.ndarray | torch.Tensor): Reference array for dtype (and device) inference.
-            shape (int | tuple[int, ...] | None): Output shape. If None, uses `array.shape`.
-            dtype (np.dtype | str | torch.dtype | None): Output dtype. If None, uses `array.dtype`.
-            device (str | torch.device | None): Target device (torch only). If None,
-                uses the reference array's device.
-
-        Returns:
-            np.ndarray | torch.Tensor: Zero-filled array.
-        """
-        if shape is None:
-            shape = array.shape
-        if dtype is None:
-            dtype = array.dtype
-        if self.name == "numpy":
-            return np.zeros(shape, dtype=dtype)
-        import torch
-
-        if isinstance(shape, int):
-            shape = (shape,)
-        if isinstance(dtype, str):
-            dtype = getattr(torch, dtype)
-        return torch.zeros(
-            shape, dtype=dtype, device=self._resolve_torch_device(array, device)
-        )
-
-    def ones_like(self, array, shape=None, dtype=None, device=None):
-        """Create an array of ones, optionally with a different shape.
-
-        Args:
-            array (np.ndarray | torch.Tensor): Reference array for dtype (and device) inference.
-            shape (int | tuple[int, ...] | None): Output shape. If None, uses `array.shape`.
-            dtype (np.dtype | str | torch.dtype | None): Output dtype. If None, uses `array.dtype`.
-            device (str | torch.device | None): Target device (torch only). If None,
-                uses the reference array's device.
-
-        Returns:
-            np.ndarray | torch.Tensor: One-filled array.
-        """
-        if shape is None:
-            shape = array.shape
-        if dtype is None:
-            dtype = array.dtype
-        if self.name == "numpy":
-            return np.ones(shape, dtype=dtype)
-        import torch
-
-        if isinstance(shape, int):
-            shape = (shape,)
-        if isinstance(dtype, str):
-            dtype = getattr(torch, dtype)
-        return torch.ones(
-            shape, dtype=dtype, device=self._resolve_torch_device(array, device)
-        )
-
-    def full_like(self, array, fill_value, shape=None, dtype=None, device=None):
-        """Create an array filled with `fill_value`, optionally with a different shape.
-
-        Args:
-            array (np.ndarray | torch.Tensor): Reference array for dtype (and device) inference.
-            fill_value (float | int | bool): Scalar fill value.
-            shape (int | tuple[int, ...] | None): Output shape. If None, uses `array.shape`.
-            dtype (np.dtype | str | torch.dtype | None): Output dtype. If None, uses `array.dtype`.
-            device (str | torch.device | None): Target device (torch only). If None,
-                uses the reference array's device.
-
-        Returns:
-            np.ndarray | torch.Tensor: Filled array.
-        """
-        if shape is None:
-            shape = array.shape
-        if dtype is None:
-            dtype = array.dtype
-        if self.name == "numpy":
-            return np.full(shape, fill_value, dtype=dtype)
-        import torch
-
-        if isinstance(shape, int):
-            shape = (shape,)
-        if isinstance(dtype, str):
-            dtype = getattr(torch, dtype)
-        return torch.full(
-            shape,
-            fill_value,
-            dtype=dtype,
-            device=self._resolve_torch_device(array, device),
-        )
-
-    def full(self, shape, fill_value, dtype=None):
-        """Create an array filled with `fill_value` on the backend's device.
-
-        Args:
-            shape (int | tuple[int, ...]): Output shape.
-            fill_value (float | int | bool): Scalar fill value.
-            dtype (np.dtype | str | torch.dtype | None): Output dtype. If None,
-                inferred by the backend from `fill_value`.
-
-        Returns:
-            np.ndarray | torch.Tensor: Filled array.
-        """
-        if self.name == "numpy":
-            return np.full(shape, fill_value, dtype=dtype)
-        import torch
-
-        if isinstance(shape, int):
-            shape = (shape,)
-        if isinstance(dtype, str):
-            dtype = getattr(torch, dtype)
-        return torch.full(shape, fill_value, dtype=dtype, device=self._torch_device)
 
     # ------------------------------------------------------------------
     # Device transfer
     # ------------------------------------------------------------------
 
-    def to_cpu(self, array):
-        """Transfer an array to the CPU.
-
-        No-op for the numpy backend.
-
-        Args:
-            array (np.ndarray | torch.Tensor): Input array or tensor.
-
-        Returns:
-            np.ndarray | torch.Tensor: Array on the CPU.
-        """
-        if self.name == "numpy":
-            return array
-        return array.cpu()
-
-    def to_gpu(self, array, device=None):
-        """Transfer an array to the GPU.
-
-        No-op for the numpy backend.
-
-        Args:
-            array (np.ndarray | torch.Tensor): Input array or tensor.
-            device (str | torch.device | None): Target device. Defaults to the
-                backend's device.
-
-        Returns:
-            np.ndarray | torch.Tensor: Tensor on the device (the input unchanged
-                for the numpy backend).
-        """
-        if self.name == "numpy":
-            return array
-        target = device or self._torch_device
-        return (
-            self.asarray(array, dtype=None).to(target)
-            if not hasattr(array, "to")
-            else array.to(target)
-        )
-
     # ------------------------------------------------------------------
     # Compat ops (differ between numpy and torch)
     # ------------------------------------------------------------------
-
-    def concatenate(self, arrays, axis=0):
-        """Concatenate arrays along an axis.
-
-        Args:
-            arrays (Sequence[np.ndarray | torch.Tensor]): Arrays to join.
-            axis (int): Axis to concatenate along. Defaults to 0.
-
-        Returns:
-            np.ndarray | torch.Tensor: Concatenated array.
-        """
-        if self.name == "numpy":
-            return np.concatenate(arrays, axis=axis)
-        import torch
-
-        return torch.cat(arrays, dim=axis)
-
-    def expand_dims(self, array, axis):
-        """Insert a new axis of length one.
-
-        Args:
-            array (np.ndarray | torch.Tensor): Input array.
-            axis (int): Position of the new axis.
-
-        Returns:
-            np.ndarray | torch.Tensor: View with the added axis.
-        """
-        if self.name == "numpy":
-            return np.expand_dims(array, axis=axis)
-        import torch
-
-        return torch.unsqueeze(array, dim=axis)
-
-    def copy(self, array):
-        """Return an independent copy of the array.
-
-        Args:
-            array (np.ndarray | torch.Tensor): Input array.
-
-        Returns:
-            np.ndarray | torch.Tensor: The copy.
-        """
-        if self.name == "numpy":
-            return np.copy(array)
-        return array.clone()
-
-    def flatnonzero(self, array):
-        """Return indices of the non-zero elements of the flattened array.
-
-        Args:
-            array (np.ndarray | torch.Tensor): Input array.
-
-        Returns:
-            np.ndarray | torch.Tensor: 1D integer indices.
-        """
-        if self.name == "numpy":
-            return np.flatnonzero(array)
-        import torch
-
-        return torch.nonzero(torch.flatten(array), as_tuple=True)[0]
-
-    def sort(self, array, axis=-1):
-        """Sort along an axis, returning values only.
-
-        Args:
-            array (np.ndarray | torch.Tensor): Input array.
-            axis (int): Axis to sort along. Defaults to -1.
-
-        Returns:
-            np.ndarray | torch.Tensor: Sorted values.
-        """
-        if self.name == "numpy":
-            return np.sort(array, axis=axis)
-        import torch
-
-        return torch.sort(array, dim=axis).values
 
 
 def resolve_backend(parallel):

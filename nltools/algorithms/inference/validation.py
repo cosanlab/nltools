@@ -5,52 +5,16 @@ share, so every entry point raises the same `ValueError` for the same mistake.
 
 Examples:
     ```python
-    from nltools.algorithms.inference.validation import validate_device_parameter
+    from nltools.algorithms.inference.validation import validate_tail_parameter
 
-    validate_device_parameter("cpu")  # OK
-    validate_device_parameter("invalid")  # raises ValueError
+    validate_tail_parameter(2)  # → 'two'
+    validate_tail_parameter("invalid")  # raises ValueError
     ```
 """
 
 import numpy as np
 
 from .utils import _normalize_tail_internal
-
-
-def validate_device_parameter(device: str | None, *, allow_auto: bool = False) -> None:
-    """Validate the `device` parameter.
-
-    Args:
-        device (str | None): None, `'cpu'`, or `'gpu'`.
-        allow_auto (bool): Also accept `'auto'` (for entry points that resolve
-            the device themselves, e.g. `phase_randomize`).
-
-    Raises:
-        ValueError: If `device` is not one of the accepted values.
-    """
-    allowed = [None, "cpu", "gpu"] + (["auto"] if allow_auto else [])
-    if device not in allowed:
-        options = (
-            "None, 'cpu', 'gpu', or 'auto'" if allow_auto else "None, 'cpu', or 'gpu'"
-        )
-        raise ValueError(f"device must be {options}, got {device!r}")
-
-
-def validate_device_parameter_matrix(device: str | None) -> None:
-    """Validate the `device` parameter for matrix permutation tests.
-
-    Args:
-        device (str | None): None or `'cpu'`.
-
-    Raises:
-        ValueError: If `device` is not None or `'cpu'` (matrix permutation tests
-            have no GPU path yet).
-    """
-    if device not in [None, "cpu"]:
-        raise ValueError(
-            f"device must be None or 'cpu', got {device!r}. "
-            "GPU support not yet implemented for matrix permutation tests."
-        )
 
 
 def validate_tail_parameter(tail: int | str) -> str:

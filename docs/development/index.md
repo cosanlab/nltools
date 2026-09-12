@@ -48,17 +48,20 @@ results and inference semantics for BrainData and Adjacency.
   Leading underscores are fine for internal functions/methods, just not filenames.
 - **Facade translation at the boundary.** Internal algorithm-layer APIs may keep legacy
   parameter names; the class facade translates to the [canonical vocabulary](#canonical-api-vocabulary).
-- **One GPU execution layer, run-or-raise.** Memory budgets, batch sizing, and OOM
-  recovery live only in `algorithms.backends` (`device_memory_budget`,
-  `auto_batch_size`, `compute_oom_safe`); an algorithm supplies its per-item
-  working-set estimate and never its own budget math (pinned by a source-scan
-  test in `test_backends.py`). `max_gpu_memory_gb=None` — the default
-  everywhere — means "measure the device"; when sizing batches, a measured budget is
-  capped at a saturation ceiling (`BATCH_WORKING_SET_CEILING_GB`, 8 GB) because
-  larger working sets add allocation cost without throughput gain, while an explicit
-  `max_gpu_memory_gb` is always used verbatim. An explicit `device='gpu'` /
-  `parallel='gpu'` either runs on the GPU or raises; `'auto'` is the one documented
-  graceful-fallback path.
+- **One GPU execution layer, run-or-raise.** GPU execution means Himalaya ridge
+  fitting (`Ridge(device='gpu')`, `BrainData.fit(ridge_device='gpu')`) and the
+  ridge bootstrap (`BrainData.bootstrap(device='gpu')`); nltools ships no GPU
+  implementation of its own, and permutation, ISC and alignment run on CPU
+  workers. Memory budgets, batch sizing, and OOM recovery for those ridge paths
+  live only in `algorithms.backends` (`device_memory_budget`, `auto_batch_size`,
+  `compute_oom_safe`); an algorithm supplies its per-item working-set estimate and
+  never its own budget math (pinned by a source-scan test in `test_backends.py`).
+  A `None` memory budget — the default everywhere — means "measure the device";
+  when sizing batches, a measured budget is capped at a saturation ceiling
+  (`BATCH_WORKING_SET_CEILING_GB`, 8 GB) because larger working sets add
+  allocation cost without throughput gain, while an explicit budget is always used
+  verbatim. An explicit `device='gpu'` either runs on the GPU or raises; there is
+  no silent CPU fallback and no `'auto'` value.
 - **Generated column names live in the reserved `.nl_` namespace.** Any column nltools
   invents rather than the user — polynomial drift (`.nl_poly_0`), DCT cosines
   (`.nl_cosine_1`), spike indicators (`.nl_global_spike1`), and the run-separated
@@ -87,7 +90,7 @@ public signature against in CI. The table below is rendered from it:
 | Central tendency | `summary` (<code>'mean' &#124; 'median'</code>) |
 | Cross-validation spec | `cv` (<code>int &#124;</code> splitter <code>&#124; None</code>) on `BrainData.predict` — `None` is a deterministic five-fold `KFold`/`StratifiedKFold`; the `'loo'`/`'logo'` names are accepted only by `resolve_cv`, and `'loso'`/`'loro'` are gone everywhere. The grouping lives in `groups=` |
 | Subject-level parallelism | `n_jobs: int = -1` |
-| GPU / CPU selection | `device: str = "cpu"` — run-or-raise: explicit `'gpu'` never silently degrades to CPU; `'auto'` is the one graceful-fallback path |
+| GPU / CPU selection | `device: str = "cpu"` on the ridge entry points — `Ridge`, `BrainData.fit(ridge_device=)` and `BrainData.bootstrap` — the only paths with a GPU implementation. Run-or-raise: explicit `'gpu'` either runs on the GPU or raises, and there is no `'auto'` |
 | Alignment refinement count | `n_iter` on `SRM` and `DetSRM` — EM iterations or coordinate-descent iterations; everywhere else `n_iter` is a banned alias for `n_permute`/`n_samples`/`search_iterations` |
 | Working-memory budget | <code>memory_budget_gb: float &#124; None = None</code> — device-neutral working-memory budget for internal batching; `None` measures the selected device with headroom |
 | Progress indicator | `progress_bar: bool = False` |

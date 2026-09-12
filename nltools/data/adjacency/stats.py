@@ -52,8 +52,8 @@ def similarity(
         progress_bar (bool): If True, show a progress bar. Default False.
 
     Returns:
-        dict | list[dict]: A correlation result dict with keys 'correlation',
-            'p', and 'device', or a list of these dicts for a stack.
+        dict | list[dict]: A correlation result dict with keys 'correlation'
+            and 'p', or a list of these dicts for a stack.
     """
     from nltools.data.adjacency import Adjacency
     from nltools.algorithms.inference import (

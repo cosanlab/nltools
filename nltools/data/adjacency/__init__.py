@@ -196,7 +196,6 @@ class Adjacency:
         *,
         n_samples=5000,
         confidence_level=0.95,
-        memory_budget_gb=None,
         return_samples=False,
         n_jobs=-1,
         random_state=None,
@@ -219,9 +218,6 @@ class Adjacency:
                 interval, strictly between zero and one. Default 0.95. The
                 bounds are the central percentile interval, elementwise
                 marginal per edge.
-            memory_budget_gb (float | None): Working-memory budget in GB
-                governing the output preflight and worker planning. None
-                (default) measures the host.
             return_samples (bool): Retain and return every replicate. Default
                 False.
             n_jobs (int): CPU worker ceiling. -1 (default) means all cores.
@@ -248,7 +244,6 @@ class Adjacency:
             statistic,
             n_samples=n_samples,
             confidence_level=confidence_level,
-            memory_budget_gb=memory_budget_gb,
             return_samples=return_samples,
             n_jobs=n_jobs,
             random_state=random_state,
@@ -562,9 +557,9 @@ class Adjacency:
             progress_bar (bool): If True, show a progress bar. Default False.
 
         Returns:
-            dict | list[dict]: A correlation result dict with keys 'correlation',
-                'p', and 'device' for a single matrix, or a list of these dicts
-                for a stack.
+            dict | list[dict]: A correlation result dict with keys
+                'correlation' and 'p' for a single matrix, or a list of these
+                dicts for a stack.
         """
         from .stats import similarity
 

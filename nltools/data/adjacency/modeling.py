@@ -12,7 +12,6 @@ def bootstrap(
     *,
     n_samples=5000,
     confidence_level=0.95,
-    memory_budget_gb=None,
     return_samples=False,
     n_jobs=-1,
     random_state=None,
@@ -34,9 +33,6 @@ def bootstrap(
             5000.
         confidence_level (float): Confidence level of the reported interval,
             strictly between zero and one. Default 0.95.
-        memory_budget_gb (float | None): Working-memory budget in GB governing
-            the output preflight and worker planning. None (default) measures
-            the host.
         return_samples (bool): Retain and return every replicate. Default
             False.
         n_jobs (int): CPU worker ceiling. -1 (default) means all cores.
@@ -51,7 +47,7 @@ def bootstrap(
 
     Raises:
         ValueError: If `statistic` is unknown, an argument is out of range, or
-            the retained output cannot fit the memory budget.
+            the retained output cannot fit the measured memory budget.
 
     Examples:
         ```python
@@ -76,7 +72,6 @@ def bootstrap(
         method=statistic,
         n_samples=n_samples,
         confidence_level=confidence_level,
-        memory_budget_gb=memory_budget_gb,
         return_samples=return_samples,
         n_jobs=n_jobs,
         random_state=random_state,

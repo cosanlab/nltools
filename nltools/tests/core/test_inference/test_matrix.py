@@ -206,43 +206,19 @@ class TestMatrixPermutationCPUParallel:
         np.testing.assert_array_equal(result1["null_dist"], result2["null_dist"])
 
     def test_parallel_consistency(self):
-        """Test that n_jobs=1 and n_jobs=-1 produce identical results."""
-        from nltools.algorithms.inference.matrix import _matrix_permutation_cpu_parallel
-
+        """Worker count never changes a seeded Mantel result."""
         np.random.seed(42)
         n = 12
         m1 = np.random.randn(n, n)
         m2 = np.random.randn(n, n)
 
-        # Run with n_jobs=1
-        result_serial = _matrix_permutation_cpu_parallel(
-            data1=m1,
-            data2=m2,
-            n_permute=150,
-            metric="pearson",
-            how="upper",
-            include_diag=False,
-            tail=2,
-            return_null=True,
-            n_jobs=1,
-            random_state=42,
+        result_serial = matrix_permutation_test(
+            m1, m2, n_permute=150, return_null=True, n_jobs=1, random_state=42
+        )
+        result_parallel = matrix_permutation_test(
+            m1, m2, n_permute=150, return_null=True, n_jobs=-1, random_state=42
         )
 
-        # Run with n_jobs=-1 (all cores)
-        result_parallel = _matrix_permutation_cpu_parallel(
-            data1=m1,
-            data2=m2,
-            n_permute=150,
-            metric="pearson",
-            how="upper",
-            include_diag=False,
-            tail=2,
-            return_null=True,
-            n_jobs=-1,
-            random_state=42,
-        )
-
-        # Results should be identical
         assert result_serial["correlation"] == result_parallel["correlation"]
         assert result_serial["p"] == result_parallel["p"]
         np.testing.assert_array_equal(

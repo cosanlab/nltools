@@ -5,8 +5,9 @@
 similarity matrix) are correlated, building the null by permuting the rows and
 columns of one matrix together. `distance_correlation` measures multivariate
 dependence (linear or not) between two arrays, with `double_center` and
-`u_center` as the centering steps it is built on. `device='cpu'` (default) runs
-the permutations across `n_jobs` workers; `device=None` runs single-threaded.
+`u_center` as the centering steps it is built on. Permutations run on joblib
+workers; `n_jobs` sets how many, and a given `random_state` gives the same
+result at any worker count.
 """
 
 import numpy as np
@@ -20,7 +21,6 @@ from .validation import (
     validate_how_parameter,
     validate_metric_parameter,
     validate_tail_parameter,
-    validate_device_parameter_matrix,
     validate_same_shape,
     validate_square_matrix,
 )
@@ -174,8 +174,8 @@ def _matrix_permutation_cpu_parallel(
         progress_bar (bool): Show a progress bar over permutations.
 
     Returns:
-        dict: Keys 'correlation' (float), 'p' (float), 'device' (`'cpu'`), and
-            'null_dist' (np.ndarray) when `return_null=True`.
+        dict: Keys 'correlation' (float), 'p' (float), and 'null_dist'
+            (np.ndarray) when `return_null=True`.
     """
     from joblib import Parallel, delayed
 
@@ -225,7 +225,6 @@ def _matrix_permutation_cpu_parallel(
     result = {
         "correlation": obs_corr,
         "p": p_value,
-        "device": "cpu",
     }
 
     if return_null:
@@ -244,7 +243,6 @@ def matrix_permutation_test(
     include_diag: bool = False,
     tail: int | str = 2,
     return_null: bool = False,
-    device: str | None = "cpu",
     n_jobs: int = -1,
     random_state: int | None = None,
     progress_bar: bool = False,
@@ -274,18 +272,14 @@ def matrix_permutation_test(
             `'one'` for a one-tailed test of r > 0 (negate one matrix for the other
             direction). Defaults to 2.
         return_null (bool): Also return the null distribution. Defaults to False.
-        device (str | None): `'cpu'` parallelizes permutations across `n_jobs`
-            joblib workers (4-8× speedup); `None` runs single-threaded NumPy (for
-            debugging or small problems). Defaults to 'cpu'.
-        n_jobs (int): Number of parallel workers, -1 = all cores; only used when
-            `device='cpu'`. Defaults to -1.
+        n_jobs (int): Number of joblib workers, -1 = all cores. Defaults to -1.
+            Results are identical at every worker count.
         random_state (int | None): Random seed for reproducibility.
         progress_bar (bool): Show a progress bar over permutations. Defaults to False.
 
     Returns:
         dict: Keys 'correlation' (float, observed correlation), 'p' (float,
-            Phipson-Smyth corrected p-value), 'device' (`'cpu'` or `None`, the
-            execution path used), and 'null_dist' (np.ndarray) when
+            Phipson-Smyth corrected p-value), and 'null_dist' (np.ndarray) when
             `return_null=True`.
 
     References:
@@ -324,65 +318,20 @@ def matrix_permutation_test(
     validate_metric_parameter(metric, ["pearson", "spearman", "kendall"], name="metric")
     validate_how_parameter(how)
     validate_tail_parameter(tail)
-    validate_device_parameter_matrix(device)
 
-    # Decide execution mode based on device parameter
-    if device == "cpu":
-        # CPU parallelization mode
-        return _matrix_permutation_cpu_parallel(
-            data1=data1,
-            data2=data2,
-            n_permute=n_permute,
-            metric=metric,
-            how=how,
-            include_diag=include_diag,
-            tail=tail,
-            return_null=return_null,
-            n_jobs=n_jobs,
-            random_state=random_state,
-            progress_bar=progress_bar,
-        )
-    # Single-threaded NumPy mode
-    rng = np.random.RandomState(random_state)
-    seeds = rng.randint(MAX_INT, size=n_permute)
-
-    # Compute observed correlation
-    obs_corr = _compute_matrix_correlation(
-        data1, data2, how=how, include_diag=include_diag, metric=metric
+    return _matrix_permutation_cpu_parallel(
+        data1=data1,
+        data2=data2,
+        n_permute=n_permute,
+        metric=metric,
+        how=how,
+        include_diag=include_diag,
+        tail=tail,
+        return_null=return_null,
+        n_jobs=n_jobs,
+        random_state=random_state,
+        progress_bar=progress_bar,
     )
-
-    # Generate null distribution
-    null_dist = []
-    for seed in seeds:
-        perm_rng = np.random.RandomState(seed)
-        perm = perm_rng.permutation(data1.shape[0])
-        permuted_matrix = _permute_matrix_symmetric(data1, perm)
-        corr = _compute_matrix_correlation(
-            permuted_matrix,
-            data2,
-            how=how,
-            include_diag=include_diag,
-            metric=metric,
-        )
-        null_dist.append(corr)
-
-    null_dist = np.array(null_dist)
-
-    # Compute p-value
-    p_value = _compute_pvalue(obs_corr, null_dist, tail=tail)
-    if isinstance(p_value, np.ndarray):
-        p_value = float(p_value[0])
-
-    result = {
-        "correlation": obs_corr,
-        "p": p_value,
-        "device": None,
-    }
-
-    if return_null:
-        result["null_dist"] = null_dist
-
-    return result
 
 
 # ============================================================================

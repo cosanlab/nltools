@@ -112,7 +112,6 @@ def test_matrix_trailing_kwarg_order():
         "include_diag",
         "tail",
         "return_null",
-        "device",
         "n_jobs",
         "random_state",
         "progress_bar",

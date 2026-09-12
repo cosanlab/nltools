@@ -14,9 +14,6 @@ from nltools.algorithms.inference.bootstrap import (
     _bootstrap_simple_method_worker,
 )
 
-# GPU tolerance constants (from test_inference.py)
-TOLERANCE_GPU_VALUE = 1e-3  # 0.1% error for computed values
-
 RESULT_FIELDS = ("estimate", "standard_error", "ci_lower", "ci_upper")
 
 # Nearly every test here deliberately runs a small, fast bootstrap, which trips

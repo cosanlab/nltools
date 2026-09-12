@@ -11,25 +11,17 @@ Test organization follows the TDD plan (isc-group-tdd-plan.md):
     Phase 7: Performance Benchmarks (tier2)
 
 Tier 1: Fast tests (~1-2min, run on every iteration)
-Tier 2: GPU and benchmark tests (~5-7min, run before commits)
+Tier 2: Benchmark tests (~5-7min, run before commits)
 
 Testing Strategy & Tolerances:
 
-    This test suite uses different tolerance levels for different comparison types.
-    Following the pattern from test_isc.py:
-
-    1. Backend Consistency (NumPy vs CPU-parallel):
+    1. Worker-count consistency (n_jobs=1 vs n_jobs=-1):
        - Tolerance: EXACT (rtol=1e-5)
-       - Why: Same algorithm, same random seed, only float precision differs
+       - Why: Same algorithm, same seeds, worker count only changes scheduling
 
-    2. GPU Precision (GPU float32 vs CPU float64):
-       - Values: rtol=1e-3 (0.1% error)
-       - P-values: rtol=5e-3 (0.5% error)
-       - Why: GPU uses float32, CPU uses float64; P-values accumulate more error
-
-    3. Backward Compatibility (vs stats.py):
+    2. Backward Compatibility (vs stats.py):
        - P-values: rtol=0.02 (2% error)
-       - Why: Prioritizes cross-backend determinism over exact stats.py match
+       - Why: Prioritizes seeded determinism over exact stats.py match
 """
 
 import numpy as np
@@ -50,12 +42,8 @@ from nltools.algorithms.inference.isc import (
 # Test Constants - DO NOT MODIFY without updating docstring above
 # =============================================================================
 
-# Tolerance for backend consistency (NumPy vs CPU-parallel with same seed)
+# Tolerance for worker-count consistency (same seeds, different n_jobs)
 TOLERANCE_EXACT = 1e-5
-
-# Tolerance for GPU vs CPU comparisons (float32 vs float64)
-TOLERANCE_GPU_VALUE = 1e-3  # 0.1% error for computed values
-TOLERANCE_GPU_PVALUE = 5e-3  # 0.5% error for P-values (more FP error)
 
 # Tolerance for backward compatibility with stats.py
 TOLERANCE_STATS_PVALUE = 0.02  # 2% relative error acceptable
@@ -78,7 +66,7 @@ def test_compute_isc_group_difference_numpy_single_feature_pairwise():
 
     # Compute ISC difference
     isc_diff = _compute_isc_group_difference(
-        group1, group2, summary="median", summary_statistic="pairwise", backend="numpy"
+        group1, group2, summary="median", summary_statistic="pairwise"
     )
 
     # Should be scalar
@@ -86,8 +74,8 @@ def test_compute_isc_group_difference_numpy_single_feature_pairwise():
     assert np.isfinite(isc_diff)
 
     # Verify manually: compute ISC for each group, then difference
-    pairwise1 = _compute_pairwise_isc(group1, backend="numpy")
-    pairwise2 = _compute_pairwise_isc(group2, backend="numpy")
+    pairwise1 = _compute_pairwise_isc(group1)
+    pairwise2 = _compute_pairwise_isc(group2)
     isc1 = np.median(pairwise1)
     isc2 = np.median(pairwise2)
     expected_diff = isc1 - isc2
@@ -110,15 +98,14 @@ def test_compute_isc_group_difference_numpy_single_feature_loo():
         group2,
         summary="median",
         summary_statistic="leave-one-out",
-        backend="numpy",
     )
 
     assert isinstance(isc_diff, (float, np.floating))
     assert np.isfinite(isc_diff)
 
     # Verify manually
-    loo1 = _compute_loo_isc(group1, backend="numpy")
-    loo2 = _compute_loo_isc(group2, backend="numpy")
+    loo1 = _compute_loo_isc(group1)
+    loo2 = _compute_loo_isc(group2)
     isc1 = np.median(loo1)
     isc2 = np.median(loo2)
     expected_diff = isc1 - isc2
@@ -138,7 +125,7 @@ def test_compute_isc_group_difference_numpy_voxelwise():
 
     # Compute ISC difference
     isc_diff = _compute_isc_group_difference(
-        group1, group2, summary="median", summary_statistic="pairwise", backend="numpy"
+        group1, group2, summary="median", summary_statistic="pairwise"
     )
 
     # Should be array per voxel
@@ -148,53 +135,13 @@ def test_compute_isc_group_difference_numpy_voxelwise():
     # Verify first voxel manually
     voxel1_group1 = group1[:, :, 0]
     voxel1_group2 = group2[:, :, 0]
-    pairwise1_v0 = _compute_pairwise_isc(voxel1_group1, backend="numpy")
-    pairwise2_v0 = _compute_pairwise_isc(voxel1_group2, backend="numpy")
+    pairwise1_v0 = _compute_pairwise_isc(voxel1_group1)
+    pairwise2_v0 = _compute_pairwise_isc(voxel1_group2)
     isc1_v0 = np.median(pairwise1_v0)
     isc2_v0 = np.median(pairwise2_v0)
     expected_diff_v0 = isc1_v0 - isc2_v0
 
     assert np.isclose(isc_diff[0], expected_diff_v0)
-
-
-@pytest.mark.slow
-def test_compute_isc_group_difference_gpu_matches_numpy():
-    """GPU ISC group difference matches NumPy within float32 tolerance (voxel-wise LOO only)."""
-    torch = pytest.importorskip("torch")
-
-    if not torch.cuda.is_available():
-        pytest.skip("GPU not available")
-
-    np.random.seed(42)
-    n_obs = 100
-    n_subjects1, n_subjects2 = 5, 5
-    n_voxels = 100  # Sufficient voxels for GPU speedup
-
-    group1 = np.random.randn(n_obs, n_subjects1, n_voxels)
-    group2 = np.random.randn(n_obs, n_subjects2, n_voxels)
-
-    # Compute with NumPy (CPU)
-    isc_diff_numpy = _compute_isc_group_difference(
-        group1,
-        group2,
-        summary="median",
-        summary_statistic="leave-one-out",
-        backend="numpy",
-    )
-
-    # Compute with GPU
-    isc_diff_gpu = _compute_isc_group_difference(
-        group1,
-        group2,
-        summary="median",
-        summary_statistic="leave-one-out",
-        backend="torch",
-    )
-
-    # GPU uses float32, CPU uses float64 - use GPU precision tolerance
-    np.testing.assert_allclose(
-        isc_diff_numpy, isc_diff_gpu, rtol=TOLERANCE_GPU_VALUE, atol=1e-7
-    )
 
 
 def test_compute_isc_group_difference_deterministic():
@@ -204,11 +151,11 @@ def test_compute_isc_group_difference_deterministic():
     group2 = np.random.randn(50, 5)  # Reduced from 100, 5 for tier1 speed
 
     isc_diff1 = _compute_isc_group_difference(
-        group1, group2, summary="median", summary_statistic="pairwise", backend="numpy"
+        group1, group2, summary="median", summary_statistic="pairwise"
     )
 
     isc_diff2 = _compute_isc_group_difference(
-        group1, group2, summary="median", summary_statistic="pairwise", backend="numpy"
+        group1, group2, summary="median", summary_statistic="pairwise"
     )
 
     assert np.allclose(isc_diff1, isc_diff2)
@@ -228,7 +175,6 @@ def test_compute_isc_group_difference_mismatched_observations():
             group2,
             summary="median",
             summary_statistic="pairwise",
-            backend="numpy",
         )
 
 
@@ -244,7 +190,6 @@ def test_compute_isc_group_difference_invalid_metric():
             group2,
             summary="invalid",
             summary_statistic="pairwise",
-            backend="numpy",
         )
 
 
@@ -260,7 +205,6 @@ def test_compute_isc_group_difference_invalid_summary_statistic():
             group2,
             summary="median",
             summary_statistic="invalid",
-            backend="numpy",
         )
 
 
@@ -367,7 +311,6 @@ def test_bootstrap_isc_group_works_with_loo():
         group2,
         summary="median",
         summary_statistic="leave-one-out",
-        backend="numpy",
     )
 
     boot_diff = _bootstrap_isc_group_numpy(
@@ -390,7 +333,7 @@ def test_bootstrap_isc_group_cpu_parallel_matches_numpy():
     group2 = np.random.randn(100, 5)
 
     observed_diff = _compute_isc_group_difference(
-        group1, group2, summary="median", summary_statistic="pairwise", backend="numpy"
+        group1, group2, summary="median", summary_statistic="pairwise"
     )
 
     # Sequential NumPy
@@ -432,7 +375,7 @@ def test_bootstrap_isc_group_cpu_parallel_deterministic():
     group2 = np.random.randn(100, 5)
 
     observed_diff = _compute_isc_group_difference(
-        group1, group2, summary="median", summary_statistic="pairwise", backend="numpy"
+        group1, group2, summary="median", summary_statistic="pairwise"
     )
 
     boot1 = _bootstrap_isc_group_cpu_parallel(
@@ -486,17 +429,17 @@ def test_isc_group_permutation_test_voxelwise():
     assert result["ci"][1].shape == (5,)  # Reduced from 10
 
 
-def test_isc_group_permutation_test_backend_consistency():
-    """NumPy and CPU-parallel backends give identical results."""
+def test_isc_group_worker_count_is_numerically_invisible():
+    """Worker count never changes a seeded group-difference result."""
     np.random.seed(42)
     group1 = np.random.randn(50, 5)  # Reduced from 100, 5 for tier1 speed
     group2 = np.random.randn(50, 5)  # Reduced from 100, 5 for tier1 speed
 
-    result_numpy = isc_group_permutation_test(
+    result_serial = isc_group_permutation_test(
         group1,
         group2,
-        device=None,
         n_permute=100,
+        n_jobs=1,
         random_state=42,
         progress_bar=False,
     )
@@ -504,20 +447,19 @@ def test_isc_group_permutation_test_backend_consistency():
     result_parallel = isc_group_permutation_test(
         group1,
         group2,
-        device="cpu",
         n_permute=100,
+        n_jobs=-1,
         random_state=42,
         progress_bar=False,
     )
 
-    # Both use float64 CPU - should be exact matches
     np.testing.assert_allclose(
-        result_numpy["isc_group_difference"],
+        result_serial["isc_group_difference"],
         result_parallel["isc_group_difference"],
         rtol=TOLERANCE_EXACT,
     )
     np.testing.assert_allclose(
-        result_numpy["p"], result_parallel["p"], rtol=TOLERANCE_EXACT
+        result_serial["p"], result_parallel["p"], rtol=TOLERANCE_EXACT
     )
 
 

@@ -35,7 +35,7 @@ Page | Covers
 [Prediction: encoding & decoding](prediction.md) | `predict`, cross-validation specs, ROI and searchlight scales, ridge encoding, ROC
 [Similarity & RSA](similarity-and-rsa.md) | Brain RDMs, model RDMs, Mantel tests, `plot_stacked_adjacency`, painting results back on the brain
 [Functional alignment](alignment.md) | Hyperalignment vs SRM vs local alignment, common models, transforming new subjects
-[Statistics & inference](statistics-and-inference.md) | t-tests, permutation, bootstrap, FDR/Holm, `tail`, `n_permute` vs `n_samples`, `n_jobs` vs `device`
+[Statistics & inference](statistics-and-inference.md) | t-tests, permutation, bootstrap, FDR/Holm, `tail`, `n_permute` vs `n_samples`, `n_jobs`
 [Intersubject correlation](intersubject.md) | `isc`, `isfc`, `isps`, group comparisons, array-based ISC
 [Plotting](plotting.md) | Which plot for which object, thresholds, interactive viewers, saving
 [Atlases & cluster reports](atlases.md) | Bundled parcellations, anatomical labels, parcel summaries, cluster tables
@@ -45,9 +45,10 @@ Page | Covers
 - `method=` picks an algorithm variant; `metric=` picks a distance or similarity measure;
   `summary=` picks a central tendency (`'mean'` or `'median'`). They are never interchangeable.
 - `spatial_scale=` (`'whole_brain'`, `'roi'`, `'searchlight'`) picks the scale an analysis runs at.
-- `n_jobs=` sets CPU workers; `device=` picks CPU or GPU. An explicit `device='gpu'` runs on the
-  GPU or raises; only `'auto'` falls back.
+- `n_jobs=` sets joblib workers and never changes a seeded result. `device=` picks CPU or GPU on
+  the ridge paths (`Ridge`, `BrainData.fit(ridge_device=)`, `BrainData.bootstrap`), the only ones
+  with a GPU implementation; an explicit `device='gpu'` runs on the GPU or raises.
 - `n_permute=` counts permutations; `n_samples=` counts bootstrap draws.
-- `random_state=` makes any resampling reproducible, including on the GPU.
+- `random_state=` makes any resampling reproducible.
 
 The full manifest is in the [architecture notes](../development/index.md#canonical-api-vocabulary).

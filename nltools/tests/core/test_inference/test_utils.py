@@ -10,7 +10,6 @@ import numpy as np
 import multiprocessing
 
 from nltools.algorithms.inference.utils import (
-    _auto_batch_size,
     _compute_pvalue,
     _generate_sign_flips,
 )
@@ -214,68 +213,6 @@ class TestMemoryManagement:
     # GPU Memory Management Tests
     # ========================================================================
 
-    def test_auto_batch_size_small_problem(self):
-        """Test batch size calculation for small problems."""
-        # Small problem: All permutations fit in one batch
-        batch_size, n_batches = _auto_batch_size(
-            n_permute=1000,
-            n_samples=30,
-            n_features=1000,
-            max_memory_gb=4.0,
-        )
-        assert batch_size >= 100  # Minimum batch size
-        assert n_batches >= 1
-
-    def test_auto_batch_size_large_problem(self):
-        """Test batch size calculation for large problems."""
-        # Large problem: Need multiple batches
-        batch_size, n_batches = _auto_batch_size(
-            n_permute=10000,
-            n_samples=30,
-            n_features=50000,
-            max_memory_gb=4.0,
-        )
-        assert batch_size >= 100  # Minimum batch size
-        assert n_batches > 1  # Should need multiple batches
-
-    def test_auto_batch_size_memory_budget(self):
-        """Test that different memory budgets produce different batch sizes."""
-        # Smaller memory budget should produce smaller batches
-        batch_small, _ = _auto_batch_size(
-            n_permute=5000,
-            n_samples=30,
-            n_features=10000,
-            max_memory_gb=2.0,
-        )
-        batch_large, _ = _auto_batch_size(
-            n_permute=5000,
-            n_samples=30,
-            n_features=10000,
-            max_memory_gb=8.0,
-        )
-        assert batch_large >= batch_small  # More memory = larger batches
-
-    def test_auto_batch_size_raises_when_one_permutation_exceeds_budget(self):
-        """A dispatch floor must not override an explicit memory limit."""
-        with pytest.raises(ValueError, match="one item requires"):
-            _auto_batch_size(
-                n_permute=5000,
-                n_samples=30,
-                n_features=100000,
-                max_memory_gb=0.01,
-            )
-
-    def test_auto_batch_size_maximum(self):
-        """Test that batch size never exceeds n_permute."""
-        batch_size, n_batches = _auto_batch_size(
-            n_permute=1000,
-            n_samples=30,
-            n_features=100,
-            max_memory_gb=100.0,  # Huge memory budget
-        )
-        assert batch_size <= 1000  # Never exceeds n_permute
-        assert n_batches >= 1
-
     # ========================================================================
     # Data Size Estimation Tests
     # ========================================================================
@@ -303,77 +240,8 @@ class TestMemoryManagement:
         assert size_mb == 0.0
 
 
-class TestPairwiseGpuBatchSizes:
-    """The ISC 2D voxel×permutation split respects the batching saturation ceiling."""
-
-    @staticmethod
-    def _mock_measured_ram(monkeypatch, measured_gb):
-        import psutil
-
-        from nltools.algorithms import backends
-
-        class _VM:
-            available = measured_gb / backends._SYSTEM_HEADROOM * 1e9
-
-        monkeypatch.setattr(psutil, "virtual_memory", lambda: _VM())
-
-    def test_measured_budget_working_set_bounded_by_ceiling(self, monkeypatch):
-        """Regression scale (GB10, 128 GB unified memory): 50 subj × 5000 vox × 1000 perms.
-
-        The uncapped measured budget (~100 GB) sized ~660-permutation batches with a
-        ~100 GB working set — no faster than moderate batches, and enough to starve
-        the host. The ceiling keeps the per-batch working set bounded (perm batches
-        on the order of 50 here).
-        """
-        from nltools.algorithms.backends import (
-            BATCH_WORKING_SET_CEILING_GB,
-            gb_to_bytes,
-        )
-        from nltools.algorithms.inference.isc import _pairwise_gpu_batch_sizes
-
-        self._mock_measured_ram(monkeypatch, 100.0)
-        n_subjects, n_voxels, n_permute = 50, 5000, 1000
-        voxel_chunk, perm_batch = _pairwise_gpu_batch_sizes(
-            n_voxels, n_subjects, n_permute, max_gpu_memory_gb=None
-        )
-        per_elem = n_subjects * n_subjects * 4 * 3  # 3 float32 copies of (·, N, N)
-        working_set = voxel_chunk * perm_batch * per_elem
-        assert working_set <= gb_to_bytes(BATCH_WORKING_SET_CEILING_GB)
-        assert perm_batch < 100
-
-    def test_explicit_budget_uncapped(self):
-        """An explicit max_gpu_memory_gb is the documented contract — used verbatim."""
-        from nltools.algorithms.backends import (
-            BATCH_WORKING_SET_CEILING_GB,
-            gb_to_bytes,
-        )
-        from nltools.algorithms.inference.isc import _pairwise_gpu_batch_sizes
-
-        n_subjects, n_voxels, n_permute = 50, 5000, 1000
-        voxel_chunk, perm_batch = _pairwise_gpu_batch_sizes(
-            n_voxels, n_subjects, n_permute, max_gpu_memory_gb=100.0
-        )
-        per_elem = n_subjects * n_subjects * 4 * 3
-        working_set = voxel_chunk * perm_batch * per_elem
-        assert working_set > gb_to_bytes(BATCH_WORKING_SET_CEILING_GB)
-
-
 class TestMeasuredBudgetDefaults:
-    """max_memory_gb=None means: measure the machine, don't assume 4/8 GB."""
-
-    def test_auto_batch_size_measured_default(self):
-        from nltools.algorithms.inference.utils import _auto_batch_size
-
-        batch_size, n_batches = _auto_batch_size(1000, 30, 1000, max_memory_gb=None)
-        assert batch_size >= 100
-        assert n_batches >= 1
-        assert batch_size * n_batches >= 1000
-
-    def test_auto_batch_size_explicit_budget_unchanged(self):
-        from nltools.algorithms.inference.utils import _auto_batch_size
-
-        # Pinned docstring example: small problem fits in one batch at 4 GB
-        assert _auto_batch_size(1000, 30, 1000, max_memory_gb=4.0) == (1000, 1)
+    """max_memory_gb=None means: measure the machine, don't assume a fixed budget."""
 
     def test_auto_n_jobs_cpu_measured_default(self):
         n_jobs = _auto_n_jobs_cpu(1.0, 100, max_memory_gb=None)

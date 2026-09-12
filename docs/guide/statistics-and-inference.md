@@ -17,10 +17,11 @@ Four kwargs carry most of the meaning.
 - **`n_permute` vs `n_samples`.** Permutations and bootstrap draws. They are never the same kwarg,
   and a function takes whichever one matches its null. Both default to `5000`; going below `1000`
   earns you a warning.
-- **`n_jobs` vs `device`.** `n_jobs` is CPU worker count (`-1` = all cores); `device` is `'cpu'`,
-  `'gpu'`, or `'auto'`. They are independent. An explicit `device='gpu'` runs on the GPU or raises;
-  only `'auto'` falls back silently.
-- **`random_state`.** Set it and results reproduce exactly, including across CPU and GPU backends.
+- **`n_jobs`.** The joblib worker count (`-1` = all cores). It is a speed knob only: a seeded run
+  gives the same numbers at every worker count. `device='gpu'` exists on the ridge paths
+  (`Ridge`, `BrainData.fit(ridge_device=)`, `BrainData.bootstrap`) and nowhere else; there it runs
+  on the GPU or raises.
+- **`random_state`.** Set it and results reproduce exactly.
 
 Goal | Use | Notes
 --- | --- | ---
