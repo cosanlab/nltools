@@ -34,7 +34,7 @@ dependencies = [
     # (Nifti1Image, load, save, affines, FileHolder).
     "nibabel>=5.2.0",
     # >=0.14 for the non-deprecated `residuals_`/`predicted_`/`r_square_` GLM accessors.
-    "nilearn>=0.14",
+    "nilearn>=0.14.1",
     "numpy>=2.0.2",
     # Imported directly throughout (designmatrix, mask, plotting, ...); >=2.3.0
     # matches nilearn's floor, above every pandas API nltools calls (DataFrame,
