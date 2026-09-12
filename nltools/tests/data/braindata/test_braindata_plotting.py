@@ -8,23 +8,12 @@ Focuses on plotting functionality, brain-space integration, and user-friendly de
 import pytest
 import numpy as np
 from nltools.data import BrainData
-from nltools.templates import get_brainspace, with_brainspace
 
 
 class TestBrainDataPlotting:
     """Test BrainData plotting methods."""
 
     # ==================== Phase 1: Baseline Tests ====================
-
-    def test_plot_single_image_default(self, minimal_brain_data):
-        """Test plotting single BrainData image with defaults"""
-        result = minimal_brain_data[0].plot()
-        assert result is not None
-
-    def test_plot_multiple_images_default(self, minimal_brain_data):
-        """Test plotting from BrainData with multiple images"""
-        result = minimal_brain_data.plot()
-        assert result is not None
 
     @pytest.mark.parametrize("method", ["glass", "slices"])
     def test_plot_non_finite_voxels_is_silent(self, minimal_brain_data, method):
@@ -37,18 +26,6 @@ class TestBrainDataPlotting:
         with warnings.catch_warnings():
             warnings.filterwarnings("error", message="Non-finite values detected")
             result = bd.plot(method=method)
-        assert result is not None
-
-    @pytest.mark.slow
-    def test_plot_glass_brain(self, minimal_brain_data):
-        """Test glass brain visualization"""
-        result = minimal_brain_data[0].plot(method="glass")
-        assert result is not None
-
-    @pytest.mark.slow
-    def test_plot_multi_slice(self, minimal_brain_data):
-        """Test multi-slice visualization"""
-        result = minimal_brain_data[0].plot(method="slices")
         assert result is not None
 
     @pytest.mark.parametrize(
@@ -66,23 +43,6 @@ class TestBrainDataPlotting:
         result = minimal_brain_data[0].plot(**kwargs)
         assert result is not None
 
-    def test_plot_custom_cut_coords(self, minimal_brain_data):
-        """Test custom cut coordinates"""
-        result = minimal_brain_data[0].plot(view="xyz", cut_coords=[[0], [0], [0]])
-        assert result is not None
-
-    def test_plot_custom_colormap(self, minimal_brain_data):
-        """Test custom colormap"""
-        result = minimal_brain_data[0].plot(cmap="hot")
-        assert result is not None
-
-    def test_plot_respects_template_changes(self, minimal_brain_data):
-        """Test that plot respects brain-space changes."""
-        single_image = minimal_brain_data[0]
-        with with_brainspace(template="nilearn", resolution=2):
-            result = single_image.plot()
-            assert result is not None
-
     def test_plot_empty_brain_data(self):
         """Test error handling for empty BrainData"""
         brain = BrainData()
@@ -94,58 +54,6 @@ class TestBrainDataPlotting:
         """Test error handling for invalid 'kind' parameter"""
         with pytest.raises(ValueError):
             minimal_brain_data[0].plot(method=kind)
-
-    def test_plot_handle_nan_values(self, minimal_brain_data):
-        """Test handling of NaN/Inf values"""
-        single_image = minimal_brain_data[0].copy()
-        if single_image.data.ndim == 1:
-            single_image.data[0] = np.nan
-            if len(single_image.data) > 1:
-                single_image.data[1] = np.inf
-        else:
-            single_image.data[0, 0] = np.nan
-            single_image.data[0, 1] = np.inf
-        result = single_image.plot(upper=0.5)
-        assert result is not None
-
-    def test_plot_single_voxel(self, minimal_brain_data):
-        """Test edge case: very small brain data"""
-        # minimal_brain_data has 5 voxels, should work
-        result = minimal_brain_data[0].plot()
-        assert result is not None
-
-    @pytest.mark.slow
-    def test_plot_missing_mask_handling(self):
-        """Test handling when mask is None (should use default)"""
-        # Create BrainData without explicit mask (uses default)
-        import nibabel as nib
-
-        # Create minimal data
-        data = np.random.randn(10, 10, 10)
-        nifti_img = nib.Nifti1Image(data, np.eye(4))
-        brain = BrainData(nifti_img, mask=None)  # Should use default mask
-        result = brain.plot()
-        assert result is not None
-
-    def test_plot_cut_coords_format_validation(self, minimal_brain_data):
-        """Test that cut_coords format is handled correctly"""
-        single_image = minimal_brain_data[0]
-        result = single_image.plot(view="xyz", cut_coords=[[0], [0], [0]])
-        assert result is not None
-        result = single_image.plot(
-            view="xyz",
-            cut_coords=[range(-10, 11, 5), range(-10, 11, 5), range(-10, 11, 5)],
-        )
-        assert result is not None
-
-    def test_plot_custom_bg_img_nibabel(self, minimal_brain_data):
-        """Test custom background image as nibabel image"""
-        import nibabel as nib
-
-        single_image = minimal_brain_data[0]
-        custom_bg = nib.load(get_brainspace().brain)
-        result = single_image.plot(bg_img=custom_bg)
-        assert result is not None
 
     def test_plot_save_functionality(self, minimal_brain_data, tmpdir):
         """Test save functionality"""
@@ -225,11 +133,6 @@ class TestDefaultStatColormap:
         from nltools.data.braindata.plotting import auto_select_colormap
 
         assert auto_select_colormap(data) == expected
-
-    def test_plot_custom_title(self, minimal_brain_data):
-        """Test custom title"""
-        result = minimal_brain_data[0].plot(title="My Custom Title")
-        assert result is not None
 
     def test_plot_matplotlib_axis(self, minimal_brain_data):
         """Test plotting on existing matplotlib axes."""

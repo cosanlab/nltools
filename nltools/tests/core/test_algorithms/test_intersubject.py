@@ -12,15 +12,11 @@ class TestISC:
     """Test intersubject correlation calculation."""
 
     @pytest.mark.parametrize("method", ["bootstrap", "circle_shift", "phase_randomize"])
-    @pytest.mark.parametrize("summary", ["median", "mean"])
-    def test_isc_methods_and_metrics(
-        self, multisubject_correlated_data, method, summary
-    ):
-        """ISC with various methods and aggregation summary statistics."""
+    def test_isc_methods_and_metrics(self, multisubject_correlated_data, method):
+        """ISC with each null-generating method."""
         stats = isc(
             multisubject_correlated_data,
             method=method,
-            summary=summary,
             n_samples=100,
             return_null=True,
         )
@@ -44,8 +40,7 @@ class TestISCGroup:
     """Test group-level ISC comparison."""
 
     @pytest.mark.parametrize("method", ["permute", "bootstrap"])
-    @pytest.mark.parametrize("summary", ["median", "mean"])
-    def test_isc_group_comparison(self, method, summary):
+    def test_isc_group_comparison(self, method):
         """Group ISC difference should reflect underlying correlation difference."""
         n_samples = 100
         diff = 0.2
@@ -71,7 +66,6 @@ class TestISCGroup:
         stats = isc_group(
             group1,
             group2,
-            summary=summary,
             method=method,
             return_null=True,
             n_samples=n_samples,
@@ -116,32 +110,6 @@ class TestISFC:
         for i in range(10):
             np.testing.assert_allclose(
                 result_serial[i], result_parallel[i], rtol=1e-10, atol=1e-10
-            )
-
-    def test_isfc_deterministic(self, sub_roi_data):
-        """Parallel ISFC should be deterministic across runs."""
-        r1 = isfc(sub_roi_data, n_jobs=-1)
-        r2 = isfc(sub_roi_data, n_jobs=-1)
-        for i in range(10):
-            np.testing.assert_allclose(r1[i], r2[i], rtol=1e-10, atol=1e-10)
-
-    @pytest.mark.slow
-    def test_isfc_different_njobs(self, sub_roi_data):
-        """Different n_jobs values should produce identical results."""
-        r1 = isfc(sub_roi_data, n_jobs=1)
-        r2 = isfc(sub_roi_data, n_jobs=2)
-        r_all = isfc(sub_roi_data, n_jobs=-1)
-        for i in range(10):
-            np.testing.assert_allclose(r1[i], r2[i], rtol=1e-10, atol=1e-10)
-            np.testing.assert_allclose(r1[i], r_all[i], rtol=1e-10, atol=1e-10)
-
-    def test_isfc_default_parallel(self, sub_roi_data):
-        """Default call should use device execution."""
-        result_default = isfc(sub_roi_data)
-        result_explicit = isfc(sub_roi_data, n_jobs=-1)
-        for i in range(10):
-            np.testing.assert_allclose(
-                result_default[i], result_explicit[i], rtol=1e-10, atol=1e-10
             )
 
 

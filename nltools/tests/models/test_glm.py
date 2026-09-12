@@ -287,19 +287,6 @@ class TestRemovedSurface:
         assert not hasattr(fitted_glm, removed)
 
 
-class TestDocstrings:
-    def test_r2_documents_whitened_variance_ratio(self):
-        doc = Glm.__doc__
-        assert "variance ratio" in doc
-        assert "whitened" in doc
-        assert "pseudo" in doc.lower()
-
-    def test_p_value_documents_the_one_sided_upper_tail(self):
-        doc = Glm.compute_contrasts.__doc__
-        assert "one-sided" in doc
-        assert "upper" in doc
-
-
 class TestContrastResolution:
     def test_string_effect_matches_coefficient_arithmetic(self, fitted_glm):
         effect = fitted_glm.compute_contrasts("condition_a - condition_b")
@@ -509,6 +496,30 @@ class TestPredict:
     def test_returns_design_at_coefficients(self, glm_design, fitted_glm):
         np.testing.assert_allclose(
             fitted_glm.predict(glm_design), glm_design.to_numpy() @ fitted_glm.coef_
+        )
+
+    def test_new_design_prediction_equals_design_at_coef(self, glm_design, fitted_glm):
+        """F182: a genuinely new-shaped design predicts as `X @ coef_`.
+
+        The original finding was a `predict(X)` that documented a new-design
+        path and then raised.
+        """
+        rng = np.random.RandomState(11)
+        n_samples = 8
+        new_design = DesignMatrix(
+            {
+                "condition_a": rng.randn(n_samples),
+                "condition_b": rng.randn(n_samples),
+                "intercept": np.ones(n_samples),
+            },
+            sampling_freq=glm_design.sampling_freq,
+        )
+
+        predictions = fitted_glm.predict(new_design)
+
+        assert predictions.shape == (n_samples, fitted_glm.n_targets_)
+        np.testing.assert_allclose(
+            predictions, new_design.to_numpy() @ fitted_glm.coef_
         )
 
     def test_reorders_columns_to_the_fitted_order(self, glm_design, fitted_glm):

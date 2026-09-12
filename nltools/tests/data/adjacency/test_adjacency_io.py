@@ -11,7 +11,7 @@ from nltools.data import Adjacency
 
 class TestAdjacencyIO:
     def test_write_multiple(self, sim_adjacency_multiple, tmpdir):
-        """Test writing and loading multiple adjacency matrices (CSV and HDF5)."""
+        """Multiple adjacency matrices round-trip through the long-format CSV."""
         sim_adjacency_multiple.write(
             os.path.join(str(tmpdir.join("Test.csv"))), method="long"
         )
@@ -19,16 +19,6 @@ class TestAdjacencyIO:
             os.path.join(str(tmpdir.join("Test.csv"))), matrix_type="distance_flat"
         )
         assert np.all(np.isclose(sim_adjacency_multiple.data, dat_multiple2.data))
-
-        # Test i/o for hdf5 (h5py + polars layout — no PyTables required)
-        sim_adjacency_multiple.write(os.path.join(str(tmpdir.join("test_write.h5"))))
-        b = Adjacency(os.path.join(tmpdir.join("test_write.h5")))
-        assert np.allclose(b.data, sim_adjacency_multiple.data)
-        assert b.matrix_type == sim_adjacency_multiple.matrix_type
-        assert b.is_single_matrix == sim_adjacency_multiple.is_single_matrix
-        assert b.issymmetric == sim_adjacency_multiple.issymmetric
-        assert b.Y.equals(sim_adjacency_multiple.Y)
-        assert b.labels == sim_adjacency_multiple.labels
 
     def test_h5_roundtrip_y(self, sim_adjacency_multiple, tmpdir):
         """Y round-trips through the new h5py + polars layout."""

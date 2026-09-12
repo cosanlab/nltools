@@ -12,57 +12,6 @@ from nltools.algorithms import align
 
 class TestBrainDataAnalysis:
     @pytest.mark.slow
-    def test_apply_mask(self, sim_brain_data):
-        """Test applying masks to BrainData."""
-        s1 = create_sphere([12, 10, -8], radius=10)
-        assert isinstance(s1, nb.Nifti1Image)
-        masked_dat = sim_brain_data.apply_mask(s1)
-        assert masked_dat.shape[1] == np.sum(s1.get_fdata() != 0)
-
-    def test_apply_mask_dimension_compatibility(self, sim_brain_data):
-        """Test mask as BrainData with dimension handling."""
-        s1 = create_sphere([12, 10, -8], radius=10)
-        mask_bd = BrainData(s1, mask=sim_brain_data.mask)
-        result = sim_brain_data.apply_mask(mask_bd)
-        assert isinstance(result, BrainData)
-        assert result.shape[1] == mask_bd.data.astype(bool).sum()
-
-    def test_apply_mask_accepts_a_raw_niimg_on_the_target_grid(self):
-        """A raw Niimg mask already on the data's grid is used as given.
-
-        The mask is never re-homed onto the package-default MNI152 template,
-        and it is never resampled: `apply_mask` only changes support.
-        """
-        # Non-MNI space: 4mm isotropic, small grid, offset origin.
-        aff = np.diag([4.0, 4.0, 4.0, 1.0])
-        aff[:3, 3] = [-20, -20, -20]
-        shape = (10, 10, 10)
-        rng = np.random.default_rng(0)
-
-        custom_mask = nb.Nifti1Image(np.ones(shape, np.int16), aff)
-        data_img = nb.Nifti1Image(rng.standard_normal(shape).astype(np.float32), aff)
-        bd = BrainData(data_img, mask=custom_mask)
-
-        # Raw Niimg sub-mask in the SAME non-default space.
-        box = np.zeros(shape, np.int16)
-        box[2:7, 2:7, 2:7] = 1
-        raw_mask = nb.Nifti1Image(box, aff)
-
-        masked = bd.apply_mask(raw_mask)
-        assert masked.shape[0] == int(box.sum())
-
-    def test_apply_mask_invalid_4d(self, sim_brain_data):
-        """Multi-volume mask should raise clear error."""
-        s1 = create_sphere([12, 10, -8], radius=10)
-        from nilearn.image import concat_imgs
-
-        invalid_mask = concat_imgs([s1, s1])
-        mask_bd = BrainData(invalid_mask, mask=sim_brain_data.mask)
-
-        with pytest.raises(ValueError, match="Mask must be a single image"):
-            sim_brain_data.apply_mask(mask_bd)
-
-    @pytest.mark.slow
     def test_extract_roi(self, sim_brain_data):
         """Test ROI extraction with different methods and labeled atlases."""
         n_images = sim_brain_data.shape[0]
@@ -544,3 +493,67 @@ class TestThresholdPercentileNonzero:
         surviving = out.data[out.data != 0]
         np.testing.assert_array_equal(np.sort(surviving), [3.0, 4.0])
         assert (np.abs(out.data) >= cutoff).sum() == 2
+
+
+class TestFilterDetrendStandardize:
+    """F047: `filter_data` double-passed detrend/standardize to nilearn's clean().
+
+    It read them with ``kwargs.get()`` (leaving them in ``kwargs``) then
+    forwarded them both explicitly and again via ``**kwargs``, so the documented
+    ``filter(..., detrend=True)`` usage raised "got multiple values".
+    """
+
+    def test_filter_with_detrend_via_kwargs(self, minimal_brain_data):
+        """The documented `filter(..., detrend=True)` usage must not crash."""
+        out = minimal_brain_data.filter(sampling_freq=2.0, high_pass=0.01, detrend=True)
+        assert out.data.shape == minimal_brain_data.data.shape
+
+    def test_filter_with_standardize_via_kwargs(self, minimal_brain_data):
+        """`standardize` passed via kwargs must reach clean() exactly once."""
+        out = minimal_brain_data.filter(
+            sampling_freq=2.0, high_pass=0.01, standardize="zscore_sample"
+        )
+        # Standardized output should be roughly zero-mean per voxel.
+        np.testing.assert_allclose(out.data.mean(axis=0), 0.0, atol=1e-6)
+
+
+class TestStandardizeIsNotABool:
+    """nilearn 0.15 drops boolean ``standardize``; never hand it one."""
+
+    def test_filter_default_emits_no_future_warning(self, minimal_brain_data):
+        with warnings.catch_warnings():
+            warnings.simplefilter("error", FutureWarning)
+            minimal_brain_data.filter(sampling_freq=2.0, high_pass=0.01)
+
+    def test_filter_maps_true_to_zscore_sample(self, minimal_brain_data):
+        with warnings.catch_warnings():
+            warnings.simplefilter("error", FutureWarning)
+            out = minimal_brain_data.filter(
+                sampling_freq=2.0, high_pass=0.01, standardize=True
+            )
+        np.testing.assert_allclose(out.data.mean(axis=0), 0.0, atol=1e-6)
+
+    def test_filter_false_means_off(self, minimal_brain_data):
+        with warnings.catch_warnings():
+            warnings.simplefilter("error", FutureWarning)
+            out = minimal_brain_data.filter(
+                sampling_freq=2.0, high_pass=0.01, standardize=False
+            )
+        default = minimal_brain_data.filter(sampling_freq=2.0, high_pass=0.01)
+        np.testing.assert_array_equal(out.data, default.data)
+
+    def test_extract_roi_labels_emits_no_future_warning(self):
+        shape, affine = (6, 6, 6), np.eye(4)
+        mask = nb.Nifti1Image(np.ones(shape, dtype=np.int8), affine)
+        labels = np.zeros(shape)  # 0 = background, as nilearn requires
+        labels[:2] = 1
+        labels[2:4] = 2
+        atlas = BrainData(nb.Nifti1Image(labels, affine), mask=mask)
+        rng = np.random.default_rng(0)
+        brain = BrainData(
+            nb.Nifti1Image(rng.standard_normal(shape + (4,)), affine), mask=mask
+        )
+        with warnings.catch_warnings():
+            warnings.simplefilter("error", FutureWarning)
+            out = brain.extract_roi(atlas, method="mean")
+        assert out.shape == (2, 4)

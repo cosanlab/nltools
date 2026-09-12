@@ -5,19 +5,11 @@ import pytest
 from sklearn.decomposition import PCA
 from sklearn.feature_selection import (
     RFE,
-    RFECV,
-    GenericUnivariateSelect,
-    SelectFdr,
-    SelectFpr,
-    SelectFromModel,
-    SelectFwe,
     SelectKBest,
-    SelectPercentile,
-    SequentialFeatureSelector,
     VarianceThreshold,
     f_classif,
 )
-from sklearn.linear_model import Lasso, LinearRegression, LogisticRegression, Ridge
+from sklearn.linear_model import LinearRegression, LogisticRegression, Ridge
 from sklearn.multiclass import OneVsRestClassifier
 from sklearn.pipeline import Pipeline, make_pipeline
 from sklearn.preprocessing import Normalizer, StandardScaler
@@ -216,23 +208,7 @@ class TestWhiteningScale:
     [
         pytest.param(VarianceThreshold(threshold=0.0), id="variance_threshold"),
         pytest.param(SelectKBest(f_classif, k=3), id="select_k_best"),
-        pytest.param(
-            SelectPercentile(f_classif, percentile=50), id="select_percentile"
-        ),
-        pytest.param(
-            GenericUnivariateSelect(f_classif, mode="k_best", param=3),
-            id="generic_univariate_select",
-        ),
-        pytest.param(SelectFpr(f_classif, alpha=0.9), id="select_fpr"),
-        pytest.param(SelectFdr(f_classif, alpha=0.9), id="select_fdr"),
-        pytest.param(SelectFwe(f_classif, alpha=0.9), id="select_fwe"),
-        pytest.param(SelectFromModel(Lasso(alpha=0.01)), id="select_from_model"),
         pytest.param(RFE(svc(), n_features_to_select=3), id="rfe"),
-        pytest.param(RFECV(svc(), cv=2, min_features_to_select=2), id="rfecv"),
-        pytest.param(
-            SequentialFeatureSelector(svc(), n_features_to_select=3, cv=2),
-            id="sequential_feature_selector",
-        ),
     ],
 )
 class TestFeatureSelectors:

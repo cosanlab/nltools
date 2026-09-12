@@ -46,7 +46,7 @@ No new branch, commit, push, or source removal is part of this planning change.
 
 | Area | Released baseline | Intended/current difference | Evidence and next action |
 | --- | --- | --- | --- |
-| BrainData ownership | `Brain_Data.copy()` and mutable data facade | Approved independent ownership includes mask, masker, metadata and fitted results. Current internal result helper still shares mask state by default. | [Ownership spec](specs/braindata.md#purpose-and-ownership), `nltools/data/braindata/utils.py::_copy_without_fit_state`; `nltools/tests/support/test_efficient_copy.py` explicitly requires sharing for scale/arithmetic. Replace those expectations through the ownership pilot. |
+| BrainData ownership | `Brain_Data.copy()` and mutable data facade | Approved independent ownership includes mask, masker, metadata and fitted results. Current internal result helper still shares mask state by default. | [Ownership spec](specs/braindata.md#purpose-and-ownership), `nltools/data/braindata/utils.py::_copy_without_fit_state`; `nltools/tests/data/braindata/test_braindata_ownership.py` holds the ownership and mutation-safety pins. The copy-counting tests that required sharing for scale/arithmetic are gone. |
 | BrainData fitting | `regress(mode=...)`; decoding via `predict(algorithm=..., cv_dict=...)` | Retain modern `fit`, Glm/Ridge estimators and fitted BrainData return. `fit(inplace=False)` independence is partly implemented and tested. | `nltools/data/braindata/modeling.py`; `test_braindata_modeling.py` covers non-inplace fitting, GLM/Ridge prediction and refitting. Extend source/result mutation tests rather than replacing this coverage. |
 | Model contracts | No equivalent public Glm/Ridge estimator package in the release | Retain ordinary/banded ridge, cross-validation, GLM and their approved contracts. Specs reject a common estimator base; Glm and Ridge are internal estimators with no shared exported base. Collection concurrency and fit-bundle requirements are deferred. | [GLM spec](specs/glm.md), [Ridge spec](specs/ridge.md), `nltools/models/`, `nltools/tests/models/`. Resolve the shared base through retained estimator contracts, not collection removal. Map remaining clauses to tests; check numerical behavior independently of facade wrapping. |
 | DesignMatrix | `Design_Matrix` subclasses pandas DataFrame | Retain Polars-backed DesignMatrix, generated-name rules and row-count fixes. No dedicated complete class spec exists. | `nltools/data/designmatrix/`, `nltools/tests/data/designmatrix/`. Specify construction, indexing, append, generated columns and persistence next; fitting depends on these contracts. |
@@ -121,7 +121,7 @@ silently or remove shared tests to obtain a pass.
 
 Use a small deterministic brain fixture with row metadata and a fitted model.
 Start in `nltools/tests/data/braindata/test_braindata_modeling.py`,
-`test_braindata_core.py` and `nltools/tests/support/test_efficient_copy.py`.
+`test_braindata_core.py` and `test_braindata_ownership.py`.
 
 Write or extend failing behavioral tests before implementation:
 

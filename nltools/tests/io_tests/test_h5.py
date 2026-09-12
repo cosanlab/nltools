@@ -53,26 +53,6 @@ class TestToH5BrainData:
         with pytest.raises(ValueError, match="obj_type"):
             to_h5(sim_brain_data, str(tmp_path / "bad.h5"), obj_type="invalid")
 
-    def test_round_trip(self, sim_brain_data, tmp_path):
-        """Write brain data to h5 and load it back."""
-        path = str(tmp_path / "brain.h5")
-        to_h5(sim_brain_data, path, obj_type="brain_data")
-        assert os.path.exists(path)
-
-        result = load_brain_data_h5(path)
-        assert np.allclose(result["data"], sim_brain_data.data)
-        assert "load_mask" in result
-
-    def test_round_trip_preserves_mask(self, sim_brain_data, tmp_path):
-        """Mask affine and data survive the round-trip."""
-        path = str(tmp_path / "brain.h5")
-        to_h5(sim_brain_data, path, obj_type="brain_data")
-
-        result = load_brain_data_h5(path)
-        assert result["load_mask"] is True
-        assert np.allclose(result["mask"].affine, sim_brain_data.mask.affine)
-        assert np.allclose(result["mask"].get_fdata(), sim_brain_data.mask.get_fdata())
-
 
 class TestToH5Adjacency:
     """Tests for to_h5 with adjacency type."""

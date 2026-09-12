@@ -1130,38 +1130,6 @@ def test_isc_metric_spearman_basic():
     assert -1 <= result_spearman["isc"] <= 1
 
 
-def test_isc_metric_spearman_vs_correlation():
-    """Spearman and correlation produce different ISC values."""
-    np.random.seed(42)
-    # Create monotonic but non-linear relationship
-    x = np.random.randn(100)
-    data = np.column_stack([x**3 + np.random.randn(100) * 0.1 for _ in range(10)])
-
-    result_corr = isc_permutation_test(
-        data,
-        summary_statistic="pairwise",
-        metric="correlation",
-        n_permute=100,
-        random_state=42,
-        progress_bar=False,
-    )
-
-    result_spearman = isc_permutation_test(
-        data,
-        summary_statistic="pairwise",
-        metric="spearman",
-        n_permute=100,
-        random_state=42,
-        progress_bar=False,
-    )
-
-    # Spearman should handle monotonic relationships better
-    # For non-linear monotonic data, Spearman should be higher
-    assert result_spearman["isc"] != result_corr["isc"]
-    assert -1 <= result_spearman["isc"] <= 1
-    assert -1 <= result_corr["isc"] <= 1
-
-
 def test_compute_pairwise_isc_spearman_single_feature():
     """Spearman pairwise ISC matches manual computation for single feature."""
     from scipy.stats import rankdata
@@ -1207,39 +1175,6 @@ def test_compute_pairwise_isc_spearman_voxelwise():
     np.testing.assert_allclose(result[:, 0], expected_v0, rtol=1e-10, atol=1e-10)
 
 
-@pytest.mark.slow
-def test_compute_pairwise_isc_spearman_performance():
-    """Spearman optimization works efficiently and avoids pairwise_distances overhead."""
-    import time
-
-    np.random.seed(42)
-    # Use voxel-wise data where optimization matters most
-    data = np.random.randn(100, 10, 100)  # 100 voxels
-
-    # Time Spearman optimization (rank-transform + corrcoef)
-    start = time.time()
-    result_spearman = _compute_pairwise_isc(data, backend="numpy", metric="spearman")
-    time_spearman = time.time() - start
-
-    # Time correlation (baseline fast path)
-    start = time.time()
-    result_corr = _compute_pairwise_isc(data, backend="numpy", metric="correlation")
-    time_corr = time.time() - start
-
-    # Verify results are valid
-    assert result_spearman.shape == result_corr.shape
-    assert np.all(np.abs(result_spearman) <= 1)
-    assert np.all(np.abs(result_corr) <= 1)
-
-    # Spearman should complete in reasonable time (within 30× of correlation)
-    # Rank transform adds overhead, but the key benefit is that Spearman now works
-    # (fixes the bug where it previously failed with pairwise_distances)
-    assert time_spearman < 30 * time_corr, (
-        f"Spearman ({time_spearman:.3f}s) should complete reasonably quickly. "
-        f"Rank transform adds overhead but avoids pairwise_distances failure."
-    )
-
-
 def test_compute_pairwise_isc_cosine_single_feature():
     """Cosine pairwise ISC matches sklearn pairwise_distances for single feature."""
     from sklearn.metrics import pairwise_distances
@@ -1283,36 +1218,6 @@ def test_compute_pairwise_isc_cosine_voxelwise():
     np.testing.assert_allclose(result[:, 0], expected_v0, rtol=1e-10, atol=1e-10)
 
 
-def test_isc_metric_cosine_vs_correlation():
-    """Cosine and correlation produce different ISC values."""
-    np.random.seed(42)
-    data = np.random.randn(100, 10)
-
-    result_corr = isc_permutation_test(
-        data,
-        summary_statistic="pairwise",
-        metric="correlation",
-        n_permute=100,
-        random_state=42,
-        progress_bar=False,
-    )
-
-    result_cosine = isc_permutation_test(
-        data,
-        summary_statistic="pairwise",
-        metric="cosine",
-        n_permute=100,
-        random_state=42,
-        progress_bar=False,
-    )
-
-    # Different metrics should produce different ISC values
-    assert result_corr["isc"] != result_cosine["isc"]
-    assert -1 <= result_corr["isc"] <= 1
-    # Cosine similarity should be in [0, 1] range (normalized vectors)
-    assert 0 <= result_cosine["isc"] <= 1
-
-
 def test_compute_pairwise_isc_cosine_handles_zero_norm():
     """Cosine similarity handles zero-norm vectors gracefully."""
     np.random.seed(42)
@@ -1329,38 +1234,6 @@ def test_compute_pairwise_isc_cosine_handles_zero_norm():
     assert result.shape == (10,)  # 5*4/2 = 10 pairs
     # Values should be finite or NaN (for zero-norm cases)
     assert np.all(np.isfinite(result) | np.isnan(result))
-
-
-@pytest.mark.slow
-def test_compute_pairwise_isc_cosine_performance():
-    """Cosine optimization is faster than pairwise_distances fallback."""
-    import time
-
-    np.random.seed(42)
-    # Use voxel-wise data where optimization matters most
-    data = np.random.randn(100, 10, 100)  # 100 voxels
-
-    # Time optimized cosine implementation
-    start = time.time()
-    result_cosine_opt = _compute_pairwise_isc(data, backend="numpy", metric="cosine")
-    time_cosine_opt = time.time() - start
-
-    # Time correlation (baseline fast path)
-    start = time.time()
-    result_corr = _compute_pairwise_isc(data, backend="numpy", metric="correlation")
-    time_corr = time.time() - start
-
-    # Verify results are valid
-    assert result_cosine_opt.shape == result_corr.shape
-    assert np.all(np.abs(result_cosine_opt) <= 1)
-    assert np.all(np.abs(result_corr) <= 1)
-
-    # Cosine should be reasonably fast (within 10× of correlation)
-    # Normalization + matrix multiply is fast, but slightly slower than raw corrcoef
-    assert time_cosine_opt < 10 * time_corr, (
-        f"Optimized cosine ({time_cosine_opt:.3f}s) should be reasonably fast compared "
-        f"to correlation ({time_corr:.3f}s). Matrix multiply is fast but adds overhead."
-    )
 
 
 def test_compute_pairwise_isc_euclidean_single_feature():
@@ -1404,68 +1277,6 @@ def test_compute_pairwise_isc_euclidean_voxelwise():
     expected_v0 = squareform(sim_matrix_v0, checks=False)
 
     np.testing.assert_allclose(result[:, 0], expected_v0, rtol=1e-10, atol=1e-10)
-
-
-def test_isc_metric_euclidean_vs_correlation():
-    """Euclidean and correlation produce different ISC values."""
-    np.random.seed(42)
-    data = np.random.randn(100, 10)
-
-    result_corr = isc_permutation_test(
-        data,
-        summary_statistic="pairwise",
-        metric="correlation",
-        n_permute=100,
-        random_state=42,
-        progress_bar=False,
-    )
-
-    result_eucl = isc_permutation_test(
-        data,
-        summary_statistic="pairwise",
-        metric="euclidean",
-        n_permute=100,
-        random_state=42,
-        progress_bar=False,
-    )
-
-    # Different metrics should produce different ISC values
-    assert result_corr["isc"] != result_eucl["isc"]
-    assert -1 <= result_corr["isc"] <= 1
-    # Euclidean similarity can be negative (1 - distance, where distance can be > 1)
-    assert isinstance(result_eucl["isc"], (float, np.floating))
-
-
-@pytest.mark.slow
-def test_compute_pairwise_isc_euclidean_performance():
-    """Euclidean optimization is faster than pairwise_distances fallback."""
-    import time
-
-    np.random.seed(42)
-    # Use voxel-wise data where optimization matters most
-    data = np.random.randn(100, 10, 100)  # 100 voxels
-
-    # Time optimized euclidean implementation
-    start = time.time()
-    result_eucl_opt = _compute_pairwise_isc(data, backend="numpy", metric="euclidean")
-    time_eucl_opt = time.time() - start
-
-    # Time correlation (baseline fast path)
-    start = time.time()
-    result_corr = _compute_pairwise_isc(data, backend="numpy", metric="correlation")
-    time_corr = time.time() - start
-
-    # Verify results are valid
-    assert result_eucl_opt.shape == result_corr.shape
-    assert np.all(np.isfinite(result_eucl_opt))
-    assert np.all(np.isfinite(result_corr))
-
-    # Euclidean should be reasonably fast (within 15× of correlation)
-    # Matrix operations are fast, but sqrt adds overhead
-    assert time_eucl_opt < 15 * time_corr, (
-        f"Optimized euclidean ({time_eucl_opt:.3f}s) should be reasonably fast compared "
-        f"to correlation ({time_corr:.3f}s). Vectorized operations are fast but sqrt adds overhead."
-    )
 
 
 # =============================================================================

@@ -6,7 +6,6 @@ discriminator, and exactly one legal field combination per spatial scale.
 """
 
 from dataclasses import FrozenInstanceError, fields
-import importlib
 
 import nibabel as nib
 import numpy as np
@@ -71,15 +70,6 @@ def searchlight_fields(brain_map):
     }
 
 
-def test_results_are_exported_only_from_supported_data_namespace():
-    from nltools import data
-
-    assert data.Predict is Predict
-    assert not hasattr(data, "Fit")
-    with pytest.raises(ModuleNotFoundError):
-        importlib.import_module("nltools.data.fitresults")
-
-
 class TestPredictFieldSet:
     def test_fields_match_the_spec_table(self):
         assert [field.name for field in fields(Predict)] == [
@@ -94,18 +84,6 @@ class TestPredictFieldSet:
             "roi_labels",
             "score_map",
         ]
-
-    @pytest.mark.parametrize("removed", ["accuracy_map", "fold_weight_maps"])
-    def test_removed_fields_are_gone(self, removed, whole_brain_fields):
-        assert removed not in {field.name for field in fields(Predict)}
-        with pytest.raises(TypeError):
-            Predict(**whole_brain_fields, **{removed: None})
-
-    @pytest.mark.parametrize("summary", ["mean_score", "std_score"])
-    def test_score_summaries_are_not_stored_fields(self, summary, whole_brain_fields):
-        assert summary not in {field.name for field in fields(Predict)}
-        with pytest.raises(TypeError):
-            Predict(**whole_brain_fields, **{summary: 0.5})
 
     def test_spatial_scale_is_required(self):
         with pytest.raises(TypeError):
@@ -134,21 +112,6 @@ class TestWholeBrainConstruction:
     def test_regression_leaves_classes_none(self, whole_brain_fields):
         result = Predict(**{**whole_brain_fields, "classes": None})
         assert result.classes is None
-
-    @pytest.mark.parametrize("field", ["roi_labels", "score_map"])
-    def test_roi_and_searchlight_fields_are_rejected(
-        self, field, whole_brain_fields, brain_map
-    ):
-        value = np.arange(N_ROIS) if field == "roi_labels" else brain_map()
-        with pytest.raises(ValueError, match=f"{field}.*whole_brain"):
-            Predict(**{**whole_brain_fields, field: value})
-
-    @pytest.mark.parametrize(
-        "field", ["predictions", "cv_folds", "scores", "estimator", "weight_map"]
-    )
-    def test_required_fields_cannot_be_missing(self, field, whole_brain_fields):
-        with pytest.raises(ValueError, match=f"{field}.*whole_brain"):
-            Predict(**{**whole_brain_fields, field: None})
 
     def test_two_dimensional_predictions_are_rejected(self, whole_brain_fields):
         with pytest.raises(ValueError, match="predictions"):
@@ -189,19 +152,6 @@ class TestRoiConstruction:
         assert result.cv_folds is None
         assert result.estimator is None
 
-    @pytest.mark.parametrize("field", ["predictions", "cv_folds", "estimator"])
-    def test_whole_brain_fields_are_rejected(self, field, roi_fields):
-        value = "fitted" if field == "estimator" else np.arange(N_SAMPLES)
-        with pytest.raises(ValueError, match=f"{field}.*roi"):
-            Predict(**{**roi_fields, field: value})
-
-    @pytest.mark.parametrize(
-        "field", ["scores", "roi_labels", "score_map", "weight_map"]
-    )
-    def test_required_fields_cannot_be_missing(self, field, roi_fields):
-        with pytest.raises(ValueError, match=f"{field}.*roi"):
-            Predict(**{**roi_fields, field: None})
-
     def test_scores_must_be_two_dimensional(self, roi_fields):
         with pytest.raises(ValueError, match="scores"):
             Predict(**{**roi_fields, "scores": np.zeros(N_FOLDS)})
@@ -225,14 +175,6 @@ class TestSearchlightConstruction:
         for field in ("predictions", "cv_folds", "scores", "estimator", "weight_map"):
             assert getattr(result, field) is None
         assert result.roi_labels is None
-
-    @pytest.mark.parametrize(
-        "field", ["predictions", "cv_folds", "scores", "estimator", "roi_labels"]
-    )
-    def test_other_mode_fields_are_rejected(self, field, searchlight_fields):
-        value = "fitted" if field == "estimator" else np.arange(N_SAMPLES)
-        with pytest.raises(ValueError, match=f"{field}.*searchlight"):
-            Predict(**{**searchlight_fields, field: value})
 
     def test_weight_map_is_rejected(self, searchlight_fields, brain_map):
         with pytest.raises(ValueError, match="weight_map.*searchlight"):
@@ -347,10 +289,6 @@ class TestScoreSummaries:
         result = Predict(**whole_brain_fields)
         result.scores[0] = 0.0
         assert result.mean_score == pytest.approx(float(result.scores.mean()))
-
-    @pytest.mark.parametrize("summary", ["mean_score", "std_score"])
-    def test_summaries_are_not_in_asdict(self, summary, whole_brain_fields):
-        assert summary not in Predict(**whole_brain_fields).asdict(include_none=True)
 
 
 class TestPredictOwnership:

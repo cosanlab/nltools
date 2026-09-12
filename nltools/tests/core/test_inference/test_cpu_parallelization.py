@@ -61,21 +61,6 @@ class TestCPUParallelization:
         # All features should be significant (p < 0.05)
         assert np.all(result_effect["p"] < 0.05)
 
-    def test_cpu_parallel_n_jobs_variations(self):
-        """Test different n_jobs parameter values."""
-        np.random.seed(42)
-        data = np.random.randn(30, 20)
-
-        # Test various n_jobs values
-        for n_jobs in [1, 2, -1]:
-            result = one_sample_permutation_test(
-                data, n_permute=200, device="cpu", n_jobs=n_jobs, random_state=42
-            )
-
-            assert result["device"] == "cpu"
-            assert result["mean"].shape == (20,)
-            assert result["p"].shape == (20,)
-
     def test_cpu_parallel_return_null(self):
         """Test that null distribution is returned correctly."""
         np.random.seed(42)

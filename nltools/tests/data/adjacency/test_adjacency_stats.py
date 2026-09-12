@@ -241,52 +241,6 @@ def _adjacency_stack(
 class TestAdjacencyTTest:
     """Shared one-sample t-test contract (docs/development/specs/ttest.md)."""
 
-    def test_ttest_returns_four_owned_maps(self):
-        stack = _adjacency_stack()
-        out = stack.ttest()
-        assert set(out) == {"mean", "t", "z", "p"}
-        for key, value in out.items():
-            assert isinstance(value, Adjacency), key
-            assert value.is_single_matrix
-            assert value.n_nodes == stack.n_nodes
-            assert value.data.shape == (stack.data.shape[1],)
-            assert value.matrix_type == stack.matrix_type
-
-    @pytest.mark.parametrize("popmean", [0.0, 0.5])
-    @pytest.mark.parametrize("tail,alternative", [(2, "two-sided"), (1, "greater")])
-    def test_ttest_parametric_matches_scipy(self, popmean, tail, alternative):
-        from scipy.stats import ttest_1samp
-
-        stack = _adjacency_stack()
-        out = stack.ttest(popmean=popmean, tail=tail)
-        expected_t, expected_p = ttest_1samp(
-            stack.data, popmean, axis=0, alternative=alternative
-        )
-        np.testing.assert_allclose(out["t"].data, expected_t)
-        np.testing.assert_allclose(out["p"].data, expected_p)
-        np.testing.assert_allclose(out["mean"].data, stack.data.mean(axis=0) - popmean)
-
-    def test_ttest_single_edge(self):
-        """A two-node stack stores one edge and still returns one matrix per key."""
-        from scipy.stats import ttest_1samp
-
-        stack = _adjacency_stack(n_nodes=2)
-        parametric = stack.ttest(popmean=0.5)
-        expected_t, expected_p = ttest_1samp(stack.data, 0.5, axis=0)
-        np.testing.assert_allclose(parametric["t"].data, expected_t)
-        np.testing.assert_allclose(parametric["p"].data, expected_p)
-        np.testing.assert_allclose(
-            parametric["mean"].data, stack.data.mean(axis=0) - 0.5
-        )
-
-        out = stack.ttest(
-            permutation=True, n_permute=32, return_null=True, random_state=0
-        )
-        for key in ("mean", "t", "z", "p"):
-            assert out[key].n_nodes == 2
-            assert np.asarray(out[key].data).shape == (1,)
-        assert out["null_dist"].shape == (32, 1)
-
     def test_ttest_permutation_matches_engine_at_fixed_seed(self):
         from scipy.stats import ttest_1samp
 

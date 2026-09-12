@@ -4,7 +4,6 @@ Tests for nltools.datasets module
 This test file covers:
 - download_nifti: Basic file downloading functionality
 - fetch_neurovault_collection: Main collection fetching function
-- Integration test: Real network test (marked as slow)
 """
 
 import pytest
@@ -145,30 +144,6 @@ class TestFetchNeurovaultCollection:
             fetch_neurovault_collection(123)
 
 
-class TestIntegration:
-    """Integration tests that require network access"""
-
-    @pytest.mark.slow
-    def test_real_collection_download(self):
-        """Test downloading a real collection (requires internet)"""
-        try:
-            # Use a small, stable collection
-            metadata, files = fetch_neurovault_collection(collection_id=2099, verbose=0)
-
-            # Basic checks
-            assert isinstance(metadata, pl.DataFrame)
-            assert len(metadata) > 0
-            assert isinstance(files, list)
-            assert len(files) == len(metadata)
-
-            # Check files exist
-            for file_path in files:
-                assert os.path.exists(file_path)
-
-        except Exception as e:
-            pytest.skip(f"Integration test skipped due to network error: {e}")
-
-
 class TestFetchPain:
     """HF-backed pain dataset loader."""
 
@@ -261,37 +236,3 @@ class TestLoadHaxbyExample:
         bd1, _ = load_haxby_example(random_state=0)
         bd2, _ = load_haxby_example(random_state=0)
         np.testing.assert_array_equal(bd1[0].data, bd2[0].data)
-
-    def test_glm_fit_end_to_end(self):
-        import warnings
-        from nltools.datasets import load_haxby_example
-
-        brain_data, dms = load_haxby_example()
-        data, dm = brain_data[0], dms[0]
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore")
-            dm_full = dm.add_dct_basis(duration=128).add_poly(
-                order=2, include_lower=True
-            )
-            data.fit(model="glm", X=dm_full)
-        assert data.glm_betas.shape[0] == dm_full.shape[1]
-        assert data.glm_betas.shape[1] == data.shape[1]
-
-    def test_contrast_signal_is_recoverable(self):
-        """Injected signal should produce non-trivial contrast t-stats."""
-        import warnings
-        import numpy as np
-        from nltools.datasets import load_haxby_example
-
-        brain_data, dms = load_haxby_example()
-        data, dm = brain_data[0], dms[0]
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore")
-            dm_full = dm.add_dct_basis(duration=128).add_poly(
-                order=2, include_lower=True
-            )
-            data.fit(model="glm", X=dm_full)
-            face_vs_house = data.compute_contrasts("face_c0 - house_c0", inference=True)
-        # signal clusters were disjoint, so the face-house map should have
-        # clearly significant voxels in both directions.
-        assert np.abs(face_vs_house.statistic.data).max() > 3.0

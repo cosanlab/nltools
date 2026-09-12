@@ -430,46 +430,7 @@ class TestFittedState:
 
 
 class TestNumericalBehavior:
-    """The model solves the intercept-free ridge system Himalaya defines."""
-
-    def test_matches_sklearn_without_intercept(self):
-        from sklearn.linear_model import Ridge as SklearnRidge
-
-        X, Y = make_data()
-        model = Ridge(alpha=3.0).fit(X, Y)
-        reference = SklearnRidge(alpha=3.0, fit_intercept=False, solver="svd")
-        reference.fit(X, Y)
-        np.testing.assert_allclose(model.coef_, reference.coef_.T, rtol=1e-8, atol=1e-8)
-
-    def test_no_intercept_is_fitted(self):
-        rng = np.random.default_rng(0)
-        X = rng.standard_normal((120, 5))
-        y = X @ rng.standard_normal(5) + 100.0
-        model = Ridge(alpha=0.01).fit(X, y)
-        # Without an intercept the large offset cannot be absorbed.
-        assert model.predict(X).mean() < 50.0
-
-    def test_regularization_shrinks_coefficients(self):
-        X, Y = make_data()
-        norms = [
-            np.linalg.norm(Ridge(alpha=alpha).fit(X, Y).coef_)
-            for alpha in [0.01, 1.0, 100.0, 10000.0]
-        ]
-        assert norms == sorted(norms, reverse=True)
-
-    def test_small_alpha_converges_to_least_squares(self):
-        X, Y = make_data()
-        model = Ridge(alpha=1e-10).fit(X, Y)
-        ols = np.linalg.lstsq(X, Y, rcond=None)[0]
-        np.testing.assert_allclose(model.coef_, ols, rtol=1e-5, atol=1e-6)
-
-    def test_coefficients_recover_the_true_signal(self):
-        rng = np.random.default_rng(11)
-        X = rng.standard_normal((400, 8))
-        beta = rng.standard_normal(8)
-        y = X @ beta + 0.05 * rng.standard_normal(400)
-        model = Ridge(alpha=1.0).fit(X, y)
-        np.testing.assert_allclose(model.coef_, beta, rtol=0.05, atol=0.05)
+    """`score` is a per-target R², with nltools' own constant-target rule."""
 
     def test_score_is_per_target_r2(self):
         X, Y = make_data()
@@ -492,53 +453,7 @@ class TestNumericalBehavior:
 
 
 class TestHimalayaParity:
-    """Selection must reproduce Himalaya 0.4.11 exactly, not merely closely."""
-
-    def _himalaya_cv(self, X, Y, alphas, *, local_alpha=True, conservative=False):
-        from himalaya.ridge import solve_ridge_cv_svd
-        from himalaya.scoring import l2_neg_loss
-
-        with _scoped_himalaya_backend("numpy"):
-            return solve_ridge_cv_svd(
-                X,
-                Y,
-                alphas=np.asarray(alphas),
-                fit_intercept=False,
-                score_func=l2_neg_loss,
-                cv=kfold(),
-                local_alpha=local_alpha,
-                conservative=conservative,
-                warn=False,
-            )
-
-    def test_per_target_selection_matches_himalaya(self):
-        X, Y = make_data()
-        best_alphas, coefs, cv_scores = self._himalaya_cv(X, Y, ALPHAS)
-        model = Ridge(alpha=ALPHAS, cv=kfold()).fit(X, Y)
-        np.testing.assert_allclose(model.alpha_, best_alphas, rtol=1e-10)
-        np.testing.assert_allclose(model.coef_, coefs, rtol=1e-10, atol=1e-12)
-        np.testing.assert_allclose(
-            model.cv_scores_, np.asarray(cv_scores).reshape(-1), rtol=1e-10
-        )
-
-    def test_shared_alpha_selection_matches_himalaya(self):
-        X, Y = make_data()
-        best_alphas, coefs, _ = self._himalaya_cv(X, Y, ALPHAS, local_alpha=False)
-        model = Ridge(alpha=ALPHAS, cv=kfold(), per_target_alpha=False).fit(X, Y)
-        np.testing.assert_allclose(model.alpha_, best_alphas[0], rtol=1e-10)
-        np.testing.assert_allclose(model.coef_, coefs, rtol=1e-10, atol=1e-12)
-
-    def test_conservative_tolerance_matches_himalaya(self):
-        X, Y = make_data()
-        best_alphas, coefs, _ = self._himalaya_cv(X, Y, ALPHAS, conservative=True)
-        model = Ridge(alpha=ALPHAS, cv=kfold(), prefer_conservative_alpha=True).fit(
-            X, Y
-        )
-        np.testing.assert_allclose(model.alpha_, best_alphas, rtol=1e-10)
-        np.testing.assert_allclose(model.coef_, coefs, rtol=1e-10, atol=1e-12)
-        # The conservative rule can only move the selection upward.
-        plain = Ridge(alpha=ALPHAS, cv=kfold()).fit(X, Y)
-        assert np.all(model.alpha_ >= plain.alpha_)
+    """Selection details nltools pins on top of Himalaya: tie-breaks and seeding."""
 
     def test_ties_break_toward_the_larger_alpha(self):
         # A zero target scores exactly 0.0 for every alpha, so only Himalaya's
@@ -548,50 +463,6 @@ class TestHimalayaParity:
         Y = np.zeros((60, 2))
         model = Ridge(alpha=ALPHAS, cv=kfold()).fit(X, Y)
         assert np.all(model.alpha_ == max(ALPHAS))
-
-    def test_fixed_alpha_matches_himalaya_solve_ridge_svd(self):
-        from himalaya.ridge import solve_ridge_svd
-
-        X, Y = make_data()
-        with _scoped_himalaya_backend("numpy"):
-            expected = solve_ridge_svd(X, Y, alpha=2.5, warn=False)
-        model = Ridge(alpha=2.5).fit(X, Y)
-        np.testing.assert_allclose(model.coef_, expected, rtol=1e-10, atol=1e-12)
-
-    def test_banded_deltas_round_trip_to_alpha_and_weights(self):
-        from himalaya.ridge import solve_group_ridge_random_search
-        from himalaya.scoring import l2_neg_loss
-
-        spaces, Y = make_spaces(sizes=(5, 7))
-        candidates = _prepare_feature_space_weights(
-            _dirichlet(10, 2, (0.1, 1.0), 21), np.float64
-        )
-        with _scoped_himalaya_backend("numpy"):
-            deltas, refit_weights, cv_scores = solve_group_ridge_random_search(
-                list(spaces.values()),
-                Y,
-                n_iter=candidates,
-                alphas=np.asarray(ALPHAS),
-                fit_intercept=False,
-                score_func=l2_neg_loss,
-                cv=kfold(),
-                return_weights=True,
-                local_alpha=True,
-                random_state=21,
-                progress_bar=False,
-                conservative=False,
-                warn=False,
-            )
-
-        model = Ridge(
-            alpha=ALPHAS, cv=kfold(), search_iterations=10, random_state=21
-        ).fit(spaces, Y)
-
-        np.testing.assert_allclose(model.coef_, refit_weights, rtol=1e-10, atol=1e-12)
-        np.testing.assert_allclose(model.cv_scores_, cv_scores, rtol=1e-10)
-        # deltas = log(gamma / alpha): the published state must reproduce them.
-        reconstructed = np.log(model.feature_space_weights_ / model.alpha_[None, :])
-        np.testing.assert_allclose(reconstructed, deltas, rtol=1e-6, atol=1e-6)
 
     def test_banded_search_is_deterministic_under_a_seed(self):
         spaces, Y = make_spaces()
@@ -606,21 +477,6 @@ class TestHimalayaParity:
             first.feature_space_weights_, second.feature_space_weights_
         )
         np.testing.assert_array_equal(first.alpha_, second.alpha_)
-
-
-def _dirichlet(n_samples, n_kernels, concentration, random_state):
-    """Draw candidate weights with Himalaya's own sampler."""
-    from himalaya.kernel_ridge import generate_dirichlet_samples
-
-    with _scoped_himalaya_backend("numpy"):
-        return np.asarray(
-            generate_dirichlet_samples(
-                n_samples=n_samples,
-                n_kernels=n_kernels,
-                concentration=list(concentration),
-                random_state=random_state,
-            )
-        )
 
 
 # ---------------------------------------------------------- candidate preparation

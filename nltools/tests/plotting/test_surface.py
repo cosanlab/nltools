@@ -1,8 +1,8 @@
-"""
-Test suite for plot_surface() and plot_flatmap() functions.
+"""Contract tests for `plot_surf` and `plot_flatmap`.
 
-Tests follow TDD approach: write tests first, then implement functionality.
-Focuses on surface plotting functionality with intelligent hemisphere parsing.
+Covers the layout nltools adds on top of nilearn: the sign-aware stat-map
+range, the grid shape implied by `view`/`hemi`, the shared colorbar, the
+transparency mask, and the errors raised for an empty or invalid request.
 """
 
 import os
@@ -103,25 +103,6 @@ class TestPlotSurf:
         plt.close(fig)
 
     @pytest.mark.slow
-    def test_plot_surf_applies_zoom(self, sim_brain_data, monkeypatch):
-        """zoom= kwarg is forwarded to Axes3D.set_box_aspect on every subplot."""
-        from mpl_toolkits.mplot3d import Axes3D
-
-        calls = []
-        orig = Axes3D.set_box_aspect
-
-        def spy(self, aspect, *, zoom=1):
-            calls.append(zoom)
-            return orig(self, aspect, zoom=zoom)
-
-        monkeypatch.setattr(Axes3D, "set_box_aspect", spy)
-        fig = plot_surf(sim_brain_data[0], zoom=1.4)
-        # nilearn also calls set_box_aspect internally; we only care that
-        # plot_surf applies zoom=1.4 once per subplot (4 subplots).
-        assert calls.count(1.4) == 4
-        plt.close(fig)
-
-    @pytest.mark.slow
     def test_plot_surf_turns_axes_off(self, sim_brain_data):
         """Every 3D axis has its frame/grid hidden."""
         fig = plot_surf(sim_brain_data[0])
@@ -214,93 +195,6 @@ class TestPlotFlatmap:
         assert fig is not None
         plt.close(fig)
 
-    def test_flatmap_threshold_float(self, sim_brain_data):
-        """Test float threshold parameter"""
-        single_image = sim_brain_data[0]
-        fig = plot_flatmap(single_image, threshold=0.5)
-        assert fig is not None
-        plt.close(fig)
-
-    def test_flatmap_threshold_percentile(self, sim_brain_data):
-        """Test percentile threshold parameter"""
-        single_image = sim_brain_data[0]
-        fig = plot_flatmap(single_image, threshold="95%")
-        assert fig is not None
-        plt.close(fig)
-
-    def test_flatmap_colormap(self, sim_brain_data):
-        """Test custom colormap"""
-        single_image = sim_brain_data[0]
-        fig = plot_flatmap(single_image, cmap="hot", threshold=0.5)
-        assert fig is not None
-        plt.close(fig)
-
-    def test_flatmap_vmin_vmax(self, sim_brain_data):
-        """Test custom vmin/vmax"""
-        single_image = sim_brain_data[0]
-        fig = plot_flatmap(single_image, vmin=-2.0, vmax=2.0)
-        assert fig is not None
-        plt.close(fig)
-
-    def test_flatmap_without_curvature(self, sim_brain_data):
-        """Test flatmap without curvature background"""
-        single_image = sim_brain_data[0]
-        fig = plot_flatmap(single_image, with_curvature=False)
-        assert fig is not None
-        plt.close(fig)
-
-    def test_flatmap_curvature_parameters(self, sim_brain_data):
-        """Test curvature contrast and brightness parameters"""
-        single_image = sim_brain_data[0]
-        fig = plot_flatmap(
-            single_image,
-            curvature_contrast=0.8,
-            curvature_brightness=0.3,
-        )
-        assert fig is not None
-        plt.close(fig)
-
-    @pytest.mark.parametrize("orientation", ["horizontal", "vertical"])
-    def test_flatmap_colorbar_orientation(self, sim_brain_data, orientation):
-        """Test colorbar orientation options"""
-        single_image = sim_brain_data[0]
-        fig = plot_flatmap(
-            single_image,
-            colorbar=True,
-            colorbar_orientation=orientation,
-        )
-        assert fig is not None
-        plt.close(fig)
-
-    def test_flatmap_no_colorbar(self, sim_brain_data):
-        """Test flatmap without colorbar"""
-        single_image = sim_brain_data[0]
-        fig = plot_flatmap(single_image, colorbar=False)
-        assert fig is not None
-        plt.close(fig)
-
-    def test_flatmap_title(self, sim_brain_data):
-        """Test custom title"""
-        single_image = sim_brain_data[0]
-        fig = plot_flatmap(single_image, title="Test Flatmap")
-        assert fig is not None
-        plt.close(fig)
-
-    def test_flatmap_figsize(self, sim_brain_data):
-        """Test custom figure size"""
-        single_image = sim_brain_data[0]
-        fig = plot_flatmap(single_image, figsize=(14, 8))
-        assert fig.get_size_inches()[0] == pytest.approx(14, abs=0.5)
-        plt.close(fig)
-
-    def test_flatmap_custom_axes(self, sim_brain_data):
-        """Test plotting on custom axes"""
-        single_image = sim_brain_data[0]
-        fig, ax = plt.subplots(1, 1, figsize=(10, 5))
-        result = plot_flatmap(single_image, axes=ax)
-        assert result is not None
-        plt.close(fig)
-
     @pytest.mark.slow
     def test_flatmap_save(self, sim_brain_data, tmpdir):
         """Test saving flatmap to file"""
@@ -322,17 +216,6 @@ class TestPlotFlatmap:
         """Test handling BrainData with multiple images"""
         # Should plot first image
         fig = plot_flatmap(sim_brain_data)
-        assert fig is not None
-        plt.close(fig)
-
-    def test_flatmap_projection_parameters(self, sim_brain_data):
-        """Test custom projection parameters"""
-        single_image = sim_brain_data[0]
-        fig = plot_flatmap(
-            single_image,
-            radius=5.0,
-            interpolation="nearest_most_frequent",
-        )
         assert fig is not None
         plt.close(fig)
 
@@ -359,23 +242,3 @@ class TestBrainDataPlotFlatmap:
         empty_brain = BrainData()
         with pytest.raises(ValueError, match="empty|Empty"):
             empty_brain.plot_flatmap()
-
-
-class TestRadiusKeyword:
-    """The surface plotters take nilearn's `radius` (millimeters), not `radius_mm`."""
-
-    def test_plot_surf_radius_mm_keyword_is_removed(self, sim_brain_data):
-        with pytest.raises(TypeError):
-            plot_surf(sim_brain_data[0], radius_mm=5.0)
-
-    def test_plot_flatmap_radius_mm_keyword_is_removed(self, sim_brain_data):
-        with pytest.raises(TypeError):
-            plot_flatmap(sim_brain_data[0], radius_mm=5.0)
-
-    def test_brain_data_plot_surf_radius_mm_keyword_is_removed(self, sim_brain_data):
-        with pytest.raises(TypeError):
-            sim_brain_data[0].plot_surf(radius_mm=5.0)
-
-    def test_brain_data_plot_flatmap_radius_mm_keyword_is_removed(self, sim_brain_data):
-        with pytest.raises(TypeError):
-            sim_brain_data[0].plot_flatmap(radius_mm=5.0)

@@ -10,27 +10,10 @@ from nltools.data import Adjacency
 
 
 class TestAdjacencyCore:
-    def test_type_single(self, sim_adjacency_single):
-        """Test symmetric matrix type detection (distance vs similarity)."""
-        assert sim_adjacency_single.matrix_type == "distance"
-        dat_single2 = Adjacency(1 - sim_adjacency_single.squareform())
-        assert dat_single2.matrix_type == "similarity"
-        assert sim_adjacency_single.issymmetric
-
-    def test_type_directed(self, sim_adjacency_directed):
-        """Test directed matrix initialization."""
-        assert not sim_adjacency_directed.issymmetric
-
     def test_length(self, sim_adjacency_multiple):
         """Test length property for multiple adjacency matrices."""
         assert len(sim_adjacency_multiple) == sim_adjacency_multiple.data.shape[0]
         assert len(sim_adjacency_multiple[0]) == 1
-
-    def test_indexing(self, sim_adjacency_multiple):
-        """Test indexing with integers, slices, and tuples."""
-        assert len(sim_adjacency_multiple[0]) == 1
-        assert len(sim_adjacency_multiple[0:4]) == 4
-        assert len(sim_adjacency_multiple[0, 2, 3]) == 3
 
     def test_arithmetic(self, sim_adjacency_directed):
         """Test arithmetic operations on adjacency matrices."""
@@ -60,74 +43,6 @@ class TestAdjacencyCore:
             1,
             decimal=4,
         )
-
-    def test_copy(self, sim_adjacency_multiple):
-        """Test copying adjacency matrices."""
-        assert np.all(sim_adjacency_multiple.data == sim_adjacency_multiple.copy().data)
-
-    def test_squareform(self, sim_adjacency_multiple):
-        """Test vector → matrix → vector conversion preserves data."""
-        assert len(sim_adjacency_multiple.squareform()) == len(sim_adjacency_multiple)
-
-    def test_shape_property(self, sim_adjacency_single, sim_adjacency_multiple):
-        """Test shape property returns (n_nodes, n_nodes) for single, (n, n_nodes, n_nodes) for stacked."""
-        assert sim_adjacency_single.shape == (4, 4)
-        assert sim_adjacency_single.n_nodes == 4
-        assert sim_adjacency_single.vector_shape == (6,)
-
-        n_matrices = len(sim_adjacency_multiple)
-        assert sim_adjacency_multiple.shape == (n_matrices, 4, 4)
-        assert sim_adjacency_multiple.n_nodes == 4
-        assert sim_adjacency_multiple.vector_shape == (n_matrices, 6)
-
-    def test_append(self, sim_adjacency_single):
-        """Test appending adjacency matrices."""
-        a = Adjacency()
-        a = a.append(sim_adjacency_single)
-        assert a.shape == sim_adjacency_single.shape
-        a = a.append(a)
-        assert a.shape == (2, 4, 4)
-        assert a.vector_shape == (2, 6)
-
-    def test_Y_is_polars(self, sim_adjacency_multiple):
-        """Adjacency.Y is always a polars DataFrame (possibly empty)."""
-        import pandas as pd
-        import polars as pl
-
-        # Empty constructor -> empty polars frame
-        a = Adjacency()
-        assert isinstance(a.Y, pl.DataFrame)
-        assert a.Y.is_empty()
-
-        # Fixture without Y -> empty polars frame
-        assert isinstance(sim_adjacency_multiple.Y, pl.DataFrame)
-        assert sim_adjacency_multiple.Y.is_empty()
-
-        # Pandas Y accepted, stored as polars
-        n = len(sim_adjacency_multiple)
-        adj = sim_adjacency_multiple.copy()
-        adj.Y = pd.DataFrame({"label": np.arange(n)})
-        assert isinstance(adj.Y, pl.DataFrame)
-        assert adj.Y.shape == (n, 1)
-
-        # Polars Y accepted on the setter
-        adj.Y = pl.DataFrame({"label": np.arange(n)})
-        assert isinstance(adj.Y, pl.DataFrame)
-
-        # Indexing preserves polars
-        sliced = adj[0]
-        assert isinstance(sliced.Y, pl.DataFrame)
-        assert sliced.Y.shape[0] == 1
-
-        # Slice indexing preserves polars
-        sliced2 = adj[0:2]
-        assert isinstance(sliced2.Y, pl.DataFrame)
-        assert sliced2.Y.shape[0] == 2
-
-        # Append concatenates polars
-        combined = adj.append(adj)
-        assert isinstance(combined.Y, pl.DataFrame)
-        assert combined.Y.shape[0] == 2 * n
 
     def test_mean(self, sim_adjacency_multiple):
         """Test mean aggregation across adjacency matrices."""

@@ -4,11 +4,14 @@ from copy import copy, deepcopy
 
 import nibabel as nib
 import numpy as np
+import pandas as pd
 import polars as pl
 import pytest
 from nilearn.maskers import NiftiMasker
 
 from nltools.data import BrainData, DesignMatrix
+from nltools.data.braindata.utils import _copy_for_fit
+from nltools.mask import create_sphere
 
 
 @pytest.fixture
@@ -301,3 +304,126 @@ def test_append_keeps_compatible_numeric_metadata(brain):
     right.Y = right.Y.cast({"row": pl.Float64})
     result = left.append(right)
     assert result.Y["row"].to_list() == list(range(12))
+
+
+# ---------------------------------------------------------------------------
+# Ownership of derived arrays, fit copies and appends
+# ---------------------------------------------------------------------------
+
+
+def test_derived_array_owns_input_data(sim_brain_data):
+    from nltools.data.braindata.utils import _result_from_array
+
+    result = _result_from_array(sim_brain_data, sim_brain_data.data, rows="preserve")
+    result.data[0, 0] = 999
+    assert sim_brain_data.data[0, 0] != 999
+    assert result.mask is not sim_brain_data.mask
+
+
+def test_copy_for_fit_owns_spatial_structure(sim_brain_data):
+    """The default derived copy owns mutable data and metadata."""
+
+    # Add DataFrame attributes to test
+    sim_brain_data.test_X = pd.DataFrame({"col1": [1, 2, 3]})
+
+    copied = _copy_for_fit(sim_brain_data)
+
+    assert id(copied.mask) != id(sim_brain_data.mask), "mask should be independent"
+    assert id(copied.data) != id(sim_brain_data.data), "data should be copied"
+
+    # These should be COPIED (different objects)
+    if hasattr(sim_brain_data, "X") and sim_brain_data.X is not None:
+        assert id(copied.X) != id(sim_brain_data.X), "X DataFrame should be copied"
+
+    # Clean up
+    del sim_brain_data.test_X
+
+
+def test_data_mutation_safety(sim_brain_data):
+    """Test that operations don't accidentally mutate the original data"""
+
+    # Store original data
+    original_data_copy = sim_brain_data.data.copy()
+    original_mean = sim_brain_data.data.mean()
+
+    # Perform operations that should NOT mutate original
+    scaled = sim_brain_data.scale(100.0)
+    added = sim_brain_data + 5
+    subtracted = sim_brain_data - 2
+    multiplied = sim_brain_data * 3
+
+    # Original data should be completely unchanged
+    assert np.array_equal(sim_brain_data.data, original_data_copy), (
+        "Original data was mutated!"
+    )
+    assert sim_brain_data.data.mean() == original_mean, "Original mean changed!"
+
+    # Each result should have different data
+    assert not np.array_equal(scaled.data, sim_brain_data.data)
+    assert not np.array_equal(added.data, sim_brain_data.data)
+    assert not np.array_equal(subtracted.data, sim_brain_data.data)
+    assert not np.array_equal(multiplied.data, sim_brain_data.data)
+
+
+def test_append_correctness():
+    """Test that append works correctly with independent copying"""
+
+    # Create test data with multiple images for clearer testing
+    s1 = create_sphere([12, 10, -8], radius=10)
+    brain1 = BrainData([s1] * 3)  # 3 images
+    brain2 = BrainData([s1] * 2)  # 2 images
+
+    # Store original data for verification
+    brain1_data_copy = brain1.data.copy()
+    brain2_data_copy = brain2.data.copy()
+    n_images_1 = len(brain1)
+    n_images_2 = len(brain2)
+
+    # Perform append
+    appended = brain1.append(brain2)
+
+    # Verify correctness: should have combined number of images
+    assert len(appended) == n_images_1 + n_images_2, (
+        f"Appended should have {n_images_1 + n_images_2} images, got {len(appended)}"
+    )
+    assert appended.shape[0] == brain1.shape[0] + brain2.shape[0], (
+        "Appended data should have combined number of images"
+    )
+    assert appended.shape[1] == brain1.shape[1], (
+        "Appended data should preserve number of voxels"
+    )
+
+    # Verify data values are preserved
+    assert np.array_equal(appended.data[0], brain1_data_copy[0]), (
+        "First image should match brain1 first image"
+    )
+    assert np.array_equal(appended.data[n_images_1 - 1], brain1_data_copy[-1]), (
+        "Last brain1 image should be preserved"
+    )
+    assert np.array_equal(appended.data[n_images_1], brain2_data_copy[0]), (
+        "First brain2 image should follow brain1 data"
+    )
+    assert np.array_equal(appended.data[-1], brain2_data_copy[-1]), (
+        "Last image should match brain2 last image"
+    )
+
+    # Verify independent copying: should own mask
+    assert id(appended.mask) != id(brain1.mask), (
+        "Append should own mask object independently"
+    )
+
+    # Verify data independence: new data array
+    assert id(appended.data) != id(brain1.data), (
+        "Appended data should be independent from brain1"
+    )
+    assert id(appended.data) != id(brain2.data), (
+        "Appended data should be independent from brain2"
+    )
+
+    # Verify originals are unchanged
+    assert np.array_equal(brain1.data, brain1_data_copy), (
+        "Original brain1 should be unchanged"
+    )
+    assert np.array_equal(brain2.data, brain2_data_copy), (
+        "Original brain2 should be unchanged"
+    )

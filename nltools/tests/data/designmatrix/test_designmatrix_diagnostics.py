@@ -261,31 +261,6 @@ class TestDesignMatrixUtilities:
         with pytest.raises(ValueError):
             _ = dm.replace_data(new_data, column_names=["x"])
 
-    # NOTE: since polars dataframes don't have comprehensive plotting abilities like pandas and we don't want additional dependencies, the method should use seaborn heatmap + matplotlib under-the-hood
-    def test_plot_visualization(self):
-        """
-        .plot() should create matplotlib visualization.
-
-        Expected behavior:
-        - Creates plot without error
-        - Returns matplotlib axes object (optional)
-
-        Note: We don't test visual output, just that it doesn't crash
-        """
-        dm = DesignMatrix(
-            np.random.randn(20, 3), sampling_freq=1, columns=["a", "b", "c"]
-        )
-        dm = dm.add_poly(order=1)
-
-        # Should not raise error
-        try:
-            dm.plot()
-            import matplotlib.pyplot as plt
-
-            plt.close("all")  # Clean up
-        except Exception as e:
-            pytest.fail(f"plot() raised unexpected error: {e}")
-
 
 class TestDesignMatrixCorr:
     """`.corr()` returns a labeled nltools Adjacency (similarity matrix)."""

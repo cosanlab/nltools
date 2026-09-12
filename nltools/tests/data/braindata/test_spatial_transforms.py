@@ -271,6 +271,30 @@ class TestApplyMask:
         with pytest.raises(ValueError, match=r"resample\(\)"):
             brain.apply_mask(outside_mask)
 
+    def test_apply_mask_accepts_a_raw_niimg_on_the_target_grid(self):
+        """A raw Niimg mask already on the data's grid is used as given.
+
+        The mask is never re-homed onto the package-default MNI152 template,
+        and it is never resampled: `apply_mask` only changes support.
+        """
+        # Non-MNI space: 4mm isotropic, small grid, offset origin.
+        aff = np.diag([4.0, 4.0, 4.0, 1.0])
+        aff[:3, 3] = [-20, -20, -20]
+        shape = (10, 10, 10)
+        rng = np.random.default_rng(0)
+
+        custom_mask = nib.Nifti1Image(np.ones(shape, np.int16), aff)
+        data_img = nib.Nifti1Image(rng.standard_normal(shape).astype(np.float32), aff)
+        bd = BrainData(data_img, mask=custom_mask)
+
+        # Raw Niimg sub-mask in the SAME non-default space.
+        box = np.zeros(shape, np.int16)
+        box[2:7, 2:7, 2:7] = 1
+        raw_mask = nib.Nifti1Image(box, aff)
+
+        masked = bd.apply_mask(raw_mask)
+        assert masked.shape[0] == int(box.sum())
+
     def test_rejects_an_unsupported_mask_type(self, brain):
         with pytest.raises(TypeError, match="mask must be"):
             brain.apply_mask(123)

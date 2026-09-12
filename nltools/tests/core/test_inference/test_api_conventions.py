@@ -11,9 +11,12 @@ signature ahead of an existing one silently shifted a positional argument at the
 dispatch site, turning a progress bar back on with no error.
 """
 
+import importlib
 import inspect
 
 import pytest
+
+import nltools.algorithms as algorithms
 
 from nltools.algorithms.inference import (
     correlation_permutation_test,
@@ -116,6 +119,28 @@ def test_matrix_trailing_kwarg_order():
     ]
 
 
-# NOTE: there is no wrapper layer to hold in parity anymore — the v0.6.0
-# consolidation (issue #474) made `nltools.algorithms` re-export the engine
-# functions themselves. `tests/core/test_algorithms_api.py` pins that identity.
+# The permutation entry points re-exported by `nltools.algorithms` must be the
+# engine functions themselves: the v0.6.0 consolidation (issue #474) removed the
+# wrapper layer, so facade/engine drift is structurally impossible only as long
+# as the identity below holds.
+ENGINE_IDENTITY = {
+    "one_sample_permutation_test": "nltools.algorithms.inference.one_sample",
+    "two_sample_permutation_test": "nltools.algorithms.inference.two_sample",
+    "correlation_permutation_test": "nltools.algorithms.inference.correlation",
+    "timeseries_correlation_permutation_test": "nltools.algorithms.inference.timeseries",
+    "circle_shift": "nltools.algorithms.inference.timeseries",
+    "phase_randomize": "nltools.algorithms.inference.timeseries",
+    "matrix_permutation_test": "nltools.algorithms.inference.matrix",
+    "double_center": "nltools.algorithms.inference.matrix",
+    "u_center": "nltools.algorithms.inference.matrix",
+    "distance_correlation": "nltools.algorithms.inference.matrix",
+}
+
+
+@pytest.mark.parametrize("name", sorted(ENGINE_IDENTITY))
+def test_permutation_functions_are_engine_functions(name):
+    engine_mod = importlib.import_module(ENGINE_IDENTITY[name])
+    assert getattr(algorithms, name) is getattr(engine_mod, name), (
+        f"algorithms.{name} is a wrapper, not the engine function — "
+        "the v0.6.0 consolidation removed the wrapper layer"
+    )

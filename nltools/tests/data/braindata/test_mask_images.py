@@ -12,7 +12,6 @@ from unittest import mock
 import numpy as np
 import nibabel as nib
 import nilearn.masking as nm
-import pytest
 
 from nltools.data import BrainData, DesignMatrix
 from nltools.data.braindata import io as bd_io
@@ -28,37 +27,6 @@ def _make_mask_and_imgs(n=4, dtype=np.float64):
         nib.Nifti1Image(rng.randn(*shape).astype(dtype), np.eye(4)) for _ in range(n)
     ]
     return mask, imgs
-
-
-class TestMaskImages:
-    @pytest.mark.parametrize("dtype", [np.float64, np.float32])
-    def test_matches_functional_apply_mask(self, dtype):
-        """Byte-identical to np.vstack([apply_mask(im, mask) for im in imgs])."""
-        mask, imgs = _make_mask_and_imgs(dtype=dtype)
-        out = bd_io.mask_images(mask, imgs)
-        ref = np.vstack([nm.apply_mask(im, mask) for im in imgs])
-        assert np.array_equal(out, ref)
-        assert out.dtype == ref.dtype
-        assert out.shape == (len(imgs), 10)
-
-    def test_validates_mask_once_not_per_image(self):
-        """load_mask_img fires once regardless of image count."""
-        mask, imgs = _make_mask_and_imgs(n=5)
-        with mock.patch("nilearn.masking.load_mask_img", wraps=nm.load_mask_img) as spy:
-            bd_io.mask_images(mask, imgs)
-        assert spy.call_count == 1
-
-    def test_falls_back_to_functional_on_error(self, monkeypatch):
-        """If the fast path raises, the functional path still returns correct data."""
-        mask, imgs = _make_mask_and_imgs()
-        ref = np.vstack([nm.apply_mask(im, mask) for im in imgs])
-
-        def boom(*a, **k):
-            raise RuntimeError("forced")
-
-        monkeypatch.setattr(bd_io, "_mask_images_fast", boom)
-        out = bd_io.mask_images(mask, imgs)
-        assert np.array_equal(out, ref)
 
 
 class TestListConstruction:

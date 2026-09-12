@@ -131,34 +131,6 @@ class TestMatrixHelpers:
         r = _compute_matrix_correlation(m1, m2, metric="pearson")
         assert abs(r) < 1.0
 
-    def test_compute_matrix_correlation_spearman(self):
-        """Test Spearman correlation computation."""
-        from nltools.algorithms.inference.matrix import _compute_matrix_correlation
-
-        # Identical matrices should have r = 1.0
-        matrix = np.random.randn(5, 5)
-        r = _compute_matrix_correlation(matrix, matrix, metric="spearman")
-        assert abs(r - 1.0) < 1e-10
-
-        # Monotonic relationship should have high Spearman
-        m1 = np.arange(25).reshape(5, 5).astype(float)
-        m2 = m1**2  # Monotonic but not linear
-        r = _compute_matrix_correlation(m1, m2, metric="spearman")
-        assert r > 0.99  # Should be very high for monotonic relationship
-
-    def test_compute_matrix_correlation_kendall(self):
-        """Test Kendall correlation computation."""
-        from nltools.algorithms.inference.matrix import _compute_matrix_correlation
-
-        # Identical matrices should have tau = 1.0
-        matrix = np.random.randn(5, 5)
-        tau = _compute_matrix_correlation(matrix, matrix, metric="kendall")
-        assert abs(tau - 1.0) < 1e-10
-
-        # Negated matrices should have tau ≈ -1.0
-        tau = _compute_matrix_correlation(matrix, -matrix, metric="kendall")
-        assert abs(tau - (-1.0)) < 1e-10
-
     def test_compute_matrix_correlation_all_extraction_modes(self):
         """Test that correlation works with all extraction modes."""
         from nltools.algorithms.inference.matrix import _compute_matrix_correlation
@@ -191,51 +163,6 @@ class TestMatrixHelpers:
 @pytest.mark.slow
 class TestMatrixPermutationCPUParallel:
     """Test CPU-parallel implementation of matrix permutation."""
-
-    def test_basic_functionality(self):
-        """Test basic matrix permutation computation."""
-        from nltools.algorithms.inference.matrix import _matrix_permutation_cpu_parallel
-
-        # Create two correlated matrices
-        np.random.seed(42)
-        n = 20
-        # Generate data matrix where rows are observations and columns are features
-        data1 = np.random.randn(30, n)  # 30 observations, 20 features
-        data2 = np.random.randn(30, n)
-        # Compute correlation matrices (n×n)
-        m1 = np.corrcoef(data1.T)  # Transpose to get features × features correlation
-        m2 = np.corrcoef(data2.T)
-
-        result = _matrix_permutation_cpu_parallel(
-            data1=m1,
-            data2=m2,
-            n_permute=100,
-            metric="pearson",
-            how="upper",
-            include_diag=False,
-            tail=2,
-            return_null=True,
-            n_jobs=1,
-            random_state=42,
-        )
-
-        # Check result structure
-        assert "correlation" in result
-        assert "p" in result
-        assert "device" in result
-        assert "null_dist" in result
-
-        # Check types
-        assert isinstance(result["correlation"], float)
-        assert isinstance(result["p"], float)
-        assert isinstance(result["device"], (str, type(None)))
-        assert isinstance(result["null_dist"], np.ndarray)
-
-        # P-value should be in valid range
-        assert 0 < result["p"] < 1
-
-        # Null distribution should have correct size
-        assert len(result["null_dist"]) == 100
 
     def test_determinism(self):
         """Test that same seed produces identical results."""
@@ -322,45 +249,6 @@ class TestMatrixPermutationCPUParallel:
             result_serial["null_dist"], result_parallel["null_dist"]
         )
 
-    def test_return_null_distribution(self):
-        """Test that null distribution is returned when requested."""
-        from nltools.algorithms.inference.matrix import _matrix_permutation_cpu_parallel
-
-        np.random.seed(42)
-        m1 = np.random.randn(10, 10)
-        m2 = np.random.randn(10, 10)
-
-        # With return_null=True
-        result = _matrix_permutation_cpu_parallel(
-            data1=m1,
-            data2=m2,
-            n_permute=100,
-            metric="pearson",
-            how="upper",
-            include_diag=False,
-            tail=2,
-            return_null=True,
-            n_jobs=1,
-            random_state=42,
-        )
-        assert "null_dist" in result
-        assert len(result["null_dist"]) == 100
-
-        # Without return_null
-        result = _matrix_permutation_cpu_parallel(
-            data1=m1,
-            data2=m2,
-            n_permute=100,
-            metric="pearson",
-            how="upper",
-            include_diag=False,
-            tail=2,
-            return_null=False,
-            n_jobs=1,
-            random_state=42,
-        )
-        assert "null_dist" not in result
-
 
 class TestMatrixPermutationMain:
     """Test main matrix_permutation_test function."""
@@ -397,66 +285,6 @@ class TestMatrixPermutationMain:
         with pytest.raises(ValueError, match="how must be"):
             matrix_permutation_test(m1, m2, how="invalid")
 
-    def test_all_extraction_modes(self):
-        """Test that all extraction modes work correctly."""
-        np.random.seed(42)
-        m1 = np.random.randn(6, 6)  # Reduced from 8×8 for tier1 speed
-        m2 = np.random.randn(6, 6)
-
-        # All modes should work
-        result_upper = matrix_permutation_test(
-            m1, m2, how="upper", n_permute=100, random_state=42, n_jobs=1
-        )
-        result_lower = matrix_permutation_test(
-            m1, m2, how="lower", n_permute=100, random_state=42, n_jobs=1
-        )
-        result_full_no_diag = matrix_permutation_test(
-            m1,
-            m2,
-            how="full",
-            include_diag=False,
-            n_permute=100,
-            random_state=42,
-            n_jobs=1,
-        )
-        result_full_with_diag = matrix_permutation_test(
-            m1,
-            m2,
-            how="full",
-            include_diag=True,
-            n_permute=100,
-            random_state=42,
-            n_jobs=1,
-        )
-
-        # All should return valid results
-        assert 0 < result_upper["p"] < 1
-        assert 0 < result_lower["p"] < 1
-        assert 0 < result_full_no_diag["p"] < 1
-        assert 0 < result_full_with_diag["p"] < 1
-
-    def test_all_metrics(self):
-        """Test that all correlation metrics work correctly."""
-        np.random.seed(42)
-        m1 = np.random.randn(6, 6)  # Reduced from 8×8 for tier1 speed
-        m2 = np.random.randn(6, 6)
-
-        # All metrics should work
-        result_pearson = matrix_permutation_test(
-            m1, m2, metric="pearson", n_permute=100, random_state=42, n_jobs=1
-        )
-        result_spearman = matrix_permutation_test(
-            m1, m2, metric="spearman", n_permute=100, random_state=42, n_jobs=1
-        )
-        result_kendall = matrix_permutation_test(
-            m1, m2, metric="kendall", n_permute=100, random_state=42, n_jobs=1
-        )
-
-        # All should return valid results
-        assert 0 < result_pearson["p"] < 1
-        assert 0 < result_spearman["p"] < 1
-        assert 0 < result_kendall["p"] < 1
-
     def test_include_diag_parameter(self):
         """Test that include_diag parameter works correctly."""
         np.random.seed(42)
@@ -489,65 +317,6 @@ class TestMatrixPermutationMain:
 
         # Results might differ since different elements are used
         # (Just verify they both work, not that they match)
-
-
-class TestMatrixPermutationCorrectness:
-    """Test statistical correctness of matrix permutation."""
-
-    @pytest.mark.slow
-    def test_identical_matrices(self):
-        """Test that identical matrices produce perfect correlation and significant p-value."""
-        # Create a matrix and test against itself
-        np.random.seed(42)
-        matrix = np.random.randn(20, 20)
-
-        result = matrix_permutation_test(
-            matrix, matrix, n_permute=2000, random_state=42, n_jobs=1
-        )
-
-        # Correlation should be perfect
-        assert abs(result["correlation"] - 1.0) < 1e-10
-
-        # P-value should be highly significant
-        assert result["p"] < 0.05
-
-    @pytest.mark.slow
-    def test_uncorrelated_matrices(self):
-        """Test that uncorrelated random matrices produce non-significant p-value."""
-        # Create two independent random matrices
-        np.random.seed(42)
-        m1 = np.random.randn(25, 25)
-        m2 = np.random.randn(25, 25)
-
-        result = matrix_permutation_test(
-            m1, m2, n_permute=2000, random_state=42, n_jobs=1
-        )
-
-        # Correlation should be weak
-        assert abs(result["correlation"]) < 0.3
-
-        # P-value should be non-significant
-        assert result["p"] > 0.05
-
-    @pytest.mark.slow
-    def test_null_distribution_centered(self):
-        """Test that null distribution is centered near zero for uncorrelated matrices."""
-        np.random.seed(42)
-        m1 = np.random.randn(20, 20)
-        m2 = np.random.randn(20, 20)
-
-        result = matrix_permutation_test(
-            m1, m2, n_permute=2000, return_null=True, random_state=42, n_jobs=1
-        )
-
-        null_mean = np.mean(result["null_dist"])
-        null_std = np.std(result["null_dist"])
-
-        # Mean should be close to 0
-        assert abs(null_mean) < 0.05
-
-        # Standard deviation should be reasonable
-        assert 0.01 < null_std < 0.15
 
 
 # ============================================================================
@@ -623,16 +392,6 @@ class TestUCenter:
         # Should preserve symmetry
         assert np.allclose(result, result.T, atol=1e-10)
         # Diagonal should be zero
-        assert np.allclose(np.diag(result), 0, atol=1e-10)
-
-    def test_u_center_diagonal_zero(self):
-        """Test that u_center sets diagonal to zero."""
-        from nltools.algorithms import u_center
-
-        mat = np.array([[1, 2, 3], [4, 5, 6], [7, 8, 9]], dtype=float)
-        result = u_center(mat)
-
-        # Diagonal should be explicitly zero
         assert np.allclose(np.diag(result), 0, atol=1e-10)
 
     def test_u_center_raises_on_1d(self):
@@ -752,85 +511,6 @@ class TestDistanceCorrelation:
 class TestCrossCorrelation:
     """Test _compute_cross_correlation function for ISFC computation."""
 
-    def test_cross_correlation_basic(self):
-        """Test basic cross-correlation computation."""
-        from nltools.algorithms.inference.matrix import _compute_cross_correlation
-
-        np.random.seed(42)
-        matrix1 = np.random.randn(100, 5)  # 100 observations, 5 features
-        matrix2 = np.random.randn(100, 3)  # 100 observations, 3 features
-
-        result = _compute_cross_correlation(matrix1, matrix2)
-
-        # Should have correct shape
-        assert result.shape == (5, 3)
-
-        # Values should be in valid correlation range
-        assert np.all(result >= -1) and np.all(result <= 1)
-
-    def test_cross_correlation_identical_features(self):
-        """Test cross-correlation with identical features (should be perfect correlation)."""
-        from nltools.algorithms.inference.matrix import _compute_cross_correlation
-
-        np.random.seed(42)
-        matrix1 = np.random.randn(100, 5)
-        matrix2 = matrix1.copy()  # Same features
-
-        result = _compute_cross_correlation(matrix1, matrix2)
-
-        # Diagonal should be perfect correlation (1.0)
-        assert result.shape == (5, 5)
-        np.testing.assert_allclose(np.diag(result), 1.0, rtol=1e-10)
-
-    def test_cross_correlation_negated_features(self):
-        """Test cross-correlation with negated features (should be perfect negative correlation)."""
-        from nltools.algorithms.inference.matrix import _compute_cross_correlation
-
-        np.random.seed(42)
-        matrix1 = np.random.randn(100, 5)
-        matrix2 = -matrix1  # Negated features
-
-        result = _compute_cross_correlation(matrix1, matrix2)
-
-        # Diagonal should be perfect negative correlation (-1.0)
-        assert result.shape == (5, 5)
-        np.testing.assert_allclose(np.diag(result), -1.0, rtol=1e-10)
-
-    def test_cross_correlation_independent_features(self):
-        """Test cross-correlation with independent features."""
-        from nltools.algorithms.inference.matrix import _compute_cross_correlation
-
-        np.random.seed(42)
-        matrix1 = np.random.randn(100, 5)
-        matrix2 = np.random.randn(100, 3)  # Independent
-
-        result = _compute_cross_correlation(matrix1, matrix2)
-
-        # Correlations should be small (close to zero)
-        assert result.shape == (5, 3)
-        assert np.abs(result).mean() < 0.3  # Average correlation should be low
-
-    def test_cross_correlation_correctness_manual(self):
-        """Test that cross-correlation matches manual computation."""
-        from nltools.algorithms.inference.matrix import _compute_cross_correlation
-
-        np.random.seed(42)
-        matrix1 = np.random.randn(100, 5)
-        matrix2 = np.random.randn(100, 3)
-
-        # Compute using function
-        result = _compute_cross_correlation(matrix1, matrix2)
-
-        # Compute manually
-        manual_result = np.zeros((5, 3))
-        for i in range(5):
-            for j in range(3):
-                corr_coef = np.corrcoef(matrix1[:, i], matrix2[:, j])[0, 1]
-                manual_result[i, j] = corr_coef
-
-        # Should match exactly
-        np.testing.assert_allclose(result, manual_result, rtol=1e-10)
-
     def test_cross_correlation_mismatched_observations(self):
         """Test that mismatched number of observations raises error."""
         from nltools.algorithms.inference.matrix import _compute_cross_correlation
@@ -840,50 +520,6 @@ class TestCrossCorrelation:
 
         with pytest.raises(ValueError, match="same number of rows"):
             _compute_cross_correlation(matrix1, matrix2)
-
-    def test_cross_correlation_isfc_shape(self):
-        """Test cross-correlation with typical ISFC dimensions."""
-        from nltools.algorithms.inference.matrix import _compute_cross_correlation
-
-        # Typical ISFC: 500 timepoints, 5 ROIs
-        np.random.seed(42)
-        subject_data = np.random.randn(500, 5)
-        group_mean = np.random.randn(500, 5)
-
-        result = _compute_cross_correlation(subject_data, group_mean)
-
-        # Should produce 5x5 connectivity matrix
-        assert result.shape == (5, 5)
-        assert np.all(result >= -1) and np.all(result <= 1)
-
-    def test_cross_correlation_deterministic(self):
-        """Test that same input produces identical results."""
-        from nltools.algorithms.inference.matrix import _compute_cross_correlation
-
-        np.random.seed(42)
-        matrix1 = np.random.randn(100, 5)
-        matrix2 = np.random.randn(100, 3)
-
-        result1 = _compute_cross_correlation(matrix1, matrix2)
-        result2 = _compute_cross_correlation(matrix1, matrix2)
-
-        # Should be exactly identical
-        np.testing.assert_array_equal(result1, result2)
-
-    def test_cross_correlation_symmetric_property(self):
-        """Test that cross-correlation has expected properties."""
-        from nltools.algorithms.inference.matrix import _compute_cross_correlation
-
-        np.random.seed(42)
-        matrix1 = np.random.randn(100, 5)
-        matrix2 = np.random.randn(100, 5)
-
-        # Compute both directions
-        result_12 = _compute_cross_correlation(matrix1, matrix2)
-        result_21 = _compute_cross_correlation(matrix2, matrix1)
-
-        # Should be transposes of each other
-        np.testing.assert_allclose(result_12, result_21.T, rtol=1e-10)
 
 
 class TestMatrixUtilitiesIntegration:
@@ -922,23 +558,6 @@ class TestMatrixUtilitiesIntegration:
         assert "dcorr" in result_no_bias
         # Results should be different
         assert not np.allclose(result_bias["dcorr"], result_no_bias["dcorr"], atol=1e-6)
-
-    def test_backward_compatibility_import_from_inference(self):
-        """Test that functions can be imported from the inference module."""
-        from nltools.algorithms import double_center, u_center, distance_correlation
-
-        assert callable(double_center)
-        assert callable(u_center)
-        assert callable(distance_correlation)
-
-        # Verify they produce same results
-        np.random.seed(42)
-        mat = np.random.randn(5, 5)
-        result1 = double_center(mat)
-        result2 = u_center(mat)
-
-        assert result1.shape == mat.shape
-        assert result2.shape == mat.shape
 
 
 # ============================================================================

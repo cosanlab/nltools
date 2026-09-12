@@ -218,13 +218,3 @@ class TestAdjacencyModeling:
             dat.cluster_summary(clusters=clusters, metric="median")
         with pytest.raises(TypeError):
             dat.cluster_summary(clusters=clusters, method="median")
-
-    def test_cluster_summary_signature_is_canonical(self):
-        """cluster_summary speaks summary= (central tendency) + scope= (within/between)."""
-        import inspect
-
-        params = inspect.signature(Adjacency.cluster_summary).parameters
-        assert params["summary"].default == "mean"
-        assert params["scope"].default == "within"
-        assert "method" not in params
-        assert "metric" not in params

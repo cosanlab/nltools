@@ -213,8 +213,10 @@ class TestDesignMatrixStatisticalOperations:
 
         Use case: Match design matrix to lower TR acquisition
         """
-        # Create 100 samples at 1 Hz
-        dm = DesignMatrix({"a": list(range(100))}, sampling_freq=1.0)
+        # Two columns, 10 samples at 1 Hz
+        dm = DesignMatrix(
+            {"x": list(range(10)), "y": list(range(10, 20))}, sampling_freq=1.0
+        )
 
         # Downsample to 0.5 Hz (slower sampling = fewer samples)
         dm_down = dm.downsample(target=0.5)
@@ -222,68 +224,37 @@ class TestDesignMatrixStatisticalOperations:
         assert dm_down.shape[0] < dm.shape[0], "Should have fewer rows"
         assert dm_down.sampling_freq == 0.5, "Sampling freq should be updated"
 
-        # Verify exact values (Polars-native implementation)
-        # Downsample groups every 2 samples and takes mean: [0,1]→0.5, [2,3]→2.5, etc.
-        expected_first_10 = [0.5, 2.5, 4.5, 6.5, 8.5, 10.5, 12.5, 14.5, 16.5, 18.5]
-        assert dm_down["a"].to_list()[:10] == expected_first_10, (
-            "Polars downsample should produce correct aggregated values"
-        )
+        # Verify exact values: downsample groups every 2 samples and takes the
+        # mean, per column: [0,1]->0.5, [2,3]->2.5, ...
+        assert dm_down["x"].to_list() == [0.5, 2.5, 4.5, 6.5, 8.5]
+        assert dm_down["y"].to_list() == [10.5, 12.5, 14.5, 16.5, 18.5]
 
     def test_downsample_polars_native_correctness(self):
         """
         Verify Polars-native downsample() produces correct results.
 
         Tests:
-        1. Multiple columns handled correctly
-        2. Different downsample ratios work
-        3. Median aggregation method works
-        4. Edge case: non-integer n_samples
+        1. Different downsample ratios work
+        2. Median aggregation method works
+        3. Edge case: non-integer n_samples
         """
-        # Test 1: Multiple columns
-        dm = DesignMatrix(
-            {"x": list(range(10)), "y": list(range(10, 20))}, sampling_freq=1.0
-        )
-        dm_down = dm.downsample(target=0.5)
-        assert dm_down["x"].to_list() == [0.5, 2.5, 4.5, 6.5, 8.5]
-        assert dm_down["y"].to_list() == [10.5, 12.5, 14.5, 16.5, 18.5]
-
-        # Test 2: Different ratio (1 Hz → 0.25 Hz, groups of 4)
+        # Test 1: Different ratio (1 Hz → 0.25 Hz, groups of 4)
         dm2 = DesignMatrix({"b": list(range(100))}, sampling_freq=1.0)
         dm2_down = dm2.downsample(target=0.25)
         assert dm2_down.shape == (25, 1)
         assert dm2_down["b"].to_list()[:5] == [1.5, 5.5, 9.5, 13.5, 17.5]
 
-        # Test 3: Median method
+        # Test 2: Median method
         dm3 = DesignMatrix({"a": list(range(10))}, sampling_freq=1.0)
         dm3_median = dm3.downsample(target=0.5, method="median")
         assert dm3_median["a"].to_list() == [0.5, 2.5, 4.5, 6.5, 8.5]
 
-        # Test 4: Non-integer n_samples (e.g., 10 samples, 1.0 Hz → 0.3 Hz)
+        # Test 3: Non-integer n_samples (e.g., 10 samples, 1.0 Hz → 0.3 Hz)
         # n_samples = 1.0 / 0.3 ≈ 3.33, should still work
         dm4 = DesignMatrix({"c": list(range(10))}, sampling_freq=1.0)
         dm4_down = dm4.downsample(target=0.3)
         assert dm4_down.sampling_freq == 0.3
         assert dm4_down.shape[0] < dm4.shape[0]
-
-    def test_upsample_increases_sampling_rate(self):
-        """
-        .upsample() should increase temporal resolution.
-
-        Expected behavior:
-        - More rows in output
-        - sampling_freq updated to target
-        - Data appropriately interpolated
-
-        Use case: Match design matrix to faster TR acquisition
-        """
-        # Create 10 samples at 1 Hz
-        dm = DesignMatrix({"a": list(range(10))}, sampling_freq=1.0)
-
-        # Upsample to 2 Hz (faster sampling = more samples)
-        dm_up = dm.upsample(target=2.0)
-
-        assert dm_up.shape[0] > dm.shape[0], "Should have more rows"
-        assert dm_up.sampling_freq == 2.0, "Sampling freq should be updated"
 
     def test_upsample_linear_interpolation_correctness(self):
         """

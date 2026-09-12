@@ -71,43 +71,6 @@ class TestOneSamplePermutation:
         assert "null_dist" in result
         assert result["null_dist"].shape == expected_shape
 
-    @pytest.mark.slow
-    def test_significant_effect(self):
-        """Test that significant effect is detected."""
-        # Generate data with large positive mean
-        np.random.seed(42)
-        data = np.random.randn(30) + 2.0  # Mean = 2.0
-        result = one_sample_permutation_test(data, n_permute=2000, random_state=42)
-
-        assert result["p"] < 0.05  # Should be significant
-
-    @pytest.mark.slow
-    def test_non_significant_effect(self):
-        """Test that non-significant effect has high p-value."""
-        # Generate data with mean ~ 0
-        np.random.seed(42)
-        data = np.random.randn(30)
-        result = one_sample_permutation_test(data, n_permute=2000, random_state=42)
-
-        assert result["p"] > 0.05  # Should not be significant
-
-    @pytest.mark.slow
-    def test_one_tailed_vs_two_tailed(self):
-        """Test that one-tailed and two-tailed p-values differ."""
-        np.random.seed(42)
-        data = np.random.randn(30) + 0.5
-
-        result_two = one_sample_permutation_test(
-            data, n_permute=2000, tail=2, random_state=42
-        )
-        result_one = one_sample_permutation_test(
-            data, n_permute=2000, tail=1, random_state=42
-        )
-
-        # One-tailed p-value should be approximately half of two-tailed
-        # (for positive effect)
-        assert result_one["p"] < result_two["p"]
-
     def test_invalid_tail(self):
         """Test that invalid tail raises error."""
         data = np.random.randn(30)

@@ -198,10 +198,10 @@ The tests below were reviewed at `9ead0ce4` under
 
 | Contract area | Existing evidence | Gap |
 | --- | --- | --- |
-| Logical/storage shapes | core `test_shape_property`, `test_directed_flat_stack_not_collapsed` | Invalid lengths, one-node, empty and singleton axes |
+| Logical/storage shapes | contract `test_owned_construction_copy_selection_and_directed_export`, core `test_directed_flat_stack_not_collapsed` | Invalid lengths, one-node, empty and singleton axes |
 | Selection | core `test_indexing`, spatial `test_dropped_when_getitem_collapses_to_single` | Stable rank, single indexing, two-node edge axis, labels and empty selections; replace obsolete spatial-state tests |
 | Ownership | core `test_copy` compares values | Input/output aliasing and mutable metadata graph ownership |
-| Labels/Y/append | core `test_Y_is_polars`, `test_list_of_adjacency_preserves_y_and_labels`, `test_append` | Label grammar, Y row validation, right-empty identity, type checks |
+| Labels/Y/append | contract `test_labels_are_structural_and_y_rows_are_validated`, `test_append_compatibility_labels_and_y_union`, core `test_list_of_adjacency_preserves_y_and_labels` | Label grammar, Y row validation, right-empty identity, type checks |
 | Reductions/transforms | core mean/std/median/sum/distance tests; stats threshold/Fisher tests | Metadata and singleton/directed coverage |
 | Regression | modeling `test_regression` covers coefficients and intercept-only maps | Multiple-predictor axes, reconstructible results, df type, metadata |
 | Inference | stats t-test/tail tests; modeling bootstrap reproducibility/tail tests | Shape policy and coordination with separate inference contracts |
