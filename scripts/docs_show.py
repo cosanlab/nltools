@@ -47,8 +47,8 @@ Every later cell on the page is ``python exec="on" session="<page-slug>"``, with
 the cell should run without appearing at all. The module must be importable when
 zensical builds (the docs tasks put ``scripts/`` on ``PYTHONPATH``); when that
 import fails, markdown-exec falls back to its own formatter and the pages lose
-their outputs and their gate, which is what ``scripts/check_tutorial_pages.py``
-catches after the build.
+their outputs; a page with no output blocks after a build means the formatter
+did not load.
 
 Which notebook is being rendered, and how far into it, are module state, so the
 design assumes zensical renders one page at a time in one process — as it does

@@ -65,7 +65,7 @@ The `uv run poe ok` gate includes the API checks required after changing a publi
 
 The package version lives only in `pyproject.toml`.
 
-The site is a home page, the tutorials, one API reference page per user-facing namespace, the migration guide, contributing and the changelog. Pages under `docs/api/` are mkdocstrings stubs whose `members:` lists mirror the table above; `scripts/check_api_pages.py` (inside `uv run poe lint-api`) fails when a designated member has no page or two, or a directive names something that does not exist. Design notes and specifications under `docs/development/` are maintainer documents, not part of the site.
+The site is a home page, the tutorials, one API reference page per user-facing namespace, the migration guide, contributing and the changelog. Pages under `docs/api/` are mkdocstrings stubs whose `members:` lists mirror the table above; the strict docs build is the only check on them. Design notes and specifications under `docs/development/` are maintainer documents, not part of the site.
 
 Marked `AUTOGEN` blocks are generated and committed. Change their source, then run the generator. Never edit generated output directly.
 
@@ -89,6 +89,8 @@ Update the corresponding document when an invariant or behavior changes.
 
 ## Workflow and gates
 
+Tests cover what nltools itself does: the contract of each user-facing method (shapes, keyword semantics, errors it raises, return conventions), the invariants of the data classes, and the wiring between them. They do not re-derive results that sklearn, nilearn, scipy or Himalaya already guarantee; when nltools adds logic on top (masking, orientation, aggregation, index bookkeeping), one test pins that addition against a hand-computable case. They do not check documentation structure, page presence, export lists or docstring formatting; one designation test guards the user-facing surface. Prefer one test per behaviour over parametrised sweeps, and delete a test when the behaviour it guarded is removed.
+
 Use red-green TDD for behavioral changes:
 
 1. Write or identify a failing test.
@@ -101,7 +103,7 @@ Use red-green TDD for behavioral changes:
 1. Ruff lint
 2. Ruff format check
 3. ty type checking
-4. Public API and Semgrep checks
+4. Public API checks: the vocabulary manifest, keyword-only markers, Semgrep rules, vocabulary table drift
 5. The default fast test suite
 
 Use `uv run poe` to find targeted test tasks during development. The `lint` task remains available when code needs automatic lint and formatting fixes.

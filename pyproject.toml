@@ -178,8 +178,8 @@ help = "Fix, format, and type-check (ruff check --fix -> ruff format -> ty check
 shell = """ruff check nltools --fix && ruff format nltools && ty check nltools"""
 
 [tool.poe.tasks.lint-api]
-help = "Enforce public API conventions (vocabulary manifest checker + semgrep rules + keyword-only `*` marker check + docs vocab drift check + docs/api coverage check)"
-shell = """python scripts/check_api_vocabulary.py && semgrep scan --config .semgrep/rules.yml --error --metrics off nltools/ && python scripts/check_kwonly.py && python scripts/build_api_vocabulary.py --check && python scripts/check_api_pages.py && python scripts/check_docstrings.py"""
+help = "Enforce public API conventions (vocabulary manifest checker + semgrep rules + keyword-only `*` marker check + docs vocab drift check)"
+shell = """python scripts/check_api_vocabulary.py && semgrep scan --config .semgrep/rules.yml --error --metrics off nltools/ && python scripts/check_kwonly.py && python scripts/build_api_vocabulary.py --check"""
 
 [tool.poe.tasks.test]
 help = "Run default fast test suite (parallel)"
@@ -279,7 +279,6 @@ set -eu
 export PYTHONPATH="$PWD/scripts${PYTHONPATH:+:$PYTHONPATH}"
 export DOCS_EXEC=all
 zensical build --strict -c
-python scripts/check_tutorial_pages.py
 """ },
 ]
 

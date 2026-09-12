@@ -7,7 +7,6 @@ subprocess is never invoked, so these run without marimo.
 """
 
 import importlib.util
-import tomllib
 from pathlib import Path
 
 import pytest
@@ -228,27 +227,3 @@ class TestAdmonitions:
     def test_prose_is_left_alone(self, m2z):
         text = "Some prose.\n\nMore prose.\n"
         assert m2z.convert_admonitions(text) == text
-
-
-def test_generated_pages_are_the_nav_entries():
-    """Guide links and the nav point at `tutorials/<group>/<stem>.md`."""
-    nav = tomllib.loads((_REPO_ROOT / "zensical.toml").read_text())["project"]["nav"]
-    tutorials = next(entry["Tutorials"] for entry in nav if "Tutorials" in entry)
-    pages = {
-        page
-        for group in tutorials
-        for pages in group.values()
-        if isinstance(pages, list)
-        for page in pages
-    }
-    expected = {
-        f"tutorials/{path.parent.name}/{path.stem}.md"
-        for pattern in [
-            "docs/tutorials/basics/[0-9]*.py",
-            "docs/tutorials/data-operations/[0-9]*.py",
-            "docs/tutorials/analysis/[0-9]*.py",
-            "docs/tutorials/workflows/[0-9]*.py",
-        ]
-        for path in _REPO_ROOT.glob(pattern)
-    }
-    assert pages == expected
