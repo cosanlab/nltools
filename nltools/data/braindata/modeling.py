@@ -428,6 +428,7 @@ def ttest(
     return_null=False,
     n_jobs=-1,
     random_state=None,
+    progress_bar=False,
 ):
     """Run a one-sample voxelwise t-test across images (axis 0).
 
@@ -450,6 +451,7 @@ def ttest(
             effect on the parametric path, which computes no null. Default False.
         n_jobs (int): Number of parallel jobs. Default -1 (all cores).
         random_state (int | None): Random seed for reproducibility.
+        progress_bar (bool): If True, show a progress bar. Default False.
 
     Returns:
         dict: `"mean"`, `"t"`, `"z"` and `"p"` as independent `BrainData` images
@@ -496,6 +498,7 @@ def ttest(
         return_null=return_null,
         n_jobs=n_jobs,
         random_state=random_state,
+        progress_bar=progress_bar,
     )
     results = {
         key: _result_from_array(bd, stats[key], rows="clear")

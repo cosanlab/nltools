@@ -83,7 +83,7 @@ public signature against in CI. The table below is rendered from it:
 <!-- AUTOGEN:api-vocabulary:index-table — generated from docs/_data/api-vocabulary.yml by scripts/build_api_vocabulary.py; run `uv run poe docs-generate` to update, do not edit by hand -->
 | Concept | Canonical kwarg |
 |---|---|
-| Algorithm / variant choice | `method` |
+| Algorithm / variant choice | `method` — on `BrainData.standardize` and `DesignMatrix.standardize` it is one closed set: `*, method: str = 'center'` (<code>'center' &#124; 'zscore'</code>) |
 | Decoding estimator (MVPA) | <code>estimator: str &#124; BaseEstimator = 'linear_svc'</code> on `BrainData.predict` — a built-in shortcut name or any sklearn estimator / `Pipeline`. It names an sklearn object, so it is distinct from `method=`, which selects an algorithm variant |
 | Spatial scale | `spatial_scale` (<code>'whole_brain' &#124; 'roi' &#124; 'searchlight'</code>) |
 | Distance / similarity metric | `metric` |

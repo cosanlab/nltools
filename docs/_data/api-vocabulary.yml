@@ -37,7 +37,7 @@ stats:
 vocabulary:
   - concept: "Algorithm / variant choice"
     kwarg: "method"
-    index_md: "`method`"
+    index_md: "`method` — on `BrainData.standardize` and `DesignMatrix.standardize` it is one closed set: `*, method: str = 'center'` (`'center' | 'zscore'`)"
   - concept: "Decoding estimator (MVPA)"
     kwarg: "estimator"
     index_md: "`estimator: str | BaseEstimator = 'linear_svc'` on `BrainData.predict` — a built-in shortcut name or any sklearn estimator / `Pipeline`. It names an sklearn object, so it is distinct from `method=`, which selects an algorithm variant"

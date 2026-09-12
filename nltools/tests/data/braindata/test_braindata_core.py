@@ -20,6 +20,11 @@ class TestBrainDataCore:
         assert isinstance(out, BrainData)
         np.testing.assert_allclose(out.data, minimal_brain_data.data.mean(axis=0))
 
+    def test_repr_with_unnamed_in_memory_mask(self, minimal_brain_data):
+        """#447: an in-memory mask has no filename, so the repr reads `mask=None`."""
+        assert minimal_brain_data.mask.get_filename() is None
+        assert "mask=None" in repr(minimal_brain_data)
+
     def test_equality_compares_in_memory_mask_affines(self):
         import nibabel as nib
 

@@ -274,7 +274,7 @@ class Adjacency:
         return deepcopy(self)
 
     def distance(  # nosemgrep: kwargs-internal-forwarding  # forwards to sklearn.metrics.pairwise_distances
-        self, metric="correlation", include_diag=False, **kwargs
+        self, metric="correlation", *, include_diag=False, **kwargs
     ):
         """Calculate distance between images within an Adjacency() instance.
 

@@ -4,6 +4,7 @@ indexing, arithmetic, copy, squareform, append, aggregation, distance."""
 import numpy as np
 import polars as pl
 import pytest
+from scipy.spatial.distance import correlation
 from scipy.stats import pearsonr
 
 from nltools.data import Adjacency
@@ -133,6 +134,23 @@ class TestAdjacencyCore:
         """Test distance matrix computation."""
         assert isinstance(sim_adjacency_multiple.distance(), Adjacency)
         assert sim_adjacency_multiple.distance().n_nodes == len(sim_adjacency_multiple)
+
+    def test_distance_include_diag_keeps_main_diagonal(self):
+        """#384: `include_diag=True` compares upper triangles that carry the diagonal.
+
+        Off the diagonal the two matrices are perfectly correlated; only the
+        stored zero diagonal separates them.
+        """
+        first = np.array([[0.0, 1, 2], [1, 0, 3], [2, 3, 0]])
+        second = np.array([[0.0, 4, 5], [4, 0, 6], [5, 6, 0]])
+        stack = Adjacency([first, second])
+
+        expected = correlation([0.0, 1, 2, 0, 3, 0], [0.0, 4, 5, 0, 6, 0])
+        with_diag = stack.distance(metric="correlation", include_diag=True)
+        without_diag = stack.distance(metric="correlation")
+
+        assert with_diag.squareform()[0, 1] == pytest.approx(expected)
+        assert without_diag.squareform()[0, 1] == pytest.approx(0.0, abs=1e-12)
 
     def test_similarity_conversion(self, sim_adjacency_single):
         """Test conversion between distance and similarity."""

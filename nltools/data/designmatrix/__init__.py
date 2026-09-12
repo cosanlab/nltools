@@ -841,22 +841,26 @@ class DesignMatrix:
         return copy_with(self, combined_df, operation="replace", replaced=column_names)
 
     def standardize(
-        self, method: str = "zscore", columns: list[str] | None = None
+        self, *, method: str = "center", columns: list[str] | None = None
     ) -> DesignMatrix:
-        """Standardize columns using the specified method.
+        """Standardize columns by centering them, optionally scaling to unit variance.
 
         Args:
-            method (str): ``'zscore'`` (mean 0, std 1) or ``'center'`` (mean 0
-                only). Default: ``'zscore'``.
+            method (str): ``'center'`` subtracts the mean (default);
+                ``'zscore'`` subtracts the mean and divides by the standard
+                deviation.
             columns (list[str] | None): Columns to standardize. If None,
                 standardize all non-confound columns.
 
         Returns:
             DesignMatrix: New DesignMatrix with standardized columns.
+
+        Raises:
+            ValueError: If `method` is neither ``'center'`` nor ``'zscore'``.
         """
         from .transforms import standardize
 
-        return standardize(self, columns, method)
+        return standardize(self, method=method, columns=columns)
 
     def sum(self, axis: int = 0) -> pl.Series:
         """Compute the sum along an axis.
@@ -1009,17 +1013,3 @@ class DesignMatrix:
         from .io import write
 
         return write(self, file_name, sep)
-
-    def zscore(self, columns: list[str] | None = None) -> DesignMatrix:
-        """Z-score standardize columns to mean zero and unit variance.
-
-        Args:
-            columns (list of str, optional): Columns to standardize. If None,
-                standardize all non-confound columns.
-
-        Returns:
-            DesignMatrix: New DesignMatrix with standardized columns
-        """
-        from .transforms import zscore
-
-        return zscore(self, columns)

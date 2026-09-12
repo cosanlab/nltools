@@ -39,6 +39,7 @@ Version 0.6.0 is a **breaking release** that refactors nltools to better leverag
 | **Legacy (≤ 0.5.1 deepdish/PyTables) HDF5 files** | `BrainData(path)` / `Adjacency(path)` read them directly | No longer readable — the file raises `ValueError` | **Removed** — export to NIfTI or CSV under 0.5.1 first |
 | **`Adjacency.similarity` with NaN** | NaN flowed into the matrix permutation and the default `method='2d'` returned a NaN correlation | Raises `ValueError` pointing at `method='1d'`, which masks NaN pairwise | **Changed** |
 | **BrainData.plot thresholds** | `thr_upper=`, `thr_lower=`, `kind=` | `upper=`, `lower=`, `method=` | **Renamed** |
+| **Design matrix standardization** | `Design_Matrix.zscore(columns=…)` | `DesignMatrix.standardize(method='zscore', columns=…)` — keyword-only, the default `method='center'` centers without rescaling, and the no-argument form standardizes only non-confound columns where `zscore()` standardized every column including the polynomial and intercept terms | **Renamed** |
 | **`DesignMatrix.convolve()` columns** | 1-D kernel: name preserved (`stim` → `stim`); 2-D kernel: `stim_c0`, `stim_c1` | Always suffixed `<col>_c{i}`; source column dropped (`stim` → `stim_c0`) | **Renamed (consistent)** |
 | **Generated column names** | `poly_0`, `cosine_1`, `global_spike1`, `0_poly_0` | `.nl_poly_0`, `.nl_cosine_1`, `.nl_global_spike1`, `.nl_r0_poly_0` — the reserved `.nl_` namespace | **Renamed** |
 | **Plotting functions** | `surface_plot`, `scatterplot`, `roc_plot`, `heatmap`, … | `plot_surf`, `plot_scatter`, `plot_roc`, `plot_designmatrix`, … | **Renamed** |
@@ -716,7 +717,7 @@ dm = DesignMatrix(pl.read_csv('/path/to/file.csv'), sampling_freq=0.5)
 
 **What's the same:**
 - `.shape` and `.columns` work identically; use `.is_empty` to test emptiness
-- `.fillna()`, `.drop()`, `.zscore()` methods work identically
+- `.fillna()` and `.drop()` methods work identically
 - `.convolve()`, `.upsample()`, `.downsample()` retain their nltools interfaces
 - `.vif()`, `.clean()` methods work identically
 

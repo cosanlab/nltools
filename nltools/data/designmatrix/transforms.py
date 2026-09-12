@@ -1,8 +1,8 @@
 """Standardize and resample a DesignMatrix.
 
-`zscore` and `standardize` normalize columns; `downsample` and `upsample`
-change the temporal resolution. Each returns a new `DesignMatrix` with
-metadata preserved (and `sampling_freq` updated when resampling).
+`standardize` normalizes columns; `downsample` and `upsample` change the temporal
+resolution. Each returns a new `DesignMatrix` with metadata preserved (and
+`sampling_freq` updated when resampling).
 """
 
 from __future__ import annotations
@@ -18,84 +18,47 @@ if TYPE_CHECKING:
     from nltools.data.designmatrix import DesignMatrix
 
 
-def zscore(dm: DesignMatrix, columns: list[str] | None = None) -> DesignMatrix:
-    """Z-score standardize columns to mean zero and unit variance.
-
-    Args:
-        dm (DesignMatrix): DesignMatrix instance to transform.
-        columns (list[str] | None): Columns to standardize. If None,
-            standardize all non-confound columns.
-
-    Returns:
-        DesignMatrix: New DesignMatrix with standardized columns.
-    """
-    # Determine which columns to z-score
-    if columns is None:
-        # Default: all columns except polynomials
-        columns_to_zscore = get_data_columns(dm, exclude_confounds=True)
-    else:
-        columns_to_zscore = columns
-
-    # Build Polars expressions for z-scoring
-    # For each column: (col - mean) / std
-    zscore_exprs = [
-        ((pl.col(col) - pl.col(col).mean()) / pl.col(col).std()).alias(col)
-        for col in columns_to_zscore
-    ]
-
-    # Use .with_columns() to replace only the zscored columns
-    # (automatically preserves untouched columns - idiomatic Polars pattern)
-    zscored_df = dm.data.with_columns(zscore_exprs)
-
-    return copy_with(dm, zscored_df)
-
-
 def standardize(
     dm: DesignMatrix,
+    *,
+    method: str = "center",
     columns: list[str] | None = None,
-    method: str = "zscore",
 ) -> DesignMatrix:
-    """Standardize columns using the specified method.
-
-    Provides the same normalization API as `BrainData`.
+    """Standardize columns by centering them, optionally scaling to unit variance.
 
     Args:
         dm (DesignMatrix): DesignMatrix instance to transform.
+        method (str): ``'center'`` subtracts the mean (default); ``'zscore'``
+            subtracts the mean and divides by the standard deviation.
         columns (list[str] | None): Columns to standardize. If None,
             standardize all non-confound columns.
-        method (str): ``'zscore'`` for z-scoring (mean 0, std 1) or
-            ``'center'`` for mean-centering only. Default: ``'zscore'``.
 
     Returns:
         DesignMatrix: New DesignMatrix with standardized columns.
 
     Raises:
-        ValueError: If an invalid method is specified.
+        ValueError: If `method` is neither ``'center'`` nor ``'zscore'``.
 
     Examples:
         ```python
         dm = DesignMatrix(np.random.randn(100, 3))
-        dm_z = standardize(dm, method="zscore")  # z-score all columns
-        dm_c = standardize(dm, method="center")  # center only
+        dm_c = standardize(dm)  # center every non-confound column
+        dm_z = standardize(dm, method="zscore")  # center and scale
         ```
     """
-    if method == "zscore":
-        return zscore(dm, columns=columns)
-    if method == "center":
-        # Determine which columns to center
-        if columns is None:
-            columns_to_center = get_data_columns(dm, exclude_confounds=True)
-        else:
-            columns_to_center = columns
+    if method not in ("center", "zscore"):
+        raise ValueError(f"method must be 'center' or 'zscore', got {method!r}")
 
-        # Build Polars expressions for centering: (col - mean)
-        center_exprs = [
-            (pl.col(col) - pl.col(col).mean()).alias(col) for col in columns_to_center
-        ]
+    if columns is None:
+        columns = get_data_columns(dm, exclude_confounds=True)
 
-        centered_df = dm.data.with_columns(center_exprs)
-        return copy_with(dm, centered_df)
-    raise ValueError(f"Invalid method '{method}'. Must be 'zscore' or 'center'.")
+    def standardized(col: str) -> pl.Expr:
+        expr = pl.col(col) - pl.col(col).mean()
+        if method == "zscore":
+            expr = expr / pl.col(col).std()
+        return expr.alias(col)
+
+    return copy_with(dm, dm.data.with_columns(standardized(col) for col in columns))
 
 
 def downsample(dm: DesignMatrix, target: float, method: str = "mean") -> DesignMatrix:

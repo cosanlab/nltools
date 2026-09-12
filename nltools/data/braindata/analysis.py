@@ -811,27 +811,31 @@ def filter_data(  # nosemgrep: kwargs-internal-forwarding  # forwards to nilearn
     )
 
 
-def standardize(bd, *, axis=0, method="center"):
-    """Standardize BrainData() instance.
+def standardize(bd, *, method="center", axis=0):
+    """Standardize data by centering it, optionally scaling to unit variance.
 
     Computed in float64 and cast back to the input dtype, so raw float32 BOLD
     (large offsets) stays exact. Constant voxels/observations z-score to 0.
 
     Args:
         bd (BrainData): Data to standardize.
+        method (str): ``'center'`` subtracts the mean (default); ``'zscore'``
+            subtracts the mean and divides by the standard deviation.
         axis (int): ``0`` to standardize each voxel across observations
             (default), ``1`` to standardize each observation across voxels.
-        method (str): ``'center'`` (default) or ``'zscore'``.
 
     Returns:
         BrainData: Standardized copy of ``bd``.
+
+    Raises:
+        ValueError: If `method` is neither ``'center'`` nor ``'zscore'``.
     """
+    if method not in ("center", "zscore"):
+        raise ValueError(f"method must be 'center' or 'zscore', got {method!r}")
     if axis == 1 and len(bd.shape) == 1:
         raise IndexError(
             "BrainData is only 3d but standardization was requested over observations"
         )
-    if method not in ("center", "zscore"):
-        raise ValueError('method must be ["center","zscore"')
 
     data = np.asarray(bd.data, dtype=np.float64)
     centered = data - data.mean(axis=axis, keepdims=True)

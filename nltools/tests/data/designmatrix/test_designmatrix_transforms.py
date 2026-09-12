@@ -136,64 +136,39 @@ class TestDesignMatrixStatisticalOperations:
     Test statistical transformation methods.
 
     Behavioral contract:
-    - zscore() standardizes to mean=0, std=1
+    - standardize() centers, or z-scores with method='zscore'
     - downsample() reduces temporal resolution
     - upsample() increases temporal resolution
     """
 
-    def test_zscore_standardizes_single_column(self):
-        """
-        .zscore() on single column should produce mean=0, std=1.
+    def test_standardize_centers_by_default(self):
+        """`.standardize()` centers without rescaling: mean 0, spread unchanged."""
+        dm = DesignMatrix({"a": [1.0, 2.0, 3.0, 4.0, 5.0]}, sampling_freq=1)
+        dm_c = dm.standardize()
 
-        Expected behavior:
-        - Specified column has mean ≈ 0, std ≈ 1
-        - Other columns unchanged
-        - Returns new DesignMatrix
+        assert dm_c["a"].mean() == pytest.approx(0.0, abs=1e-10)
+        assert dm_c["a"].std() == pytest.approx(dm["a"].std(), abs=1e-10)
 
-        Use case: Standardize predictors for regularization
-        """
+    def test_standardize_zscore_standardizes_named_columns(self):
+        """`method='zscore'` with `columns=` rescales only the named columns."""
         dm = DesignMatrix(
             {"a": [1, 2, 3, 4, 5], "b": [10, 20, 30, 40, 50]}, sampling_freq=1
         )
-        dm_z = dm.zscore(columns=["a"])
+        dm_z = dm.standardize(method="zscore", columns=["a"])
 
         assert dm_z["a"].mean() == pytest.approx(0.0, abs=1e-10), "Mean should be 0"
         assert dm_z["a"].std() == pytest.approx(1.0, abs=1e-10), "Std should be 1"
-        assert dm_z["b"].to_list() == dm["b"].to_list(), "Unspecified columns unchanged"
+        assert dm_z["b"].to_list() == dm["b"].to_list(), "Unnamed columns unchanged"
 
-    def test_zscore_all_columns_by_default(self):
-        """
-        .zscore() without arguments should standardize all columns.
-
-        Expected behavior:
-        - All columns standardized
-        - Each has mean=0, std=1
-        """
-        dm = DesignMatrix({"a": [1, 2, 3, 4], "b": [10, 20, 30, 40]}, sampling_freq=1)
-        dm_z = dm.zscore()
-
-        assert dm_z["a"].mean() == pytest.approx(0.0, abs=1e-10)
-        assert dm_z["a"].std() == pytest.approx(1.0, abs=1e-10)
-        assert dm_z["b"].mean() == pytest.approx(0.0, abs=1e-10)
-        assert dm_z["b"].std() == pytest.approx(1.0, abs=1e-10)
-
-    def test_zscore_excludes_polynomial_columns(self):
-        """
-        .zscore() should NOT standardize polynomial columns by default.
-
-        Expected behavior:
-        - Columns in .confounds list are skipped
-        - Only non-confound columns standardized
-
-        Rationale: Confounds (intercept, trends, motion, …) should not be standardized
-        """
+    def test_standardize_excludes_confound_columns(self):
+        """Confounds (intercept, trends, motion, ...) are never standardized."""
         dm = DesignMatrix(
             {"stim": [1, 2, 3, 4], "poly_0": [1, 1, 1, 1]},
             sampling_freq=1,
             confounds=["poly_0"],
         )
 
-        dm_z = dm.zscore()
+        dm_z = dm.standardize(method="zscore")
 
         assert dm_z["stim"].mean() == pytest.approx(0.0, abs=1e-10), (
             "Stim should be standardized"
@@ -201,6 +176,13 @@ class TestDesignMatrixStatisticalOperations:
         assert dm_z["poly_0"].to_list() == [1, 1, 1, 1], (
             "Polynomial should be unchanged"
         )
+
+    def test_standardize_rejects_unknown_method(self):
+        """An unsupported `method` raises `ValueError` naming both choices."""
+        dm = DesignMatrix({"a": [1.0, 2.0, 3.0]}, sampling_freq=1)
+
+        with pytest.raises(ValueError, match="'center'.*'zscore'"):
+            dm.standardize(method="rescale")
 
     def test_downsample_reduces_sampling_rate(self):
         """

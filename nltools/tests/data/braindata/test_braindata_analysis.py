@@ -185,14 +185,38 @@ class TestBrainDataAnalysis:
         detrend = minimal_brain_data.detrend()
         assert detrend.shape == minimal_brain_data.shape
 
+    def test_scale_divides_by_voxel_mean_or_grand_mean(self, minimal_brain_data):
+        """#285: `axis=0` divides by each voxel's own mean, `axis=None` by the grand mean.
+
+        Voxel j holds the constant value j + 1, so its temporal mean is j + 1 and
+        the grand mean is 3.
+        """
+        bd = minimal_brain_data.copy()
+        bd.data = np.tile(np.arange(1.0, 6.0), (50, 1))
+
+        np.testing.assert_allclose(bd.scale(100.0, axis=0).data, 100.0)
+        np.testing.assert_allclose(
+            bd.scale(100.0).data, np.tile(np.arange(1.0, 6.0) / 3 * 100, (50, 1))
+        )
+
     def test_standardize(self, minimal_brain_data):
         """Test standardization with different methods."""
+        voxel_std = minimal_brain_data.data.std(axis=0)
+
         s = minimal_brain_data.standardize()
         assert s.shape == minimal_brain_data.shape
         assert np.isclose(np.sum(s.mean().data), 0, atol=0.5)
+        np.testing.assert_allclose(s.data.std(axis=0), voxel_std)
+
         s = minimal_brain_data.standardize(method="zscore")
         assert s.shape == minimal_brain_data.shape
         assert np.isclose(np.sum(s.mean().data), 0, atol=0.5)
+        np.testing.assert_allclose(s.data.std(axis=0), 1.0)
+
+    def test_standardize_rejects_unknown_method(self, minimal_brain_data):
+        """An unsupported `method` raises `ValueError` naming both choices."""
+        with pytest.raises(ValueError, match="'center'.*'zscore'"):
+            minimal_brain_data.standardize(method="rescale")
 
     def test_standardize_zscore_is_exact_and_silent_on_raw_bold(
         self, minimal_brain_data

@@ -23,6 +23,7 @@ FACADE_METHODS = [
     Adjacency.ttest,
     Adjacency.bootstrap,
     BrainData.bootstrap,
+    BrainData.ttest,
 ]
 
 
@@ -76,7 +77,15 @@ class TestAdjacencyFacades:
         )
 
 
-class TestBrainDataBootstrapFacade:
+class TestBrainDataFacades:
+    def test_ttest_silent_by_default_bar_when_asked(self, minimal_brain_data):
+        kwargs = {"permutation": True, "n_permute": 20, "n_jobs": 1, "random_state": 0}
+        assert _stderr_of(lambda: minimal_brain_data.ttest(**kwargs)) == ""
+        assert (
+            _stderr_of(lambda: minimal_brain_data.ttest(progress_bar=True, **kwargs))
+            != ""
+        )
+
     @pytest.mark.filterwarnings("ignore:n_samples=:UserWarning")
     @pytest.mark.filterwarnings("ignore:Only .* samples available:UserWarning")
     def test_silent_by_default_bar_when_asked(self, minimal_brain_data):

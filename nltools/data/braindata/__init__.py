@@ -497,7 +497,7 @@ class BrainData:
         return align(self, target, method=method, axis=axis)
 
     def append(  # nosemgrep: kwargs-internal-forwarding  # forwards to polars.concat
-        self, data, ignore_attrs=False, **kwargs
+        self, data, *, ignore_attrs=False, **kwargs
     ):
         """Append data to BrainData instance.
 
@@ -1831,23 +1831,27 @@ class BrainData:
 
         return smooth(self, fwhm)
 
-    def standardize(self, *, axis=0, method="center"):
-        """Standardize BrainData() instance.
+    def standardize(self, *, method="center", axis=0):
+        """Standardize data by centering it, optionally scaling to unit variance.
 
         Constant voxels (or observations) z-score to 0 rather than NaN.
 
         Args:
+            method (str): ``'center'`` subtracts the mean (default);
+                ``'zscore'`` subtracts the mean and divides by the standard
+                deviation.
             axis (int): 0 standardizes each voxel across observations (default).
                 1 standardizes each observation across voxels.
-            method (str): 'center' subtracts the mean (default).
-                'zscore' subtracts the mean and divides by standard deviation.
 
         Returns:
             BrainData: Standardized BrainData instance.
+
+        Raises:
+            ValueError: If `method` is neither ``'center'`` nor ``'zscore'``.
         """
         from .analysis import standardize
 
-        return standardize(self, axis=axis, method=method)
+        return standardize(self, method=method, axis=axis)
 
     def std(self, axis=0):
         """Get standard deviation of each voxel or image.
@@ -2004,6 +2008,7 @@ class BrainData:
         return_null=False,
         n_jobs=-1,
         random_state=None,
+        progress_bar: bool = False,
     ):
         """Run a one-sample voxelwise t-test across images (axis 0).
 
@@ -2025,6 +2030,7 @@ class BrainData:
                 Default False.
             n_jobs (int): Number of parallel jobs. Default -1 (all cores).
             random_state (int | None): Random seed for reproducibility.
+            progress_bar (bool): If True, show a progress bar. Default False.
 
         Returns:
             dict: `"mean"`, `"t"`, `"z"` and `"p"` as independent `BrainData`
@@ -2074,6 +2080,7 @@ class BrainData:
             return_null=return_null,
             n_jobs=n_jobs,
             random_state=random_state,
+            progress_bar=progress_bar,
         )
 
     def upload_neurovault(  # nosemgrep: kwargs-internal-forwarding  # forwards to the NeuroVault API via io.upload_neurovault
