@@ -82,6 +82,24 @@ class TestOneSamplePermutation:
         with pytest.raises(ValueError, match="data must be 1D to 2D"):
             one_sample_permutation_test(data)
 
+    def test_single_nan_matches_dropping_that_entry(self):
+        """A NaN observation drops out of the mean and every permuted mean."""
+        data_with_nan = np.array([1.0, 2.0, 3.0, 4.0, 5.0, np.nan])
+        data_dropped = np.array([1.0, 2.0, 3.0, 4.0, 5.0])
+
+        result = one_sample_permutation_test(
+            data_with_nan, n_permute=100, random_state=0
+        )
+        expected = one_sample_permutation_test(
+            data_dropped, n_permute=100, random_state=0
+        )
+
+        assert np.isfinite(result["mean"])
+        assert result["mean"] == pytest.approx(3.0)
+        assert result["mean"] == pytest.approx(expected["mean"])
+        assert np.isfinite(result["p"])
+        assert 0 < result["p"] <= 1
+
 
 class TestOneSamplePermutationStatisticalCorrectness:
     """Test statistical correctness of one-sample permutation tests (not just CPU/GPU consistency)."""

@@ -109,6 +109,25 @@ class TestTwoSamplePermutation:
         with pytest.raises(ValueError, match="must have same number of features"):
             two_sample_permutation_test(data1, data2)
 
+    def test_single_nan_matches_dropping_that_entry(self):
+        """A NaN observation drops out of the mean difference and every permuted mean."""
+        data1_with_nan = np.array([1.0, 2.0, 3.0, np.nan])
+        data1_dropped = np.array([1.0, 2.0, 3.0])
+        data2 = np.array([10.0, 11.0, 12.0, 13.0])
+
+        result = two_sample_permutation_test(
+            data1_with_nan, data2, n_permute=100, random_state=0
+        )
+        expected = two_sample_permutation_test(
+            data1_dropped, data2, n_permute=100, random_state=0
+        )
+
+        assert np.isfinite(result["mean_diff"])
+        assert result["mean_diff"] == pytest.approx(-9.5)
+        assert result["mean_diff"] == pytest.approx(expected["mean_diff"])
+        assert np.isfinite(result["p"])
+        assert 0 < result["p"] <= 1
+
     @pytest.mark.slow
     def test_cpu_parallel_correctness(self):
         """Test CPU parallelization produces correct results."""

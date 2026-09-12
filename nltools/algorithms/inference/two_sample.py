@@ -64,7 +64,7 @@ def _two_sample_permutation_cpu_parallel(
     n_total = n1 + n2
 
     # Compute observed mean difference
-    obs_diff = np.mean(data1, axis=0) - np.mean(data2, axis=0)
+    obs_diff = np.nanmean(data1, axis=0) - np.nanmean(data2, axis=0)
 
     # Concatenate data for permutation
     combined = np.vstack([data1, data2])  # (n_total, n_features)
@@ -79,8 +79,8 @@ def _two_sample_permutation_cpu_parallel(
         group1_indices = indices[:n1]
         group2_indices = indices[n1:]
         # Compute mean difference
-        mean1 = np.mean(combined[group1_indices], axis=0)
-        mean2 = np.mean(combined[group2_indices], axis=0)
+        mean1 = np.nanmean(combined[group1_indices], axis=0)
+        mean2 = np.nanmean(combined[group2_indices], axis=0)
         return mean1 - mean2
 
     # Execute in parallel with progress bar
@@ -137,14 +137,17 @@ def two_sample_permutation_test(
     permutations.
 
     Assumes exchangeability under the null (group assignment is arbitrary):
-    independent samples from similarly shaped distributions.
+    independent samples from similarly shaped distributions. NaN observations
+    are dropped from the observed and every permuted mean (`np.nanmean`),
+    feature by feature.
 
     Args:
         data1 (np.ndarray): Group 1 data, shape `(n_samples1,)` for a single
-            feature or `(n_samples1, n_features)` for voxel-wise data.
+            feature or `(n_samples1, n_features)` for voxel-wise data. May
+            contain NaN observations.
         data2 (np.ndarray): Group 2 data, shape `(n_samples2,)` or
             `(n_samples2, n_features)`; must have the same number of features
-            as `data1`.
+            as `data1`. May contain NaN observations.
         n_permute (int): Number of permutations. Defaults to 5000.
         tail (int | str): `2` or `'two'` (default) for a two-tailed test
             (mean1 != mean2); `1` or `'one'` for a one-tailed test of

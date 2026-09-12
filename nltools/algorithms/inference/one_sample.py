@@ -60,7 +60,7 @@ def _one_sample_permutation_cpu_parallel(
     n_samples, n_features = data.shape
 
     # Compute observed statistic
-    obs_stat = np.mean(data, axis=0)
+    obs_stat = np.nanmean(data, axis=0)
 
     # Pre-generate ALL sign-flips (matches stats.py pattern exactly)
     sign_flips = _generate_sign_flips(n_permute, n_samples, random_state=random_state)
@@ -69,7 +69,7 @@ def _one_sample_permutation_cpu_parallel(
     def _compute_one_perm(signs):
         """Compute statistic for one sign-flip permutation (signs pre-computed)."""
         perm_data = data * signs[:, np.newaxis]
-        return np.mean(perm_data, axis=0)
+        return np.nanmean(perm_data, axis=0)
 
     # Execute in parallel with progress bar
     null_dist = Parallel(n_jobs=n_jobs)(
@@ -123,11 +123,14 @@ def one_sample_permutation_test(
     the same permutations.
 
     Assumes errors are distributed symmetrically around zero. For strongly
-    skewed data, prefer bootstrap resampling.
+    skewed data, prefer bootstrap resampling. NaN observations are dropped
+    from the observed and every permuted mean (`np.nanmean`), feature by
+    feature.
 
     Args:
         data (np.ndarray): Data to test, shape `(n_samples,)` for a single
-            feature or `(n_samples, n_features)` for voxel-wise data.
+            feature or `(n_samples, n_features)` for voxel-wise data. May
+            contain NaN observations.
         n_permute (int): Number of permutations. Defaults to 5000.
         tail (int | str): `2` or `'two'` (default) for a two-tailed test
             (mean != 0); `1` or `'one'` for a one-tailed test of mean > 0
