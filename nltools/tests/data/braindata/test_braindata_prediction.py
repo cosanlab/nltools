@@ -501,6 +501,38 @@ class TestROIDispatch:
         assert result.predictions is None
         assert result.cv_folds is None
 
+    def test_roi_accepts_a_brain_data_atlas(self, minimal_brain_data):
+        """A BrainData atlas resolves the same as the Nifti image it was built from."""
+        from nltools.data import BrainData
+
+        n = minimal_brain_data.shape[0]
+        y = np.array([0] * (n // 2) + [1] * (n - n // 2))
+        atlas_img = self._build_atlas(minimal_brain_data, n_rois=2)
+        atlas_bd = BrainData(atlas_img, mask=minimal_brain_data.mask)
+
+        result_from_img = minimal_brain_data.predict(
+            y=y,
+            spatial_scale="roi",
+            roi_mask=atlas_img,
+            cv=3,
+            estimator="linear_svc",
+            n_jobs=1,
+        )
+        result_from_bd = minimal_brain_data.predict(
+            y=y,
+            spatial_scale="roi",
+            roi_mask=atlas_bd,
+            cv=3,
+            estimator="linear_svc",
+            n_jobs=1,
+        )
+        np.testing.assert_array_equal(
+            result_from_bd.roi_labels, result_from_img.roi_labels
+        )
+        np.testing.assert_allclose(
+            result_from_bd.score_map.data, result_from_img.score_map.data
+        )
+
     def test_roi_does_not_expose_an_estimator_mapping(self, minimal_brain_data):
         """ROI decoding hides its per-parcel models; only the maps come back."""
         n = minimal_brain_data.shape[0]
