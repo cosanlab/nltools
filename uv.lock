@@ -2154,13 +2154,19 @@ dependencies = [
     { name = "himalaya" },
     { name = "huggingface-hub" },
     { name = "joblib" },
+    { name = "matplotlib" },
+    { name = "nibabel" },
     { name = "nilearn" },
     { name = "numpy", version = "2.4.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
     { name = "numpy", version = "2.5.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
+    { name = "pandas" },
     { name = "polars" },
     { name = "pynv" },
     { name = "scikit-learn" },
+    { name = "scipy", version = "1.17.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
+    { name = "scipy", version = "1.18.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
     { name = "seaborn" },
+    { name = "tqdm" },
 ]
 
 [package.optional-dependencies]
@@ -2216,14 +2222,19 @@ requires-dist = [
     { name = "huggingface-hub", specifier = ">=0.30" },
     { name = "ipywidgets", marker = "extra == 'interactive-plots'", specifier = ">=8.1.7" },
     { name = "joblib", specifier = ">=1.5.3" },
+    { name = "matplotlib", specifier = ">=3.8.0" },
     { name = "networkx", marker = "extra == 'graph'", specifier = ">=3.5" },
+    { name = "nibabel", specifier = ">=5.2.0" },
     { name = "nilearn", specifier = ">=0.14" },
     { name = "nltools", extras = ["h5", "graph", "interactive-plots"], marker = "extra == 'all'" },
     { name = "numpy", specifier = ">=2.0.2" },
+    { name = "pandas", specifier = ">=2.3.0" },
     { name = "polars", specifier = ">=1.42.1" },
     { name = "pynv", specifier = ">=0.3" },
     { name = "scikit-learn", specifier = ">=1.8" },
+    { name = "scipy", specifier = ">=1.11.1" },
     { name = "seaborn", specifier = ">=0.13.2" },
+    { name = "tqdm", specifier = ">=4.67.1" },
 ]
 provides-extras = ["h5", "graph", "interactive-plots", "all"]
 

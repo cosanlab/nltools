@@ -17,7 +17,6 @@ from nltools.utils import find_stack_level
 
 try:
     import h5py
-    import hdf5plugin  # noqa: F401  -- registers blosc/zstd/lz4 filters with h5py
     from h5py import File as h5File
 except ImportError as _h5_import_error:
     h5py = None  # type: ignore[assignment]
@@ -26,14 +25,36 @@ except ImportError as _h5_import_error:
 else:
     _H5_IMPORT_ERROR = None
 
+# h5py natively supports these compression values with no extra filter plugin.
+# Anything else (e.g. "blosc", "zstd", "lz4", or a third-party filter ID) is
+# registered with h5py only when hdf5plugin has been imported.
+_H5PY_BUILTIN_COMPRESSION = {None, "gzip", "lzf", "szip"}
+
 
 def _require_h5():
-    """Raise a friendly error if h5py/hdf5plugin aren't installed."""
+    """Raise a friendly error if h5py isn't installed."""
     if _H5_IMPORT_ERROR is not None:
         raise ImportError(
-            "HDF5 I/O requires h5py and hdf5plugin. "
-            "Install with: pip install 'nltools[h5]'"
+            "HDF5 I/O requires h5py. Install with: pip install 'nltools[h5]'"
         ) from _H5_IMPORT_ERROR
+
+
+def _require_plugin_filter(compression):
+    """Import hdf5plugin only when a non-builtin compression filter is requested.
+
+    h5py natively supports `'gzip'`, `'lzf'`, `'szip'`, and no compression.
+    Any other filter (blosc, zstd, lz4, ...) is a third-party filter that
+    hdf5plugin registers with h5py as a side effect of being imported.
+    """
+    if compression in _H5PY_BUILTIN_COMPRESSION:
+        return
+    try:
+        import hdf5plugin  # noqa: F401  -- registers blosc/zstd/lz4 filters with h5py
+    except ImportError as _plugin_import_error:
+        raise ImportError(
+            f"Compression filter {compression!r} requires hdf5plugin. "
+            "Install with: pip install 'nltools[h5]'"
+        ) from _plugin_import_error
 
 
 def is_h5_path(file_name) -> bool:
@@ -109,6 +130,7 @@ def to_h5(obj, file_name, obj_type="brain_data", h5_compression="gzip"):
         h5_compression (str): Compression filter for h5py datasets. Default `'gzip'`.
     """
     _require_h5()
+    _require_plugin_filter(h5_compression)
     if obj_type not in ["brain_data", "adjacency"]:
         raise ValueError("obj_type must be one of 'brain_data' or 'adjacency'")
 

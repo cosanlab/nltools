@@ -1,6 +1,7 @@
 """Tests for nltools.io.h5 — HDF5 serialization utilities."""
 
 import os
+import sys
 import warnings
 from pathlib import Path
 
@@ -52,6 +53,26 @@ class TestToH5BrainData:
     def test_invalid_obj_type_raises(self, sim_brain_data, tmp_path):
         with pytest.raises(ValueError, match="obj_type"):
             to_h5(sim_brain_data, str(tmp_path / "bad.h5"), obj_type="invalid")
+
+
+class TestHdf5PluginLazyImport:
+    """hdf5plugin is only required for a non-builtin (blosc/zstd/lz4) filter."""
+
+    def test_default_filter_write_succeeds_without_hdf5plugin(
+        self, sim_brain_data, tmp_path, monkeypatch
+    ):
+        monkeypatch.setitem(sys.modules, "hdf5plugin", None)
+        path = str(tmp_path / "default.h5")
+        to_h5(sim_brain_data, path, obj_type="brain_data", h5_compression="gzip")
+        assert os.path.exists(path)
+
+    def test_plugin_filter_without_hdf5plugin_raises_named_import_error(
+        self, sim_brain_data, tmp_path, monkeypatch
+    ):
+        monkeypatch.setitem(sys.modules, "hdf5plugin", None)
+        path = str(tmp_path / "blosc.h5")
+        with pytest.raises(ImportError, match=r"nltools\[h5\]"):
+            to_h5(sim_brain_data, path, obj_type="brain_data", h5_compression="blosc")
 
 
 class TestToH5Adjacency:

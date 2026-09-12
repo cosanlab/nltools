@@ -25,21 +25,42 @@ dependencies = [
     "himalaya>=0.4.11,<0.5",
     "huggingface-hub>=0.30",
     "joblib>=1.5.3",
+    # Imported directly for plotting (not only reached through nilearn[plotting]);
+    # >=3.8.0 matches nilearn's own plotting-extra floor, above every matplotlib
+    # API nltools calls (figure/subplots/pyplot basics).
+    "matplotlib>=3.8.0",
+    # Imported directly throughout (BrainData, mask, atlases, simulator, ...);
+    # >=5.2.0 matches nilearn's floor, above every nibabel API nltools calls
+    # (Nifti1Image, load, save, affines, FileHolder).
+    "nibabel>=5.2.0",
     # >=0.14 for the non-deprecated `residuals_`/`predicted_`/`r_square_` GLM accessors.
     "nilearn>=0.14",
     "numpy>=2.0.2",
+    # Imported directly throughout (designmatrix, mask, plotting, ...); >=2.3.0
+    # matches nilearn's floor, above every pandas API nltools calls (DataFrame,
+    # Series, pd.NA, pd.api.types.is_numeric_dtype).
+    "pandas>=2.3.0",
     # >=1.42.1 for `pl.concat(how="horizontal_extend")`.
     "polars>=1.42.1",
     "pynv>=0.3",
     # Imported directly throughout (cross_validation, ridge, MDS, ...); >=1.8 for
     # the current MDS kwargs (metric='precomputed', metric_mds, init).
     "scikit-learn>=1.8",
+    # Imported directly throughout (algorithms, adjacency, roc, ...); >=1.11.1
+    # matches nilearn's floor, above the newest scipy API nltools calls
+    # (stats.binomtest, added in scipy 1.7.0).
+    "scipy>=1.11.1",
     "seaborn>=0.13.2",
+    # Used by maybe_tqdm/make_progress_bar (nltools.utils) on the progress_bar=True
+    # path; version matches the existing dev-group pin.
+    "tqdm>=4.67.1",
 ]
 
 [project.optional-dependencies]
 # h5py is a core dependency (see above); kept listed here so `nltools[h5]`
-# keeps resolving for anyone who already pins it.
+# keeps resolving for anyone who already pins it. hdf5plugin is the real
+# opt-in here: nltools/io/h5.py imports it lazily, only when a caller requests
+# a non-builtin compression filter (blosc/zstd/lz4) via h5_compression.
 h5 = ["h5py>=3.15", "hdf5plugin>=6.0.0"]
 graph = ["networkx>=3.5"]
 interactive_plots = ["ipywidgets>=8.1.7"]
