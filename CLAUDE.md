@@ -11,23 +11,35 @@
   - Start with a complete summary sentence of at most 120 characters.
   - Use `Args:`, `Returns:`, `Raises:`, `Examples:`, and `Note:`
   - Use Markdown code spans for references and fenced Python blocks for examples.
-- Always keep module level exports i.e. `__all__` in `__init__.py` up-to-date
-- User-facing functions, methods, and class names must never use a `_` prefix
+- Every function and class that is not on the user-facing surface has a leading underscore. An unprefixed function or class anywhere in `nltools/` is user-facing by construction, and a test under `nltools/tests/support` enforces it.
+- Module filenames never begin with an underscore.
+- Keep `__all__` in each user-facing namespace exactly equal to its designated members; internal modules have no `__all__`.
 - Use the vendored `.claude/skills/nilearn` skill before writing, reviewing, or debugging nilearn code.
 - Use the vendored marimo skills when editing notebooks under `docs/tutorials/`.
 
 ## Architecture
 
-`nltools` uses a functional core with an imperative shell that separates public API from internal functionality:
+### Two layers
 
-### Public API
+nltools has a functional core wrapped in an imperative shell, and the two serve different readers.
 
-- `nltools.data`: contains the stateful class facades: `BrainData`, `Adjacency`, and `DesignMatrix`. These classes and their methods are the **primary** user-facing surface
-  - Facade methods *delegate* to internal modules and should not contain numerical or domain logic of their own.
-- `nltools.algorithms`: contains statistical functions and models that serve as the **secondary** user-facing surface
-- `nltools.{cross-validation, datasets, mask}`: contain additional helper functions also part of the **secondary** user-facing surface
+**Layer one, for maintainers.** Internal modules hold the implementation as pure functions and frozen dataclasses; the facade classes delegate to them and carry no numerical or domain logic of their own. Internal modules are the only source of implementation. Their functions and classes are underscore-prefixed and documented only in their docstrings.
 
-`docs/_data/api-vocabulary.yml` is the authority for public keyword names, defaults, keyword-only requirements, banned aliases, and documented exceptions. Consult it before adding or changing a public signature. Edit the manifest, then regenerate its outputs. Do not edit rendered vocabulary tables.
+**Layer two, for users.** The facade classes with their methods, plus a short designated list of standalone functions. Users are never expected to call an estimator, a delegate, or a helper directly; a return object (`Predict`, `BootstrapResult`, `ContrastResult`, `BrainSpaceConfig`) is data they read, not something they construct. A public-looking name does not make something user-facing; being listed here does.
+
+Namespace | User-facing members
+--- | ---
+`nltools` | `BrainData`, `Adjacency`, `DesignMatrix`, `Roc`, `Simulator`, `SimulateGrid`, `concatenate`, the four brainspace functions, `__version__`
+`nltools.data` | the six classes and the four result types
+`nltools.algorithms` | the statistical functions inherited from v0.5.1's `stats` module, `compute_searchlight_neighborhoods`, `check_gpu_available`
+`nltools.io` | `events_to_dm`
+`nltools.datasets` | the fetchers, resource and atlas lookups
+`nltools.mask` | the five mask functions
+`nltools.cross_validation` | `KFoldStratified`
+`nltools.plotting` | `component_viewer`
+`nltools.utils` | the two warning classes
+
+Adding to this table is an API decision, documented in the migration guide when a v0.5.1 user can see it. `docs/_data/api-vocabulary.yml` remains the authority for keyword names, defaults, keyword-only requirements, banned aliases, and documented exceptions on every user-facing signature. Consult it before adding or changing a user-facing signature. Edit the manifest, then regenerate its outputs. Do not edit rendered vocabulary tables.
 
 Use explicit signatures for internal nltools calls. `**kwargs` is allowed only when forwarding arguments to a third-party API such as sklearn, nilearn, matplotlib, seaborn, nibabel, or pandas.
 
@@ -43,24 +55,21 @@ Treat public names, signatures, defaults, and semantics as compatibility contrac
 
 The `uv run poe ok` gate includes the API checks required after changing a public signature or docstring.
 
-### Internal Modules
+### Internal modules
 
-- All other modules and sub-modules contain _internal_ functionality that supports the user-facing API
-- These modules should be the **only** source of implementation; logic should not be duplicated in the user-facing API
-- Module filenames must not begin with an underscore, but internal functions and methods may
-- Separate state from business logic without overengineering:
-  - Use frozen dataclasses for immutable state containers
-  - Writing pure functions for business logic
+- Separate state from business logic without overengineering: frozen dataclasses for immutable state, pure functions for business logic.
+- Domain-specific helpers live with their domain (`nltools/data/designmatrix/utils.py`, not `nltools/utils.py`); the shared helper modules hold only general-purpose code.
+- The functional core never imports from a facade package.
 
 ## Documentation
 
 The package version lives only in `pyproject.toml`.
 
-Pages under `docs/api/` are hand-written mkdocstrings stubs: frontmatter, prose, and `::: dotted.path` directives whose `members:` lists decide what each page documents. Add a public object to the page that fits it, and to the `nltools.algorithms` A-Z index when it is an algorithm; `scripts/check_api_pages.py` (inside `uv run poe lint-api`) fails when an export has no home, has two, or a directive names something that does not exist. A new page also needs a `nav` entry in `zensical.toml`.
+The site is a home page, the tutorials, one API reference page per user-facing namespace, the migration guide, contributing and the changelog. Pages under `docs/api/` are mkdocstrings stubs whose `members:` lists mirror the table above; `scripts/check_api_pages.py` (inside `uv run poe lint-api`) fails when a designated member has no page or two, or a directive names something that does not exist. Design notes and specifications under `docs/development/` are maintainer documents, not part of the site.
 
 Marked `AUTOGEN` blocks are generated and committed. Change their source, then run the generator. Never edit generated output directly.
 
-Marimo notebooks under `docs/tutorials/{basics,workflows}/` are tutorial sources. Edit the `.py` notebook; its `.md` sibling is a build artifact, regenerated by `docs-generate` and not committed.
+Marimo notebooks under `docs/tutorials/` are the tutorial sources. Edit the `.py`; the `.md` sibling is generated by `docs-generate` and not committed. `docs-build` executes every notebook and fails on a cell that raises or warns; `docs-serve` replays recorded outputs for notebooks whose cells did not change.
 
 Use `uv run poe docs-generate` after changing the vocabulary manifest or a tutorial `.py` file. Use `uv run poe docs-build` when the change can affect the rendered site or executed tutorials.
 
