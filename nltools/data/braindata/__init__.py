@@ -1235,17 +1235,10 @@ class BrainData:
         vmax=None,
         vmin=None,
         template="fsaverage5",
-        with_curvature=True,
-        curvature_contrast=0.5,
-        curvature_brightness=0.5,
         transparency="auto",
         colorbar=True,
-        colorbar_orientation="horizontal",
         figsize=(12, 6),
         title=None,
-        radius=3.0,
-        interpolation="linear",
-        axes=None,
         save=None,
     ):
         """Plot brain data on cortical flatmap.
@@ -1256,45 +1249,31 @@ class BrainData:
             vmax (float, optional): Maximum value; inferred from displayed data.
             vmin (float, optional): Minimum value; inferred from displayed data.
             template (str): Freesurfer surface resolution. Default: 'fsaverage5'.
-            with_curvature (bool): Show sulcal/gyral pattern. Default: True.
-            curvature_contrast (float): Contrast of curvature overlay. Default: 0.5.
-            curvature_brightness (float): Mean brightness of curvature overlay. Default: 0.5.
             transparency (BrainData, Nifti1Image, str, or "auto"): Binary mask
                 used to render vertices outside the mask as transparent.
                 ``"auto"`` (default) uses the instance's ``.mask``; pass
                 ``None`` to disable masking.
             colorbar (bool): Show colorbar. Default: True.
-            colorbar_orientation (str): 'horizontal' or 'vertical'. Default: 'horizontal'.
             figsize (tuple): Figure size as (width, height). Default: (12, 6).
             title (str, optional): Figure title.
-            radius (float): Sampling radius in mm. Default: 3.0.
-            interpolation (str): Interpolation method. Default: 'linear'.
-            axes (matplotlib.axes.Axes, optional): Existing axes to plot on.
             save (str, optional): File path to save figure.
 
         Returns:
             matplotlib.figure.Figure: The rendered figure.
         """
-        from .plotting import plot_flatmap_brain
+        from nltools.plotting import plot_flatmap
 
-        return plot_flatmap_brain(
+        return plot_flatmap(
             self,
             threshold=threshold,
             cmap=cmap,
             vmax=vmax,
             vmin=vmin,
             template=template,
-            with_curvature=with_curvature,
-            curvature_contrast=curvature_contrast,
-            curvature_brightness=curvature_brightness,
             transparency=transparency,
             colorbar=colorbar,
-            colorbar_orientation=colorbar_orientation,
             figsize=figsize,
             title=title,
-            radius=radius,
-            interpolation=interpolation,
-            axes=axes,
             save=save,
         )
 
@@ -1310,41 +1289,21 @@ class BrainData:
         vmin=None,
         vmax=None,
         transparency="auto",
-        bg_on_data=False,
         colorbar=True,
-        colorbar_orientation="horizontal",
         figsize=(10, 8),
         title=None,
-        radius=3.0,
-        interpolation="linear",
-        zoom=1.2,
-        axes=None,
         save=None,
     ):
         """Render this BrainData on fsaverage surfaces as a tight 2×2 montage.
 
-        Facade over `plot_surf`. See that function's
-        docstring for the full argument reference. Notable defaults:
-        ``surface="pial"``, ``zoom=1.2``, ``transparency="auto"`` (uses
-        this instance's ``.mask``).
+        Facade over `plot_surf`. See that function's docstring for the full
+        argument reference. Notable defaults: ``surface="pial"``,
+        ``transparency="auto"`` (uses this instance's ``.mask``).
 
         Returns:
             matplotlib.figure.Figure: The rendered figure.
         """
         from nltools.plotting import plot_surf
-        from .plotting import _require_standard_space
-
-        _require_standard_space(
-            self,
-            "plot_surf",
-            remedy=(
-                "Surface projection samples vol_to_surf at fsaverage "
-                "(MNI-aligned) coordinates and produces garbage on "
-                "native-space data. Use bd.plot(method='slices', "
-                "bg_img=<your subject anatomical>) instead, or call "
-                "bd.resample() to bring data into standard space first."
-            ),
-        )
 
         return plot_surf(
             self,
@@ -1357,15 +1316,9 @@ class BrainData:
             vmin=vmin,
             vmax=vmax,
             transparency=transparency,
-            bg_on_data=bg_on_data,
             colorbar=colorbar,
-            colorbar_orientation=colorbar_orientation,
             figsize=figsize,
             title=title,
-            radius=radius,
-            interpolation=interpolation,
-            zoom=zoom,
-            axes=axes,
             save=save,
         )
 

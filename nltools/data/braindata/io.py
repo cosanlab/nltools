@@ -6,7 +6,6 @@ NeuroVault. `BrainData` methods delegate here.
 """
 
 import os
-import re
 import shutil
 import tempfile
 import warnings
@@ -14,6 +13,7 @@ import warnings
 import numpy as np
 from pathlib import Path
 
+from nltools.templates.paths import _split_template_name
 from nltools.utils import ResamplingWarning, find_stack_level
 
 
@@ -84,23 +84,19 @@ def initialize_mask(bd, mask):
         # For empty BrainData or when data not yet loaded, use default template
         # Template will be auto-detected during data loading if data is provided
         bd.mask = nib.load(get_brainspace().mask)
-        bd._detected_template = None  # Will be set during data loading if needed
     elif isinstance(mask, (str, Path)):
         mask_str = str(mask)
-        # Check if it's a template name string (format: {res}mm-MNI152-2009{version})
-        if re.match(r"^\d+mm-MNI152-2009[acfsl]+$", mask_str):
-            # Resolve template name to file path
+        # A template name string ({res}mm-MNI152-2009{version}) resolves through
+        # the templates registry; anything else is a plain file path.
+        if _split_template_name(mask_str) is not None:
             from nltools.templates import resolve_template_name
 
             mask_path = resolve_template_name(mask_str, file_type="mask")
             bd.mask = nib.load(mask_path)
         else:
-            # Regular file path
             bd.mask = nib.load(mask_str)
-        bd._detected_template = None  # Explicit mask provided, no auto-detection
     elif isinstance(mask, nib.Nifti1Image):
         bd.mask = mask
-        bd._detected_template = None  # Explicit mask provided, no auto-detection
     else:
         raise TypeError(
             f"mask must be a nibabel instance, file path, template name string, or None. "
@@ -200,10 +196,8 @@ def detect_and_update_mask(bd, data_img):
 
         template_info = match_resolution(
             data_img.affine,
-            prefer_exact=True,
             warn_resample=bd._resample,
         )
-        bd._detected_template = template_info
 
         detected_mask = nib.load(template_info.mask_path)
         current_mask_path = bd.mask.get_filename()
@@ -472,14 +466,11 @@ def load_from_brain_data(bd, brain_data, mask=None):
         # Need to handle resampling if mask differs
         if isinstance(mask, (str, Path)):
             mask_str = str(mask)
-            # Check if it's a template name string
-            if re.match(r"^\d+mm-MNI152-2009[acfsl]+$", mask_str):
-                # Resolve template name to file path
+            if _split_template_name(mask_str) is not None:
                 from nltools.templates import resolve_template_name
 
                 new_mask = nib.load(resolve_template_name(mask_str, file_type="mask"))
             else:
-                # Regular file path
                 new_mask = nib.load(mask_str)
         elif isinstance(mask, nib.Nifti1Image):
             new_mask = mask
@@ -525,9 +516,6 @@ def load_from_brain_data(bd, brain_data, mask=None):
         bd._voxel_resolution = brain_data._voxel_resolution
         bd._space = brain_data._space
 
-    # Copy detected template info if present
-    if hasattr(brain_data, "_detected_template"):
-        bd._detected_template = brain_data._detected_template
     if hasattr(brain_data, "_mask_was_none"):
         bd._mask_was_none = brain_data._mask_was_none
 

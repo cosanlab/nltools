@@ -1963,8 +1963,6 @@ with nltools.with_brainspace(template="nilearn", resolution=2):
 print(nltools.get_brainspace())
 ```
 
-Also: `match_resolution()` now returns a frozen `TemplateMatch` dataclass (attribute access: `.template`, `.resolution`, `.mask_path`, …) rather than a dict. Callers using `result["template"]` need to switch to `result.template`.
-
 **Neurovault download shims** — the deprecated `get_collection_image_metadata` and `download_collection` functions were removed. Use `fetch_neurovault_collection` directly.
 
 **Plotting helper re-exports** — `_plot_matplotlib` and other underscore-prefixed plotting helpers are no longer re-exported from `nltools.plotting` / `nltools`. Import them from their actual module if you really need them (internal use only).

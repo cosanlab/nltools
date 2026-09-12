@@ -394,7 +394,7 @@ def _(mo):
 
 @app.cell
 def _(masked_data):
-    masked_data.plot_surf(zoom=1.3)
+    masked_data.plot_surf()
     return
 
 

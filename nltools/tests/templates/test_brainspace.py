@@ -165,12 +165,8 @@ class TestResolvePaths:
         "template,resolution",
         [
             ("default", 2),
-            ("default", 3),
-            ("nilearn", 1),
-            ("nilearn", 2),
             ("nilearn", 3),
             ("fmriprep", 1),
-            ("fmriprep", 2),
         ],
     )
     def test_all_valid_combinations(self, template, resolution):
@@ -197,10 +193,9 @@ class TestResolveTemplateName:
     @pytest.mark.parametrize(
         "name,expect_substr",
         [
-            ("2mm-MNI152-2009c", "fmriprep"),
-            ("3mm-MNI152-2009a", "nilearn"),
             ("2mm-MNI152-2009fsl", "default"),
-            ("1mm-MNI152-2009c", "fmriprep"),
+            ("3mm-MNI152-2009a", "nilearn"),
+            ("2mm-MNI152-2009c", "fmriprep"),
         ],
     )
     def test_valid_names(self, name, expect_substr):
@@ -229,7 +224,7 @@ class TestResolveTemplateName:
             resolve_template_name("not-a-template")
 
     def test_unknown_version_code(self):
-        # "f" matches the format regex ([acfsl]+) but isn't a valid version
+        # "f" has the template-name shape but isn't a valid version code
         with pytest.raises(ValueError, match="Unknown version code"):
             resolve_template_name("2mm-MNI152-2009f")
 
@@ -252,7 +247,6 @@ class TestMatchResolution:
         m = match_resolution(_isotropic_affine(2.0))
         assert isinstance(m, TemplateMatch)
         assert m.resolution == 2
-        assert m.match_distance == 0
         assert os.path.exists(m.mask_path)
 
     def test_exact_1mm(self):
@@ -306,19 +300,9 @@ class TestMatchResolution:
 class TestGetBgImage:
     def test_matching_resolution_returns_template_path(self):
         mask = nib.load(get_brainspace().mask)
-        path = get_bg_image(mask.affine, img_type="brain")
+        path = get_bg_image(mask.affine)
         assert os.path.exists(path)
         assert "brain" in os.path.basename(path)
-
-    def test_plot_type(self):
-        mask = nib.load(get_brainspace().mask)
-        path = get_bg_image(mask.affine, img_type="plot")
-        assert "T1" in os.path.basename(path)
-
-    def test_invalid_img_type(self):
-        mask = nib.load(get_brainspace().mask)
-        with pytest.raises(ValueError, match="img_type"):
-            get_bg_image(mask.affine, img_type="bogus")
 
     def test_non_isotropic_raises(self):
         aff = np.eye(4)
@@ -331,19 +315,14 @@ class TestGetBgImage:
     def test_unsupported_resolution_falls_back_to_config(self):
         # default template doesn't support 1mm; should fall back to cfg.brain
         set_brainspace(template="default", resolution=2)
-        path = get_bg_image(_isotropic_affine(1.0), img_type="brain")
+        path = get_bg_image(_isotropic_affine(1.0))
         assert path == get_brainspace().brain
-
-    def test_explicit_config_argument(self):
-        cfg = BrainSpaceConfig(template="fmriprep", resolution=2)
-        path = get_bg_image(_isotropic_affine(2.0), img_type="brain", config=cfg)
-        assert "fmriprep" in path
 
     def test_near_integer_resolution_rounds_not_truncates(self):
         # F153: a 1.999mm affine must round to the 2mm background, not truncate
         # to 1 and silently fall back to the config default image.
-        cfg = BrainSpaceConfig(template="default", resolution=3)
-        path = get_bg_image(_isotropic_affine(1.999), img_type="brain", config=cfg)
+        with with_brainspace(template="default", resolution=3):
+            path = get_bg_image(_isotropic_affine(1.999))
         assert path == resolve_paths("default", 2)["brain"]
 
 

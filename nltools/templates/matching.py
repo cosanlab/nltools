@@ -7,7 +7,7 @@ import numpy as np
 
 from nltools.utils import ResamplingWarning, find_stack_level
 
-from .config import BrainSpaceConfig, get_brainspace
+from .config import get_brainspace
 from .paths import resolve_paths
 from .registry import SUPPORTED_RESOLUTIONS, TEMPLATE_PRIORITY
 
@@ -20,18 +20,11 @@ class TemplateMatch:
         template (str): Best-matching template name.
         resolution (int): Best-matching resolution in mm.
         mask_path (str): Path to the matched mask file.
-        brain_path (str): Path to the matched brain file.
-        plot_path (str): Path to the matched T1/plot file.
-        match_distance (float): Absolute difference in mm between detected data
-            resolution and the selected template resolution (0 for exact).
     """
 
     template: str
     resolution: int
     mask_path: str
-    brain_path: str
-    plot_path: str
-    match_distance: float
 
 
 def detect_resolution(affine: np.ndarray) -> tuple[float, bool]:
@@ -56,7 +49,6 @@ def detect_resolution(affine: np.ndarray) -> tuple[float, bool]:
 
 def match_resolution(
     affine: np.ndarray,
-    prefer_exact: bool = True,
     warn_resample: bool = True,
 ) -> TemplateMatch:
     """Find the best matching template for a given affine matrix.
@@ -66,13 +58,12 @@ def match_resolution(
 
     Args:
         affine (np.ndarray): 4x4 affine matrix from a NIfTI image.
-        prefer_exact (bool): If True, prefer an exact resolution match. Default True.
         warn_resample (bool): If True, emit a `ResamplingWarning` when the data
             resolution has no exact template and the closest one is used. Default
             True.
 
     Returns:
-        TemplateMatch: The selected template, its resolution, and file paths.
+        TemplateMatch: The selected template, its resolution, and its mask path.
 
     Raises:
         ValueError: If detected resolution is outside a reasonable range.
@@ -88,13 +79,11 @@ def match_resolution(
 
     best_template: str | None = None
     best_resolution: int | None = None
-    best_distance: float = float("inf")
 
-    if prefer_exact:
-        for tmpl in TEMPLATE_PRIORITY:
-            if resolution in SUPPORTED_RESOLUTIONS[tmpl]:
-                best_template, best_resolution, best_distance = tmpl, resolution, 0.0
-                break
+    for tmpl in TEMPLATE_PRIORITY:
+        if resolution in SUPPORTED_RESOLUTIONS[tmpl]:
+            best_template, best_resolution = tmpl, resolution
+            break
 
     if best_template is None:
         all_res = {r for res in SUPPORTED_RESOLUTIONS.values() for r in res}
@@ -121,17 +110,10 @@ def match_resolution(
         template=best_template,
         resolution=best_resolution,
         mask_path=paths["mask"],
-        brain_path=paths["brain"],
-        plot_path=paths["plot"],
-        match_distance=best_distance,
     )
 
 
-def is_standard_space(
-    affine: np.ndarray,
-    *,
-    config: BrainSpaceConfig | None = None,
-) -> tuple[bool, str | None]:
+def is_standard_space(affine: np.ndarray) -> tuple[bool, str | None]:
     """Check whether an affine is compatible with our MNI templates.
 
     A "standard space" affine has isotropic voxels at one of the supported
@@ -143,16 +125,12 @@ def is_standard_space(
     Args:
         affine (np.ndarray): 4x4 affine matrix from a NIfTI image (typically
             `bd.mask.affine`).
-        config (BrainSpaceConfig, optional): Explicit configuration; defaults to
-            the current global brain space (only the supported resolution set is
-            consulted).
 
     Returns:
         tuple[bool, str | None]: `(True, None)` if compatible; otherwise
             `(False, reason)` with `reason` a one-line human-readable explanation
             suitable for embedding in an error message.
     """
-    del config  # accepted for symmetry with get_bg_image; not needed today
     res, is_isotropic = detect_resolution(affine)
     if not is_isotropic:
         res_array = np.abs(np.diag(affine[:3, :3]))
@@ -172,34 +150,23 @@ def is_standard_space(
     return True, None
 
 
-def get_bg_image(
-    affine: np.ndarray,
-    img_type: str = "brain",
-    config: BrainSpaceConfig | None = None,
-) -> str:
-    """Get a background image path matching a data resolution.
+def get_bg_image(affine: np.ndarray) -> str:
+    """Get a brain-extracted background image path matching a data resolution.
 
-    Uses `config` (or the current global brain space) and finds the
-    matching resolution from the affine. Used by plotting functions to pick
-    an appropriate background anatomical.
+    Uses the current global brain space and finds the matching resolution from
+    the affine. Used by plotting functions to pick an appropriate background
+    anatomical.
 
     Args:
         affine (np.ndarray): 4x4 affine matrix from a BrainData's masker.
-        img_type (str): `'brain'` for the brain-extracted image or `'plot'` for
-            the full T1. Default `'brain'`.
-        config (BrainSpaceConfig, optional): Explicit configuration; defaults to
-            the current global brain space.
 
     Returns:
         str: Path to the template image file.
 
     Raises:
-        ValueError: If voxels are non-isotropic or `img_type` is invalid.
+        ValueError: If voxels are non-isotropic.
     """
-    if img_type not in ("brain", "plot"):
-        raise ValueError("img_type must be 'brain' or 'plot'")
-
-    cfg = config if config is not None else get_brainspace()
+    cfg = get_brainspace()
 
     resolution_float, is_isotropic = detect_resolution(affine)
     if not is_isotropic:
@@ -210,7 +177,7 @@ def get_bg_image(
     resolution = int(round(resolution_float))
 
     if resolution not in SUPPORTED_RESOLUTIONS.get(cfg.template, []):
-        return getattr(cfg, img_type)
+        return cfg.brain
 
     paths = resolve_paths(cfg.template, resolution)
-    return paths[img_type]
+    return paths["brain"]

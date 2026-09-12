@@ -6,6 +6,7 @@ transparency mask, and the errors raised for an empty or invalid request.
 """
 
 import os
+import numpy as np
 import pytest
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
@@ -211,6 +212,20 @@ class TestPlotFlatmap:
         empty_brain = BrainData()
         with pytest.raises(ValueError, match="empty|Empty"):
             plot_flatmap(empty_brain)
+
+    def test_flatmap_percentile_threshold_with_no_vertices(self, sim_brain_data):
+        """A percentile matching no vertex renders unthresholded, as plot_surf does."""
+        import nibabel as nib
+
+        # An all-zero transparency mask NaNs out every vertex, so the
+        # percentile has nothing to compute from.
+        blank_mask = nib.Nifti1Image(
+            np.zeros(sim_brain_data.mask.shape, dtype=np.float32),
+            sim_brain_data.mask.affine,
+        )
+        fig = plot_flatmap(sim_brain_data[0], threshold="95%", transparency=blank_mask)
+        assert fig is not None
+        plt.close(fig)
 
     def test_flatmap_multi_image_brain_data(self, sim_brain_data):
         """Test handling BrainData with multiple images"""

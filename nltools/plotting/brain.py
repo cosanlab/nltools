@@ -263,6 +263,102 @@ def _normalize_surf_hemis(hemi):
     return hemis
 
 
+def _require_plottable_brain(brain, op_name, remedy):
+    """Reject empty or native-space `BrainData` before any surface work.
+
+    Non-`BrainData` inputs (a nifti image or a path) carry no mask to check and
+    pass straight through.
+
+    Args:
+        brain: The `brain` argument passed to a surface plotter.
+        op_name (str): Name of the calling plotter, used in the error message.
+        remedy (str): Sentence telling the user what to do instead.
+
+    Raises:
+        ValueError: If `brain` is an empty or non-standard-space `BrainData`.
+    """
+    from nltools.data import BrainData
+    from nltools.data.braindata.plotting import _require_standard_space
+
+    if not isinstance(brain, BrainData):
+        return
+    if brain.is_empty:
+        raise ValueError("Cannot plot empty BrainData object")
+    _require_standard_space(brain, op_name, remedy=remedy)
+
+
+def _project_to_surface(
+    nifti_img,
+    mask_img,
+    fs,
+    surf_key,
+    hemis,
+    *,
+    threshold,
+    cmap,
+    vmin,
+    vmax,
+):
+    """Project a volume onto fsaverage meshes and resolve the display range.
+
+    Shared by `plot_surf` and `plot_flatmap`. Both sample `vol_to_surf` with a
+    3 mm ball and linear interpolation. Vertices outside `mask_img` are set to
+    NaN so the background shows through; the `>= 0.5` cut needs a graded mask to
+    place the brain edge.
+
+    Args:
+        nifti_img (nibabel.Nifti1Image): Volume to project.
+        mask_img (nibabel.Nifti1Image | None): Transparency mask, or None.
+        fs (sklearn.utils.Bunch): fsaverage surfaces from
+            `nilearn.datasets.fetch_surf_fsaverage`.
+        surf_key (str): Mesh key prefix, e.g. `'pial'` or `'infl'`.
+        hemis (list[str]): Hemispheres to project, e.g. `['left', 'right']`.
+        threshold (float | str | None): Absolute cutoff or percentile string.
+        cmap (str | None): Explicit colormap, or None for the sign-aware default.
+        vmin (float | None): Explicit lower bound, or None for the default.
+        vmax (float | None): Explicit upper bound, or None for the default.
+
+    Returns:
+        tuple: `(textures, threshold, cmap, vmin, vmax)` where `textures` maps
+            each hemisphere to its vertex array and `threshold` is the resolved
+            absolute cutoff (None when a percentile matched no vertices).
+    """
+    textures = {}
+    for h in hemis:
+        tex = vol_to_surf(
+            nifti_img,
+            fs[f"{surf_key}_{h}"],
+            radius=3.0,
+            interpolation="linear",
+        )
+        if mask_img is not None:
+            mk = vol_to_surf(
+                mask_img,
+                fs[f"{surf_key}_{h}"],
+                radius=3.0,
+                interpolation="linear",
+            )
+            tex = np.where(mk >= 0.5, tex, np.nan)
+        textures[h] = tex
+
+    all_vals = np.concatenate([textures[h] for h in hemis])
+
+    if isinstance(threshold, str) and threshold.endswith("%"):
+        pct = float(threshold[:-1])
+        finite_vals = all_vals[np.isfinite(all_vals)]
+        threshold = (
+            float(np.percentile(np.abs(finite_vals), pct)) if len(finite_vals) else None
+        )
+
+    range_vals = (
+        all_vals[np.abs(all_vals) >= threshold] if threshold is not None else all_vals
+    )
+    cmap, vmin, vmax = _resolve_stat_map_defaults(
+        range_vals, cmap=cmap, vmin=vmin, vmax=vmax
+    )
+    return textures, threshold, cmap, vmin, vmax
+
+
 def plot_surf(
     brain,
     *,
@@ -275,23 +371,17 @@ def plot_surf(
     vmin=None,
     vmax=None,
     transparency="auto",
-    bg_on_data=False,
     colorbar=True,
-    colorbar_orientation="horizontal",
     figsize=(10, 8),
     title=None,
-    radius=3.0,
-    interpolation="linear",
-    zoom=1.2,
-    axes=None,
     save=None,
 ):
     """Plot volumetric data on fsaverage surfaces in a tight montage.
 
     Like nilearn's `plot_img_on_surf` but with tight framing (via
-    `Axes3D.set_box_aspect(zoom=...)` + `set_axis_off`), an auto-applied
-    transparency mask (same convention as `plot_flatmap`), and a single shared
-    colorbar instead of one per subplot.
+    `Axes3D.set_box_aspect` + `set_axis_off`), an auto-applied transparency mask
+    (same convention as `plot_flatmap`), and a single shared horizontal colorbar
+    instead of one per subplot.
 
     The grid is `len(view) × len(hemi)` — rows are views, columns are hemispheres.
 
@@ -321,17 +411,9 @@ def plot_surf(
         transparency (BrainData | nibabel.Nifti1Image | str | Path | None): Binary
             mask used to NaN-out vertices outside the mask so the background shines
             through. `'auto'` (default) uses `BrainData.mask`; None disables masking.
-        bg_on_data (bool): Whether to multiply data by the background. Default False.
         colorbar (bool): Show a single shared colorbar. Default True.
-        colorbar_orientation (str): `'horizontal'` (default) or `'vertical'`.
         figsize (tuple): Figure size. Default (10, 8).
         title (str, optional): Figure title.
-        radius (float): `vol_to_surf` sampling radius. Default 3.0.
-        interpolation (str): `vol_to_surf` interpolation. Default `'linear'`.
-        zoom (float): Zoom factor for each 3-D axis (`Axes3D.set_box_aspect`).
-            Default 1.2; try 1.4 for the tightest clean framing.
-        axes (np.ndarray, optional): Pre-existing `Axes3D` array to draw into, of
-            shape `(len(view), len(hemi))`.
         save (str, optional): Path to save the figure.
 
     Returns:
@@ -341,11 +423,18 @@ def plot_surf(
     from matplotlib.cm import ScalarMappable
     from matplotlib.colors import Normalize
 
-    from nltools.data import BrainData
-
     # --- validate input up front (before any network or surface work) ----
-    if isinstance(brain, BrainData) and brain.is_empty:
-        raise ValueError("Cannot plot empty BrainData object")
+    _require_plottable_brain(
+        brain,
+        "plot_surf",
+        remedy=(
+            "Surface projection samples vol_to_surf at fsaverage "
+            "(MNI-aligned) coordinates and produces garbage on "
+            "native-space data. Use bd.plot(method='slices', "
+            "bg_img=<your subject anatomical>) instead, or call "
+            "bd.resample() to bring data into standard space first."
+        ),
+    )
 
     views = _normalize_surf_views(view)
     hemis = _normalize_surf_hemis(hemi)
@@ -372,57 +461,28 @@ def plot_surf(
     # --- fetch surfaces and project --------------------------------------
     fs = datasets.fetch_surf_fsaverage(template)
 
-    textures = {}
-    for h in hemis:
-        tex = vol_to_surf(
-            nifti_img,
-            fs[f"{surf_key}_{h}"],
-            radius=radius,
-            interpolation=interpolation,
-        )
-        if mask_img is not None:
-            mk = vol_to_surf(
-                mask_img,
-                fs[f"{surf_key}_{h}"],
-                radius=radius,
-                interpolation="linear",
-            )
-            tex = np.where(mk >= 0.5, tex, np.nan)
-        textures[h] = tex
-
-    # Percentile threshold (computed across all vertices/hemis)
-    if isinstance(threshold, str) and threshold.endswith("%"):
-        pct = float(threshold[:-1])
-        all_vals = np.concatenate([textures[h] for h in hemis])
-        all_vals = all_vals[np.isfinite(all_vals)]
-        threshold = (
-            float(np.percentile(np.abs(all_vals), pct)) if len(all_vals) else None
-        )
-
-    all_vals = np.concatenate([textures[h] for h in hemis])
-    range_vals = (
-        all_vals[np.abs(all_vals) >= threshold] if threshold is not None else all_vals
-    )
-    cmap, vmin, vmax = _resolve_stat_map_defaults(
-        range_vals, cmap=cmap, vmin=vmin, vmax=vmax
+    textures, threshold, cmap, vmin, vmax = _project_to_surface(
+        nifti_img,
+        mask_img,
+        fs,
+        surf_key,
+        hemis,
+        threshold=threshold,
+        cmap=cmap,
+        vmin=vmin,
+        vmax=vmax,
     )
 
     # --- figure / axes grid ----------------------------------------------
     nrows, ncols = len(views), len(hemis)
-    if axes is None:
-        fig, axes_arr = plt.subplots(
-            nrows,
-            ncols,
-            figsize=figsize,
-            subplot_kw={"projection": "3d"},
-            constrained_layout=True,
-            squeeze=False,
-        )
-        owns_fig = True
-    else:
-        axes_arr = np.asarray(axes).reshape(nrows, ncols)
-        fig = axes_arr.flat[0].figure
-        owns_fig = False
+    fig, axes_arr = plt.subplots(
+        nrows,
+        ncols,
+        figsize=figsize,
+        subplot_kw={"projection": "3d"},
+        constrained_layout=True,
+        squeeze=False,
+    )
 
     # --- draw each subplot -----------------------------------------------
     for r, v in enumerate(views):
@@ -434,7 +494,7 @@ def plot_surf(
                 hemi=h,
                 view=v,
                 bg_map=fs[f"curv_{h}"],
-                bg_on_data=bg_on_data,
+                bg_on_data=False,
                 colorbar=False,  # shared colorbar below
                 cmap=cmap,
                 threshold=threshold,
@@ -443,7 +503,7 @@ def plot_surf(
                 axes=ax,
                 engine="matplotlib",
             )
-            ax.set_box_aspect((1, 1, 1), zoom=zoom)
+            ax.set_box_aspect((1, 1, 1), zoom=1.2)
             ax.set_axis_off()
 
     # --- shared colorbar --------------------------------------------------
@@ -453,7 +513,7 @@ def plot_surf(
         fig.colorbar(
             sm,
             ax=axes_arr.ravel().tolist(),
-            orientation=colorbar_orientation,
+            orientation="horizontal",
             fraction=0.03,
             pad=0.02,
             shrink=0.7,
@@ -465,8 +525,7 @@ def plot_surf(
     if save is not None:
         fig.savefig(save, bbox_inches="tight", facecolor="white", dpi=300)
 
-    if owns_fig:
-        plt.close(fig)
+    plt.close(fig)
     return fig
 
 
@@ -478,17 +537,10 @@ def plot_flatmap(
     vmax=None,
     vmin=None,
     template="fsaverage5",
-    with_curvature=True,
-    curvature_contrast=0.5,
-    curvature_brightness=0.5,
     transparency="auto",
     colorbar=True,
-    colorbar_orientation="horizontal",
     figsize=(12, 6),
     title=None,
-    radius=3.0,
-    interpolation="linear",
-    axes=None,
     save=None,
 ):
     """Plot brain data on cortical flatmap.
@@ -519,31 +571,16 @@ def plot_flatmap(
             'fsaverage3' (642 vertices), 'fsaverage4' (2562),
             'fsaverage5' (10242, default), 'fsaverage6' (40962),
             'fsaverage' (163842, full resolution).
-        with_curvature (bool, optional): Show sulcal/gyral pattern as
-            grayscale background. Defaults to True.
-        curvature_contrast (float, optional): Contrast of curvature
-            (0=flat gray, 1=full contrast). Defaults to 0.5.
-        curvature_brightness (float, optional): Mean brightness of
-            curvature (0=dark, 1=bright). Defaults to 0.5.
         transparency (BrainData | nibabel.Nifti1Image | str | Path | None):
             Binary mask used to render vertices outside the mask as
             transparent (so the curvature shows through). `'auto'` (default)
             uses the input `BrainData`'s `.mask` when available, matching
             the behavior of the volumetric `.plot()`. Pass None to
             disable masking entirely.
-        colorbar (bool, optional): Show colorbar. Defaults to True.
-        colorbar_orientation (str, optional): 'horizontal' or 'vertical'.
-            Defaults to 'horizontal'.
+        colorbar (bool, optional): Show a horizontal colorbar. Defaults to True.
         figsize (tuple, optional): Figure size (width, height).
             Defaults to (12, 6).
         title (str, optional): Figure title. Defaults to None.
-        radius (float, optional): Sampling radius in mm for vol_to_surf
-            projection. Larger values provide smoother projections.
-            Defaults to 3.0.
-        interpolation (str, optional): Interpolation for vol_to_surf.
-            Options: 'linear', 'nearest_most_frequent'. Defaults to 'linear'.
-        axes (matplotlib.axes.Axes, optional): Existing axes to plot on.
-            If None, creates new figure. Defaults to None.
         save (str, optional): File path to save figure. Defaults to None.
 
     Returns:
@@ -566,10 +603,10 @@ def plot_flatmap(
         fig = plot_flatmap(brain, threshold=2.5, cmap="hot")
         ```
 
-        Percentile threshold, no curvature:
+        Percentile threshold:
 
         ```python
-        fig = plot_flatmap(brain, threshold="95%", with_curvature=False)
+        fig = plot_flatmap(brain, threshold="95%")
         ```
 
         High resolution for publication:
@@ -586,10 +623,23 @@ def plot_flatmap(
         to render. The flat surfaces are cached by nilearn after the first
         download (~50MB for fsaverage5).
     """
-    from nilearn import datasets, surface
+    from nilearn import datasets
     import nibabel as nib
     from matplotlib.colors import Normalize
     from matplotlib.cm import ScalarMappable
+
+    # --- validate input up front (before any network or surface work) ----
+    _require_plottable_brain(
+        brain,
+        "plot_flatmap",
+        remedy=(
+            "Flatmap projection samples vol_to_surf at fsaverage (MNI-"
+            "aligned) coordinates and produces garbage on native-space "
+            "data. Use bd.plot(method='slices', bg_img=<your subject "
+            "anatomical>) instead, or call bd.resample() to bring data "
+            "into standard space first."
+        ),
+    )
 
     # Resolve transparency mask *before* converting input to nifti (we need
     # access to BrainData.mask for the "auto" default).
@@ -601,31 +651,19 @@ def plot_flatmap(
     # Fetch fsaverage surfaces (cached after first download)
     fs = datasets.fetch_surf_fsaverage(template)
 
-    # Project volume to surface for both hemispheres
-    texture_left = surface.vol_to_surf(
+    # Project volume (and its transparency mask) onto both hemispheres
+    textures, threshold, cmap, vmin, vmax = _project_to_surface(
         nifti_img,
-        fs["pial_left"],
-        radius=radius,
-        interpolation=interpolation,
+        mask_img,
+        fs,
+        "pial",
+        ["left", "right"],
+        threshold=threshold,
+        cmap=cmap,
+        vmin=vmin,
+        vmax=vmax,
     )
-    texture_right = surface.vol_to_surf(
-        nifti_img,
-        fs["pial_right"],
-        radius=radius,
-        interpolation=interpolation,
-    )
-
-    # Project the transparency mask to the surface and NaN-out vertices
-    # outside the mask so the curvature shows through cleanly.
-    if mask_img is not None:
-        mask_left = surface.vol_to_surf(
-            mask_img, fs["pial_left"], radius=radius, interpolation="linear"
-        )
-        mask_right = surface.vol_to_surf(
-            mask_img, fs["pial_right"], radius=radius, interpolation="linear"
-        )
-        texture_left = np.where(mask_left >= 0.5, texture_left, np.nan)
-        texture_right = np.where(mask_right >= 0.5, texture_right, np.nan)
+    texture_left, texture_right = textures["left"], textures["right"]
 
     # Load flat surface meshes
     flat_left = nib.load(fs["flat_left"])
@@ -642,27 +680,8 @@ def plot_flatmap(
     coords_right[:, 0] += coords_left[:, 0].max() - coords_right[:, 0].min() + gap
 
     # Load curvature for background
-    if with_curvature:
-        curv_left = nib.load(fs["curv_left"]).darrays[0].data
-        curv_right = nib.load(fs["curv_right"]).darrays[0].data
-
-    # Handle threshold (percentile string)
-    if isinstance(threshold, str) and threshold.endswith("%"):
-        percentile = float(threshold[:-1])
-        all_values = np.concatenate([texture_left, texture_right])
-        all_values = all_values[~np.isnan(all_values)]
-        if len(all_values) > 0:
-            threshold = np.percentile(np.abs(all_values), percentile)
-
-    all_values = np.concatenate([texture_left, texture_right])
-    range_values = (
-        all_values[np.abs(all_values) >= threshold]
-        if threshold is not None
-        else all_values
-    )
-    cmap, vmin, vmax = _resolve_stat_map_defaults(
-        range_values, cmap=cmap, vmin=vmin, vmax=vmax
-    )
+    curv_left = nib.load(fs["curv_left"]).darrays[0].data
+    curv_right = nib.load(fs["curv_right"]).darrays[0].data
 
     # Apply threshold masking
     if threshold is not None:
@@ -676,50 +695,35 @@ def plot_flatmap(
         texture_left_masked = texture_left
         texture_right_masked = texture_right
 
-    # Create figure and axes. Track ownership so caller-supplied axes keep
-    # their figure on pyplot's tracker.
-    if axes is None:
-        fig, ax = plt.subplots(1, 1, figsize=figsize)
-        owns_fig = True
-    else:
-        ax = axes
-        fig = ax.figure
-        owns_fig = False
+    fig, ax = plt.subplots(1, 1, figsize=figsize)
 
-    # Plot curvature background
-    if with_curvature:
-        # Normalize and adjust curvature for display
-        curv_norm = Normalize(vmin=-0.5, vmax=0.5)
+    # Plot curvature as a mid-grey background (zorder=0)
+    curv_norm = Normalize(vmin=-0.5, vmax=0.5)
+    curv_left_display = (curv_norm(curv_left) - 0.5) * 0.5 + 0.5
+    curv_right_display = (curv_norm(curv_right) - 0.5) * 0.5 + 0.5
 
-        # Scale by contrast and shift by brightness
-        curv_left_display = (curv_norm(curv_left) - 0.5) * curvature_contrast
-        curv_left_display = curv_left_display + curvature_brightness
-        curv_right_display = (curv_norm(curv_right) - 0.5) * curvature_contrast
-        curv_right_display = curv_right_display + curvature_brightness
-
-        # Plot curvature as background (zorder=0)
-        ax.tripcolor(
-            coords_left[:, 0],
-            coords_left[:, 1],
-            faces_left,
-            curv_left_display,
-            cmap="gray",
-            shading="gouraud",
-            vmin=0,
-            vmax=1,
-            zorder=0,
-        )
-        ax.tripcolor(
-            coords_right[:, 0],
-            coords_right[:, 1],
-            faces_right,
-            curv_right_display,
-            cmap="gray",
-            shading="gouraud",
-            vmin=0,
-            vmax=1,
-            zorder=0,
-        )
+    ax.tripcolor(
+        coords_left[:, 0],
+        coords_left[:, 1],
+        faces_left,
+        curv_left_display,
+        cmap="gray",
+        shading="gouraud",
+        vmin=0,
+        vmax=1,
+        zorder=0,
+    )
+    ax.tripcolor(
+        coords_right[:, 0],
+        coords_right[:, 1],
+        faces_right,
+        curv_right_display,
+        cmap="gray",
+        shading="gouraud",
+        vmin=0,
+        vmax=1,
+        zorder=0,
+    )
 
     # Plot data overlay
     ax.tripcolor(
@@ -757,11 +761,7 @@ def plot_flatmap(
     if colorbar:
         sm = ScalarMappable(cmap=cmap, norm=Normalize(vmin, vmax))
         sm.set_array([])
-
-        if colorbar_orientation == "horizontal":
-            fig.colorbar(sm, ax=ax, orientation="horizontal", fraction=0.046, pad=0.04)
-        else:
-            fig.colorbar(sm, ax=ax, orientation="vertical", fraction=0.046, pad=0.04)
+        fig.colorbar(sm, ax=ax, orientation="horizontal", fraction=0.046, pad=0.04)
 
     plt.tight_layout()
 
@@ -769,6 +769,5 @@ def plot_flatmap(
     if save is not None:
         fig.savefig(save, bbox_inches="tight", facecolor="white", dpi=300)
 
-    if owns_fig:
-        plt.close(fig)
+    plt.close(fig)
     return fig

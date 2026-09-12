@@ -225,6 +225,10 @@ All notable changes to nltools are documented here.
 - <span class="badge badge-feature">Feature</span> warn on near-collinear full-rank designs
 
 ### Improvements
+- <span class="badge badge-improvement">Improvement</span> the surface plotters render one fixed look
+    - `plot_surf` and `plot_flatmap` (and their `BrainData` methods) no longer take `radius`, `interpolation`, `axes`, `zoom`, `bg_on_data`, `with_curvature`, `curvature_contrast`, `curvature_brightness` or `colorbar_orientation`. Every default is now the behaviour: a 3 mm linear `vol_to_surf` ball, a curvature underlay, and one horizontal colorbar on a figure the plotter owns. The keywords people actually tune (`hemi`, `view`, `surface`, `template`, `threshold`, `cmap`, `vmin`, `vmax`, `transparency`, `colorbar`, `figsize`, `title`, `save`) are unchanged.
+- <span class="badge badge-improvement">Improvement</span> `plot_flatmap` no longer raises on a percentile that matches no vertices
+    - A `threshold='95%'` with nothing above it raised `TypeError`; it now renders unthresholded, matching `plot_surf`. Both plotters also reject empty and native-space data through the same check, so `BrainData.plot_flatmap` and `BrainData.plot_surf` fail identically.
 - ⚠ **Breaking** <span class="badge badge-improvement">Improvement</span> drop the HRF wrappers from `nltools.algorithms`
     - `glover_hrf`, `spm_hrf`, and the time and dispersion derivatives only forwarded to nilearn. Import them from `nilearn.glm.first_level` instead. `DesignMatrix(..., TR=t)` and `.convolve()` still apply the canonical Glover HRF with no import on the caller's part.
 - ⚠ **Breaking** <span class="badge badge-improvement">Improvement</span> drop the single-valued `method=` keyword from the OLS entry points
