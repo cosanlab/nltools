@@ -79,6 +79,11 @@ export default {
     }
 
     const height = model.get("height") || 400;
+    // niivue's resize observer sizes the canvas from its *parent* and rewrites
+    // the canvas's own inline height to 100%, so the requested height has to
+    // live on a wrapper. Without it the viewer collapses to the parent's
+    // natural height (~150px) in any host that doesn't size the widget for
+    // us — static/exported pages, iframes, plain Jupyter output areas.
     const canvasWrap = document.createElement("div");
     canvasWrap.style.cssText = `width:100%;height:${height}px`;
     const canvas = document.createElement("canvas");
