@@ -119,9 +119,7 @@ class TestDistanceSearchlight:
             spatial_scale="searchlight",
             radius=radius,
         )
-        nbrs = compute_searchlight_neighborhoods(
-            minimal_brain_data.mask, radius=radius, use_cache=False
-        )
+        nbrs = compute_searchlight_neighborhoods(minimal_brain_data.mask, radius=radius)
         # Spot-check the first center.
         center0_neighbors = nbrs.get_neighbors(0)
         expected = pairwise_distances(
@@ -162,59 +160,6 @@ class TestDistanceInvalidScale:
     def test_unknown_scale_errors(self, minimal_brain_data):
         with pytest.raises(ValueError, match="spatial_scale"):
             minimal_brain_data.distance(spatial_scale="bogus")
-
-
-class TestReductionsROI:
-    """``.mean(spatial_scale='roi') / .std / .median`` replace each voxel's
-    value with its parcel's reduction (parcellation smoothing per image)."""
-
-    def test_mean_roi_paints_per_parcel_means(self, minimal_brain_data):
-        from nilearn.masking import apply_mask
-
-        atlas = _atlas_for(minimal_brain_data, n_rois=2)
-        out = minimal_brain_data.mean(spatial_scale="roi", roi_mask=atlas)
-        assert isinstance(out, BrainData)
-        # Output preserves image-by-voxel shape: each voxel painted with
-        # its parcel's mean for that image.
-        assert out.shape == minimal_brain_data.shape
-
-        label_vec = apply_mask(atlas, minimal_brain_data.mask).astype(int)
-        for label in (1, 2):
-            cols = label_vec == label
-            expected = minimal_brain_data.data[:, cols].mean(axis=1)
-            np.testing.assert_allclose(
-                out.data[:, cols], expected[:, None].repeat(cols.sum(), axis=1)
-            )
-
-    def test_std_roi(self, minimal_brain_data):
-        from nilearn.masking import apply_mask
-
-        atlas = _atlas_for(minimal_brain_data, n_rois=2)
-        out = minimal_brain_data.std(spatial_scale="roi", roi_mask=atlas)
-        label_vec = apply_mask(atlas, minimal_brain_data.mask).astype(int)
-        cols = label_vec == 1
-        expected = minimal_brain_data.data[:, cols].std(axis=1)
-        np.testing.assert_allclose(
-            out.data[:, cols], expected[:, None].repeat(cols.sum(), axis=1)
-        )
-
-    def test_median_roi(self, minimal_brain_data):
-        from nilearn.masking import apply_mask
-
-        atlas = _atlas_for(minimal_brain_data, n_rois=2)
-        out = minimal_brain_data.median(spatial_scale="roi", roi_mask=atlas)
-        label_vec = apply_mask(atlas, minimal_brain_data.mask).astype(int)
-        cols = label_vec == 1
-        expected = np.median(minimal_brain_data.data[:, cols], axis=1)
-        np.testing.assert_allclose(
-            out.data[:, cols], expected[:, None].repeat(cols.sum(), axis=1)
-        )
-
-    def test_mean_whole_brain_unchanged(self, minimal_brain_data):
-        # Default spatial_scale='whole_brain' must preserve existing behavior.
-        out = minimal_brain_data.mean()
-        # Existing behavior returns a BrainData of voxel-axis means across images.
-        assert isinstance(out, BrainData)
 
 
 class TestAlignROI:

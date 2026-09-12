@@ -16,10 +16,6 @@ Put anatomical names on a result. `list_atlases` and `load_atlas` fetch parcella
       heading_level: 3
       members:
         - Atlas
-        - AtlasMetadata
-        - AtlasKind
-        - ATLASES
-        - DEFAULT_ATLASES
         - list_atlases
         - load_atlas
         - label_coords

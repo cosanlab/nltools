@@ -20,6 +20,8 @@ from nltools.algorithms.decoding import (
 from nltools.data.results import Predict
 from nltools.utils import maybe_tqdm
 
+from .utils import _is_default
+
 
 # ---------------------------------------------------------------------------
 # Public entry point
@@ -122,17 +124,6 @@ def _reject_decoding_arguments(supplied: dict) -> None:
         f"{names} only {verb} MVPA decoding, and this call is not decoding. "
         f"Pass y= — or attach labels to .Y — to decode, or drop {subject}."
     )
-
-
-def _is_default(value, default) -> bool:
-    """Compare an argument against its documented default without ambiguity."""
-    if isinstance(value, np.ndarray):
-        return False
-    if default is None:
-        return value is None
-    if isinstance(default, float):
-        return isinstance(value, (int, float)) and float(value) == default
-    return type(value) is type(default) and value == default
 
 
 # ---------------------------------------------------------------------------
@@ -786,9 +777,7 @@ def _run_searchlight(
 
     from .neighborhoods import compute_searchlight_neighborhoods
 
-    neighborhoods = compute_searchlight_neighborhoods(
-        bd.mask, radius=radius, use_cache=True
-    )
+    neighborhoods = compute_searchlight_neighborhoods(bd.mask, radius=radius)
 
     def decode_sphere(center_idx, neighbor_indices):
         return _score_sphere(X, y, pipe, splits, scoring, neighbor_indices)

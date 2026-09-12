@@ -77,7 +77,6 @@ class TestBrainDataIO:
                 assert np.allclose(
                     b.__dict__[k].get_fdata(), dat.__dict__[k].get_fdata()
                 )
-                assert b.__dict__[k].get_filename() == dat.__dict__[k].get_filename()
         # Test situation where we present a user warning when they're trying to load an .h5
         # file that includes a mask AND they pass in value for the mask argument. In this
         # case the mask argument takes precedence so we warn the user

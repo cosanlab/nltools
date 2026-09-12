@@ -9,6 +9,33 @@ from copy import deepcopy
 import numpy as np
 
 
+def _is_default(value, default):
+    """Report whether a `fit` or `predict` option still holds its signature default.
+
+    The check rejects non-default *values*, not the act of passing a keyword:
+    an option explicitly given its own default is indistinguishable from an
+    untouched one and is treated as untouched. Array-like options
+    (`ridge_alpha`, `ridge_dirichlet_concentration`) make a bare `!=` return an
+    array, so equality is compared elementwise, and a sequence given as a list
+    matches a tuple default.
+
+    Args:
+        value: The supplied option value.
+        default: The signature default.
+
+    Returns:
+        bool: True when the option still holds its default value.
+    """
+    if value is default:
+        return True
+    if isinstance(value, bool) != isinstance(default, bool):
+        # `0` is not `False`: a flag given an integer was supplied deliberately.
+        return False
+    if np.ndim(value) != np.ndim(default):
+        return False
+    return bool(np.array_equal(value, default))
+
+
 def check_brain_data(data, mask=None):
     """Return *data* as a BrainData, coercing Niimg-like inputs if needed.
 

@@ -12,7 +12,7 @@ The module is split functional-core / imperative-shell:
 
 - Pure helpers (`resolve_cmap`, `divergent_partner`, `slice_type_for`,
   `qualitative_colors`, `atlas_to_label_lut`, `resolve_background`,
-  `bd_to_nifti_bytes`, `threshold_slider_bounds`) translate BrainData /
+  `bd_to_nifti_bytes`, `compute_display_window`) translate BrainData /
   `Atlas` state into the vocabulary niivue understands.
 - `NiivueViewer` is the thin traitlets widget; `build_viewer` is the assembler
   that fills its traits from a BrainData.
@@ -29,6 +29,7 @@ import functools
 import gzip
 import pathlib
 import warnings
+from dataclasses import dataclass
 from typing import Literal
 
 import anywidget
@@ -388,6 +389,39 @@ _AUTOSCALE_CEILING_PCT = 98.0
 _AUTOSCALE_FLOOR_FRAC = 1e-6
 
 
+@dataclass(frozen=True)
+class DisplayWindow:
+    """The resolved niivue display window and its threshold-slider bounds.
+
+    Both halves come out of one pass over the data so the slider handles and
+    the rendered window can never disagree.
+
+    Attributes:
+        cal_min (float): Positive-limb threshold (window floor).
+        cal_max (float): Positive-limb saturation endpoint (window ceiling).
+        cal_min_neg (float): Negative-limb saturation endpoint.
+        cal_max_neg (float): Negative-limb threshold endpoint.
+        mirror_negative (bool): Keep the negative endpoints mirrored when the
+            controls move.
+        slider_min (float): Slider lower bound.
+        slider_max (float): Slider upper bound.
+        slider_value_low (float): Initial position of the low handle.
+        slider_value_high (float): Initial position of the high handle.
+        slider_step (float): Slider step size.
+    """
+
+    cal_min: float
+    cal_max: float
+    cal_min_neg: float
+    cal_max_neg: float
+    mirror_negative: bool
+    slider_min: float
+    slider_max: float
+    slider_value_low: float
+    slider_value_high: float
+    slider_step: float
+
+
 def compute_display_window(
     data,
     *,
@@ -395,8 +429,9 @@ def compute_display_window(
     threshold=None,
     lower=None,
     upper=None,
-) -> tuple[float, float]:
-    """Resolve the viewer's ``(cal_min, cal_max)`` display window in Python.
+    symmetric: bool | Literal["auto"] = "auto",
+) -> DisplayWindow:
+    """Resolve the viewer's display window and threshold-slider bounds.
 
     The window is always computed here and passed to niivue explicitly, so
     the slider handles can never show one window while niivue renders
@@ -418,6 +453,14 @@ def compute_display_window(
     `nltools.utils.resolve_threshold` — the viewer's window is a divergent
     magnitude window, so its percentiles are magnitude percentiles.
 
+    ``symmetric='auto'`` mirrors the positive and negative limbs only for
+    mixed-signed data. ``False`` scales each present sign independently;
+    ``True`` always mirrors.
+
+    The slider spans the data's finite value range, widened as needed to
+    include the resolved window so it is always representable (never silently
+    clamped), with its handles at the window edges.
+
     Args:
         data (np.ndarray): The BrainData's data array.
         autoscale (bool): See above.
@@ -425,12 +468,14 @@ def compute_display_window(
             ``lower``/``upper`` are given).
         lower (float | str | None): Explicit window floor.
         upper (float | str | None): Explicit window ceiling.
+        symmetric (bool | str): ``True``, ``False``, or ``'auto'``. See above.
 
     Returns:
-        tuple[float, float]: ``(cal_min, cal_max)``.
+        DisplayWindow: The window endpoints and the slider bounds.
 
     Raises:
-        TypeError: If ``autoscale`` is not a bool.
+        TypeError: If ``autoscale`` is not a bool, or ``symmetric`` is not
+            ``True``, ``False``, or ``'auto'``.
     """
     import numpy as np
 
@@ -438,10 +483,18 @@ def compute_display_window(
 
     if not isinstance(autoscale, bool):
         raise TypeError("autoscale must be a bool")
+    if not (isinstance(symmetric, bool) or symmetric == "auto"):
+        raise TypeError("symmetric must be True, False, or 'auto'")
 
+    # One pass over the array feeds every population below: the magnitudes the
+    # percentile specs resolve against, the per-sign limbs, and the slider's
+    # finite range.
     arr = np.asarray(data, dtype=float)
     finite = arr[np.isfinite(arr)]
-    magnitudes = np.abs(finite[finite != 0])
+    nonzero = finite[finite != 0]
+    magnitudes = np.abs(nonzero)
+    positive = nonzero[nonzero > 0]
+    negative_magnitudes = np.abs(nonzero[nonzero < 0])
 
     def _mag_pct(pct: float) -> float:
         if magnitudes.size == 0:
@@ -471,119 +524,67 @@ def compute_display_window(
         )
         ceiling = 1.0 if ceiling is None else float(ceiling)
         floor = 0.0 if floor is None else float(floor)
-        return floor, ceiling
+    else:
+        if ceiling is None:
+            ceiling = _mag_pct(_AUTOSCALE_CEILING_PCT)
+            if ceiling == 0.0:
+                ceiling = 1.0  # empty / all-zero map: keep a sane window
+        if floor is None:
+            # The default floor exists to make stored zeros transparent, not to
+            # threshold. A bare fraction of the ceiling would start hiding real
+            # voxels once the map's dynamic range exceeds 1 / the fraction, so
+            # clamp it to the smallest nonzero magnitude.
+            epsilon = ceiling * _AUTOSCALE_FLOOR_FRAC
+            floor = (
+                min(epsilon, float(magnitudes.min())) if magnitudes.size else epsilon
+            )
+        floor, ceiling = float(floor), float(ceiling)
 
-    if ceiling is None:
-        ceiling = _mag_pct(_AUTOSCALE_CEILING_PCT)
-        if ceiling == 0.0:
-            ceiling = 1.0  # empty / all-zero map: keep a sane window
-    if floor is None:
-        # The default floor exists to make stored zeros transparent, not to
-        # threshold. A bare fraction of the ceiling would start hiding real
-        # voxels once the map's dynamic range exceeds 1 / the fraction, so
-        # clamp it to the smallest nonzero magnitude.
-        epsilon = ceiling * _AUTOSCALE_FLOOR_FRAC
-        floor = min(epsilon, float(magnitudes.min())) if magnitudes.size else epsilon
-    return float(floor), float(ceiling)
-
-
-def compute_display_windows(
-    data,
-    *,
-    autoscale: bool = True,
-    threshold=None,
-    lower=None,
-    upper=None,
-    symmetric: bool | Literal["auto"] = "auto",
-) -> tuple[float, float, float, float, bool]:
-    """Resolve positive and negative niivue display limbs.
-
-    ``symmetric='auto'`` mirrors the limbs only for mixed-signed data.
-    ``False`` scales each present sign independently; ``True`` always mirrors.
-    """
-    import numpy as np
-
-    if not (isinstance(symmetric, bool) or symmetric == "auto"):
-        raise TypeError("symmetric must be True, False, or 'auto'")
-
-    cal_min, cal_max = compute_display_window(
-        data,
-        autoscale=autoscale,
-        threshold=threshold,
-        lower=lower,
-        upper=upper,
-    )
-    values = np.asarray(data, dtype=float).ravel()
-    values = values[np.isfinite(values) & (values != 0)]
-    positive = values[values > 0]
-    negative_magnitudes = np.abs(values[values < 0])
+    cal_min = floor
     use_symmetric = symmetric is True or (
         symmetric == "auto" and positive.size > 0 and negative_magnitudes.size > 0
     )
 
     if use_symmetric:
-        return cal_min, cal_max, -cal_max, -cal_min, True
-
-    explicit_ceiling = upper is not None
-
-    def _ceiling(sign_values, fallback):
-        if explicit_ceiling or sign_values.size == 0:
-            return float(fallback)
-        if autoscale:
-            return float(np.percentile(sign_values, _AUTOSCALE_CEILING_PCT))
-        return float(sign_values.max())
-
-    positive_ceiling = _ceiling(positive, cal_max)
-    negative_ceiling = _ceiling(negative_magnitudes, cal_max)
-    return cal_min, positive_ceiling, -negative_ceiling, -cal_min, False
-
-
-# --------------------------------------------------------------------------- #
-# Threshold slider bounds
-# --------------------------------------------------------------------------- #
-
-
-def threshold_slider_bounds(
-    bd, *, cal_min: float | None, cal_max: float | None
-) -> tuple[float, float, float, float, float]:
-    """Compute ``(min, max, value_low, value_high, step)`` for a threshold slider.
-
-    The slider spans the BrainData's finite value range, widened as needed to
-    include an explicit ``cal_min``/``cal_max`` so the requested window is
-    always representable (never silently clamped). Its initial handles sit at
-    ``cal_min``/``cal_max`` when given, else at the data extremes.
-
-    Args:
-        bd (BrainData): The BrainData being viewed.
-        cal_min: Requested window floor, or ``None``.
-        cal_max: Requested window ceiling, or ``None``.
-
-    Returns:
-        tuple[float, float, float, float, float]: ``(lo_bound, hi_bound,
-            value_low, value_high, step)``.
-    """
-    import numpy as np
-
-    data = np.asarray(bd.data, dtype=float)
-    finite = data[np.isfinite(data)]
-    if finite.size == 0:
-        lo_bound, hi_bound = 0.0, 1.0
+        cal_max, cal_min_neg, cal_max_neg = ceiling, -ceiling, -cal_min
     else:
-        lo_bound, hi_bound = float(finite.min()), float(finite.max())
+        explicit_ceiling = upper is not None
 
-    # Widen the range to include an explicitly requested window so its handles
-    # land exactly where asked rather than being clamped to the data extremes.
-    extras = [float(x) for x in (cal_min, cal_max) if x is not None]
-    if extras:
-        lo_bound = min(lo_bound, *extras)
-        hi_bound = max(hi_bound, *extras)
-    if lo_bound == hi_bound:
-        hi_bound = lo_bound + 1.0
+        def _ceiling(sign_values, fallback):
+            if explicit_ceiling or sign_values.size == 0:
+                return float(fallback)
+            if autoscale:
+                return float(np.percentile(sign_values, _AUTOSCALE_CEILING_PCT))
+            return float(sign_values.max())
 
-    value_low = float(cal_min) if cal_min is not None else lo_bound
-    value_high = float(cal_max) if cal_max is not None else hi_bound
-    step = (hi_bound - lo_bound) / 200.0 or 0.01
-    return lo_bound, hi_bound, value_low, value_high, step
+        cal_max = _ceiling(positive, ceiling)
+        cal_min_neg = -_ceiling(negative_magnitudes, ceiling)
+        cal_max_neg = -cal_min
+
+    if finite.size == 0:
+        slider_min, slider_max = 0.0, 1.0
+    else:
+        slider_min, slider_max = float(finite.min()), float(finite.max())
+
+    # Widen the range to include the resolved window so its handles land
+    # exactly where asked rather than being clamped to the data extremes.
+    slider_min = min(slider_min, cal_min, cal_max)
+    slider_max = max(slider_max, cal_min, cal_max)
+    if slider_min == slider_max:
+        slider_max = slider_min + 1.0
+
+    return DisplayWindow(
+        cal_min=cal_min,
+        cal_max=cal_max,
+        cal_min_neg=cal_min_neg,
+        cal_max_neg=cal_max_neg,
+        mirror_negative=use_symmetric,
+        slider_min=slider_min,
+        slider_max=slider_max,
+        slider_value_low=cal_min,
+        slider_value_high=cal_max,
+        slider_step=(slider_max - slider_min) / 200.0 or 0.01,
+    )
 
 
 # --------------------------------------------------------------------------- #
@@ -641,11 +642,7 @@ class NiivueViewer(anywidget.AnyWidget):
 def build_viewer(
     bd,
     *,
-    cal_min: float,
-    cal_max: float,
-    cal_min_neg: float,
-    cal_max_neg: float,
-    mirror_negative: bool,
+    window: DisplayWindow,
     view: str = "ortho",
     cmap: str | None = None,
     atlas: str | Atlas | None = None,
@@ -660,17 +657,14 @@ def build_viewer(
 
     Builds the volume stack ``[background?, statmap, atlas?]`` (atlas on top
     so its outlines/opacity keep the stat map readable) as byte + parameter
-    traits, computes the threshold-slider bounds, and sets the slice type.
+    traits, and sets the slice type.
 
     Args:
         bd (BrainData): BrainData to view.
-        cal_min: Window floor (threshold). Required — resolve it with
-            `compute_display_window` so the slider handles and the rendered
-            window can never disagree.
-        cal_max: Window ceiling. Required, as above.
-        cal_min_neg: Negative-limb saturation endpoint.
-        cal_max_neg: Negative-limb threshold endpoint.
-        mirror_negative: Keep the negative endpoints mirrored when controls move.
+        window: The resolved display window and slider bounds. Required, and
+            must be built from ``bd.data`` with `compute_display_window` — the
+            slider handles and the rendered window come from it together, so
+            they can never disagree.
         view: See `slice_type_for`.
         cmap: Positive colormap (niivue or matplotlib name). ``None`` uses the
             sign-aware red-positive/blue-negative default.
@@ -702,10 +696,6 @@ def build_viewer(
     # raises before we serialize any image bytes.
     atlas_lut = atlas_to_label_lut(atlas_obj) if atlas_obj is not None else {}
 
-    lo, hi, vlo, vhi, step = threshold_slider_bounds(
-        bd, cal_min=cal_min, cal_max=cal_max
-    )
-
     # Pull height / is_colorbar out of the forwarded niivue opts: height is a
     # canvas-layout trait, and an explicit is_colorbar wins over colorbar=.
     opts = dict(niivue_opts or {})
@@ -727,21 +717,21 @@ def build_viewer(
         },
         atlas_name=atlas_obj.name if atlas_obj is not None else "",
         atlas_lut=atlas_lut,
-        cal_min=cal_min,
-        cal_max=cal_max,
-        cal_min_neg=cal_min_neg,
-        cal_max_neg=cal_max_neg,
-        mirror_negative=mirror_negative,
+        cal_min=window.cal_min,
+        cal_max=window.cal_max,
+        cal_min_neg=window.cal_min_neg,
+        cal_max_neg=window.cal_max_neg,
+        mirror_negative=window.mirror_negative,
         slice_type=slice_name,
         colorbar=bool(colorbar),
         atlas_outline=float(outline) if atlas_obj is not None else 0.0,
         controls=bool(controls),
         slider_bounds={
-            "min": lo,
-            "max": hi,
-            "value_low": vlo,
-            "value_high": vhi,
-            "step": step,
+            "min": window.slider_min,
+            "max": window.slider_max,
+            "value_low": window.slider_value_low,
+            "value_high": window.slider_value_high,
+            "step": window.slider_step,
         },
         height=height,
         niivue_opts=opts,

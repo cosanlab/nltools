@@ -14,6 +14,12 @@ class TestBrainDataCore:
         """Test shape property returns correct dimensions."""
         assert minimal_brain_data.shape == (50, 5)
 
+    def test_mean_reduces_across_images(self, minimal_brain_data):
+        """`mean()` reduces along the image axis and returns a BrainData."""
+        out = minimal_brain_data.mean()
+        assert isinstance(out, BrainData)
+        np.testing.assert_allclose(out.data, minimal_brain_data.data.mean(axis=0))
+
     def test_equality_compares_in_memory_mask_affines(self):
         import nibabel as nib
 
@@ -289,3 +295,29 @@ class TestBrainDataCore:
         distance = minimal_brain_data.distance(metric="correlation")
         assert isinstance(distance, Adjacency)
         assert distance.n_nodes == minimal_brain_data.shape[0]
+
+
+class TestIsDefault:
+    """`_is_default` decides whether a keyword still holds its signature default.
+
+    It serves both `fit`'s unselected-estimator-option check and `predict`'s
+    MVPA-only check, so it has to cope with array-valued options and with
+    sequences spelled as lists against tuple defaults.
+    """
+
+    @staticmethod
+    def _is_default(value, default):
+        from nltools.data.braindata.utils import _is_default
+
+        return _is_default(value, default)
+
+    def test_list_matches_a_tuple_default(self):
+        assert self._is_default([1, 2, 3], (1, 2, 3))
+
+    def test_zero_does_not_match_a_false_default(self):
+        # A flag given an integer was supplied deliberately.
+        assert not self._is_default(0, False)
+
+    def test_array_option_against_a_scalar_default(self):
+        assert not self._is_default(np.array([1.0, 10.0]), 1.0)
+        assert self._is_default(np.array([1.0, 10.0]), np.array([1.0, 10.0]))

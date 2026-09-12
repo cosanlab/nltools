@@ -26,7 +26,7 @@ logic lives in pure functions.**
 The three facades and their submodules:
 
 - **`BrainData`** — `io` · `analysis` · `modeling` · `prediction` · `bootstrap` ·
-  `neighborhoods` · `cache` · `plotting` · `viewer` · `validation`
+  `neighborhoods` · `plotting` · `viewer` · `validation`
 - **`Adjacency`** — `io` · `modeling` · `stats` · `plotting`
 - **`DesignMatrix`** — `append` · `transforms` · `regressors` · `diagnostics` · `io` · `plotting`
 

@@ -83,19 +83,15 @@ fdr_thr = fdr(result["p"].data, q=0.05)                   # -1 if nothing surviv
 
 ## Design warnings
 
-Two warnings describe your design, not a bug in nltools. Read them instead of filtering them.
+One warning describes your design, not a bug in nltools. Read it instead of filtering it.
 
-- [`NearCollinearDesignWarning`](../api/tasks/design-and-glm.md#nltools.data.braindata.modeling.NearCollinearDesignWarning).
-  The design is full rank but two or more regressors are nearly the same. Betas will be unstable
-  and their signs can flip. Usually you are modeling the same variance twice: detrend motion
-  regressors before adding polynomial drift, or drop one of the pair.
 - [`RankDeficientDesignWarning`](../api/tasks/design-and-glm.md#nltools.data.braindata.modeling.RankDeficientDesignWarning).
   A column is an exact linear combination of others (a duplicated regressor, an intercept added
   twice, a condition that never occurs in this run). The fit uses a pseudo-inverse, so contrasts
   involving that column are not interpretable. Fix the design; `clean()` handles the common case.
 
-Both subclass `UserWarning`, so you can silence them individually. Do that only once you know
-which regressors triggered them.
+It subclasses `UserWarning`, so you can silence it individually. Do that only once you know
+which regressors triggered it.
 
 Next: [Statistics & inference](statistics-and-inference.md), or the
 [GLM workflow tutorial](../tutorials/workflows/01_glm.md) for the whole pipeline end to end.

@@ -17,21 +17,11 @@ References:
 
 from .labeling import label_coords
 from .loading import Atlas, load_atlas
-from .registry import (
-    ATLASES,
-    DEFAULT_ATLASES,
-    AtlasKind,
-    AtlasMetadata,
-    list_atlases,
-)
+from .registry import list_atlases
 from .reporting import ClusterReport, cluster_report_data
 
 __all__ = [
-    "ATLASES",
-    "DEFAULT_ATLASES",
     "Atlas",
-    "AtlasKind",
-    "AtlasMetadata",
     "ClusterReport",
     "cluster_report_data",
     "label_coords",

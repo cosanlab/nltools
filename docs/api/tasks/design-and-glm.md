@@ -4,7 +4,7 @@ title: Design matrices, HRF & GLM
 
 # Design matrices, HRF & GLM
 
-Build a first-level model. `events_to_dm` turns an events table into a [DesignMatrix](../data/design_matrix.md); the HRF functions sample the SPM and Glover responses and their derivatives for convolution. `regress` is the standalone numpy GLM. For 4D data use `BrainData.fit(model='glm')`, which raises the warning classes listed here when a design is rank-deficient or nearly collinear.
+Build a first-level model. `events_to_dm` turns an events table into a [DesignMatrix](../data/design_matrix.md); the HRF functions sample the SPM and Glover responses and their derivatives for convolution. `regress` is the standalone numpy GLM. For 4D data use `BrainData.fit(model='glm')`, which raises `RankDeficientDesignWarning` when a design is rank deficient.
 
 ## Events to design matrix
 
@@ -44,7 +44,6 @@ Build a first-level model. `events_to_dm` turns an events table into a [DesignMa
       heading_level: 3
       members:
         - RankDeficientDesignWarning
-        - NearCollinearDesignWarning
 
 ::: nltools.utils
     options:

@@ -12,7 +12,7 @@ from collections.abc import Mapping
 import numpy as np
 
 from nltools.utils import find_stack_level
-from .utils import _clear_fit_state, _copy_for_fit, _result_from_array
+from .utils import _clear_fit_state, _copy_for_fit, _is_default, _result_from_array
 
 
 #: Which estimator each model-specific `BrainData.fit` option belongs to.
@@ -65,49 +65,7 @@ class RankDeficientDesignWarning(UserWarning):
     """
 
 
-class NearCollinearDesignWarning(UserWarning):
-    """The design matrix supplied to ``fit()`` is full rank but nearly collinear.
-
-    Subclasses ``UserWarning`` so it participates in default filtering, while
-    remaining individually silenceable:
-    ``warnings.filterwarnings("ignore", category=NearCollinearDesignWarning)``.
-    """
-
-
-# Pairwise |correlation| at or above which a full-rank design is flagged as
-# near-collinear. Heritage of the removed v0.5 ``design_clean`` default
-# threshold — designs it used to silently prune now warn instead.
-NEAR_COLLINEAR_CORR_THRESHOLD = 0.95
-
-# Condition number of the column-standardized design above which multi-column
-# near-dependence is flagged — the classic cutoff from Belsley, Kuh & Welsch
-# (1980). Catches dependence spread across 3+ columns that no pairwise
-# correlation reveals.
-NEAR_COLLINEAR_CONDITION_THRESHOLD = 30.0
-
-
-def _redundant_column_names(finite, rank, columns):
-    """Name the columns most likely responsible for a rank deficiency.
-
-    Uses pivoted QR: the pivots beyond the numerical rank are the columns QR
-    would discard as linear combinations of the ones before them. Which member
-    of a dependent set gets blamed is arbitrary (that arbitrariness is exactly
-    why the deficiency matters), so the result is a "likely involved" hint,
-    not a verdict. Truncated so a wide design cannot flood the warning.
-    """
-    from scipy.linalg import qr
-
-    _, _, pivots = qr(finite, mode="economic", pivoting=True)
-    redundant = sorted(int(i) for i in pivots[rank:])
-    names = [
-        str(columns[i]) if columns is not None else f"column {i}" for i in redundant
-    ]
-    if len(names) > 5:
-        names = names[:5] + [f"... and {len(names) - 5} more"]
-    return names
-
-
-def _warn_if_rank_deficient(X_array, X_model):
+def _warn_if_rank_deficient(X_array):
     """Warn when a design matrix is rank deficient.
 
     A rank-deficient design has no unique least-squares solution. The GLM still
@@ -117,8 +75,8 @@ def _warn_if_rank_deficient(X_array, X_model):
     because the failure is invisible in the output: the betas come back finite
     and plausible.
 
-    The warning diagnoses the deficiency (naming the likely-involved columns,
-    or the p > n shape when that is the cause) and offers the fixes: inspect
+    The warning diagnoses the deficiency (how many columns are dependent, or
+    the p > n shape when that is the cause) and offers the fixes: inspect
     with ``DesignMatrix.vif()``, drop redundant columns with
     ``DesignMatrix.clean()`` (order-dependent for correlated pairs), or use
     regularization (``fit(model='ridge')``), whose solution is unique and
@@ -130,28 +88,20 @@ def _warn_if_rank_deficient(X_array, X_model):
 
     Args:
         X_array (np.ndarray): Design matrix as a 2-D array.
-        X_model: The design object supplied by the caller, used for column
-            names when it has them.
-
-    Returns:
-        bool: True if the warning fired (the design is rank deficient), so the
-            caller can skip the near-collinearity check — an exactly deficient
-            design should raise only this warning, never both.
     """
     if X_array.ndim != 2 or X_array.shape[1] < 2:
-        return False
+        return
 
     finite = X_array[np.isfinite(X_array).all(axis=1)]
     if finite.shape[0] == 0:
         # Nothing to assess; the fit itself will fail loudly on the NaNs.
-        return False
+        return
 
     n_cols = X_array.shape[1]
     rank = int(np.linalg.matrix_rank(finite))
     if rank >= n_cols:
-        return False
+        return
 
-    columns = getattr(X_model, "columns", None)
     if finite.shape[0] < n_cols:
         # More regressors than (finite) timepoints: deficient by construction,
         # no matter what the columns contain.
@@ -160,11 +110,7 @@ def _warn_if_rank_deficient(X_array, X_model):
             f"({finite.shape[0]}), so it cannot be full rank"
         )
     else:
-        names = _redundant_column_names(finite, rank, columns)
-        diagnosis = (
-            f"{n_cols - rank} column(s) are linear combinations of the others "
-            f"(likely involved: {', '.join(names)})"
-        )
+        diagnosis = f"{n_cols - rank} column(s) are linear combinations of the others"
     warnings.warn(
         f"Design matrix is rank deficient: rank {rank} of {n_cols} columns — "
         f"{diagnosis}. The OLS betas are not uniquely determined, and "
@@ -177,115 +123,6 @@ def _warn_if_rank_deficient(X_array, X_model):
         "`fit(model='ridge')` keeps every regressor and has a unique, "
         "order-invariant solution.",
         RankDeficientDesignWarning,
-        stacklevel=find_stack_level(),
-    )
-    return True
-
-
-def _near_collinear_pairs(sub, varying, columns):
-    """Describe the column pairs correlated at or above the pairwise threshold.
-
-    ``sub`` holds only the varying (non-constant) columns; ``varying`` maps its
-    column positions back to the original design so names stay correct.
-    Sorted by |r| descending and truncated so a wide design cannot flood the
-    warning.
-    """
-    with np.errstate(invalid="ignore", divide="ignore"):
-        corr = np.corrcoef(sub, rowvar=False)
-    abs_corr = np.abs(corr)
-    rows, cols = np.triu_indices_from(abs_corr, k=1)
-    over = [
-        (float(abs_corr[i, j]), int(i), int(j))
-        for i, j in zip(rows, cols)
-        if abs_corr[i, j] >= NEAR_COLLINEAR_CORR_THRESHOLD
-    ]
-    over.sort(reverse=True)
-
-    def name(k):
-        orig = int(varying[k])
-        return str(columns[orig]) if columns is not None else f"column {orig}"
-
-    descs = [f"{name(i)} & {name(j)} (|r| = {r:.2f})" for r, i, j in over]
-    if len(descs) > 5:
-        descs = descs[:5] + [f"... and {len(descs) - 5} more"]
-    return descs
-
-
-def _warn_if_near_collinear(X_array, X_model):
-    """Warn when a full-rank design matrix is nearly collinear.
-
-    A near-collinear design has a unique least-squares solution, but a fragile
-    one: the variance of the betas on the correlated columns is inflated, so
-    small perturbations of the data can flip their signs or magnitudes. Two
-    complementary signals, either of which fires the warning (the message says
-    which): a pairwise |correlation| at or above
-    ``NEAR_COLLINEAR_CORR_THRESHOLD`` — the direct heritage of the threshold
-    the removed v0.5 ``design_clean`` pruned at — and a condition number of
-    the column-standardized design above
-    ``NEAR_COLLINEAR_CONDITION_THRESHOLD``, which catches near-dependence
-    spread across three or more columns that no pairwise correlation reveals.
-
-    Constant columns (generated intercepts, all-ones baselines) are excluded
-    from both signals, consistent with ``DesignMatrix.vif()`` (which drops
-    generated intercepts) and ``DesignMatrix.clean()`` (which treats constant
-    columns as r = 0): a constant has no correlation with anything and cannot
-    be standardized.
-
-    This is a warning, never an error, and nothing is dropped — v0.6.0
-    deliberately removed the implicit ``design_clean`` auto-dropping; the fix
-    is a modeling decision that belongs to the caller. ``fit`` calls this only
-    when the exact-rank check stayed silent, so a rank-deficient design raises
-    ``RankDeficientDesignWarning`` alone.
-
-    Args:
-        X_array (np.ndarray): Design matrix as a 2-D array.
-        X_model: The design object supplied by the caller, used for column
-            names when it has them.
-    """
-    if X_array.ndim != 2 or X_array.shape[1] < 2:
-        return
-
-    finite = X_array[np.isfinite(X_array).all(axis=1)]
-    if finite.shape[0] < 3:
-        return
-
-    columns = getattr(X_model, "columns", None)
-    varying = np.flatnonzero(finite.var(axis=0) > 0)
-    if varying.size < 2:
-        return
-    sub = finite[:, varying]
-
-    signals = []
-    pair_descs = _near_collinear_pairs(sub, varying, columns)
-    if pair_descs:
-        signals.append(
-            f"column pair(s) correlated at |r| >= "
-            f"{NEAR_COLLINEAR_CORR_THRESHOLD}: {', '.join(pair_descs)}"
-        )
-    standardized = (sub - sub.mean(axis=0)) / sub.std(axis=0)
-    condition_number = float(np.linalg.cond(standardized))
-    if condition_number > NEAR_COLLINEAR_CONDITION_THRESHOLD:
-        signals.append(
-            f"the condition number of the standardized design is "
-            f"{condition_number:.0f} (> "
-            f"{NEAR_COLLINEAR_CONDITION_THRESHOLD:.0f}), indicating "
-            f"near-linear dependence spread across several columns"
-        )
-    if not signals:
-        return
-
-    warnings.warn(
-        f"Design matrix is nearly collinear (full rank, but ill-conditioned): "
-        f"{'; '.join(signals)}. The OLS betas are estimable but unstable: "
-        "their variance is inflated, and small changes in the data can flip "
-        "their signs or magnitudes. Nothing was dropped or modified. Possible "
-        "fixes: (1) inspect the collinearity with `DesignMatrix.vif()`; "
-        "(2) consider `DesignMatrix.clean()` to drop near-duplicate columns "
-        "before fitting (note: which of a correlated pair survives depends on "
-        "the order the design was built in); (3) try regularization — "
-        "`fit(model='ridge')` keeps every regressor and shrinks correlated "
-        "coefficients together.",
-        NearCollinearDesignWarning,
         stacklevel=find_stack_level(),
     )
 
@@ -316,13 +153,10 @@ def fit(
     on the returned `BrainData` for later use with `predict` and, for a GLM,
     `compute_contrasts`.
 
-    For `model='glm'` the design is diagnosed before estimation, as warnings
-    only — nothing is ever dropped, modified, or raised on. An exactly
-    rank-deficient design fires `RankDeficientDesignWarning`; a full-rank but
-    near-collinear design (a column pair with |r| >= 0.95, or a
-    column-standardized condition number above 30) fires
-    `NearCollinearDesignWarning` instead — never both. Each has its own
-    category so it can be silenced surgically with `warnings.filterwarnings`.
+    For `model='glm'` the design is diagnosed before estimation, as a warning
+    only — nothing is ever dropped, modified, or raised on. A rank-deficient
+    design fires `RankDeficientDesignWarning`, which has its own category so
+    it can be silenced surgically with `warnings.filterwarnings`.
 
     The facade does not preprocess the response. Compose `scale()` and
     `standardize()` before `fit` when you want them, so the fitted object's
@@ -455,8 +289,7 @@ def fit(
                 f"X has {X_array.shape[0]} samples, but brain data has "
                 f"{bd.shape[0]} samples. number of samples must match."
             )
-        if not _warn_if_rank_deficient(X_array, X_model):
-            _warn_if_near_collinear(X_array, X_model)
+        _warn_if_rank_deficient(X_array)
     elif isinstance(X, Mapping):
         # Banded ridge: one named feature space per entry.
         X_model = {name: np.asarray(space) for name, space in X.items()}
@@ -507,33 +340,6 @@ def fit(
     )
     fit_ridge(target, X_model, estimator)
     return target
-
-
-def _is_default(value, default):
-    """Report whether a `fit` option still holds its signature default.
-
-    The check rejects non-default *values*, not the act of passing a keyword:
-    an option explicitly given its own default is indistinguishable from an
-    untouched one and is treated as untouched. Array-like options
-    (`ridge_alpha`, `ridge_dirichlet_concentration`) make a bare `!=` return an
-    array, so equality is compared elementwise, and a sequence given as a list
-    matches a tuple default.
-
-    Args:
-        value: The supplied option value.
-        default: The signature default.
-
-    Returns:
-        bool: True when the option still holds its default value.
-    """
-    if value is default:
-        return True
-    if isinstance(value, bool) != isinstance(default, bool):
-        # `0` is not `False`: a flag given an integer was supplied deliberately.
-        return False
-    if np.ndim(value) != np.ndim(default):
-        return False
-    return bool(np.array_equal(value, default))
 
 
 def fit_ridge(bd, X, model):

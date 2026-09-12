@@ -1108,50 +1108,30 @@ class BrainData:
             random_state=random_state,
         )
 
-    def mean(self, axis=0, *, spatial_scale: str = "whole_brain", roi_mask=None):
+    def mean(self, axis=0):
         """Get mean of each voxel or image.
 
         Args:
             axis (int): 0 = across images (default, returns BrainData),
-                1 = within images (returns array). Ignored when
-                ``spatial_scale='roi'``.
-            spatial_scale (str): ``'whole_brain'`` (default) reduces along
-                ``axis``. ``'roi'`` requires ``roi_mask`` and returns a
-                BrainData of the same shape with each voxel painted with
-                its parcel's mean per image (parcellation smoothing).
-            roi_mask (BrainData | Nifti1Image | str | Path | None): Atlas image
-                for ``spatial_scale='roi'``.
+                1 = within images (returns array).
 
         Returns:
             float | np.ndarray | BrainData: Mean values.
         """
-        if spatial_scale == "roi":
-            from .analysis import reduce_per_roi
-
-            return reduce_per_roi(self, np.mean, roi_mask=roi_mask)
         from .utils import apply_func
 
         return apply_func(self, np.mean, axis)
 
-    def median(self, axis=0, *, spatial_scale: str = "whole_brain", roi_mask=None):
+    def median(self, axis=0):
         """Get median of each voxel or image.
 
         Args:
             axis (int): 0 = across images (default, returns BrainData),
-                1 = within images (returns array). Ignored when
-                ``spatial_scale='roi'``.
-            spatial_scale (str): ``'whole_brain'`` (default) or ``'roi'`` (paints
-                each voxel with its parcel's median per image).
-            roi_mask (BrainData | Nifti1Image | str | Path | None): Atlas image
-                for ``spatial_scale='roi'``.
+                1 = within images (returns array).
 
         Returns:
             float | np.ndarray | BrainData: Median values.
         """
-        if spatial_scale == "roi":
-            from .analysis import reduce_per_roi
-
-            return reduce_per_roi(self, np.median, roi_mask=roi_mask)
         from .utils import apply_func
 
         return apply_func(self, np.median, axis)
@@ -1488,27 +1468,21 @@ class BrainData:
             TypeError: If ``autoscale`` is not a bool or ``symmetric`` is not
                 ``True``, ``False``, or ``"auto"``.
         """
-        from .viewer import build_viewer, compute_display_windows
+        from .viewer import build_viewer, compute_display_window
 
-        cal_min, cal_max, cal_min_neg, cal_max_neg, mirror_negative = (
-            compute_display_windows(
-                self.data,
-                autoscale=autoscale,
-                threshold=threshold,
-                lower=lower,
-                upper=upper,
-                symmetric=symmetric,
-            )
+        window = compute_display_window(
+            self.data,
+            autoscale=autoscale,
+            threshold=threshold,
+            lower=lower,
+            upper=upper,
+            symmetric=symmetric,
         )
 
         return build_viewer(
             self,
             view=view,
-            cal_min=cal_min,
-            cal_max=cal_max,
-            cal_min_neg=cal_min_neg,
-            cal_max_neg=cal_max_neg,
-            mirror_negative=mirror_negative,
+            window=window,
             cmap=cmap,
             atlas=atlas,
             bg_img=bg_img,
@@ -1875,25 +1849,16 @@ class BrainData:
 
         return standardize(self, axis=axis, method=method)
 
-    def std(self, axis=0, *, spatial_scale: str = "whole_brain", roi_mask=None):
+    def std(self, axis=0):
         """Get standard deviation of each voxel or image.
 
         Args:
             axis (int): 0 = across images (default, returns BrainData),
-                1 = within images (returns array). Ignored when
-                ``spatial_scale='roi'``.
-            spatial_scale (str): ``'whole_brain'`` (default) or ``'roi'`` (paints
-                each voxel with its parcel's std per image).
-            roi_mask (BrainData | Nifti1Image | str | Path | None): Atlas image
-                for ``spatial_scale='roi'``.
+                1 = within images (returns array).
 
         Returns:
             float | np.ndarray | BrainData: Standard deviation values.
         """
-        if spatial_scale == "roi":
-            from .analysis import reduce_per_roi
-
-            return reduce_per_roi(self, np.std, roi_mask=roi_mask)
         from .utils import apply_func
 
         return apply_func(self, np.std, axis)
@@ -2005,11 +1970,8 @@ class BrainData:
             ClusterReport: Report with `peaks` and `clusters` (polars DataFrames)
                 and `stat_img` (BrainData).
         """
-        from nltools.data.atlases import (
-            DEFAULT_ATLASES,
-            ClusterReport,
-            cluster_report_data,
-        )
+        from nltools.data.atlases import ClusterReport, cluster_report_data
+        from nltools.data.atlases.registry import DEFAULT_ATLASES
 
         peaks, clusters, thr = cluster_report_data(
             self,

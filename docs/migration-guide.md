@@ -414,35 +414,28 @@ uniquely determined.
 
 ```text
 RankDeficientDesignWarning: Design matrix is rank deficient: rank 2 of 3
-columns — 1 column(s) are linear combinations of the others (likely involved:
-condA_dup). The OLS betas are not uniquely determined, and contrasts touching
-the dependent columns are not interpretable: the fit silently returns one of
-infinitely many solutions. Possible fixes: (1) inspect the collinearity with
-`DesignMatrix.vif()`; (2) try `DesignMatrix.clean()` to drop redundant columns
-before fitting (note: which of a correlated pair survives depends on the order
-the design was built in); (3) try regularization — `fit(model='ridge')` keeps
-every regressor and has a unique, order-invariant solution.
+columns — 1 column(s) are linear combinations of the others. The OLS betas are
+not uniquely determined, and contrasts touching the dependent columns are not
+interpretable: the fit silently returns one of infinitely many solutions.
+Possible fixes: (1) inspect the collinearity with `DesignMatrix.vif()`; (2) try
+`DesignMatrix.clean()` to drop redundant columns before fitting (note: which of
+a correlated pair survives depends on the order the design was built in); (3)
+try regularization — `fit(model='ridge')` keeps every regressor and has a
+unique, order-invariant solution.
 ```
 
-The diagnosis names the likely-involved columns (truncated for wide designs)
-rather than dumping the full roster, and a design with more columns than
-timepoints — rank deficient by construction — is called out as such instead of
-being skipped. The warning has its own category so it can be silenced
-surgically: `warnings.filterwarnings("ignore",
+The diagnosis counts the dependent columns rather than guessing which of them
+to blame, and a design with more columns than timepoints — rank deficient by
+construction — is called out as such instead of being skipped. The warning has
+its own category so it can be silenced surgically:
+`warnings.filterwarnings("ignore",
 category=nltools.data.braindata.modeling.RankDeficientDesignWarning)`.
 
-**Full-rank but near-collinear designs warn too.** The designs the old
-`design_clean` used to prune — a column pair correlated at `|r| >= 0.95` — are
-technically estimable, so the rank check stays silent on them; `fit()` now
-fires a separate `NearCollinearDesignWarning` instead, naming the offending
-pair(s). A second signal, a condition number of the column-standardized design
-above 30 (Belsley's classic cutoff), catches near-dependence spread across
-three or more columns that no pairwise correlation reveals; the message says
-which signal fired. Constant (intercept-like) columns are excluded from the
-scan, so generated drift and intercept terms don't false-positive. Like the
-rank warning this is diagnosis only — nothing is dropped, and the same three
-fixes apply (`vif()`, an explicit `clean()`, or ridge). A rank-deficient
-design fires only `RankDeficientDesignWarning`, never both.
+**Full-rank designs stay silent.** The designs the old `design_clean` used to
+prune — a column pair correlated at `|r| >= 0.95` — are technically estimable,
+so `fit()` keeps them and says nothing. To find them yourself, use
+`DesignMatrix.vif()`; to drop them, call `DesignMatrix.clean()` explicitly; to
+keep every regressor with a stable solution, fit with `model='ridge'`.
 
 #### Prefer regularization to dropping columns
 
@@ -2080,9 +2073,10 @@ vector with `nilearn.masking.unmask(values, brain.mask)`. For a subset, place th
 values back at their selected positions in a full mask-length vector before
 calling `unmask`.
 
-`BrainData.align(spatial_scale="roi", roi_mask=...)` and
-`BrainData.{mean,std,median}(spatial_scale="roi", roi_mask=...)` retain their
-per-parcel alignment and reduction behavior.
+`BrainData.align(spatial_scale="roi", roi_mask=...)` retains its per-parcel
+alignment behavior. `BrainData.{mean,std,median}` take only `axis`, as in v0.5.1;
+for parcellation smoothing, reduce with `extract_roi` and paint the result back
+with `roi_to_brain_from_atlas`.
 
 ### Compute Contrasts
 

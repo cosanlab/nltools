@@ -4,7 +4,28 @@ import nibabel as nb
 import polars as pl
 import pytest
 
-from nltools.data.atlases import Atlas, load_atlas
+from nltools.data.atlases import Atlas, list_atlases, load_atlas
+
+# All 11 atlases hosted at huggingface.co/datasets/nltools/niftis under atlases/.
+EXPECTED_ATLASES = {
+    "aal",
+    "aicha",
+    "desikan_killiany",
+    "destrieux",
+    "harvard_oxford",
+    "juelich",
+    "marsatlas",
+    "neuromorphometrics",
+    "schaefer_200",
+    "talairach_ba",
+    "talairach_gyrus",
+}
+
+
+def test_list_atlases_returns_all_eleven():
+    names = list_atlases()
+    assert set(names) == EXPECTED_ATLASES
+    assert names == sorted(names), "list_atlases must return sorted names"
 
 
 @pytest.mark.parametrize("name", ["aal", "harvard_oxford"])
