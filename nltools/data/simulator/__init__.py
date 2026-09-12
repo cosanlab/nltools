@@ -562,24 +562,12 @@ _SUPPORTED_CORRECTIONS = (None, "fdr")
 def _validate_correction(correction):
     """Raise `ValueError` for an unsupported `correction`.
 
-    Also raises for the dropped v0.5.1 `correction='permutation'`.
-
     Args:
         correction: Value passed as `SimulateGrid`'s `correction` argument.
 
     Raises:
-        ValueError: If `correction` is `'permutation'` (dropped in v0.6.0 — its
-            v0.5.1 permutation branch was never wired into `fit()`, so the
-            option never changed the result) or anything outside
-            `_SUPPORTED_CORRECTIONS`.
+        ValueError: If `correction` is outside `_SUPPORTED_CORRECTIONS`.
     """
-    if correction == "permutation":
-        raise ValueError(
-            "correction='permutation' is no longer supported: its v0.5.1 "
-            "permutation branch never ran as part of fit() and never changed "
-            "the result. Run a permutation test directly with "
-            "nltools.algorithms.inference.one_sample_permutation_test instead."
-        )
     if correction not in _SUPPORTED_CORRECTIONS:
         raise ValueError(
             f"correction must be one of {_SUPPORTED_CORRECTIONS}; got {correction!r}."

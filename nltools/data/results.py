@@ -5,13 +5,14 @@ from __future__ import annotations
 from copy import deepcopy
 from dataclasses import asdict as dataclass_asdict
 from dataclasses import dataclass
-from typing import Any, Generic
+from typing import TYPE_CHECKING, Any, Generic
 
 import numpy as np
 
 from nltools.models.results import Payload
 
-from .braindata import BrainData
+if TYPE_CHECKING:
+    from .braindata import BrainData
 
 __all__ = ["BootstrapResult", "Predict"]
 
@@ -54,11 +55,11 @@ class Predict:
     """Frozen structural record for `BrainData.predict` decoding results.
 
     ``spatial_scale`` is the discriminator: it decides which fields carry a
-    value and which stay ``None``. Construction validates that combination and
-    the shapes it implies, so an empty or mixed-mode record cannot exist. Field
-    bindings cannot be rebound, but the payloads they hold remain usable, and
-    the record takes independent ownership of every array, brain map, and
-    estimator it stores.
+    value and which stay ``None``. Construction validates that combination, so
+    an empty or mixed-mode record cannot exist; the shapes within it are the
+    producer's responsibility. Field bindings cannot be rebound, but the
+    payloads they hold remain usable, and the record takes independent
+    ownership of every array, brain map, and estimator it stores.
 
     **Brain-space outputs are `BrainData` objects**, not raw arrays, so
     ``result.weight_map.plot()`` works directly (``.data`` gives the array).
@@ -130,9 +131,8 @@ class Predict:
     score_map: BrainData | None = None
 
     def __post_init__(self):
-        """Validate the field combination and shapes, then take ownership."""
+        """Validate the field combination, then take ownership."""
         self._validate_mode()
-        self._validate_shapes()
         for name in self.__dataclass_fields__:
             if name in _MODE_INDEPENDENT_FIELDS:
                 # A scoring name or callable is the caller's specification, not
@@ -167,82 +167,6 @@ class Predict:
                     f"{self.spatial_scale!r} and must be None. That scale "
                     f"populates {sorted(permitted)}."
                 )
-
-    def _validate_shapes(self) -> None:
-        """Check the shapes the spec's table states for the populated fields."""
-        for name in ("classes", "predictions", "cv_folds", "roi_labels"):
-            value = getattr(self, name)
-            if value is not None and np.asarray(value).ndim != 1:
-                raise ValueError(
-                    f"{name} must be one-dimensional; got shape "
-                    f"{np.asarray(value).shape}."
-                )
-        if self.cv_folds is not None and len(self.cv_folds) != len(self.predictions):
-            raise ValueError(
-                f"cv_folds must have one fold index per prediction: got "
-                f"{len(self.cv_folds)} for {len(self.predictions)} predictions."
-            )
-        if self.scores is not None:
-            expected_ndim = 2 if self.spatial_scale == "roi" else 1
-            if np.asarray(self.scores).ndim != expected_ndim:
-                shape = "(n_folds, n_rois)" if expected_ndim == 2 else "(n_folds,)"
-                raise ValueError(
-                    f"scores must be {shape} for spatial_scale="
-                    f"{self.spatial_scale!r}; got shape "
-                    f"{np.asarray(self.scores).shape}."
-                )
-        self._validate_fold_indices()
-        if self.roi_labels is not None and len(self.roi_labels) != self.scores.shape[1]:
-            raise ValueError(
-                f"roi_labels must have one label per scored parcel: got "
-                f"{len(self.roi_labels)} labels for {self.scores.shape[1]} "
-                f"parcel score columns."
-            )
-        self._validate_maps()
-
-    def _validate_fold_indices(self) -> None:
-        """Require every `cv_folds` value to index one of the fold `scores`.
-
-        This is what makes `scores` "one value per fold" checkable: a fold index
-        with no score, or the `-1` that used to mark a row no test fold covered,
-        cannot survive the partition rule and cannot be stored here.
-        """
-        if self.cv_folds is None:
-            return
-        folds = np.asarray(self.cv_folds)
-        if folds.size == 0:
-            return
-        low, high = int(folds.min()), int(folds.max())
-        if low < 0 or high >= len(self.scores):
-            raise ValueError(
-                f"every cv_folds value must index into scores: got fold indices "
-                f"in [{low}, {high}] for {len(self.scores)} fold scores."
-            )
-
-    def _validate_maps(self) -> None:
-        """Check that populated brain maps are `BrainData` of the stated width."""
-        for name in ("weight_map", "score_map"):
-            value = getattr(self, name)
-            if value is not None and not isinstance(value, BrainData):
-                raise TypeError(
-                    f"{name} is {type(value).__name__}, expected BrainData."
-                )
-        if self.score_map is not None and self.score_map.data.ndim != 1:
-            raise ValueError(
-                f"score_map must hold one map; got shape {self.score_map.shape}."
-            )
-        if self.weight_map is None:
-            return
-        n_classes = 0 if self.classes is None else len(self.classes)
-        n_maps = 1 if self.weight_map.data.ndim == 1 else self.weight_map.data.shape[0]
-        expected = n_classes if n_classes > 2 else 1
-        if n_maps != expected:
-            raise ValueError(
-                f"weight_map holds {n_maps} map(s); a result with {n_classes} "
-                f"classes holds {expected}. Regression and binary classification "
-                f"produce one signed map; multiclass produces one map per class, "
-                f"never an average across classes."
-            )
 
     @property
     def mean_score(self):

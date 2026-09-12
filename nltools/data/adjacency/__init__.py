@@ -546,9 +546,11 @@ class Adjacency:
                 `method=None` or `method='1d'`. Default False (self-similarity is
                 uninformative). Symmetric matrices never store the diagonal, so this
                 flag is a no-op for them.
-            nan_policy (str): How to handle NaN values: `'omit'` removes NaN pairwise
+            nan_policy (str): How to handle NaN values on the 1-D paths
+                (`method='1d'` or `method=None`): `'omit'` removes NaN pairwise
                 before computing the correlation (default), `'propagate'` lets NaN
                 flow through, `'raise'` errors if any NaN is present.
+                `method='2d'` raises on any NaN whatever the policy.
             tail (int | str): `2`/`'two'` (two-tailed, default) or `1`/`'one'`
                 (one-tailed, positive direction).
             return_null (bool): If True, also return the null distribution. Default False.

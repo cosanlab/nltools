@@ -138,13 +138,13 @@ def regress(adj, X, method="ols", tail=2):
             `residual` is an Adjacency retaining the response shape and metadata.
     """
     import polars as pl
-    from scipy.stats import t as t_dist
+    from nltools.algorithms.regression import regress as ols_regress
     from nltools.data.adjacency import Adjacency
     from nltools.data.designmatrix import DesignMatrix
     from nltools.algorithms.inference.validation import validate_tail_parameter
     from .state import common_labels, result, validate_compatible
 
-    tail_internal = validate_tail_parameter(tail)
+    validate_tail_parameter(tail)
     if method != "ols":
         raise ValueError(
             "Only 'ols' method is currently supported for Adjacency.regress()"
@@ -169,21 +169,16 @@ def regress(adj, X, method="ols", tail=2):
     else:
         raise ValueError("X must be a DesignMatrix or Adjacency Instance.")
 
-    beta = np.linalg.pinv(design) @ response
-    residual = response - design @ beta
-    df = design.shape[0] - design.shape[1]
-    # Retain the RSS-based scale, including intercept-free models (GH #287).
-    residual_scale = np.sqrt(np.sum(residual**2, axis=0) / df)
-    stderr = (
-        np.sqrt(np.diag(np.linalg.pinv(design.T @ design)))[:, None] * residual_scale
+    # The shared OLS is the single implementation; it squeezes every output, so
+    # restore the (n_regressors, n_targets) and (n_samples, n_targets) shapes the
+    # result assembly below indexes by axis.
+    beta, stderr, t, p, _, residual = ols_regress(design, response, tail=tail)
+    coefficient_shape = (design.shape[1], response.shape[1])
+    beta, stderr, t, p = (
+        np.reshape(value, coefficient_shape) for value in (beta, stderr, t, p)
     )
-    t = np.zeros_like(beta)
-    np.divide(beta, stderr, out=t, where=stderr > 1.0e-6)
-    p = (
-        1 - t_dist.cdf(t, df)
-        if tail_internal == "upper"
-        else 2 * (1 - t_dist.cdf(np.abs(t), df))
-    )
+    residual = np.reshape(residual, (design.shape[0], response.shape[1]))
+    df = int(design.shape[0] - design.shape[1])
     stats = {"df": df}
     for key, values in [("beta", beta), ("sigma", stderr), ("t", t), ("p", p)]:
         if isinstance(X, Adjacency):

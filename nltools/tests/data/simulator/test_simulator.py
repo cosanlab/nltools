@@ -116,14 +116,12 @@ def test_threshold_simulation_rejects_unknown_correction():
         sim.threshold_simulation(threshold=0.05, threshold_type="p", correction="bogus")
 
 
-def test_correction_permutation_names_its_replacement():
-    """C3 (q31x trs9, row 17): the dropped v0.5.1 `correction='permutation'` must
-    raise, naming `one_sample_permutation_test` as the replacement."""
+def test_correction_permutation_is_rejected():
+    """C3 (q31x trs9, row 17): the dropped v0.5.1 `correction='permutation'` is
+    rejected by the same membership check as any other unsupported value."""
     sim = SimulateGrid(grid_width=10, n_subjects=10, random_state=0)
     sim.fit()
-    with pytest.raises(
-        ValueError, match=r"nltools\.algorithms\.inference\.one_sample_permutation_test"
-    ):
+    with pytest.raises(ValueError, match=r"correction must be one of"):
         sim.threshold_simulation(
             threshold=0.05, threshold_type="p", correction="permutation"
         )

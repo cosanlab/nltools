@@ -150,7 +150,7 @@ def initialize(adj, data, *, matrix_type, labels, Y):
     if isinstance(data, (str, Path)) and is_h5_path(data):
         from .io import read_h5
 
-        data = read_h5(data, matrix_type=matrix_type)
+        data = read_h5(data)
         matrix_type = None
     if isinstance(data, list) and data:
         if any(isinstance(item, (str, Path)) and is_h5_path(item) for item in data):

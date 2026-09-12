@@ -4,9 +4,6 @@ Each function takes an Adjacency instance as its first argument (`adj`).
 """
 
 import numpy as np
-import warnings
-
-from nltools.utils import find_stack_level
 
 
 def similarity(
@@ -42,9 +39,11 @@ def similarity(
             or `method='1d'`. Default False (self-similarity is uninformative).
             Symmetric matrices never store the diagonal, so this flag is a no-op
             for them.
-        nan_policy (str): How to handle NaN values: `'omit'` removes NaN pairwise
-            before computing the correlation (default), `'propagate'` lets NaN flow
-            through, `'raise'` errors if any NaN is present.
+        nan_policy (str): How to handle NaN values on the 1-D paths
+            (`method='1d'` or `method=None`): `'omit'` removes NaN pairwise before
+            computing the correlation (default), `'propagate'` lets NaN flow
+            through, `'raise'` errors if any NaN is present. `method='2d'` raises
+            on any NaN whatever the policy.
         tail (int | str): `2`/`'two'` (two-tailed, default) or `1`/`'one'` (one-tailed, positive direction).
         return_null (bool): If True, also return the null distribution. Default False.
         n_jobs (int): Number of parallel jobs. -1 means all cores. Default -1.
@@ -68,52 +67,36 @@ def similarity(
         )
 
     def _handle_nans(arr1, arr2, nan_policy):
-        """Handle NaN values according to policy.
-
-        For 1D arrays: masks out positions where either array has NaN.
-        For 2D arrays: flattens and masks, then reshapes (for matrix perm).
-        """
+        """Apply `nan_policy` to the 1-D inputs; reject NaN outright for 2-D."""
         arr1 = np.asarray(arr1)
         arr2 = np.asarray(arr2)
 
-        # Check for NaN presence
-        has_nan1 = np.any(np.isnan(arr1))
-        has_nan2 = np.any(np.isnan(arr2))
-
-        if not has_nan1 and not has_nan2:
+        if not np.any(np.isnan(arr1)) and not np.any(np.isnan(arr2)):
             return arr1, arr2
+
+        if arr1.ndim == 2:
+            # The matrix permutation shuffles whole rows and columns together,
+            # so no policy makes a 2-D correlation over NaN edges meaningful.
+            raise ValueError(
+                "Input contains NaN values, which method='2d' cannot handle. "
+                "Use method='1d' (or method=None), which masks NaN pairwise, "
+                "or remove the NaN values before calling similarity()."
+            )
 
         if nan_policy == "raise":
-            if has_nan1 or has_nan2:
-                raise ValueError(
-                    "Input contains NaN values. Use nan_policy='omit' to ignore them "
-                    "or nan_policy='propagate' to allow NaN in results."
-                )
-        elif nan_policy == "propagate":
+            raise ValueError(
+                "Input contains NaN values. Use nan_policy='omit' to ignore them "
+                "or nan_policy='propagate' to allow NaN in results."
+            )
+        if nan_policy == "propagate":
             return arr1, arr2
-        elif nan_policy == "omit":
-            # For 2D matrix permutation, we can't easily mask individual elements
-            # because the permutation test permutes rows/columns together.
-            # Instead, we warn and use propagate for 2D.
-            if arr1.ndim == 2:
-                warnings.warn(
-                    "NaN values detected in 2D matrix data. For method='2d', "
-                    "NaN handling is limited. Consider using method='1d' or None, "
-                    "or removing NaN values before calling similarity().",
-                    UserWarning,
-                    stacklevel=find_stack_level(),
-                )
-                return arr1, arr2
 
-            # For 1D: mask out NaN positions from both arrays
-            mask = ~(np.isnan(arr1) | np.isnan(arr2))
-            if not np.any(mask):
-                raise ValueError(
-                    "All values are NaN after pairwise removal. Cannot compute similarity."
-                )
-            return arr1[mask], arr2[mask]
-
-        return arr1, arr2
+        mask = ~(np.isnan(arr1) | np.isnan(arr2))
+        if not np.any(mask):
+            raise ValueError(
+                "All values are NaN after pairwise removal. Cannot compute similarity."
+            )
+        return arr1[mask], arr2[mask]
 
     data1 = adj.copy()
     if not isinstance(data, Adjacency):

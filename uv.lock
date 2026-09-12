@@ -951,23 +951,6 @@ wheels = [
 ]
 
 [[package]]
-name = "hdf5plugin"
-version = "7.0.0"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "h5py" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/3d/64/0fc6b68e5bc671e7b81d67b930fbed3a4e8a2a92dc4af0f7282b2a2ff988/hdf5plugin-7.0.0.tar.gz", hash = "sha256:e6e6b1f8b0c4d2ca87e616ddc31d08330b36207e466357040f95269e5e0401c8", size = 68284761, upload-time = "2026-06-25T20:59:40.102Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/03/5a/00d0f491d420d491b5134ee044cd8ead5103382d88f4c8aee623258a6348/hdf5plugin-7.0.0-py3-none-macosx_10_13_x86_64.whl", hash = "sha256:e0ff0a81e6319575ffc8bf230b8df43f3f19f6fe96843e113e04c5ba9f7f3141", size = 6941923, upload-time = "2026-06-25T20:59:24.517Z" },
-    { url = "https://files.pythonhosted.org/packages/96/ad/b28f4102e619c262b29bfcd13ccf6799e26f9ff113d2fdce19050ae29448/hdf5plugin-7.0.0-py3-none-macosx_11_0_arm64.whl", hash = "sha256:97ea4ff6114223c5e8ccce7e23cc6cd398b58c02f4e988e967aeea914fcb8030", size = 6259223, upload-time = "2026-06-25T20:59:26.246Z" },
-    { url = "https://files.pythonhosted.org/packages/1f/f4/67263173ff61c49800eec4f16b4d84e6a39170be8d4871d4eb0d540b71ee/hdf5plugin-7.0.0-py3-none-manylinux_2_24_aarch64.manylinux_2_28_aarch64.whl", hash = "sha256:0f3ba9f4e2a370340b45e7042d1b1b1577ab259c1ddf00956264836fa33052ef", size = 42789778, upload-time = "2026-06-25T20:59:28.438Z" },
-    { url = "https://files.pythonhosted.org/packages/75/d2/66673e2d0ef8499d08dd7061caa194e4ddec12df73ab512431c60538f675/hdf5plugin-7.0.0-py3-none-manylinux_2_24_ppc64le.manylinux_2_28_ppc64le.whl", hash = "sha256:1a4cb2207ec3ac538fc728e4596e9e49aed6c4487a641071fb370c04a361e7bf", size = 45295544, upload-time = "2026-06-25T20:59:31.765Z" },
-    { url = "https://files.pythonhosted.org/packages/d7/0b/855e50e27eab8338c71c3157672c065cd2a2ab38887b3ea4bf128cbd89a1/hdf5plugin-7.0.0-py3-none-manylinux_2_24_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:4ad4ab0d3367699d132e61b1cc382a0c640a7dba56536e5105508205ebbe8762", size = 45012013, upload-time = "2026-06-25T20:59:35.029Z" },
-    { url = "https://files.pythonhosted.org/packages/4e/14/32cf2aae083c74b95678875e11d25d0cb9e51a33d27f4218eb9aeacfcd70/hdf5plugin-7.0.0-py3-none-win_amd64.whl", hash = "sha256:2e052af8d7848e8bac92646584617503a08bb9b466cfa810a49ecd93e89b7ffa", size = 3523827, upload-time = "2026-06-25T20:59:37.758Z" },
-]
-
-[[package]]
 name = "hf-xet"
 version = "1.5.2"
 source = { registry = "https://pypi.org/simple" }
@@ -2172,7 +2155,6 @@ dependencies = [
 [package.optional-dependencies]
 all = [
     { name = "h5py" },
-    { name = "hdf5plugin" },
     { name = "ipywidgets" },
     { name = "networkx" },
 ]
@@ -2181,7 +2163,6 @@ graph = [
 ]
 h5 = [
     { name = "h5py" },
-    { name = "hdf5plugin" },
 ]
 interactive-plots = [
     { name = "ipywidgets" },
@@ -2191,7 +2172,6 @@ interactive-plots = [
 dev = [
     { name = "git-cliff" },
     { name = "h5py" },
-    { name = "hdf5plugin" },
     { name = "ipywidgets" },
     { name = "jupyter-book" },
     { name = "marimo" },
@@ -2217,7 +2197,6 @@ requires-dist = [
     { name = "anywidget", specifier = ">=0.9" },
     { name = "h5py", specifier = ">=3.15" },
     { name = "h5py", marker = "extra == 'h5'", specifier = ">=3.15" },
-    { name = "hdf5plugin", marker = "extra == 'h5'", specifier = ">=6.0.0" },
     { name = "himalaya", specifier = ">=0.4.11,<0.5" },
     { name = "huggingface-hub", specifier = ">=0.30" },
     { name = "ipywidgets", marker = "extra == 'interactive-plots'", specifier = ">=8.1.7" },
@@ -2242,7 +2221,6 @@ provides-extras = ["h5", "graph", "interactive-plots", "all"]
 dev = [
     { name = "git-cliff", specifier = ">=2.0" },
     { name = "h5py", specifier = ">=3.15" },
-    { name = "hdf5plugin", specifier = ">=6.0.0" },
     { name = "ipywidgets", specifier = ">=8.1.7" },
     { name = "jupyter-book", specifier = ">=2.1.4" },
     { name = "marimo", specifier = ">=0.23" },

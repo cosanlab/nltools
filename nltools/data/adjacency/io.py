@@ -84,22 +84,16 @@ def to_graph(adj):
     raise NotImplementedError("This function currently only works on single matrices.")
 
 
-def read_h5(file_name, matrix_type=None):
-    """Read current and legacy vector layouts into a normalized Adjacency."""
+def read_h5(file_name):
+    """Read the current vector layout into a normalized Adjacency."""
     from . import Adjacency
-    from nltools.io.h5 import (
-        _read_polars_frame,
-        _require_h5,
-        is_legacy_adjacency_h5,
-        load_legacy_adjacency_h5,
-    )
+    from nltools.io.h5 import _read_polars_frame, _reject_legacy_h5, _require_h5
 
     _require_h5()
     import h5py
 
-    if is_legacy_adjacency_h5(file_name):
-        return Adjacency(**load_legacy_adjacency_h5(file_name, matrix_type=matrix_type))
     with h5py.File(file_name, "r") as source:
+        _reject_legacy_h5(source, "Y_columns")
         kind = source["matrix_type"][()].decode()
         values = np.array(source["data"])
         labels_ds = source["labels"]

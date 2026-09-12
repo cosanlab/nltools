@@ -57,11 +57,10 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-# h5py is a core dependency (see above); kept listed here so `nltools[h5]`
-# keeps resolving for anyone who already pins it. hdf5plugin is the real
-# opt-in here: nltools/io/h5.py imports it lazily, only when a caller requests
-# a non-builtin compression filter (blosc/zstd/lz4) via h5_compression.
-h5 = ["h5py>=3.15", "hdf5plugin>=6.0.0"]
+# h5py is a core dependency (see above); the extra is kept as an alias so
+# `pip install nltools[h5]` — what the missing-h5py error tells users to run —
+# keeps resolving for anyone who already pins it.
+h5 = ["h5py>=3.15"]
 graph = ["networkx>=3.5"]
 interactive_plots = ["ipywidgets>=8.1.7"]
 all = ["nltools[h5,graph,interactive_plots]"]
@@ -71,7 +70,6 @@ all = ["nltools[h5,graph,interactive_plots]"]
 dev = [
     "git-cliff>=2.0",
     "h5py>=3.15",
-    "hdf5plugin>=6.0.0",
     "ipywidgets>=8.1.7",
     "jupyter-book>=2.1.4",
     "marimo>=0.23",

@@ -54,7 +54,7 @@ class BrainData:
             ``data`` is a BrainData with an ``.X``, that value is inherited when this
             is ``None``.
         h5_compression (str): Compression filter used when writing HDF5
-            (``.h5``/``.hdf5``) output. Default ``'gzip'``.
+            (``.h5``/``.hdf5``) output, ``'gzip'`` (default) or ``'lzf'``.
         verbose (bool): Emit informational messages during loading and other
             operations. Default ``False``.
         resample (bool): Whether to automatically resample data to mask space.

@@ -7,14 +7,11 @@ wraps, exports NumPy arrays, and round-trips through TSV/CSV or HDF5
 
 from __future__ import annotations
 
-import re
 from pathlib import Path
 from typing import TYPE_CHECKING
 
 import numpy as np
 import polars as pl
-
-from nltools.utils import find_stack_level
 
 if TYPE_CHECKING:
     import pandas as pd
@@ -85,52 +82,38 @@ def separator_for_path(path: str | Path) -> str:
 
 
 def _read_delimited(path: Path, sep: str) -> pl.DataFrame:
-    """Read a delimited text file, recovering from a mismatched separator.
+    """Read a delimited text file, rejecting a separator its extension belies.
 
-    nltools <= 0.6.0 wrote tab-separated data into whatever extension it was
-    handed, so a ``.csv`` on disk may really be a TSV. Parsing it with the
-    wrong delimiter yields a single column whose *name* still contains the
-    real one. That is only a hint, not proof — ``onset,ms`` is a valid
-    single-column TSV header — so the re-parse is accepted only when it
-    actually produces multiple fully-populated columns (a header that merely
-    *contains* the alternate delimiter splits into all-null columns instead),
-    and it warns, since it reinterprets the file against its extension.
+    Args:
+        path (Path): File to read.
+        sep (str): Delimiter the extension implies.
+
+    Returns:
+        pl.DataFrame: The parsed table.
+
+    Raises:
+        ValueError: If the file parses as a single column whose name still
+            holds the other delimiter — the file's separator does not match
+            its extension.
     """
-    import warnings
-
-    def read(delimiter: str) -> pl.DataFrame:
-        return pl.read_csv(
-            path,
-            separator=delimiter,
-            null_values=["n/a", "N/A", "NA", ""],
-            infer_schema_length=10_000,
+    raw = pl.read_csv(
+        path,
+        separator=sep,
+        null_values=["n/a", "N/A", "NA", ""],
+        infer_schema_length=10_000,
+    )
+    alternate = "," if sep == "\t" else "\t"
+    if raw.width == 1 and alternate in raw.columns[0]:
+        shown = {",": "','", "\t": "tab"}
+        expected = ".tsv" if alternate == "\t" else ".csv"
+        raise ValueError(
+            f"{path.name} parsed as a single column with the {shown[sep]} "
+            f"separator its extension implies, but its header contains "
+            f"{shown[alternate]}. The file's separator does not match its "
+            f"extension: rename it to {expected}, or rewrite it with "
+            f"DesignMatrix.write(name, sep=...) using the delimiter the "
+            f"extension implies."
         )
-
-    raw = read(sep)
-    if raw.width == 1:
-        alternate = "," if sep == "\t" else "\t"
-        if alternate in raw.columns[0]:
-            reparsed = read(alternate)
-            plausible = reparsed.width > 1 and (
-                reparsed.height == 0
-                or all(
-                    reparsed[c].null_count() < reparsed.height for c in reparsed.columns
-                )
-            )
-            if plausible:
-                shown = {",": "','", "\t": "tab"}
-                warnings.warn(
-                    f"{path.name} parsed as a single column with the "
-                    f"{shown[sep]} separator its extension implies, but "
-                    f"re-parsing with {shown[alternate]} produced "
-                    f"{reparsed.width} columns — using the re-parse. The "
-                    f"file's separator does not match its extension "
-                    f"(nltools <= 0.6.0 wrote such files); rewrite it to "
-                    f"silence this warning.",
-                    UserWarning,
-                    stacklevel=find_stack_level(),
-                )
-                return reparsed
     return raw
 
 
@@ -310,46 +293,8 @@ def write_h5(dm: DesignMatrix, file_name: str) -> None:
         meta.attrs["obj_type"] = "design_matrix"
 
 
-# Pre-`.nl_` spellings of the column names nltools generated before commit
-# 604073fb reserved the namespace: `poly_0` / `cosine_1` (add_poly /
-# add_dct_basis), `global_spike1` / `diff_spike1` (find_spikes), and the
-# run-separated `{run}_{base}` variants a multi-run append produced. Only these
-# exact shapes translate — everything else in a legacy file is a user column.
-_LEGACY_GENERATED_RE = re.compile(
-    r"(?:(?P<run>\d+)_)?(?P<base>(?:poly|cosine)_\d+|(?:global|diff)_spike\d+)"
-)
-
-
-def _legacy_generated_to_reserved(name: str) -> str:
-    """Translate a pre-0.6 generated column name into the `.nl_` namespace.
-
-    Applied ONLY to the legacy h5 layout in `read_h5`, where the names are
-    provably machine-generated (the old writer produced them). Every other
-    ingestion path deliberately treats `poly_0` as a user column (see
-    `nltools.utils.RESERVED_PREFIX`), so recognition stays keyed on the
-    reserved prefix alone.
-    """
-    from nltools.utils import is_reserved_name, reserved_name, run_separated_name
-
-    if is_reserved_name(name):
-        return name
-    match = _LEGACY_GENERATED_RE.fullmatch(name)
-    if match is None:
-        return name
-    if match["run"] is not None:
-        return run_separated_name(int(match["run"]), match["base"])
-    return reserved_name(match["base"])
-
-
 def read_h5(file_name: str | Path) -> tuple[pl.DataFrame, dict]:
     """Read a DesignMatrix HDF5 file written by `write_h5`.
-
-    Handles both on-disk layouts: the current one (frame as Arrow IPC bytes)
-    and the pre-reader one written by nltools <= 0.6.0 (a plain float matrix
-    in ``data`` beside an ``S``-typed ``columns`` dataset). Legacy files may
-    also carry pre-`.nl_` generated column names (``poly_0``, ``0_poly_0``,
-    ``cosine_1``); those are translated into the reserved namespace at load
-    time so downstream recognition stays keyed on the prefix alone.
 
     Args:
         file_name (str | Path): Path to the HDF5 file.
@@ -367,17 +312,7 @@ def read_h5(file_name: str | Path) -> tuple[pl.DataFrame, dict]:
         return [v.decode() if isinstance(v, bytes) else str(v) for v in values]
 
     with h5py.File(file_name, "r") as f:
-        legacy = "columns" in f
-        if legacy:
-            # Legacy layout: homogeneous matrix + separate column names.
-            values = np.asarray(f["data"])
-            columns = [
-                _legacy_generated_to_reserved(c)
-                for c in _decode(np.asarray(f["columns"]))
-            ]
-            data = pl.DataFrame(values, schema=columns)
-        else:
-            data = _read_polars_frame(f, "data")
+        data = _read_polars_frame(f, "data")
 
         metadata: dict = {}
         if "metadata" in f:
@@ -394,13 +329,5 @@ def read_h5(file_name: str | Path) -> tuple[pl.DataFrame, dict]:
                 metadata["run_count"] = int(attrs["run_count"])
             if "n_rows" in attrs:
                 metadata["n_rows"] = int(attrs["n_rows"])
-
-        if legacy:
-            # The legacy metadata lists name the same old spellings.
-            for key in ("convolved", "confounds"):
-                if key in metadata:
-                    metadata[key] = [
-                        _legacy_generated_to_reserved(c) for c in metadata[key]
-                    ]
 
     return data, metadata

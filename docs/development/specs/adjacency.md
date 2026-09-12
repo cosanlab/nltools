@@ -181,7 +181,7 @@ nulls and preservation of directed storage; implementation belongs to `hrgf`.
 ## Persistence and implementation boundaries
 
 HDF5 round-trips matrix kind, exact single/stack shape, node labels and `Y`.
-Legacy readers remain. CSV stores values only; readers require explicit flat
+CSV stores values only; readers require explicit flat
 type where inference is ambiguous. Square CSV export remains single-only.
 Unsupported loss of shape or metadata must be made
 explicit rather than presented as a full round trip.

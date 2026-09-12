@@ -1,22 +1,11 @@
 """Tests for nltools.io.h5 — HDF5 serialization utilities."""
 
 import os
-import sys
-import warnings
 from pathlib import Path
 
-import nibabel as nib
-import numpy as np
-import polars as pl
 import pytest
 
 from nltools.io import is_h5_path, load_brain_data_h5, to_h5
-
-# Committed tiny deepdish/PyTables fixtures; regenerate with
-# scripts/make_legacy_h5_fixtures.py.
-LEGACY_FIXTURES = Path(__file__).parent / "legacy_fixtures"
-LEGACY_BRAINDATA = LEGACY_FIXTURES / "legacy_braindata.h5"
-LEGACY_ADJACENCY = LEGACY_FIXTURES / "legacy_adjacency.h5"
 
 
 class TestIsH5Path:
@@ -55,24 +44,17 @@ class TestToH5BrainData:
             to_h5(sim_brain_data, str(tmp_path / "bad.h5"), obj_type="invalid")
 
 
-class TestHdf5PluginLazyImport:
-    """hdf5plugin is only required for a non-builtin (blosc/zstd/lz4) filter."""
+class TestCompressionFilters:
+    """Only h5py's own filters are accepted; a plugin name is refused."""
 
-    def test_default_filter_write_succeeds_without_hdf5plugin(
-        self, sim_brain_data, tmp_path, monkeypatch
-    ):
-        monkeypatch.setitem(sys.modules, "hdf5plugin", None)
-        path = str(tmp_path / "default.h5")
-        to_h5(sim_brain_data, path, obj_type="brain_data", h5_compression="gzip")
-        assert os.path.exists(path)
-
-    def test_plugin_filter_without_hdf5plugin_raises_named_import_error(
-        self, sim_brain_data, tmp_path, monkeypatch
-    ):
-        monkeypatch.setitem(sys.modules, "hdf5plugin", None)
-        path = str(tmp_path / "blosc.h5")
-        with pytest.raises(ImportError, match=r"nltools\[h5\]"):
-            to_h5(sim_brain_data, path, obj_type="brain_data", h5_compression="blosc")
+    def test_plugin_filter_name_is_rejected(self, sim_brain_data, tmp_path):
+        with pytest.raises(ValueError, match="h5_compression must be one of"):
+            to_h5(
+                sim_brain_data,
+                str(tmp_path / "blosc.h5"),
+                obj_type="brain_data",
+                h5_compression="blosc",
+            )
 
 
 class TestToH5Adjacency:
@@ -85,93 +67,48 @@ class TestToH5Adjacency:
         assert os.path.exists(path)
 
 
-class TestLegacyBrainDataH5:
-    """Read deepdish/PyTables-format BrainData files written by nltools <= 0.5.1."""
+class TestLegacyLayoutRejected:
+    """Files written by nltools 0.5.1 and earlier are refused with an export hint."""
 
-    def test_loads_via_load_brain_data_h5(self):
-        result = load_brain_data_h5(str(LEGACY_BRAINDATA))
-        assert result["data"].shape == (5, 20)
-        assert result["data"].dtype == np.float32
-        # Populated X/Y exercise the legacy deepdish frame-decode path.
-        assert isinstance(result["X"], pl.DataFrame)
-        assert isinstance(result["Y"], pl.DataFrame)
-        assert result["X"].columns == ["intercept", "regressor"]
-        assert result["Y"].columns == ["condition"]
-        assert result["X"].shape == (5, 2)
-        assert result["Y"].shape == (5, 1)
+    def test_legacy_brain_data_layout_raises(self, tmp_path):
+        h5py = pytest.importorskip("h5py")
+        path = tmp_path / "legacy_braindata.h5"
+        with h5py.File(path, "w") as f:
+            f.create_dataset("data", data=[[1.0, 2.0]])
+            f.create_dataset("X_columns", data=[b"regressor"])
 
-    def test_mask_reconstructed_without_mask_file_name(self):
-        result = load_brain_data_h5(str(LEGACY_BRAINDATA))
-        assert result["load_mask"] is True
-        assert isinstance(result["mask"], nib.Nifti1Image)
-        assert result["mask"].shape == (8, 8, 8)
+        with pytest.raises(ValueError, match="nltools 0.5.1"):
+            load_brain_data_h5(str(path))
 
-    def test_legacy_mask_path_is_reduced_to_its_basename(self, tmp_path):
-        """0.5.1 files stored the writer's absolute mask path; loads normalize it.
+    def test_legacy_adjacency_layout_raises(self, tmp_path):
+        h5py = pytest.importorskip("h5py")
+        from nltools.data import Adjacency
 
-        The committed fixture carries no ``mask_file_name`` node, so the legacy
-        layout is synthesized here from it.
-        """
-        import h5py
-        import shutil
+        path = tmp_path / "legacy_adjacency.h5"
+        with h5py.File(path, "w") as f:
+            f.create_dataset("data", data=[1.0, 2.0, 3.0])
+            f.create_dataset("Y_columns", data=[b"condition"])
 
-        path = tmp_path / "legacy_with_mask_name.h5"
-        shutil.copy(LEGACY_BRAINDATA, path)
-        with h5py.File(path, "a") as f:
-            f.create_dataset(
-                "mask_file_name", data="/somebody/elses/home/2mm-mask.nii.gz"
-            )
+        with pytest.raises(ValueError, match="nltools 0.5.1"):
+            Adjacency(str(path))
 
-        result = load_brain_data_h5(str(path))
-        assert result["mask"].get_filename() == "2mm-mask.nii.gz"
 
-    def test_legacy_windows_mask_path_is_reduced_to_its_basename(self, tmp_path):
+class TestMaskFileName:
+    """A stored mask filename is always reduced to its basename on load."""
+
+    def test_windows_mask_path_is_reduced_to_its_basename(
+        self, sim_brain_data, tmp_path
+    ):
         """A file written on Windows carries backslash separators."""
-        import h5py
-        import shutil
-
-        path = tmp_path / "legacy_windows_mask_name.h5"
-        shutil.copy(LEGACY_BRAINDATA, path)
+        h5py = pytest.importorskip("h5py")
+        path = tmp_path / "windows_mask_name.h5"
+        to_h5(sim_brain_data, str(path), obj_type="brain_data")
         with h5py.File(path, "a") as f:
+            del f["mask_file_name"]
             f.create_dataset(
                 "mask_file_name", data="C:\\Users\\someone\\masks\\2mm-mask.nii.gz"
             )
 
         result = load_brain_data_h5(str(path))
+
         assert result["mask"].get_filename() == "2mm-mask.nii.gz"
-
-    def test_braindata_constructor(self):
-        from nltools.data import BrainData
-
-        bd = BrainData(str(LEGACY_BRAINDATA))
-        assert bd.data.shape == (5, 20)
-        assert not bd.X.is_empty()
-        assert not bd.Y.is_empty()
-        assert bd.mask.shape == (8, 8, 8)
-
-
-class TestLegacyAdjacencyH5:
-    """Read deepdish/PyTables-format Adjacency files written by nltools <= 0.5.1."""
-
-    def test_adjacency_constructor_defaults_matrix_type(self):
-        from nltools.data import Adjacency
-
-        with pytest.warns(UserWarning, match="matrix_type"):
-            adj = Adjacency(str(LEGACY_ADJACENCY))
-        assert adj.matrix_type == "distance"
-        assert adj.labels == []
-        assert adj.Y.is_empty()
-        assert adj.is_single_matrix is True
-        assert adj.issymmetric is True
-        # 300-element long-form vector (C(25, 2) = 300) implies 25 nodes
-        assert adj.squareform().shape == (25, 25)
-
-    def test_adjacency_constructor_honors_matrix_type_kwarg(self):
-        from nltools.data import Adjacency
-
-        # When matrix_type is supplied, no warning should fire
-        with warnings.catch_warnings():
-            warnings.simplefilter("error", UserWarning)
-            adj = Adjacency(str(LEGACY_ADJACENCY), matrix_type="distance")
-        assert adj.matrix_type == "distance"
-        assert adj.squareform().shape == (25, 25)

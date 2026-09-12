@@ -137,9 +137,9 @@ without design annotations. HDF5 preserves supported values/types and design
 metadata, including zero-column height. Text export omits design metadata and
 rejects zero-column designs rather than silently losing their observation count.
 
-Preserve the reserved `.nl_` naming helpers and legacy readers. Do not broaden
-raw-input namespace rejection here. Existing internal construction, restored
-files and fixtures legitimately carry generated columns.
+Preserve the reserved `.nl_` naming helpers. Do not broaden raw-input
+namespace rejection here. Existing internal construction and fixtures
+legitimately carry generated columns.
 
 ## Verification
 

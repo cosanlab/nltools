@@ -232,6 +232,8 @@ def test_regression_axes_and_rss_reference(predictors, tail):
     t = beta / se
     p = 1 - t_dist.cdf(t, df) if tail == 1 else 2 * (1 - t_dist.cdf(np.abs(t), df))
     assert output["df"] == df
+    # df is a scalar common to every edge, not a per-target array.
+    assert type(output["df"]) is int
     for key, expected in [("beta", beta), ("sigma", se), ("t", t), ("p", p)]:
         result = output[key]
         assert result.shape == ((4, 4) if predictors == 1 else (predictors, 4, 4))
@@ -261,10 +263,38 @@ def test_edge_regression_returns_native_predictor_values(predictors):
         assert not isinstance(output[key], Adjacency)
         assert np.shape(output[key]) == (() if predictors == 1 else (predictors,))
     assert output["df"] == 6 - predictors
+    assert type(output["df"]) is int
     assert output["residual"].shape == adj.shape
     np.testing.assert_allclose(output["residual"].data, values - design @ expected)
     with pytest.raises(ValueError, match="single response"):
         adj[[0]].regress(X)
+
+
+@pytest.mark.parametrize("predictors", [1, 2])
+def test_edge_regression_one_tailed_p_matches_the_formula(predictors):
+    """tail=1 on the Adjacency-predictor path uses the upper-tail p, not two-tailed."""
+    from scipy.stats import t as t_dist
+
+    rng = np.random.default_rng(12)
+    design = rng.normal(size=(6, predictors))
+    values = rng.normal(size=6)
+    adj = Adjacency(values, labels=list("abcd"))
+    X = Adjacency(design.T, matrix_type="distance_flat", labels=adj.labels)
+    if predictors == 1:
+        X = X[0]
+
+    output = adj.regress(X, tail=1)
+
+    beta = np.linalg.pinv(design) @ values[:, None]
+    residual = values[:, None] - design @ beta
+    df = 6 - predictors
+    se = np.sqrt(np.diag(np.linalg.pinv(design.T @ design)))[:, None] * np.sqrt(
+        np.sum(residual**2, axis=0) / df
+    )
+    expected_p = 1 - t_dist.cdf(beta / se, df)
+    np.testing.assert_allclose(
+        output["p"], expected_p[:, 0] if predictors > 1 else expected_p[0, 0]
+    )
 
 
 @pytest.mark.filterwarnings("ignore:n_samples=:UserWarning")

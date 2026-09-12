@@ -26,7 +26,7 @@ Version 0.6.0 is a **breaking release** that refactors nltools to better leverag
 | **Algorithm kwarg** | `algorithm=`, `scheme=`, `kind=`, `noise_model=`, `extract_type=`, `mode=`, `perm_type=` | `method=` (or `spatial_scale=` for spatial scale; `Adjacency.similarity` keeps the correlation type in the separate `metric=` slot) | **Renamed** |
 | **Progress flag** | `show_progress=True` | `progress_bar=False` | **Renamed + default flipped** |
 | **Simulator geometry** | `Simulator` radii in voxels, centers as voxel indices | Radii in millimeters, centers as world (MNI) coordinates, converted through the mask affine (`radius=` keeps its name everywhere, in millimeters, as in nilearn); defaults were rescaled so the simulated region keeps its v0.5.1 physical size, and `create_sphere` now raises `ValueError` for a center whose sphere holds no in-mask voxel instead of returning an empty image | **Units changed** |
-| **`SimulateGrid` correction option** | `correction='permutation'` accepted but never applied (its permutation branch was never wired into `fit()`) | Raises `ValueError` naming `nltools.algorithms.inference.one_sample_permutation_test` as the replacement; any other value outside `None`/`'fdr'` now also raises instead of being silently ignored | **Removed** |
+| **`SimulateGrid` correction option** | `correction='permutation'` accepted but never applied (its permutation branch was never wired into `fit()`) | Raises `ValueError` listing the supported values (`None`, `'fdr'`), as any other unsupported value now does instead of being silently ignored; run a permutation test directly with `nltools.algorithms.inference.one_sample_permutation_test` | **Removed** |
 | **Permutation count** | `n_perm=` (Adjacency.generate_permutations) | `n_permute=` | **Renamed** |
 | **`isfc` keyword-only** | `isfc(data, method='average', n_jobs=-1)` — `method`/`n_jobs` positional | `isfc(data, *, method='average', n_jobs=-1, random_state=None, progress_bar=False)` — keyword-only, with `random_state`/`progress_bar` added for parity with `isc`/`isc_group`/`isps` | **Signature changed** |
 | **Similarity diagonal** | `ignore_diagonal=False` | `include_diag=False` (polarity flipped, default now excludes diagonal) | **Changed** |
@@ -36,6 +36,8 @@ Version 0.6.0 is a **breaking release** that refactors nltools to better leverag
 | **Mask application** | `apply_mask(mask, resample_mask_to_brain=True)` | `apply_mask(mask)` — the mask must already sit on the data's grid | **Removed** |
 | **Resampling target** | The target image also supplied the output mask | `resample(img=…)` takes only the grid from the target; the source mask is carried over with nearest-neighbor interpolation | **Changed** |
 | **HDF5 mask filename** | The writer's absolute mask path | Basename only — the embedded mask data and affine are authoritative and the name is never reopened | **Changed** |
+| **Legacy (≤ 0.5.1 deepdish/PyTables) HDF5 files** | `BrainData(path)` / `Adjacency(path)` read them directly | No longer readable — the file raises `ValueError` | **Removed** — export to NIfTI or CSV under 0.5.1 first |
+| **`Adjacency.similarity` with NaN** | NaN flowed into the matrix permutation and the default `method='2d'` returned a NaN correlation | Raises `ValueError` pointing at `method='1d'`, which masks NaN pairwise | **Changed** |
 | **BrainData.plot thresholds** | `thr_upper=`, `thr_lower=`, `kind=` | `upper=`, `lower=`, `method=` | **Renamed** |
 | **`DesignMatrix.convolve()` columns** | 1-D kernel: name preserved (`stim` → `stim`); 2-D kernel: `stim_c0`, `stim_c1` | Always suffixed `<col>_c{i}`; source column dropped (`stim` → `stim_c0`) | **Renamed (consistent)** |
 | **Generated column names** | `poly_0`, `cosine_1`, `global_spike1`, `0_poly_0` | `.nl_poly_0`, `.nl_cosine_1`, `.nl_global_spike1`, `.nl_r0_poly_0` — the reserved `.nl_` namespace | **Renamed** |
@@ -272,9 +274,11 @@ DesignMatrix("design.csv", sampling_freq=0.5, run_length="infer").columns
 ```
 
 The delimiter now follows the extension on **both** sides (`.csv` → comma,
-everything else → tab). An explicit `sep=` still overrides it. Files already on
-disk with the mismatched delimiter are detected and re-parsed, so they load
-correctly without intervention.
+everything else → tab). An explicit `sep=` still overrides it on `.write()`. A
+file already on disk whose delimiter contradicts its extension is no longer
+guessed at: it raises `ValueError`. Rename it to the extension its separator
+implies (a tab-separated `design.csv` → `design.tsv`), or rewrite it with the
+delimiter the extension implies.
 
 **There was no `.h5` reader.** `.write("dm.h5")` produced a valid HDF5 file that
 nothing could open — the constructor sent every path to the CSV reader, which
@@ -293,10 +297,8 @@ back.multi           # restored
 ```
 
 Passing `sampling_freq=` / `convolved=` / `confounds=` explicitly still
-overrides whatever the file recorded. HDF5 files written by earlier 0.6.0
-builds (a plain float matrix beside an `S`-typed `columns` dataset) are read
-too; new files store the frame as Arrow IPC bytes, so column dtypes survive
-exactly — an integer spike indicator comes back an integer instead of a float.
+overrides whatever the file recorded. Files store the frame as Arrow IPC bytes,
+so column dtypes survive exactly — an integer spike indicator comes back an integer instead of a float.
 A column-less matrix also records its row count, so `find_spikes()` output for
 a subject with no spikes round-trips as `(n_tr, 0)` rather than `(0, 0)`.
 
@@ -1958,21 +1960,38 @@ process. `fetch_resource(...)` returns a path nilearn accepts directly.
 
 ---
 
-## Legacy HDF5 compatibility (restored)
+## Legacy HDF5 files are no longer readable
 
-**Status**: ✅ Round-trip support for v0.5.1-and-earlier HDF5 files restored (2026-04-20) after being briefly dropped earlier in v0.6.0 development.
+**Status**: ⚠️ **BREAKING** — v0.6.0 reads only its own HDF5 layout.
 
-`BrainData` and `Adjacency` files written by older deepdish/PyTables-backed nltools can be loaded directly without re-saving:
+`BrainData` and `Adjacency` files written by deepdish/PyTables-backed nltools
+(v0.5.1 and earlier) raise `ValueError` telling you to export them first:
 
 ```python
-brain = BrainData("old_nltools_0.5.1_file.h5")    # works, no migration step needed
-adj = Adjacency("old_adjacency_aug2019_vintage.h5", matrix_type="similarity")
+BrainData("old_nltools_0.5.1_file.h5")   # ValueError
 ```
 
-The reader uses `h5py` + `hdf5plugin` (no PyTables dependency) and handles:
-- PyTables-encoded empty lists (groups with `TITLE='list:N'`)
-- Missing `mask_file_name` (common in older files)
-- Pre-`matrix_type`-field Adjacency files (Aug 2019 vintage) — if you hit a warned default of `'distance_flat'`, pass `matrix_type=` explicitly. Legacy files always store long-form vectors, so user-supplied names are normalized to `*_flat`.
+Export under v0.5.1 **before** you upgrade, then load the exports in v0.6.0:
+
+```python
+# In a v0.5.1 environment
+brain.write("brain.nii.gz")   # images: lossless
+adj.write("adjacency.csv")    # matrices: values only
+```
+
+A CSV carries the matrix values and nothing else, so note the `matrix_type` and
+the node labels separately and pass them when you reload. `Adjacency.write`
+defaults to the long (flat vector) layout, so the reload needs the `_flat`
+spelling of the kind:
+
+```python
+# In v0.6.0
+brain = BrainData("brain.nii.gz")
+adj = Adjacency(
+    "adjacency.csv", matrix_type="similarity_flat", labels=["a", "b", "c", "d"]
+)
+adj.matrix_type   # 'similarity'
+```
 
 ---
 
@@ -2033,8 +2052,8 @@ for Adjacency predictors use `result["beta"]` directly.
 
 Bootstrap aggregate maps now use single-matrix shape and common node labels.
 The broader bootstrap-result and t-test API changes remain separate decisions.
-HDF5 preserves matrix kind, single/stack shape, labels, and `Y`; legacy files
-remain readable. CSV stores values only: supply a flat type on load, retain
+HDF5 preserves matrix kind, single/stack shape, labels, and `Y`; pre-0.6 files
+are not readable. CSV stores values only: supply a flat type on load, retain
 metadata separately, and do not rely on CSV to preserve singleton versus stack
 rank for single-column files. Square CSV export supports single matrices only.
 
@@ -2170,7 +2189,7 @@ Unsupported types now raise `TypeError` (with a clearer message) instead of the 
 
 | Feature | Status | Action Required |
 |---------|--------|-----------------|
-| HDF5 files from v0.5.1 (deepdish/PyTables) | ✅ Fully compatible (read path restored via h5py + hdf5plugin; no PyTables dependency) | None |
+| HDF5 files from v0.5.1 (deepdish/PyTables) | ❌ No longer readable | Export to NIfTI (`BrainData.write`) or CSV (`Adjacency.write`) under 0.5.1 before upgrading |
 | `BrainData.regress()` | ❌ Removed | Use `.fit(model='glm', X=...)` |
 | `.predict()` | ⚠️ API + return type changed | Update `algorithm=` → `estimator=` and `cv_dict=` → `cv=`; `radius=` keeps its name. Result is a `Predict` dataclass — replace `result['weight_map']` with `result.weight_map`. Fluent `brain.cv(...).predict(...)` removed. `algorithm='svr'` maps to `estimator='linear_svr'`, which is `LinearSVR` — a different estimator from v0.5.1's `SVR`, not a rename — and non-linear estimators now raise for whole-brain and ROI decoding. |
 | `.decompose()` | ⚠️ Kwargs changed | Update `algorithm=` → `method=`; signature is now keyword-only after `self` |

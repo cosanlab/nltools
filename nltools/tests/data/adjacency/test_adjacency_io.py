@@ -1,4 +1,4 @@
-"""Tests for Adjacency I/O: write, read, legacy H5, graph conversion."""
+"""Tests for Adjacency I/O: write, read, graph conversion."""
 
 import os
 from pathlib import Path

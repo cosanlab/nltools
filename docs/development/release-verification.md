@@ -31,7 +31,7 @@ decisions.
 | CUDA execution | <code>uv run pytest -m '' nltools/tests/models/test_ridge.py nltools/tests/data/braindata/test_braindata_bootstrap.py -k "gpu or cuda or device" 2&gt;&amp;1 &#124; tee cuda.log</code> | `pika` | Same pass condition as MPS. Ridge fitting, banded ridge, and the ridge bootstrap execute on CUDA. |
 | Executed tutorials | `uv run poe docs-build` | local | Site builds under `--strict`; all seven tutorials execute with no stderr. |
 | Tutorial scripts | `uv run poe tutorials` | local | Static checks pass and every notebook runs end to end as a script. |
-| Persistence | `uv run pytest nltools/tests/io_tests nltools/tests/data -k "h5 or hdf or nifti or legacy or write or load"` | local | HDF5 and NIfTI round trips pass; legacy 0.5.1 fixtures under `nltools/tests/io_tests/legacy_fixtures` load. |
+| Persistence | `uv run pytest nltools/tests/io_tests nltools/tests/data -k "h5 or hdf or nifti or write or load"` | local | HDF5 and NIfTI round trips pass. |
 | Packaging | `uv build`, then install the wheel into a fresh venv and run the smoke test from `scripts/release.py` (`SMOKE_TEST_CODE`) with the expected version | local | Wheel installs, version matches `pyproject.toml`, `DesignMatrix` and `Adjacency` construct. |
 | Export inventory | `uv run poe lint-api` plus `uv run python -c "import nltools.data as d; assert 'BrainCollection' not in d.__all__"` | local | API checks pass; `BrainCollection` is absent from public exports and `docs/api`; `q31x` has no unresolved findings. |
 | Migration examples | Run each code block in `docs/migration-guide.md` that shows 0.6.0 behavior in a scratch script | local | Every example runs and prints or asserts what the guide claims. |

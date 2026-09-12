@@ -113,30 +113,6 @@ class TestWholeBrainConstruction:
         result = Predict(**{**whole_brain_fields, "classes": None})
         assert result.classes is None
 
-    def test_two_dimensional_predictions_are_rejected(self, whole_brain_fields):
-        with pytest.raises(ValueError, match="predictions"):
-            Predict(**{**whole_brain_fields, "predictions": np.zeros((N_SAMPLES, 2))})
-
-    def test_cv_folds_must_match_predictions(self, whole_brain_fields):
-        with pytest.raises(ValueError, match="cv_folds"):
-            Predict(**{**whole_brain_fields, "cv_folds": np.zeros(N_SAMPLES + 1)})
-
-    def test_two_dimensional_scores_are_rejected(self, whole_brain_fields):
-        with pytest.raises(ValueError, match="scores"):
-            Predict(**{**whole_brain_fields, "scores": np.zeros((N_FOLDS, N_ROIS))})
-
-    def test_fold_indices_beyond_the_fold_scores_are_rejected(self, whole_brain_fields):
-        """A fold index with no score means `scores` is not one value per fold."""
-        with pytest.raises(ValueError, match="cv_folds.*scores"):
-            Predict(**{**whole_brain_fields, "scores": np.zeros(2)})
-
-    def test_the_uncovered_row_sentinel_is_rejected(self, whole_brain_fields):
-        """`-1` marked an uncovered row before the partition rule; it cannot survive."""
-        folds = np.arange(N_SAMPLES) % N_FOLDS
-        folds[0] = -1
-        with pytest.raises(ValueError, match="cv_folds.*scores"):
-            Predict(**{**whole_brain_fields, "cv_folds": folds})
-
 
 class TestRoiConstruction:
     def test_construction(self, roi_fields):
@@ -151,14 +127,6 @@ class TestRoiConstruction:
         assert result.predictions is None
         assert result.cv_folds is None
         assert result.estimator is None
-
-    def test_scores_must_be_two_dimensional(self, roi_fields):
-        with pytest.raises(ValueError, match="scores"):
-            Predict(**{**roi_fields, "scores": np.zeros(N_FOLDS)})
-
-    def test_roi_labels_must_match_the_score_columns(self, roi_fields):
-        with pytest.raises(ValueError, match="roi_labels"):
-            Predict(**{**roi_fields, "roi_labels": np.arange(N_ROIS + 1)})
 
     def test_weight_map_cannot_be_absent(self, roi_fields):
         """Every successful ROI result carries a map — there is no degraded path."""
@@ -185,73 +153,23 @@ class TestSearchlightConstruction:
             Predict(**{**searchlight_fields, "score_map": None})
 
 
-class TestMapFieldTypes:
-    @pytest.mark.parametrize("field", ["weight_map", "score_map"])
-    def test_map_fields_reject_raw_arrays(self, field, roi_fields):
-        with pytest.raises(TypeError, match=f"{field}.*BrainData"):
-            Predict(**{**roi_fields, field: np.zeros(N_VOXELS)})
+class TestProducerPairsFoldsWithScores:
+    """`BrainData.predict` itself keeps `cv_folds` indexing into `scores`.
 
-    def test_score_map_must_hold_one_map(self, searchlight_fields, brain_map):
-        with pytest.raises(ValueError, match="score_map"):
-            Predict(**{**searchlight_fields, "score_map": brain_map(n_maps=2)})
+    The record no longer re-checks the pairing, so the producer is the only
+    enforcement point: every fold index must name a fold score, and every fold
+    score must be named by some index.
+    """
 
-    def test_binary_weight_map_is_one_signed_map(self, whole_brain_fields):
-        """Binary classification produces one map, for `classes_[1]` vs `classes_[0]`."""
-        result = Predict(**whole_brain_fields)
-        assert len(result.classes) == 2
-        assert result.weight_map.shape == (N_VOXELS,)
+    def test_cv_folds_index_the_fold_scores(self, minimal_brain_data):
+        y = np.arange(minimal_brain_data.shape[0]) % 2
 
-    def test_binary_weight_map_rejects_one_map_per_class(
-        self, whole_brain_fields, brain_map
-    ):
-        with pytest.raises(ValueError, match="weight_map"):
-            Predict(**{**whole_brain_fields, "weight_map": brain_map(n_maps=2)})
+        result = minimal_brain_data.predict(y=y, cv=4)
 
-    def test_multiclass_weight_map_holds_one_map_per_class(
-        self, whole_brain_fields, brain_map
-    ):
-        result = Predict(
-            **{
-                **whole_brain_fields,
-                "classes": np.array([0, 1, 2]),
-                "weight_map": brain_map(n_maps=3),
-            }
-        )
-        assert result.weight_map.shape == (3, N_VOXELS)
-
-    def test_multiclass_weight_map_class_count_must_match_classes(
-        self, whole_brain_fields, brain_map
-    ):
-        with pytest.raises(ValueError, match="weight_map"):
-            Predict(
-                **{
-                    **whole_brain_fields,
-                    "classes": np.array([0, 1, 2]),
-                    "weight_map": brain_map(n_maps=2),
-                }
-            )
-
-    def test_multiclass_weight_map_cannot_be_one_averaged_map(
-        self, whole_brain_fields, brain_map
-    ):
-        with pytest.raises(ValueError, match="weight_map"):
-            Predict(
-                **{
-                    **whole_brain_fields,
-                    "classes": np.array([0, 1, 2]),
-                    "weight_map": brain_map(),
-                }
-            )
-
-    def test_regression_weight_map_must_be_one_map(self, whole_brain_fields, brain_map):
-        with pytest.raises(ValueError, match="weight_map"):
-            Predict(
-                **{
-                    **whole_brain_fields,
-                    "classes": None,
-                    "weight_map": brain_map(n_maps=2),
-                }
-            )
+        folds = np.asarray(result.cv_folds)
+        assert folds.min() >= 0
+        assert folds.max() < len(result.scores)
+        assert set(np.unique(folds).tolist()) == set(range(len(result.scores)))
 
 
 class TestScoreSummaries:

@@ -706,16 +706,9 @@ mask data and geometry are authoritative, and no operation reopens the retained
 basename. Neither format stores `model_`, attached fit maps, result records,
 masker caches, or execution settings.
 
-The HDF5 input boundary retains an isolated reader for files written by
-nltools 0.5.1 and earlier with Deepdish/PyTables. It recognizes only that
-legacy data-container layout and translates it immediately into the same
-canonical data, mask, `.X`, and `.Y` values returned by the current reader.
-Any stored legacy mask path is reduced to its basename during translation.
-Legacy `.X` and `.Y` are reconstructed from a single homogeneous matrix, which
-is canonical for these files because 0.5.1 only ever wrote numeric frames. The
-loader returns the current in-memory representation; downstream code does not
-branch on the source format. Current code never writes the legacy format, and
-the adapter does not read old fitted or collection-cache state.
+The HDF5 input boundary reads only the current layout; it recognizes a file
+written by nltools 0.5.1 or earlier and raises, directing the user to export
+that file to NIfTI or CSV under 0.5.1 before upgrading.
 
 Internal `BrainCollection` caches are deferred to 0.6.1 along with the rest of
 `BrainCollection`; nothing in 0.6.0 implements them. When they arrive they use a

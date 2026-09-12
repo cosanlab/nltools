@@ -118,13 +118,10 @@ class TestAdjacencyStats:
         assert not np.isnan(result_1d["correlation"])
         assert "p" in result_1d
 
-        # NaN with 2d perm_type
-        with pytest.warns(UserWarning, match="NaN values detected in 2D matrix"):
-            result_2d = adj1.similarity(
-                adj2, method="2d", n_permute=100, nan_policy="omit"
-            )
-        assert "p" in result_2d
-        assert 0 <= result_2d["p"] <= 1
+        # NaN with 2d perm_type: no policy makes a 2D correlation meaningful.
+        for policy in ("omit", "propagate"):
+            with pytest.raises(ValueError, match="method='1d'"):
+                adj1.similarity(adj2, method="2d", n_permute=100, nan_policy=policy)
 
     def test_threshold(self, sim_adjacency_directed):
         """Test thresholding matrices."""

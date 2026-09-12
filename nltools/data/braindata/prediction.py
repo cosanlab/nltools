@@ -731,9 +731,10 @@ def _as_predict_map(maps: np.ndarray) -> np.ndarray:
 
     `nltools.algorithms.decoding` always returns ``(n_maps, n_features)``. The
     record wants one *unstacked* map for regression and binary classification
-    and the stack for multiclass, and it validates that rule
-    (`Predict._validate_maps`), so every runner drops the leading axis here and
-    nowhere else.
+    and the stack for multiclass. `Predict` no longer re-checks that rule, so
+    this is the only place it is enforced; every runner drops the leading axis
+    here and nowhere else, and
+    `test_braindata_prediction.py::TestWeightMapShapes` pins it.
 
     Args:
         maps: Back-projected coefficients, ``(n_maps, n_features)``.
