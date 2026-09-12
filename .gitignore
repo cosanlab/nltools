@@ -108,6 +108,7 @@ docs/tutorials/data-operations/[0-9]*_*.md
 docs/tutorials/analysis/[0-9]*_*.md
 docs/tutorials/workflows/[0-9]*_*.md
 
-# The tutorials' joblib fit cache, `Memory(".tutorial-cache")`. Deliberately not
-# under .cache/, which is zensical's and which `zensical build -c` wipes whole.
+# The tutorials' joblib fit cache, `Memory(".tutorial-cache")`, and the recorded
+# page outputs docs_show replays (pages/). Deliberately not under .cache/, which
+# is zensical's and which `zensical build -c` wipes whole.
 /.tutorial-cache/

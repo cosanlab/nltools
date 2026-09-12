@@ -21,13 +21,26 @@ write and ``warnings.warn``; it cannot see a library that logs through a
 ``redirect_stderr`` rebinds the name and not that handler's stream.
 
 ``scripts/marimo_to_zensical.py`` opens every generated page with a hidden cell
-that activates the formatter for that page::
+that activates the formatter for that page and stamps the page with a digest of
+its cells::
 
-    ```python exec="on" session="basics-01-brain-data" render="off"
+    ```python exec="on" session="basics-01-brain-data" render="off" setup="on"
     import docs_show
 
-    docs_show.install("docs/tutorials/basics/01_brain_data.py")
+    docs_show.install("docs/tutorials/basics/01_brain_data.py", digest="…", cells=N)
     ```
+
+The formatter stays registered once the first page installed it, so it is what
+runs every later page's first cell too: ``setup="on"`` marks that cell, which
+runs outside the previous page's record or replay.
+
+Executing a page is what makes a docs build slow, and zensical rebuilds every
+page whenever its configuration changes, so each page's outputs are recorded
+under ``.tutorial-cache/pages/`` as its cells run. A page whose cells and this
+module are unchanged since its record was written replays that record instead
+of executing. ``DOCS_EXEC=all`` in the environment executes every page anyway,
+which is how ``docs-build`` stays the gate; ``tutorials-clean-cache`` drops the
+records together with the notebooks' fit caches.
 
 Every later cell on the page is ``python exec="on" session="<page-slug>"``, with
 ``source="above"`` unless the notebook hides the source and ``render="off"`` when
@@ -46,12 +59,16 @@ failure message, not the outputs.
 from __future__ import annotations
 
 import ast
+import hashlib
 import html
 import io
 import linecache
+import os
+import shutil
 import sys
 from collections.abc import Callable
 from contextlib import redirect_stderr, redirect_stdout
+from pathlib import Path
 from typing import Any
 
 import markdown_exec
@@ -72,6 +89,7 @@ __all__ = [
     "format_cell",
     "install",
     "is_open",
+    "page_key",
     "render",
     "run_cell",
     "svg_of",
@@ -88,6 +106,20 @@ _cell_index = 0
 # The `Cell` collecting output right now, or None between cells. `_CellStdout`
 # reads it to route a library's `print` into the cell that provoked it.
 _current_cell: Cell | None = None
+
+# Recorded page outputs, one directory per notebook holding one `<n>.html` per
+# cell under a key that changes with the page's cells or with this module.
+# Relative to the working directory, like the notebooks' `Memory(".tutorial-cache")`.
+PAGE_CACHE_DIR = Path(".tutorial-cache/pages")
+
+# `DOCS_EXEC=all` executes every page even when its record is complete; the
+# default executes only pages whose cells changed since they were recorded.
+DOCS_EXEC = "DOCS_EXEC"
+
+# The outputs to replay for the page being rendered (a complete record was
+# found), or the directory recording this page's outputs as its cells run.
+_replay: list[str] | None = None
+_record: Path | None = None
 
 
 class CellFailure(SuperFencesException):
@@ -123,17 +155,46 @@ _exec_python = markdown_exec_python.exec_python
 markdown_exec_python.exec_python = exec_with_source
 
 
-def install(notebook: str = "<unknown notebook>") -> None:
-    """Register `format_cell` as markdown-exec's `python` formatter.
+def install(
+    notebook: str = "<unknown notebook>", digest: str = "", cells: int = 0
+) -> None:
+    """Register `format_cell` as markdown-exec's `python` formatter for one page.
+
+    A page stamped with a `digest` of its cells replays its recorded outputs
+    when the record is complete and neither the cells nor this module changed
+    since it was written; otherwise the page executes and is recorded afresh.
+    An unstamped page always executes and is never recorded.
 
     Args:
         notebook: Repo-relative path of the marimo notebook this page is
             generated from, used to name the file in a failure message.
+        digest: Digest of the page's executable cells, as stamped by
+            `scripts/marimo_to_zensical.py`.
+        cells: Number of cells that follow this one on the page.
     """
-    global _notebook, _cell_index
+    global _notebook, _cell_index, _replay, _record
     _notebook = notebook
     _cell_index = 0
+    _replay = None
+    _record = None
     markdown_exec.formatters["python"] = format_cell
+    if not digest or not cells:
+        return
+    page_dir = PAGE_CACHE_DIR / f"{Path(notebook).parent.name}-{Path(notebook).stem}"
+    key_dir = page_dir / page_key(digest, Path(__file__).read_bytes())
+    recorded = [key_dir / f"{index}.html" for index in range(1, cells + 1)]
+    if os.environ.get(DOCS_EXEC) != "all" and all(p.is_file() for p in recorded):
+        _replay = [p.read_text() for p in recorded]
+        return
+    if page_dir.exists():
+        shutil.rmtree(page_dir)
+    key_dir.mkdir(parents=True)
+    _record = key_dir
+
+
+def page_key(digest: str, formatter_source: bytes) -> str:
+    """Cache key of a page: its cells' digest combined with the formatter's source."""
+    return hashlib.sha256(digest.encode() + formatter_source).hexdigest()[:16]
 
 
 def format_cell(**kwargs: Any) -> str:
@@ -141,13 +202,35 @@ def format_cell(**kwargs: Any) -> str:
 
     A cell with `render="off"` still runs — its side effects land in the page's
     session and the gate still judges it — but contributes nothing to the page.
+    On a page replaying its record, nothing runs: the cell's recorded output is
+    returned as it was.
     """
+    global _cell_index
     extra = kwargs.setdefault("extra", {})
-    rendered = extra.pop("render", "on").lower() not in {"0", "no", "off", "false"}
+    setup = _is_on(extra.pop("setup", "off"))
+    rendered = not setup and _is_on(extra.pop("render", "on"))
+    if _replay is not None and not setup:
+        _cell_index += 1
+        if _cell_index > len(_replay):
+            raise CellFailure(
+                f"{_notebook} has more cells than its record; regenerate the page"
+            )
+        return _replay[_cell_index - 1]
     kwargs["html"] = True
     kwargs["transform_source"] = transform_cell
     output = base_format(language="python", run=run_cell, **kwargs)
-    return unique_line_anchors(output, _cell_index) if rendered else ""
+    if setup:
+        # The page's first cell: it called `install`, which reset the state
+        # for this page, and it is neither shown nor recorded.
+        return ""
+    result = unique_line_anchors(output, _cell_index) if rendered else ""
+    if _record is not None:
+        (_record / f"{_cell_index}.html").write_text(result)
+    return result
+
+
+def _is_on(value: str) -> bool:
+    return value.lower() not in {"0", "no", "off", "false"}
 
 
 def unique_line_anchors(html_output: str, index: int) -> str:

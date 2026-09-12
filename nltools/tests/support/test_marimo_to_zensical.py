@@ -129,12 +129,51 @@ class TestCellRewriting:
 class TestInstallCell:
     """Every page opens with a hidden cell that installs the formatter."""
 
-    def test_the_install_cell_is_hidden_and_names_the_notebook(self, m2z):
-        out = m2z.install_cell(GLM_REL, "workflows-01-glm")
+    def test_the_install_cell_is_hidden_and_stamps_the_page(self, m2z):
+        out = m2z.install_cell(GLM_REL, "workflows-01-glm", "abc123", 4)
         assert out == (
-            f"```python {HIDDEN}\nimport docs_show\n\n"
-            f'docs_show.install("{GLM_REL}")\n```'
+            f'```python {HIDDEN} setup="on"\nimport docs_show\n\n'
+            f'docs_show.install("{GLM_REL}", digest="abc123", cells=4)\n```'
         )
+
+
+class TestPageStamp:
+    """The install cell carries a digest of the page's cells and their count."""
+
+    BODY = "# Title\n\n```python {.marimo}\nx = 1\n```\n\n```python {.marimo}\nprint(x)\n```\n"
+
+    def test_the_count_is_the_number_of_executable_cells(self, m2z):
+        page = m2z.render_page(self.BODY, GLM_REL, "workflows-01-glm")
+        assert "cells=2)" in page
+
+    def test_a_dropped_cell_is_not_counted(self, m2z):
+        body = self.BODY + "\n```python {.marimo}\nimport marimo as mo\n```\n"
+        assert "cells=2)" in m2z.render_page(body, GLM_REL, "workflows-01-glm")
+
+    def test_the_digest_changes_with_a_cell(self, m2z):
+        page = m2z.render_page(self.BODY, GLM_REL, "workflows-01-glm")
+        changed = m2z.render_page(
+            self.BODY.replace("x = 1", "x = 2"), GLM_REL, "workflows-01-glm"
+        )
+        assert m2z.stamp_of(page) != m2z.stamp_of(changed)
+
+    def test_the_digest_changes_with_a_cell_option(self, m2z):
+        page = m2z.render_page(self.BODY, GLM_REL, "workflows-01-glm")
+        hidden = m2z.render_page(
+            self.BODY.replace("x = 1", "# docs: hide\nx = 1"),
+            GLM_REL,
+            "workflows-01-glm",
+        )
+        assert m2z.stamp_of(page) != m2z.stamp_of(hidden)
+
+    def test_the_digest_ignores_prose(self, m2z):
+        page = m2z.render_page(self.BODY, GLM_REL, "workflows-01-glm")
+        prose = m2z.render_page(
+            self.BODY.replace("# Title", "# Title\n\nSome prose."),
+            GLM_REL,
+            "workflows-01-glm",
+        )
+        assert m2z.stamp_of(page) == m2z.stamp_of(prose)
 
 
 class TestBanner:

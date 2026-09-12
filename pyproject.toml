@@ -226,9 +226,18 @@ cmd = "pytest nltools/tests/plotting -n auto --maxprocesses=4 -x"
 help = "Test support utilities"
 cmd = "pytest nltools/tests/support -n auto --maxprocesses=4 -x"
 
+# Leaves `.tutorial-cache/` alone: that holds the tutorials' joblib fits, which
+# `tutorials-clean-cache` (and `docs-build-fresh`) drop deliberately.
 [tool.poe.tasks.docs-clean]
-help = "Clean the MyST site's build output"
-shell = """cd docs && myst clean --site --html --temp --logs --cache --exports --templates -y"""
+help = "Remove the built site (site/), the generated tutorial pages and the build leftovers under docs/"
+sequence = [
+  { shell = """
+set -eu
+rm -r site 2>/dev/null || true
+rm docs/tutorials/*/[0-9]*_*.md 2>/dev/null || true
+""" },
+  { ref = "docs-prune" },
+]
 
 [tool.poe.tasks.docs-generate]
 help = "Generate the API vocabulary tables and the tutorial pages (marimo → markdown-exec) from source"
@@ -238,37 +247,10 @@ python scripts/build_api_vocabulary.py
 python scripts/marimo_to_zensical.py --all
 """
 
-# Build the MyST site. It carries the static pages only: the tutorials render
-# through zensical (`docs-build`) and the API reference through mkdocstrings.
-# Leave BASE_URL unset for a root build (local, and the nltools.org deploy); set
-# it (e.g. /nltools) only for a subpath deploy such as a fork's GitHub Pages
-# project page.
-[tool.poe.tasks.docs-site]
-help = "Build the MyST site (static pages only; BASE_URL=/<repo> only for a subpath deploy; SITE_URL overrides the https://nltools.org sitemap host)"
-shell = """
-set -eu
-cd docs
-# --strict exits non-zero on build *errors* (warnings are only summarized).
-myst build --site --html --strict
-# Standalone interactive Design Tour page (not a MyST page; copied verbatim).
-cp public/design-tour.html _build/html/design-tour.html
-# MyST does not apply BASE_URL to the literal `url:` Design Tour TOC link. On a
-# subpath deploy, prefix it. The (?<![\\w-]) guard keeps it idempotent.
-if [ -n "${BASE_URL:-}" ]; then
-  find _build/html -type f \\( -name '*.html' -o -name '*.json' \\) -exec perl -pi -e 's{(?<![\\w-])/design-tour\\.html}{$ENV{BASE_URL}/design-tour.html}g' {} +
-fi
-# The static build stamps its localhost dev-server host into sitemap.xml, robots.txt
-# and each page's site metadata (myst.yml `domains:` can't hold an apex domain).
-# Rewrite it to the public origin so search engines index the deployed URLs.
-export SITE_URL="${SITE_URL:-https://nltools.org}"
-find _build/html -type f \\( -name '*.html' -o -name '*.json' -o -name '*.xml' -o -name '*.txt' \\) -exec perl -pi -e 's{http://localhost:3000}{$ENV{SITE_URL}}g' {} +
-"""
-
 # Zensical builds every file under `docs_dir` into the site and offers no way to
-# exclude one, so whatever else lands there ships with the site: MyST's rendered
-# output (thousands of intermediate files) and marimo's editor session state
-# (several MB of cached notebook outputs). The MyST half goes away with that
-# toolchain.
+# exclude one, so whatever else lands there ships with the site: marimo's editor
+# session state (several MB of cached notebook outputs) and, until the MyST
+# toolchain is removed, its rendered output (thousands of intermediate files).
 [tool.poe.tasks.docs-prune]
 help = "Drop the build leftovers under docs/ that zensical would otherwise copy into the site"
 shell = """
@@ -279,13 +261,14 @@ rm -r docs/tutorials/*/__marimo__ 2>/dev/null || true
 
 # Build + EXECUTE the site: markdown-exec runs every tutorial cell in the build
 # process to produce its outputs (figures, tables, prints). `-c` drops zensical's
-# page cache first, so every build really re-executes: the cache is keyed on page
-# content, which does not change when the library under test does, and a build
-# that skips the tutorials also skips the gate that judges them. Run it from the
-# repo root — the notebooks cache their fits in `Memory(".tutorial-cache")`, a
-# path relative to the working directory, so a build started anywhere else
-# recomputes every fit into a new cache. A cell that raises, or that writes to
-# stderr, fails the build (scripts/docs_show.py).
+# page cache and `DOCS_EXEC=all` bypasses the tutorials' own output records, so
+# every build really re-executes: both caches are keyed on page content, which
+# does not change when the library under test does, and a build that skips the
+# tutorials also skips the gate that judges them. Run it from the repo root — the
+# notebooks cache their fits in `Memory(".tutorial-cache")`, a path relative to
+# the working directory, so a build started anywhere else recomputes every fit
+# into a new cache. A cell that raises, or that writes to stderr, fails the build
+# (scripts/docs_show.py).
 [tool.poe.tasks.docs-build]
 help = "Full docs build from the repo root: regenerate sources → build the zensical site into site/, re-executing every tutorial against the cached fits, with strict link checking"
 sequence = [
@@ -295,35 +278,41 @@ sequence = [
 set -eu
 # The tutorial pages import scripts/docs_show.py while they execute.
 export PYTHONPATH="$PWD/scripts${PYTHONPATH:+:$PYTHONPATH}"
+export DOCS_EXEC=all
 zensical build --strict -c
 python scripts/check_tutorial_pages.py
 """ },
 ]
 
-# Incremental on purpose: the preview re-executes only the pages that changed,
-# so editing a guide page does not re-run seven tutorials. `docs-build` is what
-# gates them.
+# The preview regenerates the sources first, so the tutorial pages exist and
+# match their notebooks, then serves with live reload. A tutorial executes only
+# when its cells changed since `.tutorial-cache/pages/` last recorded them
+# (scripts/docs_show.py); every other rebuild, including the whole-site rebuild
+# zensical does after a config edit, replays the records in seconds. Outputs go
+# stale when the library changes: `docs-build` re-executes everything, and so
+# does `DOCS_EXEC=all uv run poe docs-serve`.
 [tool.poe.tasks.docs-serve]
-help = "Live preview the zensical site at localhost:8000, re-executing a tutorial only when its page changes (run from the repo root, as docs-build is)"
-shell = """
+help = "Live preview the zensical site at http://localhost:8000 from the repo root: regenerate sources, then serve with live reload, executing a tutorial only when its cells changed (DOCS_EXEC=all executes every page)"
+sequence = [
+  { ref = "docs-generate" },
+  { ref = "docs-prune" },
+  { shell = """
 set -eu
+# The tutorial pages import scripts/docs_show.py while they execute.
 export PYTHONPATH="$PWD/scripts${PYTHONPATH:+:$PYTHONPATH}"
 zensical serve
-"""
+""" },
+]
 
 # What CI runs (docs-deploy.yml). A fresh checkout has no caches, so this is a
 # no-op there; locally it guarantees every tutorial cell really re-executes and
 # every joblib-cached fit really recomputes before the build judges them.
 [tool.poe.tasks.docs-build-fresh]
-help = "Cold docs build, as CI runs it: drop the tutorials' joblib fit caches, then run the docs build so every fit really recomputes"
+help = "Cold docs build, as CI runs it: drop the tutorials' fit caches and recorded outputs, then run the docs build so every fit really recomputes"
 sequence = [
   { ref = "tutorials-clean-cache" },
   { ref = "docs-build" },
 ]
-
-[tool.poe.tasks.docs-preview]
-help = "Live preview the MyST site"
-shell = """cd docs && myst start"""
 
 [tool.poe.tasks.tutorials-check]
 help = "Lint tutorial marimo notebooks (static checks, no execution)"
@@ -334,7 +323,7 @@ help = "Execute each tutorial marimo notebook as a script to verify it runs end-
 shell = """for nb in docs/tutorials/basics/[0-9]*.py docs/tutorials/data-operations/[0-9]*.py docs/tutorials/analysis/[0-9]*.py docs/tutorials/workflows/[0-9]*.py; do echo "run  $nb"; python "$nb" || exit 1; done"""
 
 [tool.poe.tasks.tutorials-clean-cache]
-help = "Clear the tutorials' joblib fit caches (forces recompute). Memory('.tutorial-cache') is cwd-relative, and both `poe tutorials-run` and the docs build run from the repo root, so one cache serves both"
+help = "Clear .tutorial-cache/: the tutorials' joblib fit caches and their recorded page outputs (forces recompute). Memory('.tutorial-cache') is cwd-relative, and both `poe tutorials-run` and the docs build run from the repo root, so one cache serves both"
 shell = """rm -r .tutorial-cache 2>/dev/null || true"""
 
 [tool.poe.tasks.tutorials]

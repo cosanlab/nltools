@@ -18,7 +18,9 @@ Transforms:
 * an "Open in molab" badge and a "Run this tutorial" tip (cloud via molab, or
   locally via ``uvx marimo edit --sandbox``) are inserted after that heading;
 * a hidden first cell activates ``scripts/docs_show.py``, the formatter that
-  gives the rest of the page notebook-style outputs;
+  gives the rest of the page notebook-style outputs, and stamps the page with a
+  digest of its cells so the formatter can replay the page's recorded outputs
+  when none of them changed;
 * ```` ```python {.marimo} ```` fences become
   ```` ```python exec="on" session="<page-slug>" source="above" ````;
 * a cell marked ``hide_code`` in marimo drops the ``source`` option, so the page
@@ -40,6 +42,7 @@ Usage::
 from __future__ import annotations
 
 import argparse
+import hashlib
 import re
 import subprocess
 import sys
@@ -75,6 +78,10 @@ FORMATTER_MODULE = "docs_show"
 # A cell that runs without appearing: the page's injected first cell, and any
 # cell the notebook marks `# docs: hide`.
 HIDDEN_OPTIONS = 'exec="on" session="{slug}" render="off"'
+
+# The injected first cell: `setup="on"` tells the formatter, which stays
+# registered from the previous page, that a new page starts here.
+SETUP_OPTIONS = HIDDEN_OPTIONS + ' setup="on"'
 
 FRONTMATTER = """\
 ---
@@ -232,10 +239,31 @@ def convert_admonitions(text: str) -> str:
     return "\n".join(out)
 
 
-def install_cell(rel: str, slug: str) -> str:
-    """The page's first cell: hidden, and it activates the output formatter."""
-    code = f'import {FORMATTER_MODULE}\n\n{FORMATTER_MODULE}.install("{rel}")'
-    return f"```python {HIDDEN_OPTIONS.format(slug=slug)}\n{code}\n```"
+def install_cell(rel: str, slug: str, digest: str, cells: int) -> str:
+    """The page's first cell: hidden, it activates the formatter and stamps the page.
+
+    The stamp (`digest` of the page's cells and their count) is what lets the
+    formatter replay the page's recorded outputs when nothing in it changed.
+    """
+    code = (
+        f"import {FORMATTER_MODULE}\n\n"
+        f'{FORMATTER_MODULE}.install("{rel}", digest="{digest}", cells={cells})'
+    )
+    return f"```python {SETUP_OPTIONS.format(slug=slug)}\n{code}\n```"
+
+
+def page_digest(fences: list[str]) -> str:
+    """Digest of a page's executable fences, options included, prose excluded."""
+    return hashlib.sha256("\n".join(fences).encode()).hexdigest()[:16]
+
+
+STAMP_RE = re.compile(r'digest="(?P<digest>[0-9a-f]+)"')
+
+
+def stamp_of(page: str) -> str:
+    """The digest a rendered page was stamped with."""
+    match = STAMP_RE.search(page)
+    return match.group("digest") if match else ""
 
 
 def transform_cell(attrs: str, body: str, slug: str) -> str | None:
@@ -302,29 +330,34 @@ def insert_after_heading(body: str, block: str) -> str:
     return f"{block}\n{body}"
 
 
-def convert(notebook: Path) -> Path:
-    """Convert one marimo notebook to a sibling ``.md`` page and return its path."""
-    rel = rel_to_repo(notebook).as_posix()
-    slug = page_slug(rel)
-    raw = export_marimo_md(notebook)
-    body = strip_frontmatter(raw).lstrip("\n")
+def render_page(exported: str, rel: str, slug: str) -> str:
+    """The zensical page for the marimo-exported markdown of the notebook at `rel`."""
+    body = strip_frontmatter(exported).lstrip("\n")
     body = convert_admonitions(body)
     title = page_title(body)
-    body = insert_after_heading(
-        body, f"{source_banner(rel)}\n{install_cell(rel, slug)}\n"
-    )
+    fences: list[str] = []
 
     def _replace(match: re.Match) -> str:
         out = transform_cell(match.group("attrs"), match.group("body"), slug)
-        # Sentinel marks empty cells for cleanup of their surrounding blank lines.
-        return out if out is not None else "\x00DROP\x00"
+        if out is None:
+            # Sentinel marks empty cells for cleanup of their surrounding blank lines.
+            return "\x00DROP\x00"
+        fences.append(out)
+        return out
 
     body = CELL_RE.sub(_replace, body)
     body = re.sub(r"\n*\x00DROP\x00\n*", "\n\n", body)
+    install = install_cell(rel, slug, page_digest(fences), len(fences))
+    body = insert_after_heading(body, f"{source_banner(rel)}\n{install}\n")
     body = collapse_blank_lines(body).strip("\n")
+    return frontmatter(rel, title) + "\n" + body + "\n"
 
+
+def convert(notebook: Path) -> Path:
+    """Convert one marimo notebook to a sibling ``.md`` page and return its path."""
+    rel = rel_to_repo(notebook).as_posix()
     out_path = notebook.with_suffix(".md")
-    out_path.write_text(frontmatter(rel, title) + "\n" + body + "\n")
+    out_path.write_text(render_page(export_marimo_md(notebook), rel, page_slug(rel)))
     return out_path
 
 

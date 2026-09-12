@@ -44,7 +44,7 @@ Common tasks (run via [poe](https://poethepoet.natn.io/), all prefixed with `uv 
 | `uv run poe lint` | Fix, format, and type-check (ruff + ty) |
 | `uv run poe test` | Run the fast test suite in parallel |
 | `uv run pytest -k test_name` | Run a specific test |
-| `uv run poe docs-preview` | Live-preview the docs site (executes tutorials via the cache) |
+| `uv run poe docs-serve` | Live-preview the docs site at localhost:8000 (executes tutorials via the cache) |
 | `uv run poe docs-build` | Full docs build (API reference + executed tutorials) |
 | `uv run poe tutorials` | Run every tutorial notebook end-to-end |
 | `uv build` | Build the package locally |

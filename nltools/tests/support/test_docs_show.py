@@ -425,3 +425,132 @@ class TestLibraryOutput:
         page.run_cell("x = 1", session="basics-01-brain-data")
         sys.stdout.write("outside a cell")
         assert "outside a cell" in capsys.readouterr().out
+
+
+class TestPageCache:
+    """A page whose cells have not changed replays its recorded outputs."""
+
+    NOTEBOOK = "docs/tutorials/basics/01_brain_data.py"
+
+    @pytest.fixture(autouse=True)
+    def _isolated_cache(self, monkeypatch, tmp_path):
+        monkeypatch.chdir(tmp_path)
+        monkeypatch.delenv("DOCS_EXEC", raising=False)
+
+    def build(self, docs_show, digest, *cells):
+        docs_show.install(self.NOTEBOOK, digest=digest, cells=len(cells))
+        return [
+            docs_show.format_cell(code=code, md=None, session="basics-01-brain-data")
+            for code in cells
+        ]
+
+    def test_an_unstamped_page_is_never_cached(self, docs_show, tmp_path):
+        docs_show.install(self.NOTEBOOK)
+        docs_show.format_cell(
+            code="print('x')", md=None, session="basics-01-brain-data"
+        )
+        assert not (tmp_path / ".tutorial-cache").exists()
+
+    def test_the_first_build_executes_and_records_every_cell(self, docs_show):
+        outputs = self.build(docs_show, "abc", "print('one')", "print('two')")
+        assert "one" in outputs[0] and "two" in outputs[1]
+        recorded = sorted(Path(".tutorial-cache/pages").rglob("*.html"))
+        assert [p.name for p in recorded] == ["1.html", "2.html"]
+        assert recorded[0].read_text() == outputs[0]
+
+    def test_an_unchanged_page_replays_without_executing(self, docs_show):
+        first = self.build(docs_show, "abc", "print('one')", "print('two')")
+        again = self.build(docs_show, "abc", "raise RuntimeError", "raise RuntimeError")
+        assert again == first
+
+    def test_a_changed_page_executes_again(self, docs_show):
+        self.build(docs_show, "abc", "print('one')", "print('two')")
+        outputs = self.build(docs_show, "def", "print('uno')", "print('dos')")
+        assert "uno" in outputs[0] and "dos" in outputs[1]
+
+    def test_a_changed_page_replaces_the_old_record(self, docs_show):
+        self.build(docs_show, "abc", "print('one')")
+        self.build(docs_show, "def", "print('uno')")
+        keys = [p.name for p in Path(".tutorial-cache/pages").glob("*/*")]
+        assert len(keys) == 1
+
+    def test_docs_exec_all_executes_a_cached_page(self, docs_show, monkeypatch):
+        self.build(docs_show, "abc", "print('one')")
+        monkeypatch.setenv("DOCS_EXEC", "all")
+        outputs = self.build(docs_show, "abc", "print('uno')")
+        assert "uno" in outputs[0]
+
+    def test_a_partial_record_does_not_count(self, docs_show):
+        docs_show.install(self.NOTEBOOK, digest="abc", cells=2)
+        docs_show.format_cell(
+            code="print('one')", md=None, session="basics-01-brain-data"
+        )
+        # The second cell never ran (a failed build), so the record is incomplete.
+        outputs = self.build(docs_show, "abc", "print('uno')", "print('dos')")
+        assert "uno" in outputs[0] and "dos" in outputs[1]
+
+    def test_a_hidden_cell_replays_as_nothing(self, docs_show):
+        docs_show.install(self.NOTEBOOK, digest="abc", cells=1)
+        docs_show.format_cell(
+            code="print('x')",
+            md=None,
+            session="basics-01-brain-data",
+            extra={"render": "off"},
+        )
+        docs_show.install(self.NOTEBOOK, digest="abc", cells=1)
+        assert (
+            docs_show.format_cell(
+                code="raise RuntimeError",
+                md=None,
+                session="basics-01-brain-data",
+                extra={"render": "off"},
+            )
+            == ""
+        )
+
+    def test_the_next_page_starts_while_the_last_one_replays(self, docs_show):
+        self.build(docs_show, "abc", "print('one')")
+        replayed = self.build(docs_show, "abc", "raise RuntimeError")
+        # The formatter is still registered, so the next page's setup cell
+        # reaches it in replay state; `setup="on"` runs it as a fresh start.
+        setup = (
+            f'import docs_show\n\ndocs_show.install("{self.NOTEBOOK}", '
+            'digest="abc", cells=1)'
+        )
+        assert (
+            docs_show.format_cell(
+                code=setup,
+                md=None,
+                session="basics-01-brain-data",
+                extra={"render": "off", "setup": "on"},
+            )
+            == ""
+        )
+        again = docs_show.format_cell(
+            code="raise RuntimeError", md=None, session="basics-01-brain-data"
+        )
+        assert again == replayed[0]
+        assert not (Path(".tutorial-cache/pages") / "0.html").exists()
+
+    def test_a_setup_cell_is_not_recorded(self, docs_show):
+        docs_show.install(self.NOTEBOOK, digest="abc", cells=1)
+        setup = (
+            f'import docs_show\n\ndocs_show.install("{self.NOTEBOOK}", '
+            'digest="abc", cells=1)'
+        )
+        docs_show.format_cell(
+            code=setup,
+            md=None,
+            session="basics-01-brain-data",
+            extra={"render": "off", "setup": "on"},
+        )
+        docs_show.format_cell(
+            code="print('one')", md=None, session="basics-01-brain-data"
+        )
+        recorded = sorted(p.name for p in Path(".tutorial-cache/pages").rglob("*.html"))
+        assert recorded == ["1.html"]
+
+    def test_the_key_covers_the_formatter_source(self, docs_show):
+        assert docs_show.page_key("abc", b"formatter v1") != docs_show.page_key(
+            "abc", b"formatter v2"
+        )
