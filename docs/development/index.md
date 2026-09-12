@@ -115,8 +115,6 @@ public signature against in CI. The table below is rendered from it:
 - **[Inference internals](inference-internals.md)** — permutation and bootstrap testing:
   the algorithms, deterministic cross-backend RNG, p-value calculation, and numerical
   stability.
-- **[Benchmarks](benchmarks.md)** — GPU vs CPU speed and memory tables, regenerated from
-  committed run artifacts.
 
 ## Deferred 0.6.1 design
 

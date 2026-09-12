@@ -35,7 +35,6 @@ decisions.
 | Packaging | `uv build`, then install the wheel into a fresh venv and run the smoke test from `scripts/release.py` (`SMOKE_TEST_CODE`) with the expected version | local | Wheel installs, version matches `pyproject.toml`, `DesignMatrix` and `Adjacency` construct. |
 | Export inventory | `uv run poe lint-api` plus `uv run python -c "import nltools.data as d; assert 'BrainCollection' not in d.__all__"` | local | API checks pass; `BrainCollection` is absent from public exports and `docs/api`; `q31x` has no unresolved findings. |
 | Migration examples | Run each code block in `docs/migration-guide.md` that shows 0.6.0 behavior in a scratch script | local | Every example runs and prints or asserts what the guide claims. |
-| Benchmark smoke | `uv run pytest benchmarks --deselect benchmarks/tests/test_harness.py::test_benchmark_measures_time_and_memory` | local | Remaining benchmark smoke tests pass. |
 
 Record every log, the executed revision hash, and machine details in the
 `q62r` close message.
@@ -50,11 +49,6 @@ verification unless it is still wanted.
 
 ## Approved limitations
 
-- `benchmarks/tests/test_harness.py` expects a 200 MB transient allocation to
-  raise peak RSS by more than 50 MB. On the current macOS/NumPy stack the
-  sampler observes about 0.03 MB because the allocation is never touched. This
-  is a measurement-harness limitation, not a library defect. The test is
-  deselected above and stays unchanged.
 - `marimo check` reports 54 `markdown-indentation` warnings across the seven
   unchanged tutorial notebooks, with exit status 0. They are a formatting
   preference in the notebook source, never reach the built pages, and are not
