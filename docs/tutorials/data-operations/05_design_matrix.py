@@ -181,10 +181,12 @@ def _(mo):
     ## Convolution
 
     `convolve` applies a hemodynamic response function to the task regressors and
-    skips the confound columns, so drift terms are left alone. The default kernel
-    is a Glover HRF; pass a 1-D array for your own kernel, or a 2-D array to
-    convolve with several at once. Convolved columns get a `_c0` suffix (`_c1`,
-    `_c2`, … for further kernels) so you can reference them by name.
+    skips the confound columns, so drift terms are left alone. `kernel=` defaults
+    to `"glover"` and takes any of nilearn's HRF models (`"glover_time"`,
+    `"glover_dispersion"`, `"spm"`, `"spm_time"`, `"spm_dispersion"`); pass a
+    1-D array for your own kernel, or a 2-D array to convolve with several at
+    once. Convolved columns get a `_c0` suffix (`_c1`, `_c2`, … for further
+    kernels) so you can reference them by name.
     """)
     return
 

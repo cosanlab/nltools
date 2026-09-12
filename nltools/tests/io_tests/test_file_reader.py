@@ -50,6 +50,37 @@ class TestDesignMatrixFromEventsFile:
             assert trial_type not in dm.columns
         assert set(dm.convolved) == set(dm.columns)
 
+    def test_convolved_columns_match_nilearn_on_the_same_events(
+        self, onsets_path, onsets_data
+    ):
+        """The events file is convolved by nilearn, not via a TR boxcar.
+
+        `make_first_level_design_matrix` convolves at nilearn's oversampling
+        and only then samples onto the frame times, so an onset that falls
+        between TRs keeps its timing. This pins the constructor to exactly
+        what a nilearn `FirstLevelModel` would build from the same file
+        (GitHub #492); routing through boxcars instead moved this fixture's
+        regressors by up to 0.77 in absolute value (r 0.93 on the worst
+        condition) at TR=2.
+        """
+        from nilearn.glm.first_level import make_first_level_design_matrix
+
+        run_length, tr = 1364, 2.0
+        dm = DesignMatrix(onsets_path, run_length=run_length, TR=tr)
+
+        expected = make_first_level_design_matrix(
+            np.arange(run_length) * tr,
+            events=onsets_data,
+            hrf_model="glover",
+            drift_model=None,
+        )
+        for trial_type in onsets_data.trial_type.unique():
+            np.testing.assert_allclose(
+                dm[f"{trial_type}_c0"].to_numpy(),
+                expected[trial_type].to_numpy(),
+                rtol=1e-6,
+            )
+
     def test_shape(self, onsets_path, onsets_data):
         """Output is (run_length, n_unique_trial_types) — no auto-intercept."""
         run_length = 1364

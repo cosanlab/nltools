@@ -15,6 +15,71 @@ class TestDesignMatrixConvolution:
       column is dropped. ``.convolved`` lists post-suffix names.
     """
 
+    def test_convolve_default_hrf_matches_nilearn_regressor(self):
+        """The default HRF path reproduces nilearn's convolved regressor exactly.
+
+        nltools' only contribution on this path is turning a TR-sampled column
+        into a nilearn condition (one event per non-zero sample, onset
+        ``i / sampling_freq``, duration one TR, amplitude the sample value).
+        Everything after that is `nilearn.glm.first_level.compute_regressor`,
+        so a design built from the same three events must come back
+        bit-comparable to what `FirstLevelModel` would use. Regression for
+        GitHub #492, where sampling the Glover HRF at one sample per TR left
+        the kernel a full TR late and 6.7% too wide at TR=2.
+        """
+        from nilearn.glm.first_level import compute_regressor
+
+        tr, n_tr = 2.0, 40
+        event_trs = [2, 10, 24]
+        boxcar = np.zeros(n_tr)
+        boxcar[event_trs] = 1.0
+
+        got = DesignMatrix({"stim": boxcar}, TR=tr).convolve()["stim_c0"].to_numpy()
+
+        onsets = np.array(event_trs) * tr
+        expected, _ = compute_regressor(
+            (onsets, np.full(len(event_trs), tr), np.ones(len(event_trs))),
+            "glover",
+            np.arange(n_tr) * tr,
+            con_id="stim",
+            oversampling=50,
+        )
+        np.testing.assert_allclose(got, expected[:, 0], rtol=1e-6)
+
+    def test_convolve_named_kernel_uses_the_matching_nilearn_model(self):
+        """A non-default kernel name reaches nilearn as the model it names.
+
+        One case stands for the mapping: `'spm_time'` must arrive at
+        `compute_regressor` as `spm_time_derivative`, and the output column
+        must still be `<col>_c0` — nltools names columns by kernel index, not
+        by nilearn's per-model suffix.
+        """
+        from nilearn.glm.first_level import compute_regressor, spm_time_derivative
+
+        tr, n_tr = 2.0, 40
+        event_trs = [2, 10, 24]
+        boxcar = np.zeros(n_tr)
+        boxcar[event_trs] = 1.0
+
+        dm_conv = DesignMatrix({"stim": boxcar}, TR=tr).convolve(kernel="spm_time")
+
+        expected, _ = compute_regressor(
+            (np.array(event_trs) * tr, np.full(len(event_trs), tr), np.ones(3)),
+            spm_time_derivative,
+            np.arange(n_tr) * tr,
+            oversampling=50,
+        )
+        assert dm_conv.columns == ["stim_c0"]
+        np.testing.assert_allclose(
+            dm_conv["stim_c0"].to_numpy(), expected[:, 0], rtol=1e-6
+        )
+
+    def test_convolve_rejects_an_unknown_kernel_name(self):
+        """An unknown string names the accepted models rather than guessing."""
+        dm = DesignMatrix({"stim": [1.0, 0, 0, 0]}, sampling_freq=1)
+        with pytest.raises(ValueError, match="'glover'.*'spm_dispersion'"):
+            dm.convolve(kernel="hrf")
+
     def test_convolve_with_default_hrf_delays_response(self):
         """
         Default HRF convolution should delay and smooth response.
@@ -56,7 +121,7 @@ class TestDesignMatrixConvolution:
 
         # Custom kernel: simple 3-point average (box-car smoothing)
         kernel = np.array([0.33, 0.33, 0.33])
-        dm_conv = dm.convolve(conv_func=kernel)
+        dm_conv = dm.convolve(kernel=kernel)
 
         # First value should be smoothed
         assert dm_conv["stim_c0"].to_list()[0] == pytest.approx(0.33, abs=0.01)
@@ -74,7 +139,7 @@ class TestDesignMatrixConvolution:
         column lookups.
         """
         dm = DesignMatrix({"stim": [1, 0, 0, 0, 0]}, sampling_freq=1)
-        dm_conv = dm.convolve(conv_func=np.array([0.5, 0.5]))
+        dm_conv = dm.convolve(kernel=np.array([0.5, 0.5]))
 
         assert "stim" not in dm_conv.columns
         assert "stim_c0" in dm_conv.columns
@@ -210,7 +275,7 @@ class TestDesignMatrixConvolution:
         """
         dm = DesignMatrix({"stim": [1, 0, 1, 0]}, sampling_freq=1).convolve()
         with pytest.raises(ValueError, match="already-convolved"):
-            dm.convolve(columns=["stim_c0"], conv_func=np.array([0.5, 0.5]))
+            dm.convolve(columns=["stim_c0"], kernel=np.array([0.5, 0.5]))
 
     def test_convolve_partial_with_new_event_column(self):
         """When some experimental regressors are already convolved and a fresh
@@ -254,7 +319,7 @@ class TestDesignMatrixConvolution:
             ]
         ).T  # Shape: (3, 2) - samples x kernels
 
-        dm_conv = dm.convolve(conv_func=kernels)
+        dm_conv = dm.convolve(kernel=kernels)
 
         # Should create stim_c0 and stim_c1
         assert "stim_c0" in dm_conv.columns

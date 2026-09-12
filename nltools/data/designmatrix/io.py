@@ -64,6 +64,60 @@ def events_to_dm(
     return pl.DataFrame({str(c): dm[c].to_numpy() for c in dm.columns})
 
 
+def _events_to_convolved_dm(
+    events: pl.DataFrame | pd.DataFrame,
+    *,
+    run_length: int,
+    sampling_freq: float,
+    hrf_model: str,
+) -> pl.DataFrame:
+    """Convert a BIDS events table straight to HRF-convolved regressors.
+
+    `make_first_level_design_matrix` convolves the events at nilearn's own
+    oversampling and only then samples onto the frame times, so onsets that
+    fall between TRs keep their timing. Going through `events_to_dm` first
+    would quantize them onto the TR grid before convolution, and the result
+    would no longer match a nilearn `FirstLevelModel` on the same events.
+
+    Args:
+        events (pl.DataFrame | pd.DataFrame): Events table with BIDS columns
+            `onset`, `duration`, `trial_type` (required); `modulation` is
+            passed through if present.
+        run_length (int): Number of TRs the run contains.
+        sampling_freq (float): Sampling frequency in Hz (= 1/TR).
+        hrf_model (str): An HRF model name from `_KERNELS`.
+
+    Returns:
+        pl.DataFrame: One column per unique `trial_type`, convolved and named
+            `<trial_type>_c0`.
+    """
+    import pandas as pd
+    from nilearn.glm.first_level import make_first_level_design_matrix
+
+    from .regressors import _KERNELS
+
+    if isinstance(events, pl.DataFrame):
+        events = pd.DataFrame(events.to_dict(as_series=False))
+
+    kernel = _KERNELS[hrf_model]
+    frame_times = np.arange(run_length) / sampling_freq
+    dm = make_first_level_design_matrix(
+        frame_times,
+        events=events,
+        hrf_model=kernel,
+        drift_model=None,
+    )
+    if "constant" in dm.columns:
+        dm = dm.drop(columns=["constant"])
+    # nilearn suffixes a column with the name of the function that convolved
+    # it when the model is a callable; nltools names every convolved column
+    # `<col>_c0` regardless of kernel, so strip it back off.
+    suffix = "" if isinstance(kernel, str) else f"_{kernel.__name__}"
+    return pl.DataFrame(
+        {f"{str(c).removesuffix(suffix)}_c0": dm[c].to_numpy() for c in dm.columns}
+    )
+
+
 def separator_for_path(path: str | Path) -> str:
     """Return the delimiter a text DesignMatrix file uses, from its extension.
 
@@ -122,13 +176,15 @@ def load_from_file(
     *,
     run_length: int | str,
     sampling_freq: float,
+    hrf_model: str | None = None,
 ) -> tuple[pl.DataFrame, bool]:
     """Read a TSV/CSV into the frame a DesignMatrix wraps.
 
     Dispatches on column inspection: when `onset` and `duration` are both
-    present the file is a BIDS events table and becomes a boxcar design via
-    `events_to_dm` (unconvolved; the caller convolves later); otherwise it is
-    a tabular file (confounds / nuisance regressors) read as-is.
+    present the file is a BIDS events table and becomes an experimental design
+    — HRF-convolved by nilearn when `hrf_model` names a model, raw boxcars via
+    `events_to_dm` when it is `None` — otherwise it is a tabular file
+    (confounds / nuisance regressors) read as-is.
 
     ``run_length='infer'`` is accepted only for the tabular path; events
     files must provide an explicit integer (they have a variable row count
@@ -138,6 +194,8 @@ def load_from_file(
         path (str | Path): Path to a `.tsv` or `.csv` file.
         run_length (int | str): Number of TRs, or ``'infer'`` for tabular inputs.
         sampling_freq (float): Sampling frequency in Hz (= 1/TR).
+        hrf_model (str | None): HRF model name to convolve an events table
+            with, or ``None`` for raw boxcars. Ignored for tabular files.
 
     Returns:
         tuple[pl.DataFrame, bool]: `(frame, is_events)` — `is_events` signals to
@@ -156,11 +214,19 @@ def load_from_file(
                 "(the row count is the number of events, not the number "
                 "of TRs). Pass an explicit integer run_length."
             )
-        data_df = events_to_dm(
-            raw,
-            run_length=int(run_length),
-            sampling_freq=sampling_freq,
-        )
+        if hrf_model is None:
+            data_df = events_to_dm(
+                raw,
+                run_length=int(run_length),
+                sampling_freq=sampling_freq,
+            )
+        else:
+            data_df = _events_to_convolved_dm(
+                raw,
+                run_length=int(run_length),
+                sampling_freq=sampling_freq,
+                hrf_model=hrf_model,
+            )
         return data_df, True
 
     if run_length != "infer":

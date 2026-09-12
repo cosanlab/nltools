@@ -1,9 +1,13 @@
 """Build regressors for a DesignMatrix: HRF convolution and drift terms.
 
-`convolve` applies the canonical Glover HRF or a custom kernel; `add_poly` and
-`add_dct_basis` add Legendre polynomial and discrete-cosine drift regressors in
-the reserved ``.nl_`` namespace. Each function returns a new `DesignMatrix`
-with metadata updated.
+`convolve` applies one of nilearn's HRF models or a custom kernel; `add_poly`
+and `add_dct_basis` add Legendre polynomial and discrete-cosine drift
+regressors in the reserved ``.nl_`` namespace. Each function returns a new
+`DesignMatrix` with metadata updated.
+
+The HRF path hands the work to `nilearn.glm.first_level.compute_regressor`
+rather than sampling a kernel itself, so a TR-grid column convolved here and a
+nilearn `FirstLevelModel` regressor built from the same events agree exactly.
 """
 
 from __future__ import annotations
@@ -13,6 +17,12 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 import polars as pl
+from nilearn.glm.first_level import (
+    glover_dispersion_derivative,
+    glover_time_derivative,
+    spm_dispersion_derivative,
+    spm_time_derivative,
+)
 
 from nltools.utils import DesignMatrixWarning, find_stack_level, reserved_name
 
@@ -22,18 +32,92 @@ if TYPE_CHECKING:
     from . import DesignMatrix
 
 
+# The HRF models `kernel=` accepts, mapped to what nilearn wants for each:
+# a model name its own API understands, or the nilearn function that computes
+# it. Both `compute_regressor` (the `convolve` path) and
+# `make_first_level_design_matrix` (the events-file constructor) take either
+# form, so nltools writes no kernel code and ships no kernel of its own.
+_KERNELS = {
+    "glover": "glover",
+    "glover_time": glover_time_derivative,
+    "glover_dispersion": glover_dispersion_derivative,
+    "spm": "spm",
+    "spm_time": spm_time_derivative,
+    "spm_dispersion": spm_dispersion_derivative,
+}
+
+
+def _kernel_names() -> str:
+    """Return the accepted kernel names, for error messages."""
+    return ", ".join(repr(name) for name in _KERNELS)
+
+
+def _hrf_regressor(column: np.ndarray, sampling_freq: float, kernel) -> np.ndarray:
+    """Convolve one TR-sampled column with a nilearn HRF model.
+
+    nilearn's HRF functions are written to be sampled on a finely oversampled
+    grid, convolved there, and resampled onto the frame times; that is what
+    `compute_regressor` does and what `FirstLevelModel` uses. So the column is
+    handed to nilearn as a condition rather than convolved here: each non-zero
+    sample becomes one event, onset ``i / sampling_freq``, duration one TR
+    (a design-matrix row means the regressor is on for that whole TR), and
+    amplitude the sample value. This conversion is the only logic nltools adds.
+
+    Args:
+        column (np.ndarray): Column values, one sample per TR.
+        sampling_freq (float): Sampling frequency in Hz (= 1/TR).
+        kernel (str | Callable): A value of `_KERNELS` — an nilearn HRF model
+            name or the nilearn function that computes it.
+
+    Returns:
+        np.ndarray: Convolved regressor sampled at the frame times, same
+            length as `column`.
+
+    Raises:
+        ValueError: If the column holds fewer than two timepoints; nilearn
+            reads the TR off the spacing of the frame times.
+    """
+    from nilearn.glm.first_level import compute_regressor
+
+    if column.size < 2:
+        raise ValueError(
+            f"HRF convolution needs at least two timepoints, got {column.size}. "
+            "nilearn reads the repetition time off the spacing between frame "
+            "times, which a single-row design does not have."
+        )
+    tr = 1.0 / sampling_freq
+    active = np.flatnonzero(column)
+    if active.size == 0:
+        return np.zeros(column.size)
+    exp_condition = (active * tr, np.full(active.size, tr), column[active])
+    regressor, _ = compute_regressor(
+        exp_condition,
+        kernel,
+        np.arange(column.size) * tr,
+        oversampling=50,
+    )
+    return regressor[:, 0]
+
+
 def convolve(
     dm: DesignMatrix,
-    conv_func: str | np.ndarray = "hrf",
+    kernel: str | np.ndarray = "glover",
     columns: list[str] | None = None,
 ) -> DesignMatrix:
-    """Convolve columns with an HRF or custom kernel.
+    """Convolve columns with an HRF model or custom kernel.
+
+    A `kernel` name selects one of nilearn's HRF models: each column is handed
+    to `nilearn.glm.first_level.compute_regressor` as a condition, convolved at
+    an oversampling factor of 50, and resampled onto the frame times — the same
+    computation `FirstLevelModel` runs, so the two agree on identical events.
+    A `kernel` array is applied with `numpy.convolve` instead.
 
     Args:
         dm (DesignMatrix): DesignMatrix to convolve.
-        conv_func (str | np.ndarray): ``'hrf'`` for the canonical Glover HRF, or
-            custom kernel(s) as a 1D array (single kernel) or 2D array
-            (samples x kernels).
+        kernel (str | np.ndarray): An HRF model name — ``'glover'`` (default),
+            ``'glover_time'``, ``'glover_dispersion'``, ``'spm'``,
+            ``'spm_time'`` or ``'spm_dispersion'`` — or custom kernel(s) as a
+            1D array (single kernel) or 2D array (samples x kernels).
         columns (list[str] | None): Columns to convolve. Default: all
             non-confound columns that are not already convolved.
 
@@ -42,16 +126,19 @@ def convolve(
 
     Examples:
         ```python
-        # Default HRF convolution → produces 'stim_c0'
+        # Canonical Glover HRF → produces 'stim_c0'
         dm_conv = convolve(dm)
+
+        # Glover HRF plus its time derivative, as a second design → 'stim_c0'
+        dm_deriv = convolve(dm, kernel="glover_time")
 
         # Custom 1-D kernel → produces 'stim_c0'
         kernel = np.array([0.5, 1.0, 0.5])
-        dm_conv = convolve(dm, conv_func=kernel)
+        dm_conv = convolve(dm, kernel=kernel)
 
         # Multiple kernels (FIR model) → produces 'stim_c0', 'stim_c1'
         kernels = np.array([[1.0, 0.5], [0.5, 1.0]]).T  # 2 kernels
-        dm_conv = convolve(dm, conv_func=kernels)
+        dm_conv = convolve(dm, kernel=kernels)
         ```
 
     Note:
@@ -61,8 +148,6 @@ def convolve(
         downstream metadata propagation through ``.append()`` stays in
         sync with the dataframe.
     """
-    from nilearn.glm.first_level import glover_hrf
-
     if dm.sampling_freq is None:
         raise ValueError(
             "DesignMatrix must have sampling_freq set for convolution. "
@@ -106,43 +191,47 @@ def convolve(
             )
         columns_to_convolve = list(columns)
 
-    # Get the convolution kernel
-    if isinstance(conv_func, str):
-        if conv_func != "hrf":
+    # Decide between a nilearn HRF model and a caller-supplied kernel array
+    hrf_model = None
+    kernels_2d = None
+    if isinstance(kernel, str):
+        if kernel not in _KERNELS:
             raise ValueError(
-                f"String conv_func must be 'hrf', got '{conv_func}'. "
-                "Use conv_func='hrf' or provide a numpy array. "
-                "Tip: Use nilearn.glm.first_level.glover_hrf() to generate custom HRFs."
+                f"Unknown kernel {kernel!r}. Accepted HRF model names are "
+                f"{_kernel_names()}, or pass a numpy array of your own "
+                "kernel(s) — 1D (samples,) or 2D (samples, n_kernels)."
             )
-        # Generate Glover HRF at this sampling frequency
-        # TR = 1 / sampling_freq
-        conv_func = glover_hrf(1.0 / dm.sampling_freq, oversampling=1.0)
-    elif isinstance(conv_func, np.ndarray):
-        if len(conv_func.shape) > 2:
+        hrf_model = _KERNELS[kernel]
+    elif isinstance(kernel, np.ndarray):
+        if len(kernel.shape) > 2:
             raise ValueError(
-                f"HRF function must be 1D (shape: (samples,)) or 2D (shape: (samples, n_kernels)). "
-                f"Got shape: {conv_func.shape}. "
+                f"A kernel array must be 1D (shape: (samples,)) or 2D (shape: (samples, n_kernels)). "
+                f"Got shape: {kernel.shape}. "
                 "Tip: Use nilearn.glm.first_level.glover_hrf() to generate HRFs."
             )
+        # Normalize to 2-D (samples, n_kernels) so 1-D and 2-D paths share code.
+        kernels_2d = kernel.reshape(-1, 1) if kernel.ndim == 1 else kernel
     else:
         raise TypeError(
-            f"conv_func must be 'hrf' (str) or numpy array, got {type(conv_func).__name__}. "
-            "Tip: Use conv_func='hrf' for canonical HRF."
+            f"kernel must be an HRF model name ({_kernel_names()}) or a numpy "
+            f"array, got {type(kernel).__name__}."
         )
 
-    # Normalize to 2-D (samples, n_kernels) so 1-D and 2-D paths share code.
-    kernels_2d = conv_func.reshape(-1, 1) if conv_func.ndim == 1 else conv_func
-    n_kernels = kernels_2d.shape[1]
     n_rows = dm.shape[0]
 
     convolved_series: list[pl.Series] = []
     new_convolved: list[str] = []
     for col in columns_to_convolve:
-        # NECESSARY: np.convolve requires numpy arrays (no Polars equivalent)
+        # NECESSARY: both paths require numpy arrays (no Polars equivalent)
         col_data = dm.data[col].to_numpy()
-        for k_idx in range(n_kernels):
-            kernel = kernels_2d[:, k_idx]
-            result = np.convolve(col_data, kernel)[:n_rows]
+        if kernels_2d is None:
+            results = [_hrf_regressor(col_data, dm.sampling_freq, hrf_model)]
+        else:
+            results = [
+                np.convolve(col_data, kernels_2d[:, k])[:n_rows]
+                for k in range(kernels_2d.shape[1])
+            ]
+        for k_idx, result in enumerate(results):
             new_name = f"{col}_c{k_idx}"
             convolved_series.append(pl.Series(new_name, result))
             new_convolved.append(new_name)

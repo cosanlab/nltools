@@ -58,9 +58,9 @@ class DesignMatrix:
     (converted), a NumPy array (named via `columns`), a dict of columns,
     another `DesignMatrix` (copied), ``None`` (empty), or a file path.
     A `.tsv`/`.csv` path is read as a BIDS events file when it has `onset`
-    and `duration` columns — each `trial_type` becomes a boxcar regressor,
-    HRF-convolved unless ``hrf_model=None`` — and as a plain table otherwise
-    (typically confounds). A `.h5`/`.hdf5` path written by `write` restores
+    and `duration` columns — each `trial_type` becomes an HRF-convolved
+    regressor, or a raw boxcar under ``hrf_model=None`` — and as a plain table
+    otherwise (typically confounds). A `.h5`/`.hdf5` path written by `write` restores
     the data and the metadata (`sampling_freq`, `convolved`, `confounds`,
     `multi`), so neither `run_length` nor `sampling_freq` is required;
     passing either overrides what the file recorded.
@@ -82,10 +82,14 @@ class DesignMatrix:
             HRF-convolved.
         confounds (list[str] | None): Names of nuisance/confound columns
             (intercept, polynomial drift, DCT cosines, motion, …).
-        hrf_model (str | None): HRF used to convolve regressors loaded from a
-            BIDS events file. ``'glover'`` (the default, matching nilearn's
-            ``make_first_level_design_matrix``) or ``None`` to keep raw boxcar
-            regressors. Ignored for every other kind of `data`.
+        hrf_model (str | None): HRF model used to convolve regressors loaded
+            from a BIDS events file — ``'glover'`` (the default),
+            ``'glover_time'``, ``'glover_dispersion'``, ``'spm'``,
+            ``'spm_time'``, ``'spm_dispersion'``, or ``None`` to keep raw
+            boxcar regressors. A model name hands the events straight to
+            nilearn's ``make_first_level_design_matrix``, so the regressors are
+            the ones a nilearn `FirstLevelModel` would build from the same
+            file. Ignored for every other kind of `data`.
         n_rows (int | None): Number of timepoints for a matrix with no columns
             (Polars cannot represent "n rows, 0 columns"). Rarely needed
             directly; set by `find_spikes` and by `append`.
@@ -154,12 +158,16 @@ class DesignMatrix:
         `convolved`, `confounds`, and `multi` are carried over, and any explicit
         kwarg overrides the inherited value.
 
-        When `data` is a path to a BIDS events file, the regressors are
-        HRF-convolved by default (``hrf_model='glover'``): output columns are
-        suffixed ``_c0`` and `convolved` is populated. Pass ``hrf_model=None``
-        to load raw boxcar regressors instead — useful for FIR designs, PPI
-        flows that build interaction terms before convolution, or teaching
-        material that introduces convolution as a separate step.
+        When `data` is a path to a BIDS events file, the events go to nilearn's
+        `make_first_level_design_matrix` with the named `hrf_model`
+        (``'glover'`` by default): output columns are suffixed ``_c0`` and
+        `convolved` is populated. Pass ``hrf_model=None`` to load raw boxcar
+        regressors instead — useful for FIR designs, PPI flows that build
+        interaction terms before convolution, or teaching material that
+        introduces convolution as a separate step. Those boxcars are sampled
+        onto the TR grid, so convolving them afterwards with `convolve` is not
+        the same as letting the constructor convolve the events: onsets that
+        fall between TRs have already been quantized.
         """
         if TR is not None and sampling_freq is not None:
             raise ValueError("Pass exactly one of `TR` or `sampling_freq`, not both.")
@@ -173,12 +181,13 @@ class DesignMatrix:
         if TR is not None:
             sampling_freq = 1.0 / TR
 
-        if hrf_model is not None and hrf_model != "glover":
+        from .regressors import _KERNELS, _kernel_names
+
+        if hrf_model is not None and hrf_model not in _KERNELS:
             raise ValueError(
-                f"Unknown hrf_model={hrf_model!r}. nltools currently supports "
-                "hrf_model='glover' (default, canonical Glover HRF) or "
-                "hrf_model=None (boxcar — caller convolves explicitly with "
-                ".convolve())."
+                f"Unknown hrf_model={hrf_model!r}. Accepted HRF model names "
+                f"are {_kernel_names()}, or hrf_model=None (boxcar — caller "
+                "convolves explicitly with .convolve())."
             )
 
         self.multi = False
@@ -243,6 +252,7 @@ class DesignMatrix:
                     data,
                     run_length=run_length,
                     sampling_freq=sampling_freq,
+                    hrf_model=hrf_model,
                 )
 
         elif isinstance(data, pl.DataFrame):
@@ -333,16 +343,12 @@ class DesignMatrix:
                     default=self._run_count,
                 )
 
-        # Auto-convolve when the constructor loaded events from a file. Matches
-        # nilearn's `make_first_level_design_matrix(hrf_model='glover')`
-        # default. Use ``hrf_model=None`` to opt out (PPI/FIR/teaching flows
-        # that need raw boxcars before convolution).
+        # An events file loaded with an `hrf_model` came back already convolved
+        # by nilearn (`load_from_file` → `_events_to_convolved_dm`), suffixed
+        # `_c0`. Record that rather than convolving a second time; with
+        # ``hrf_model=None`` the frame is raw boxcars and stays unannotated.
         if _is_events and hrf_model is not None:
-            from .regressors import convolve as _convolve
-
-            convolved_dm = _convolve(self)
-            self.data = convolved_dm.data
-            self._convolved = list(convolved_dm.convolved)
+            self._convolved = list(self.data.columns)
 
     # ── Dunders (alphabetical) ──────────────────────────────────────────
 
@@ -649,19 +655,29 @@ class DesignMatrix:
 
     def convolve(
         self,
-        conv_func: str | np.ndarray = "hrf",
+        kernel: str | np.ndarray = "glover",
         columns: list[str] | None = None,
     ) -> DesignMatrix:
-        """Convolve columns with an HRF or custom kernel.
+        """Convolve columns with an HRF model or custom kernel.
 
         Convolved columns are always renamed to ``<col>_c{i}`` (where ``i`` is
         the kernel index, ``0`` for a single 1-D kernel). The source columns
         are dropped, and ``self.convolved`` lists the post-suffix names so
         downstream metadata stays in sync with the dataframe.
 
+        A kernel name selects one of nilearn's HRF models: each column goes to
+        `nilearn.glm.first_level.compute_regressor` as a condition, convolved
+        at an oversampling factor of 50 and resampled onto the frame times.
+        That is exactly what `FirstLevelModel` computes, so a column whose
+        samples sit on the TR grid gives the regressor nilearn would build from
+        the same events; sub-TR timing a column cannot represent is lost before
+        convolution, so pass an events table to the constructor for that.
+
         Args:
-            conv_func (str or ndarray): 'hrf' for canonical Glover HRF, or custom kernel(s).
-                Can be 1D array (single kernel) or 2D (samples x kernels).
+            kernel (str or ndarray): An HRF model name — `'glover'` (default),
+                `'glover_time'`, `'glover_dispersion'`, `'spm'`, `'spm_time'`
+                or `'spm_dispersion'` — or custom kernel(s) as a 1D array
+                (single kernel) or 2D array (samples x kernels).
             columns (list of str, optional): Columns to convolve (default: all non-confound columns).
 
         Returns:
@@ -669,7 +685,7 @@ class DesignMatrix:
         """
         from .regressors import convolve
 
-        return convolve(self, conv_func, columns)
+        return convolve(self, kernel, columns)
 
     def copy(self) -> DesignMatrix:
         """Create a deep copy of the DesignMatrix.

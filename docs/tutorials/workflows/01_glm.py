@@ -127,7 +127,7 @@ def _(mo):
         r"""
     ### First level (single subject)
 
-    The recipe for one subject: load the BOLD with the shared mask, build the design, and fit. Building a `DesignMatrix` from a BIDS events file creates boxcar regressors and **convolves them with the canonical (Glover) HRF for you** — columns come back as `language_c0` / `string_c0` (pass `hrf_model=None` for raw boxcars to `.convolve()` yourself). We append the six motion parameters as nuisance columns and add polynomial drift terms. Motion estimates drift slowly themselves, so we detrend them first — otherwise the drift would be modeled twice, once by the polynomials and again by the motion columns, and the two sets of regressors would be nearly collinear. Wrapping it in `memory.cache` means each subject is fit once, then reloaded from disk.
+    The recipe for one subject: load the BOLD with the shared mask, build the design, and fit. Building a `DesignMatrix` from a BIDS events file hands the events to nilearn and **convolves them with the canonical (Glover) HRF for you** — columns come back as `language_c0` / `string_c0` (pass `hrf_model=None` for raw boxcars to `.convolve()` yourself). We append the six motion parameters as nuisance columns and add polynomial drift terms. Motion estimates drift slowly themselves, so we detrend them first — otherwise the drift would be modeled twice, once by the polynomials and again by the motion columns, and the two sets of regressors would be nearly collinear. Wrapping it in `memory.cache` means each subject is fit once, then reloaded from disk.
     """
     )
     return

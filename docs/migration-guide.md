@@ -45,6 +45,8 @@ Version 0.6.0 is a **breaking release** that refactors nltools to better leverag
 | **Plot axes kwarg** | `Adjacency.plot(limit, axes, *args, **kwargs)` | `Adjacency.plot(*, limit=3, ax=None, **kwargs)` — `ax` is one spelling across `BrainData`, `Adjacency` and `DesignMatrix`, matching matplotlib; both arguments are keyword-only and the `*args` passthrough is gone (`seaborn.heatmap` took no positional arguments beyond the data) | **Renamed** |
 | **Design matrix standardization** | `Design_Matrix.zscore(columns=…)` | `DesignMatrix.standardize(method='zscore', columns=…)` — keyword-only, the default `method='center'` centers without rescaling, and the no-argument form standardizes only non-confound columns where `zscore()` standardized every column including the polynomial and intercept terms | **Renamed** |
 | **`DesignMatrix.convolve()` columns** | 1-D kernel: name preserved (`stim` → `stim`); 2-D kernel: `stim_c0`, `stim_c1` | Always suffixed `<col>_c{i}`; source column dropped (`stim` → `stim_c0`) | **Renamed (consistent)** |
+| **`convolve()` kernel kwarg** | `Design_Matrix.convolve(conv_func='hrf')` | `DesignMatrix.convolve(kernel='glover')` — the kwarg is `kernel=`, with no `conv_func` alias, and the string names an HRF model nilearn computes: `'glover'`, `'glover_time'`, `'glover_dispersion'`, `'spm'`, `'spm_time'`, `'spm_dispersion'`. `'hrf'` is no longer accepted. `DesignMatrix(events_file, hrf_model=)` takes the same six names plus `None`. An array kernel still convolves as before. | **Renamed** |
+| **Convolved regressor values** | A Glover kernel sampled once per TR, whose peak sat at 8 s rather than 5 s at TR=2; events files were sampled onto the TR grid and then convolved with it | Every HRF path is nilearn's: `.convolve()` sends each column to [`compute_regressor`](https://nilearn.github.io/stable/modules/generated/nilearn.glm.first_level.compute_regressor.html) at `oversampling=50` resampled onto the frame times, and `DesignMatrix(events_file)` sends the events to `make_first_level_design_matrix`, so both are exactly what a nilearn `FirstLevelModel` builds from the same events. Every convolved regressor changes, and with it every beta, t and contrast: individual timepoints move by up to roughly a quarter of peak regressor amplitude (0.18 on a 0.72 peak at TR=2 against the 0.6.0 pre-release kernel, more against v0.5.1's 8 s peak), and an events file with sub-TR onsets moves further still because it is no longer quantized onto the TR grid first (up to 0.77 in absolute value on the bundled `onsets_example.csv`). Array kernels are unaffected. | **Values changed** |
 | **Generated column names** | `poly_0`, `cosine_1`, `global_spike1`, `0_poly_0` | `.nl_poly_0`, `.nl_cosine_1`, `.nl_global_spike1`, `.nl_r0_poly_0` — the reserved `.nl_` namespace | **Renamed** |
 | **Plotting functions** | `surface_plot`, `scatterplot`, `roc_plot`, `heatmap`, … | `plot_surf`, `plot_scatter`, `plot_roc`, `plot_designmatrix`, … | **Renamed** |
 | **`nifti_masker` attr** | `brain_data.nifti_masker` | Use `nilearn.masking.apply_mask(img, bd.mask)` | **Removed** |
@@ -96,7 +98,7 @@ Several modules have been reorganized. The old import paths will raise `ModuleNo
 | `from nltools.simulator import Simulator` | `from nltools import Simulator` | Moved to `nltools.data.simulator` |
 | `from nltools.simulator import SimulateGrid` | `from nltools import SimulateGrid` | Moved to `nltools.data.simulator` |
 | `from nltools.file_reader import onsets_to_dm` | **Removed** | Folded into `DesignMatrix.__init__` — `DesignMatrix(events_path, run_length=N, TR=t)` HRF-convolves by default (`hrf_model='glover'`, matches nilearn); pass `hrf_model=None` for raw boxcar |
-| `from nltools.external import glover_hrf` | `from nilearn.glm.first_level import glover_hrf` | **Removed — use nilearn directly.** The same holds for `spm_hrf`, `spm_time_derivative`, `glover_time_derivative`, and `spm_dispersion_derivative`: nltools' wrappers only forwarded to nilearn, so call nilearn. You rarely need to: `DesignMatrix(..., TR=t)` and `.convolve()` still apply the canonical Glover HRF with no import on your part, and a custom kernel is `convolve(conv_func=<array>)`, which v0.5.1 also accepted. |
+| `from nltools.external import glover_hrf` | `from nilearn.glm.first_level import glover_hrf` | **Removed — use nilearn directly.** The same holds for `spm_hrf`, `spm_time_derivative`, `glover_time_derivative`, and `spm_dispersion_derivative`: nltools' wrappers only forwarded to nilearn, so call nilearn. You rarely need to: `DesignMatrix(..., TR=t)` and `.convolve()` still apply the canonical Glover HRF with no import on your part, and a custom kernel is `convolve(kernel=<array>)`, which v0.5.1 accepted as `conv_func=`. |
 | `from nltools.utils import get_anatomical` | **Removed** | Use `nilearn.datasets.load_mni152_brain_mask()` |
 | `from nltools.stats import regress` | `from nltools.algorithms import regress` | Standalone OLS helper: `regress(X, Y)`; only `BrainData.regress()` was removed. Drop the old `mode=`/`method=` keyword — see [`method=` removed from the OLS entry points](#ols-method-removed) |
 
@@ -841,7 +843,7 @@ stats = adj.regress(dm)  # Works! Converts dm.to_numpy() internally
 
 `DesignMatrix.__init__` now accepts a `.tsv` / `.csv` path (str or `pathlib.Path`) and dispatches based on column inspection:
 
-- **BIDS events** (file has `onset` and `duration` columns) → HRF-convolved regressors aligned to TRs by default (one column per `trial_type`, suffixed `_c0`, `.convolved` populated). Default is `hrf_model='glover'`, matching nilearn's `make_first_level_design_matrix`. Pass `hrf_model=None` for raw boxcar (e.g., PPI / FIR / pedagogical material that introduces convolution as a separate step). No auto `constant` column either way — call `.add_poly(0)` for the intercept.
+- **BIDS events** (file has `onset` and `duration` columns) → HRF-convolved regressors aligned to TRs by default (one column per `trial_type`, suffixed `_c0`, `.convolved` populated). The events go straight to nilearn's `make_first_level_design_matrix` with `hrf_model='glover'` (or any of `'glover_time'`, `'glover_dispersion'`, `'spm'`, `'spm_time'`, `'spm_dispersion'`), so the columns are the ones a nilearn `FirstLevelModel` would build from the same file. Pass `hrf_model=None` for raw boxcar (e.g., PPI / FIR / pedagogical material that introduces convolution as a separate step); those are sampled onto the TR grid, so convolving them afterwards is not the same computation. No auto `constant` column either way — call `.add_poly(0)` for the intercept.
 - **Tabular / confounds** (anything else) → read as-is. `hrf_model` is silently ignored.
 
 ```python
@@ -1037,7 +1039,7 @@ dm_conv["face_c0"]         # ✓
 dm_conv.convolved          # ['face_c0']
 
 # Multi-kernel call still produces _c0/_c1/... and now records all three
-dm_fir = dm.convolve(conv_func=fir_basis_3kernels)
+dm_fir = dm.convolve(kernel=fir_basis_3kernels)
 dm_fir.convolved           # ['face_c0', 'face_c1', 'face_c2']
 ```
 

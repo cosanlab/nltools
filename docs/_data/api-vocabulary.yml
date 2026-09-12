@@ -50,6 +50,9 @@ vocabulary:
   - concept: "Distance / similarity metric"
     kwarg: "metric"
     index_md: "`metric`"
+  - concept: "Convolution kernel"
+    kwarg: "kernel"
+    index_md: "`kernel: str | np.ndarray = 'glover'` on `DesignMatrix.convolve` (v0.5.1 spelled it `conv_func`) — an HRF model name nilearn computes (`'glover' | 'glover_time' | 'glover_dispersion' | 'spm' | 'spm_time' | 'spm_dispersion'`) or a caller-supplied array, 1-D for one kernel and 2-D for several. `DesignMatrix(events_file, hrf_model=)` takes the same six names plus `None` for raw boxcars"
   - concept: "Central tendency"
     kwarg: "summary"
     index_md: "`summary` (`'mean' | 'median'`)"
@@ -208,6 +211,7 @@ enforcement:
       canonical: "device"
       # Home of the Backend abstraction itself — its `backend=` params ARE the concept.
       exclude_paths: ["nltools/algorithms/backends.py"]
+    conv_func: {canonical: "kernel (the convolution kernel on DesignMatrix.convolve)"}
     n_perm: {canonical: "n_permute"}
     n_iter:
       canonical: "n_permute (permutations), n_samples (bootstrap), or search_iterations (banded ridge)"

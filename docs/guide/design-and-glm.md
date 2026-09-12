@@ -19,7 +19,7 @@ one, not both.
 Goal | Use | Notes
 --- | --- | ---
 Events → convolved regressors | `DesignMatrix(events_tsv, run_length=, TR=)` | `hrf_model='glover'` by default; `None` for boxcars
-Convolve later | [`convolve`](../api/data/design_matrix.md#nltools.data.designmatrix.DesignMatrix.convolve) | `conv_func='hrf'` or your own kernel array; skips confounds
+Convolve later | [`convolve`](../api/data/design_matrix.md#nltools.data.designmatrix.DesignMatrix.convolve) | `kernel='glover'` (or another nilearn HRF model name) or your own kernel array; skips confounds
 Add nuisance columns | [`append`](../api/data/design_matrix.md#nltools.data.designmatrix.DesignMatrix.append)`(..., axis=1, as_confounds=True)` | `axis=0` stacks runs and keeps confounds separate per run
 Drift | [`add_poly`](../api/data/design_matrix.md#nltools.data.designmatrix.DesignMatrix.add_poly) / [`add_dct_basis`](../api/data/design_matrix.md#nltools.data.designmatrix.DesignMatrix.add_dct_basis) | Generated names carry the reserved `.nl_` prefix
 Check the design | [`vif`](../api/data/design_matrix.md#nltools.data.designmatrix.DesignMatrix.vif), [`corr`](../api/data/design_matrix.md#nltools.data.designmatrix.DesignMatrix.corr), [`plot`](../api/data/design_matrix.md#nltools.data.designmatrix.DesignMatrix.plot) | `vif` excludes confounds by default
