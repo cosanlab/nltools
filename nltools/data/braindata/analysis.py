@@ -1268,6 +1268,11 @@ def align(bd, target, method="procrustes", axis=0):
         original_data = np.dot(
             out['transformed'], out['transformation_matrix'].data
         )
+
+        # Project procrustes-aligned data back into original voxel space
+        original_voxels = np.dot(
+            out['transformed'].data, out['transformation_matrix'].data.T
+        )
         ```
     """
     from nltools.algorithms.alignment import procrustes
@@ -1345,11 +1350,14 @@ def align(bd, target, method="procrustes", axis=0):
         out["common_model"] = _brain_result(
             target, target.data, "common_model", rows="clear"
         )
+        # `procrustes` solves for R with `transformed = original @ R.T`; store
+        # the transpose so back-projection is `transformed @ T.T`, the same
+        # convention as `nltools.algorithms.align`.
         out["transformation_matrix"] = (
-            tf_mtx
+            tf_mtx.T
             if axis == 1
             else _brain_result(
-                transformed_brain, tf_mtx, "transformation_matrix", rows="clear"
+                transformed_brain, tf_mtx.T, "transformation_matrix", rows="clear"
             )
         )
     return out

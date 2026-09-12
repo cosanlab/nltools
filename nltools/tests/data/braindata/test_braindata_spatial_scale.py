@@ -216,14 +216,6 @@ class TestReductionsROI:
         # Existing behavior returns a BrainData of voxel-axis means across images.
         assert isinstance(out, BrainData)
 
-    def test_align_searchlight_not_implemented(self, minimal_brain_data):
-        with pytest.raises(NotImplementedError, match="overlap"):
-            minimal_brain_data.align(
-                minimal_brain_data,
-                spatial_scale="searchlight",
-                radius=10.0,
-            )
-
 
 class TestAlignROI:
     """Per-parcel functional alignment: each parcel aligned independently,
@@ -314,11 +306,10 @@ def test_roi_order_and_selected_mapping(minimal_brain_data):
 class TestRadiusKeyword:
     """Searchlight facades take nilearn's `radius` (millimeters), not `radius_mm`."""
 
-    @pytest.mark.parametrize("method_name", ["distance", "align"])
-    def test_radius_mm_is_not_a_parameter(self, method_name):
+    def test_radius_mm_is_not_a_parameter(self):
         import inspect
 
-        parameters = inspect.signature(getattr(BrainData, method_name)).parameters
+        parameters = inspect.signature(BrainData.distance).parameters
         assert "radius" in parameters
         assert "radius_mm" not in parameters
 
@@ -327,7 +318,3 @@ class TestRadiusKeyword:
             minimal_brain_data.distance(
                 metric="correlation", spatial_scale="searchlight", radius_mm=10.0
             )
-
-    def test_align_rejects_radius_mm(self, minimal_brain_data):
-        with pytest.raises(TypeError):
-            minimal_brain_data.align(minimal_brain_data, radius_mm=10.0)

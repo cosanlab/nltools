@@ -20,9 +20,9 @@ Version 0.6.0 is a **breaking release** that refactors nltools to better leverag
 | **Method chaining** | `.smooth()` modifies in-place | Returns copy | Changed |
 | **Properties** | Method-style shape/empty checks | `.shape`, `.is_empty` | Changed |
 | **Cross-validation** | N/A | `.fit(..., cv=5)` | New |
-| **HyperAlignment** | Via `align()` only | `HyperAlignment` class | New |
 | **Multi-subject** | `Brain_Collection` | Collection orchestration is deferred to 0.6.1; use an explicit per-subject `BrainData` workflow in 0.6.0 | **Deferred** |
 | **SRM** | N/A | `SRM` / `DetSRM` classes | **New** |
+| **Procrustes `transformation_matrix`** (`BrainData.align`, `align` on numpy input) | Back-project with `transformed @ T` | Back-project with `transformed @ T.T` | **Transposed** |
 | **GPU inference** | N/A | `inference` module | **New** |
 | **Algorithm kwarg** | `algorithm=`, `scheme=`, `kind=`, `noise_model=`, `extract_type=`, `mode=`, `perm_type=` | `method=` (or `spatial_scale=` for spatial scale; `Adjacency.similarity` keeps the correlation type in the separate `metric=` slot) | **Renamed** |
 | **Progress flag** | `show_progress=True` | `progress_bar=False` | **Renamed + default flipped** |
@@ -623,11 +623,9 @@ Code that already imported from `nltools.stats` gets the same signatures it had 
 
 Every GPU/batched code path now runs through one core layer in `nltools.algorithms.backends` (`device_memory_budget`, `auto_batch_size`, `compute_oom_safe`), replacing five independent batch-size calculators and their hard-coded memory constants. Three things change for users:
 
-- **`max_gpu_memory_gb` defaults to `None` = measured, everywhere.** Previously every GPU entry point assumed a fixed 4 GB budget (and SRM/hyperalignment's internal worker sizing assumed 8 GB) regardless of hardware — a 2 GB card would OOM under the default while a 24 GB card ran at a fraction of capacity. `None` now measures the device at call time (free CUDA memory with headroom; available system RAM for MPS/CPU). When sizing batches, a measured budget is additionally capped at an 8 GB saturation ceiling — larger per-batch working sets add allocation latency without computing any faster, and on unified-memory systems they starve the host. Passing an explicit number behaves exactly as before: it is used verbatim, uncapped. Batch size never affects seeded results, only memory/speed.
+- **`max_gpu_memory_gb` defaults to `None` = measured, everywhere.** Previously every GPU entry point assumed a fixed 4 GB budget regardless of hardware — a 2 GB card would OOM under the default while a 24 GB card ran at a fraction of capacity. `None` now measures the device at call time (free CUDA memory with headroom; available system RAM for MPS/CPU). When sizing batches, a measured budget is additionally capped at an 8 GB saturation ceiling — larger per-batch working sets add allocation latency without computing any faster, and on unified-memory systems they starve the host. Passing an explicit number behaves exactly as before: it is used verbatim, uncapped. Batch size never affects seeded results, only memory/speed.
 - **Device OOM is recovered, not fatal.** If a batch still exhausts device memory, the already-generated batch inputs are split and retried at smaller sizes (`compute_oom_safe`). Because RNG draws happen before the device compute, recovery reuses the exact same permutations; the recovered result matches the uninterrupted one to within float32 reduction order (~1 ulp — backends block reductions differently per batch shape). Only when a *single* item cannot fit does the run fail, with a `MemoryError` naming the fix.
 - **Run-or-raise policy**: an explicit `device='gpu'` / `parallel='gpu'` either runs on the GPU or raises — never a silent CPU fallback. `'auto'` remains the one documented graceful path. Concretely:
-  - `SRM` / `DetSRM` `fit()` / `transform()` with `parallel='gpu'` now raise `NotImplementedError` (they previously ran on CPU silently). The dead `max_gpu_memory_gb` kwarg on their `fit()` is removed — it controlled nothing.
-  - `LocalAlignment` validates `parallel=` (a typo like `'gup'` previously ran single-threaded numpy with no error), raises `NotImplementedError` for `parallel='gpu'` with `method='srm'|'hyperalignment'` (previously a documented silent CPU run), and raises `ImportError` for `parallel='gpu'` without PyTorch (previously a log message + numpy fallback).
   - `correlation_permutation_test(metric='kendall', device='gpu')` no longer warns and falls back to CPU — Kendall now has a real GPU kernel (tie-corrected tau-b via pre-computed pairwise sign tensors, parity-tested against `scipy.stats.kendalltau`).
 - **GPU Spearman results over tied data change.** The GPU rank transform mishandled ties — its tie window was off by one on both ends (the first tied element kept its raw rank, the next distinct value was averaged in, and a trailing run was skipped entirely), and its tie scan corrupted the row index for multi-row batches — so any `correlation_permutation_test(metric='spearman', device='gpu')` correlation or null distribution over data with tied values (integer ratings, discrete scores) was numerically wrong. Ranks now match `scipy.stats.rankdata(method='average')` exactly and GPU results match the CPU path; continuous (untied) data was unaffected. Re-run any analysis that recorded GPU Spearman results over tied data.
 - **GPU null distributions from `timeseries_correlation_permutation_test` change.** GPU draws now equal the CPU draws for a given seed — the GPU path previously derived circle-shift amounts through a different RNG call, breaking the deterministic cross-backend contract. The batched phase-randomization path also no longer mispairs conjugate frequencies, a bug that made the surrogate spectrum non-Hermitian and silently distorted the surrogates (statistically wrong, not just nondeterministic). Same test, same distribution family, different draws — re-run any analysis that recorded seeded GPU timeseries permutation p-values.
@@ -1531,44 +1529,6 @@ dtype = brain_data.dtype       # No parentheses
 
 ---
 
-### Pattern 7: HyperAlignment (NEW)
-
-**Before (v0.5.1):**
-```python
-# Only available via align() function
-aligned = align(data, method='procrustes')
-# No access to transformation matrices or reusable model
-```
-
-**After (v0.6.0):**
-```python
-# Option 1: Use align() as before (still works)
-aligned = align(data, method='procrustes')
-
-# Option 2: Use HyperAlignment class (NEW)
-from nltools.algorithms import HyperAlignment
-
-hyper = HyperAlignment(n_iter=2)
-hyper.fit(data)
-aligned = hyper.transform(data)
-
-# Access transformations
-transforms = hyper.w_
-template = hyper.s_
-
-# Align new subject
-new_aligned, R, disp, scale = hyper.transform_subject(new_data)
-```
-
-| Aspect | Old | New | Benefit |
-|--------|-----|-----|---------|
-| API | Function only | Class + function | Reusable model |
-| Transformations | Not accessible | `.w_` attribute | Inspectable |
-| New subjects | Re-run align() | `.transform_subject()` | Efficient |
-| sklearn compat | No | Yes | Composable |
-
----
-
 ### Pattern 8: Bootstrap Summary Statistics
 
 **Status**: ⚠️ **BREAKING CHANGE** — `summarize_bootstrap()` is gone, and
@@ -1822,6 +1782,41 @@ rotation = model.transform_subject(new_data)
 
 ---
 
+### Pattern 14: Procrustes `transformation_matrix` orientation {#procrustes-transformation-orientation}
+
+**Status**: ⚠️ **BREAKING CHANGE** (v0.6.0)
+
+Procrustes alignment returns a rotation together with the aligned data, and
+v0.5.1 stored it in two different orientations depending on which entry point
+you called. Both now store the same one: `transformed = original @ T`, so
+back-projection is `transformed @ T.T`.
+
+`BrainData.align(target, method='procrustes')` is the path that changes. v0.5.1
+stored `R` straight from `orthogonal_procrustes(target, source)`, which made
+back-projection `transformed @ R` — while its own docstring documented
+`np.dot(out['transformed'].data, out['transformation_matrix'].T)`. v0.6.0
+stores `R.T`, so the code and the documentation now agree, and the rule is the
+same one `nltools.algorithms.align` already used.
+
+```python
+# v0.5.1
+original = np.dot(out['transformed'].data, out['transformation_matrix'].data)
+
+# v0.6.0
+original = np.dot(out['transformed'].data, out['transformation_matrix'].data.T)
+```
+
+`nltools.algorithms.align(data, method='procrustes')` follows the same rule on
+every input type. It already did on `BrainData` input; on plain numpy input it
+returned the untransposed rotation, and now returns `T` like everything else.
+Everything else the two functions return — `transformed`, `common_model`,
+`disparity`, `scale` — is numerically unchanged.
+
+The SRM `transformation_matrix` is untouched: it spans the model's feature
+axis, not voxels on both sides, and keeps its own back-projection rule.
+
+---
+
 ## v0.6.0 Kwarg Standardization (April 2026)
 
 **Status**: ✅ Complete (v0.6.0). No aliases kept for the old spellings — callers using the legacy names will hit a `TypeError: unexpected keyword argument`.
@@ -1865,34 +1860,6 @@ adj.similarity(other, include_diag=False)     # explicit + now the default for d
 ### Algorithm-layer APIs are unchanged
 
 Internal algorithm classes — `CVScheme.scheme`, `Glm.noise_model` — keep their legacy names. The class facades translate at the boundary. You only need to update code that calls the facade methods.
-
-### `LocalAlignment`: `scheme` → `spatial_scale`, `parcellation` → `roi_mask` {#designmatrix-localalignment-scale}
-
-**Status**: ⚠️ **BREAKING** (v0.6.0) — public class, no compat aliases
-
-`LocalAlignment` (in `nltools.algorithms.alignment`, re-exported from `nltools.algorithms`) now speaks the canonical spatial-scale vocabulary instead of the Bazeille-et-al. "scheme" naming, so it matches `BrainData.align` and the rest of the API:
-
-| v0.5.x / earlier v0.6 dev | v0.6.0 |
-|---|---|
-| `scheme=` | `spatial_scale=` |
-| value `'piecewise'` | value `'roi'` |
-| `parcellation=` | `roi_mask=` |
-
-Values are `'searchlight'` (default, overlapping spheres) or `'roi'` (non-overlapping parcels — the "piecewise" scheme of Bazeille et al. 2021). The error/validation strings changed accordingly (`"Unknown scheme"` → `"Unknown spatial_scale"`, `"parcellation is required..."` → `"roi_mask is required for spatial_scale='roi'"`).
-
-```python
-from nltools.algorithms import LocalAlignment
-
-# OLD
-la = LocalAlignment(scheme='piecewise', parcellation=atlas, method='procrustes')
-
-# NEW
-la = LocalAlignment(spatial_scale='roi', roi_mask=atlas, method='procrustes')
-```
-
-`BrainData.align` validates `spatial_scale` up front: it supports `'whole_brain'` and `'roi'`; searchlight raises `NotImplementedError`.
-
----
 
 ## Explicit signatures instead of `**kwargs` passthroughs
 

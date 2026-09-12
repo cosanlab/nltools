@@ -50,9 +50,9 @@ results and inference semantics for BrainData and Adjacency.
   parameter names; the class facade translates to the [canonical vocabulary](#canonical-api-vocabulary).
 - **One GPU execution layer, run-or-raise.** Memory budgets, batch sizing, and OOM
   recovery live only in `algorithms.backends` (`device_memory_budget`,
-  `auto_batch_size`, `compute_oom_safe`, `auto_n_jobs_for_arrays`); an algorithm
-  supplies its per-item working-set estimate and never its own budget math (pinned by
-  a source-scan test in `test_backends.py`). `max_gpu_memory_gb=None` — the default
+  `auto_batch_size`, `compute_oom_safe`); an algorithm supplies its per-item
+  working-set estimate and never its own budget math (pinned by a source-scan
+  test in `test_backends.py`). `max_gpu_memory_gb=None` — the default
   everywhere — means "measure the device"; when sizing batches, a measured budget is
   capped at a saturation ceiling (`BATCH_WORKING_SET_CEILING_GB`, 8 GB) because
   larger working sets add allocation cost without throughput gain, while an explicit
@@ -88,8 +88,7 @@ public signature against in CI. The table below is rendered from it:
 | Cross-validation spec | `cv` (<code>int &#124;</code> splitter <code>&#124; None</code>) on `BrainData.predict` — `None` is a deterministic five-fold `KFold`/`StratifiedKFold`; the `'loo'`/`'logo'` names are accepted only by `resolve_cv`, and `'loso'`/`'loro'` are gone everywhere. The grouping lives in `groups=` |
 | Subject-level parallelism | `n_jobs: int = -1` |
 | GPU / CPU selection | `device: str = "cpu"` — run-or-raise: explicit `'gpu'` never silently degrades to CPU; `'auto'` is the one graceful-fallback path |
-| Backend (alignment internals) | <code>parallel: None &#124; 'cpu' &#124; 'gpu'</code> (the inference engine and `Ridge` use `device` as of v0.6.0) |
-| Alignment refinement count | `n_iter` on `SRM`, `DetSRM`, `HyperAlignment`, and `LocalAlignment` — EM iterations, coordinate-descent iterations, or template-refinement rounds, depending on the estimator; everywhere else `n_iter` is a banned alias for `n_permute`/`n_samples`/`search_iterations` |
+| Alignment refinement count | `n_iter` on `SRM` and `DetSRM` — EM iterations or coordinate-descent iterations; everywhere else `n_iter` is a banned alias for `n_permute`/`n_samples`/`search_iterations` |
 | Working-memory budget | <code>memory_budget_gb: float &#124; None = None</code> — device-neutral working-memory budget for internal batching; `None` measures the selected device with headroom |
 | Progress indicator | `progress_bar: bool = False` |
 | Permutation count | `n_permute` |
@@ -102,7 +101,7 @@ public signature against in CI. The table below is rendered from it:
 | Display autoscaling | `autoscale: bool = True` (viewer display window; `False` = raw magnitude range) |
 | Display symmetry | <code>symmetric: bool &#124; 'auto' = 'auto'</code> (viewer positive/negative limbs) |
 | Diagonal flag | `include_diag: bool` |
-| Radius (mm) | `radius: float` in millimeters everywhere, following nilearn's `SearchLight` and `NiftiSpheresMasker` — `10.0` on the searchlight entry points (`BrainData.predict`, `BrainData.distance`, `BrainData.align`, `LocalAlignment`, `compute_searchlight_neighborhoods`), `3.0` on the surface plotters, and the same millimeter unit for `create_sphere` and `Simulator` geometry, converted to voxels through the image affine |
+| Radius (mm) | `radius: float` in millimeters everywhere, following nilearn's `SearchLight` and `NiftiSpheresMasker` — `10.0` on the searchlight entry points (`BrainData.predict`, `BrainData.distance`, `compute_searchlight_neighborhoods`), `3.0` on the surface plotters, and the same millimeter unit for `create_sphere` and `Simulator` geometry, converted to voxels through the image affine |
 | GLM-specific fit option | `glm_*` on `BrainData.fit` (`glm_noise_model`, `glm_bins`, `glm_n_jobs`) — a non-default one under `model='ridge'` raises `ValueError`; `random_state` keeps its bare name because both estimators use it |
 | Ridge-specific fit option | `ridge_*` on `BrainData.fit` (`ridge_alpha`, `ridge_cv`, `ridge_search_iterations`, `ridge_dirichlet_concentration`, `ridge_device`, `ridge_memory_budget_gb`, `ridge_per_target_alpha`, `ridge_prefer_conservative_alpha`, `ridge_progress_bar`) — each maps onto the identically-named `Ridge` argument, and a non-default one under `model='glm'` raises `ValueError` |
 | Contrast inference toggle | `inference: bool = False` on `compute_contrasts` — the effect alone by default (what a second-level model consumes); `True` returns the full `ContrastResult` |

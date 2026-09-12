@@ -260,9 +260,8 @@ def _(mo):
     training subjects, then project the held-out ones in. Fitting the model on
     everybody and then decoding across subjects leaks.
 
-    This path stores its matrix the other way round: it solves for the rotation
-    that carries the *model* onto the subject, so back-projection is
-    `aligned @ R` with no transpose. Again, the correlation is what tells you.
+    Both entry points store the matrix the same way round, so back-projection
+    is `aligned @ R.T` here too. Again, the correlation is what tells you.
     """)
     return
 
@@ -272,7 +271,7 @@ def _(hyperaligned, np, plt, subjects):
     newcomer = subjects[2]
     projected = newcomer.align(hyperaligned["common_model"], method="procrustes")
     recovered = np.dot(
-        projected["transformed"].data, projected["transformation_matrix"].data
+        projected["transformed"].data, projected["transformation_matrix"].data.T
     )
     print(
         "r with the original: "
@@ -367,19 +366,10 @@ def _(mo):
 
     | Class | What it fits |
     |---|---|
-    | `HyperAlignment` | Iterative Procrustes: a template, refined over `n_iter` rounds, then one transform per subject |
     | `SRM` | Probabilistic shared response model, by expectation-maximization |
     | `DetSRM` | The same factorization by coordinate descent — faster, deterministic |
-    | `LocalAlignment` | One model per searchlight sphere or per parcel instead of one for the whole region |
 
-    `SRM` and `DetSRM` take `n_features` and `random_state`; `LocalAlignment`
-    takes `spatial_scale`, `radius` or `roi_mask`, `n_features`, and
-    `memory_budget_gb` to cap the working memory its batches use.
-
-    Parallelism is spelled `parallel` — `None`, `'cpu'` or `'gpu'` — never
-    `device`, but where you pass it differs: `LocalAlignment` takes it at
-    construction alongside `n_jobs`, while `HyperAlignment`, `SRM` and `DetSRM`
-    take it on `fit` and `transform`.
+    Both take `n_iter`, `n_features` and `random_state`.
 
     **Mind the transpose.** `BrainData.data` is `(timepoints, voxels)`, but these
     estimators expect `(voxels, timepoints)`, the convention the original SRM
@@ -391,33 +381,15 @@ def _(mo):
 
 @app.cell
 def _(subjects):
-    from nltools.algorithms import SRM, DetSRM, HyperAlignment, LocalAlignment
+    from nltools.algorithms import SRM, DetSRM
 
     voxels_by_time = [subject.data.T for subject in subjects]
 
-    hyperalignment = HyperAlignment(n_iter=2).fit(voxels_by_time, parallel=None)
-    print(f"HyperAlignment template: {hyperalignment.s_.shape}")
-
-    probabilistic = SRM(n_features=10, n_iter=10, random_state=0).fit(
-        voxels_by_time, parallel=None
-    )
+    probabilistic = SRM(n_features=10, n_iter=10, random_state=0).fit(voxels_by_time)
     print(f"SRM shared response:     {probabilistic.s_.shape}")
 
-    deterministic = DetSRM(n_features=10, n_iter=10, random_state=0).fit(
-        voxels_by_time, parallel=None
-    )
+    deterministic = DetSRM(n_features=10, n_iter=10, random_state=0).fit(voxels_by_time)
     print(f"DetSRM shared response:  {deterministic.s_.shape}")
-
-    searchlight = LocalAlignment(
-        spatial_scale="searchlight",
-        radius=6.0,
-        method="procrustes",
-        n_iter=2,
-        parallel=None,
-        memory_budget_gb=2.0,
-    )
-    locally_aligned = searchlight.fit_transform(voxels_by_time, subjects[0].mask)
-    print(f"LocalAlignment output:   {locally_aligned[0].shape}")
     return
 
 
@@ -431,9 +403,9 @@ def _(mo):
     | Align a group | `align(subjects, method="procrustes")` |
     | Align into fewer features | `align(subjects, method="probabilistic_srm", n_features=10)` |
     | What came back | `transformed`, `transformation_matrix`, `common_model`, `isc` (+ `disparity`, `scale` for Procrustes) |
-    | Back into voxels | `aligned @ transform.data`, or `@ transform.data.T` when the matrix spans voxels on both axes — check with a correlation |
+    | Back into voxels | `aligned @ transform.data.T` — check with a correlation |
     | Add one subject to a model | `subject.align(common_model, method=...)` |
-    | Fitted estimators | `HyperAlignment`, `SRM`, `DetSRM`, `LocalAlignment` |
+    | Fitted estimators | `SRM`, `DetSRM` |
 
     **Next steps**
 

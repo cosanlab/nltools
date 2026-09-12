@@ -15,6 +15,103 @@ from ..inference.validation import validate_tail_parameter
 from .srm import SRM, DetSRM
 
 
+def _hyperalign(data, n_iter):
+    """Build a common template by iterative Procrustes refinement.
+
+    Hyperalignment (Haxby et al., 2011) runs in three stages: seed a template
+    from the first subject and grow it by incrementally aligning and averaging
+    the rest, refine it over `n_iter` rounds of align-and-average, then align
+    every subject to the refined template. Subjects must share a sample count;
+    the feature axis is zero-padded up to the largest subject so no subject's
+    features are dropped.
+
+    Args:
+        data (list[np.ndarray]): One (n_features, n_samples) array per subject.
+            Feature counts may differ; sample counts may not.
+        n_iter (int): Number of template refinement rounds.
+
+    Returns:
+        tuple[list[np.ndarray], list[np.ndarray], np.ndarray, list[float], list[float]]:
+            `(aligned, transformation_matrix, template, disparity, scale)` —
+            the aligned subjects (each (n_features, n_samples)), the per-subject
+            transforms in the `aligned = original @ T` orientation (each
+            (n_features, n_features)), the common template
+            ((n_samples, n_features)), and the per-subject disparities and
+            scale factors.
+
+    Raises:
+        TypeError: If `data` is not a list of numpy arrays.
+        ValueError: If `data` is empty, an element is not 2-dimensional, or the
+            subjects do not share a sample count.
+    """
+    if not isinstance(data, list):
+        raise TypeError("Data must be a list of arrays")
+    if len(data) == 0:
+        raise ValueError("Data list cannot be empty")
+    for i, x in enumerate(data):
+        if not isinstance(x, np.ndarray):
+            raise TypeError(f"Element {i} is not a numpy array")
+        if x.ndim != 2:
+            raise ValueError(f"Element {i} must be 2-dimensional")
+
+    n_samples = data[0].shape[1]
+    for i, x in enumerate(data):
+        if x.shape[1] != n_samples:
+            raise ValueError(
+                f"All matrices must have same number of samples (columns). "
+                f"Element 0 has {n_samples}, element {i} has {x.shape[1]}"
+            )
+
+    # Zero-pad every subject's feature axis (rows) up to the LARGEST feature
+    # count, so no subject's features are dropped (F001).
+    n_features = max(x.shape[0] for x in data)
+    padded = []
+    for x in data:
+        missing = n_features - x.shape[0]
+        if missing > 0:
+            x = np.vstack([x, np.zeros((missing, x.shape[1]), dtype=x.dtype)])
+        padded.append(np.asarray(x, dtype=float).copy())
+
+    # Stage 1: seed the template from the first subject, then incrementally
+    # align and accumulate the rest. Incremental averaging keeps the template
+    # from being dominated by whichever subject came first.
+    template = None
+    for i, x in enumerate(padded):
+        if i == 0:
+            template = np.copy(x.T)
+        else:
+            _, trans, _, _, _ = procrustes(template / i, x.T)
+            template += trans
+    template /= len(padded)
+
+    # Stage 2: refine the template by aligning every subject to it and
+    # re-averaging in the aligned space.
+    for _ in range(n_iter):
+        common = np.zeros(template.shape)
+        for x in padded:
+            _, trans, _, _, _ = procrustes(template, x.T)
+            common += trans
+        template = common / len(padded)
+
+    # Stage 3: align every subject to the refined template.
+    aligned = []
+    transformation_matrix = []
+    disparity = []
+    scale = []
+    for x in padded:
+        _, transformed, subject_disparity, rotation, subject_scale = procrustes(
+            template, x.T
+        )
+        aligned.append(transformed.T)
+        # `procrustes` computes `transformed = original @ rotation.T`, so the
+        # matrix callers back-project with is the transpose of the rotation.
+        transformation_matrix.append(rotation.T)
+        disparity.append(subject_disparity)
+        scale.append(subject_scale)
+
+    return aligned, transformation_matrix, template, disparity, scale
+
+
 def align(
     data,
     method="deterministic_srm",
@@ -26,9 +123,9 @@ def align(
 ):
     """Align subject data into a common response model.
 
-    A convenience wrapper around the `HyperAlignment` and `SRM`/`DetSRM` classes.
     Aligns a group of subjects either by Procrustes-based hyperalignment
-    (Haxby et al., 2011) or by the Shared Response Model (Chen et al., 2015).
+    (Haxby et al., 2011) or by the Shared Response Model (Chen et al., 2015),
+    the latter through `SRM`/`DetSRM`.
     The common model is the shared response (SRM) or the centered group template
     (Procrustes). Transformed data can be projected back into each subject's
     original space with its transformation matrix. To align a single `BrainData`
@@ -50,10 +147,18 @@ def align(
 
     Returns:
         dict: Keys `'transformed'` (list of aligned subject data, same type as the
-            input), `'transformation_matrix'` (per-subject transforms),
-            `'common_model'` (shared response or group template), and `'isc'`
-            (dict mapping each aligned unit to its mean intersubject correlation).
-            With `method='procrustes'` also `'disparity'` and `'scale'`.
+            input), `'transformation_matrix'` (per-subject transforms, in the
+            `transformed = original @ T` orientation on every input type, so
+            back-projection is `transformed @ T.T`), `'common_model'` (shared
+            response or group template), and `'isc'` (dict mapping each aligned
+            unit to its mean intersubject correlation). With `method='procrustes'`
+            also `'disparity'` and `'scale'`.
+
+    Raises:
+        ValueError: If `data` is not a same-typed list, `method` or `axis` is
+            unknown, or `method='procrustes'` is combined with `axis=1` on
+            `BrainData` input — that transform spans images on both axes and has
+            no voxel axis to be returned on.
 
     Examples:
         ```python
@@ -96,6 +201,12 @@ def align(
 
     # Align over time or voxels
     if axis == 1:
+        if data_type == "BrainData" and method == "procrustes":
+            # The axis=1 Procrustes transform spans images on both of its axes,
+            # so it cannot be returned on the source's voxel axis.
+            raise ValueError(
+                "procrustes alignment supports axis=0 only for BrainData input."
+            )
         data = [x.T for x in data]
     elif axis != 0:
         raise ValueError("axis must be 0 or 1.")
@@ -116,8 +227,6 @@ def align(
         out["transformation_matrix"] = srm.w_
 
     elif method == "procrustes":
-        from nltools.algorithms import HyperAlignment
-
         if n_features is not None:
             raise NotImplementedError(
                 "Currently must use all voxels."
@@ -125,23 +234,16 @@ def align(
                 "must do this manually for now."
             )
 
-        # Use HyperAlignment class for procrustes-based hyperalignment
-        # Note: data is already transposed to [features, samples] format above (see the .T applied when loading each input)
-        # n_iter=1 maintains backward compatibility with original implementation
-        hyper = HyperAlignment(n_iter=1, auto_pad=True)
-        hyper.fit(data)
-
-        # Transform data to common space
-        aligned = hyper.transform(data)
-
-        # Extract attributes for output
-        # Note: align() returns common_model in [samples, features] format (transposed)
-        # but transformed in [features, samples] format (not transposed)
-        out["transformed"] = aligned
-        out["common_model"] = hyper.s_.T  # Transpose to [samples, features]
-        out["transformation_matrix"] = hyper.w_
-        out["disparity"] = hyper.disparity_
-        out["scale"] = hyper.scale_
+        # `data` is already [features, samples] here (see the .T applied to each
+        # input above). n_iter=1 is the three-stage loop v0.5.1 ran; align()'s
+        # public n_iter is SRM-only.
+        (
+            out["transformed"],
+            out["transformation_matrix"],
+            out["common_model"],
+            out["disparity"],
+            out["scale"],
+        ) = _hyperalign(data, n_iter=1)
 
     if axis == 1:
         out["transformed"] = [x.T for x in out["transformed"]]
@@ -159,13 +261,19 @@ def align(
             out["common_model"] = _result_from_array(
                 sources[0], out["common_model"], rows="clear"
             )
+            # `_hyperalign` already returns these in the
+            # `transformed = original @ T` orientation, and they are square on
+            # the voxel axis, so unlike the SRM matrices they are wrapped as-is.
+            out["transformation_matrix"] = [
+                _result_from_array(source, values, rows="clear")
+                for source, values in zip(sources, out["transformation_matrix"])
+            ]
         else:
             out["transformed"] = [x.T for x in out["transformed"]]
-
-        out["transformation_matrix"] = [
-            _result_from_array(source, values.T, rows="clear")
-            for source, values in zip(sources, out["transformation_matrix"])
-        ]
+            out["transformation_matrix"] = [
+                _result_from_array(source, values.T, rows="clear")
+                for source, values in zip(sources, out["transformation_matrix"])
+            ]
 
     # Calculate Intersubject Correlation (ISC) on final transformed data
     # ISC measures correlation along the aligned dimension:
@@ -244,8 +352,7 @@ def align(
 def procrustes(data1, data2):
     """Perform a Procrustes similarity analysis on two data sets.
 
-    For more comprehensive Procrustes-based alignment tasks, use
-    `HyperAlignment` and `align()` instead.
+    For multi-subject Procrustes-based alignment, use `align()` instead.
 
     Each input matrix is a set of points or vectors (the rows of the matrix).
     The dimension of the space is the number of columns of each matrix. Given

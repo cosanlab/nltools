@@ -9,8 +9,8 @@ focused submodules underneath:
 - **signal**: temporal signal processing (resampling, filtering, basis functions)
 - **similarity**: similarity metrics and Fisher transforms
 - **regression**: standalone OLS regression on numpy arrays
-- **alignment**: SRM, HyperAlignment, LocalAlignment, and the functional
-  `align`/`procrustes` entry points
+- **alignment**: SRM/DetSRM and the functional `align`/`procrustes` entry
+  points
 - **inference**: permutation tests, bootstrap resampling, and intersubject
   statistics (ISC/ISFC/ISPS) with CPU-parallel and GPU backends
 - **hrf**: hemodynamic response functions
@@ -22,8 +22,6 @@ to the Himalaya library.
 __all__ = [
     "SRM",
     "DetSRM",
-    "HyperAlignment",
-    "LocalAlignment",
     "SphereNeighborhoods",
     "align",
     "align_states",
@@ -74,8 +72,6 @@ __all__ = [
 
 from .alignment import (
     DetSRM,
-    HyperAlignment,
-    LocalAlignment,
     SRM,
     align,
     align_states,

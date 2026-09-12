@@ -164,11 +164,16 @@ class TestWholeBrainContainer:
         from nltools.algorithms.alignment import procrustes
 
         target = align_brain_data + 1.0
-        _, expected, _, _, _ = procrustes(target.data, align_brain_data.data)
+        _, expected, _, rotation, _ = procrustes(target.data, align_brain_data.data)
 
         out = align_brain_data.align(target, method="procrustes")
 
         np.testing.assert_allclose(out["transformed"].data, expected)
+        # The matrix is stored so that `transformed = original @ T`, which is
+        # the transpose of the rotation `procrustes` solves for.
+        np.testing.assert_allclose(
+            out["transformation_matrix"].data, rotation.T, atol=1e-12
+        )
 
     def test_procrustes_values_are_independent(self, align_brain_data):
         target = align_brain_data + 1.0

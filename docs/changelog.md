@@ -428,6 +428,12 @@ All notable changes to nltools are documented here.
 - <span class="badge badge-improvement">Improvement</span> one GPU bootstrap driver, two thin wrappers
 - <span class="badge badge-improvement">Improvement</span> stop materializing np.abs(arr) three times per iplot window
 - <span class="badge badge-improvement">Improvement</span> one shared manifest module for the lint-api trio
+- ⚠ **Breaking** <span class="badge badge-improvement">Improvement</span> pare the alignment package back to the v0.5.1 surface
+
+    - Removes `HyperAlignment`, `LocalAlignment` and `RoiNeighborhoods`, the `parallel=`/`n_jobs=`/`pad_samples=` knobs on `SRM`/`DetSRM`, `BrainData.align(spatial_scale='searchlight', radius=)`, and `backends.auto_n_jobs_for_arrays` — all 0.6.0-dev-only names no v0.5.1 user can see. The Procrustes template loop moves into `nltools.algorithms.alignment.procrustes` as the internal `_hyperalign`, which `align(method='procrustes')` calls; every value it returns is numerically unchanged.
+    - Retains the F001 fix: `_hyperalign` zero-pads the feature axis up to the largest subject instead of truncating to the smallest, so no subject's features are silently dropped. Subjects with unequal sample counts now raise, as they did in v0.5.1.
+    - **Breaking:** `BrainData.align(target, method='procrustes')` stores `transformation_matrix` transposed, so back-projection is `transformed @ T.T` — the rule its v0.5.1 docstring already documented and its code did not honor, and the rule `nltools.algorithms.align` uses. `nltools.algorithms.align(..., method='procrustes')` on numpy input is transposed to match. `transformed`, `common_model`, `disparity` and `scale` are byte-identical on every path.
+    - **Breaking:** `nltools.algorithms.align(..., method='procrustes', axis=1)` on `BrainData` input now raises `ValueError`. The axis=1 transform spans images on both axes, so it has no voxel axis to be returned on; the call previously produced a `BrainData` whose matrix width did not match its own mask. numpy input at `axis=1` is unaffected.
 
 ### Bug Fixes
 - <span class="badge badge-fix">Bug Fix</span> fix formatting

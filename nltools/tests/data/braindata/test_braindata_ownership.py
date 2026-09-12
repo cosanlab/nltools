@@ -250,11 +250,13 @@ def test_alignment_preserves_values_and_owns_transform(brain, axis):
         result["transformed"].data, expected.T if axis else expected
     )
     assert result["transformed"].Y.equals(brain.Y)
+    # The matrix is stored so that `transformed = original @ T`, which is the
+    # transpose of the rotation `procrustes` solves for.
     if axis == 1:
         # An axis=1 transform spans images on both axes, so it is not spatial.
-        np.testing.assert_allclose(result["transformation_matrix"], transform)
+        np.testing.assert_allclose(result["transformation_matrix"], transform.T)
         return
-    np.testing.assert_allclose(result["transformation_matrix"].data, transform)
+    np.testing.assert_allclose(result["transformation_matrix"].data, transform.T)
     assert result["transformation_matrix"].X.is_empty()
     result["transformation_matrix"].mask.get_fdata()[0, 0, 0] = 9
     assert brain.mask.get_fdata()[0, 0, 0] == 1

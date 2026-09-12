@@ -17,13 +17,11 @@ shared-response covariance), for `n_iter` iterations.
 
 **Performance.** Time is O(n_iter × (V T K + V K^2 + K^3)) and memory O(V T),
 with V the total voxels across subjects, T samples, and K features (typically
-V ≫ T ≫ K). `parallel='cpu'` runs the per-subject transform updates with
-joblib. `parallel='gpu'` is not implemented and raises `NotImplementedError`
-rather than silently running on CPU.
+V ≫ T ≫ K).
 
 **When to use.** Cross-subject analyses that need a shared response space and
-tolerate dimension reduction. Use `HyperAlignment` when spatial structure and
-full dimensionality must be preserved.
+tolerate dimension reduction. Use `align(method='procrustes')` when spatial
+structure and full dimensionality must be preserved.
 
 **References.** Chen, P. H. C., Chen, J., Yeshurun, Y., Hasson, U., Haxby, J.,
 & Ramadge, P. J. (2015). A reduced-dimension fMRI shared response model.
@@ -62,27 +60,6 @@ import sys
 __all__ = ["SRM", "DetSRM"]
 
 logger = logging.getLogger(__name__)
-
-
-def _validate_srm_parallel(parallel: str | None) -> None:
-    """Validate the `parallel=` backend selector for SRM/DetSRM.
-
-    Run-or-raise policy: an explicit GPU request never silently runs on CPU.
-
-    Args:
-        parallel (str | None): None, `'cpu'`, or `'gpu'`.
-
-    Raises:
-        ValueError: If `parallel` is not one of the accepted values.
-        NotImplementedError: If `parallel='gpu'` (no torch port yet).
-    """
-    if parallel not in (None, "cpu", "gpu"):
-        raise ValueError(f"parallel must be None, 'cpu', or 'gpu', got {parallel}")
-    if parallel == "gpu":
-        raise NotImplementedError(
-            "parallel='gpu' is not implemented for SRM/DetSRM (a torch port is "
-            "tracked on the 0.6.x roadmap). Use parallel='cpu' or parallel=None."
-        )
 
 
 def _init_w_transforms(
@@ -140,8 +117,8 @@ class SRM(BaseEstimator, TransformerMixin):
 
     The model is fit by the expectation-maximization algorithm of Chen et al.
     (2015) with the optimizations of Anderson et al. (2016). Subjects may have
-    different numbers of voxels; they must have the same number of samples
-    unless `fit(pad_samples=True)` zero-pads the shorter ones. Run time is
+    different numbers of voxels but must have the same number of samples. Run
+    time is
     $O(I (V T K + V K^2 + K^3))$ and memory $O(V T)$, with I iterations, V the
     sum of voxels across subjects, T samples, and K features (typically
     $V \\gg T \\gg K$).
@@ -171,7 +148,7 @@ class SRM(BaseEstimator, TransformerMixin):
         data = [np.random.randn(100, 50) for _ in range(3)]  # 3 subjects
 
         srm = SRM(n_iter=10, n_features=50)
-        srm.fit(data, parallel="cpu", n_jobs=-1)
+        srm.fit(data)
         shared_responses = srm.transform(data)  # list of (50, 50) arrays
 
         w = srm.w_  # subject-specific transforms
@@ -187,41 +164,18 @@ class SRM(BaseEstimator, TransformerMixin):
         self.random_state = random_state
         return
 
-    def fit(
-        self,
-        X: list[np.ndarray],
-        y: Any | None = None,
-        *,
-        parallel: str | None = "cpu",
-        n_jobs: int = -1,
-        pad_samples: bool = True,
-    ) -> "SRM":
+    def fit(self, X: list[np.ndarray], y: Any | None = None) -> "SRM":
         """Compute the probabilistic Shared Response Model.
 
         Args:
-            X (list[np.ndarray]): One (voxels_i, samples) array per subject.
-                Subjects may differ in the number of samples when
-                `pad_samples=True`.
+            X (list[np.ndarray]): One (voxels_i, samples) array per subject; all
+                subjects must have the same number of samples.
             y (Any | None): Ignored; present for scikit-learn compatibility.
-            parallel (str | None): `'cpu'` (default) updates subjects in parallel
-                with joblib; None runs single-threaded NumPy; `'gpu'` raises
-                `NotImplementedError` (never a silent CPU fallback).
-            n_jobs (int): Number of CPU workers when `parallel='cpu'`; -1
-                (default) picks a count from available memory.
-            pad_samples (bool): If True (default), zero-pad subjects with fewer
-                samples up to the longest subject; if False, unequal sample
-                counts raise `ValueError`.
 
         Returns:
             SRM: Fitted model (`self`).
         """
         logger.info("Starting Probabilistic SRM")
-
-        _validate_srm_parallel(parallel)
-
-        # Store parallel settings for use in _srm
-        self._parallel = parallel
-        self._n_jobs = n_jobs
 
         # Check the number of subjects
         if len(X) <= 1:
@@ -236,30 +190,13 @@ class SRM(BaseEstimator, TransformerMixin):
                 f"{self.n_features:d} features."
             )
 
-        # Handle unequal sample counts via padding
+        # Check if all subjects have same number of samples
         sample_counts = [subj.shape[1] for subj in X]
-        max_samples = max(sample_counts)
         number_subjects = len(X)
-
-        if not all(s == max_samples for s in sample_counts):
-            if pad_samples:
-                # Zero-pad subjects to match the longest
-                X_padded = []
-                for subj in X:
-                    if subj.shape[1] < max_samples:
-                        padding = np.zeros((subj.shape[0], max_samples - subj.shape[1]))
-                        X_padded.append(np.hstack([subj, padding]))
-                    else:
-                        X_padded.append(subj)
-                X = X_padded
-                logger.info(
-                    f"Padded subjects to {max_samples} samples (original: {sample_counts})"
-                )
-            else:
-                raise ValueError(
-                    f"Different number of samples between subjects: {sample_counts}. "
-                    "Set pad_samples=True to automatically zero-pad to the longest subject."
-                )
+        if len(set(sample_counts)) > 1:
+            raise ValueError(
+                f"Different number of samples between subjects: {sample_counts}."
+            )
 
         # Validate all data is finite
         for subject in range(number_subjects):
@@ -267,19 +204,12 @@ class SRM(BaseEstimator, TransformerMixin):
                 assert_all_finite(X[subject])
 
         # Run SRM
-        self.sigma_s_, self.w_, self.mu_, self.rho2_, self.s_ = self._srm(
-            X, parallel=self._parallel, n_jobs=self._n_jobs
-        )
+        self.sigma_s_, self.w_, self.mu_, self.rho2_, self.s_ = self._srm(X)
 
         return self
 
     def transform(
-        self,
-        X: list[np.ndarray],
-        y: Any | None = None,
-        *,
-        parallel: str | None = "cpu",
-        n_jobs: int = -1,
+        self, X: list[np.ndarray], y: Any | None = None
     ) -> list[np.ndarray | None]:
         """Project each subject's data into the shared response space.
 
@@ -288,19 +218,11 @@ class SRM(BaseEstimator, TransformerMixin):
                 fitted subject, in the same order as `fit`; voxel and sample
                 counts may vary across subjects. A None entry yields None.
             y (Any | None): Ignored; present for scikit-learn compatibility.
-            parallel (str | None): `'cpu'` (default) transforms subjects in
-                parallel with joblib; None runs single-threaded NumPy; `'gpu'`
-                raises `NotImplementedError`.
-            n_jobs (int): Number of CPU workers when `parallel='cpu'`; -1
-                (default) reuses the value from `fit`, itself resolved from
-                available memory.
 
         Returns:
             list[np.ndarray | None]: Shared responses, element i of shape
                 (n_features, samples_i).
         """
-
-        _validate_srm_parallel(parallel)
 
         # Check if the model exist
         if hasattr(self, "w_") is False:
@@ -312,34 +234,10 @@ class SRM(BaseEstimator, TransformerMixin):
                 "The number of subjects does not match the one in the model."
             )
 
-        # Handle parallelization for transform
-        if parallel == "cpu" and len(X) > 1:
-            # CPU-parallel transform across subjects
-            from joblib import Parallel, delayed
-
-            def _transform_one_subject(subj_idx):
-                """Transform one subject."""
-                if X[subj_idx] is not None:
-                    return self.w_[subj_idx].T.dot(X[subj_idx])
-                return None
-
-            # Prefer an explicitly-passed n_jobs; fall back to the fit-time value
-            n_jobs_to_use = n_jobs if n_jobs != -1 else getattr(self, "_n_jobs", -1)
-            if n_jobs_to_use == -1:
-                # Auto-detect based on memory
-                from nltools.algorithms.backends import auto_n_jobs_for_arrays
-
-                n_jobs_to_use = auto_n_jobs_for_arrays(X)
-
-            s = Parallel(n_jobs=n_jobs_to_use)(
-                delayed(_transform_one_subject)(i) for i in range(len(X))
-            )
-        else:
-            # Single-threaded transform
-            s: list[np.ndarray | None] = [None] * len(X)
-            for subject in range(len(X)):
-                if X[subject] is not None:
-                    s[subject] = self.w_[subject].T.dot(X[subject])
+        s: list[np.ndarray | None] = [None] * len(X)
+        for subject in range(len(X)):
+            if X[subject] is not None:
+                s[subject] = self.w_[subject].T.dot(X[subject])
 
         return s
 
@@ -480,16 +378,12 @@ class SRM(BaseEstimator, TransformerMixin):
 
         return w
 
-    def _srm(self, data, parallel: str | None = None, n_jobs: int = -1):
+    def _srm(self, data):
         """Expectation-maximization algorithm for fitting the probabilistic SRM.
 
         Args:
             data (list[np.ndarray | None]): One (voxels_i, samples) array per
                 subject.
-            parallel (str | None): None or `'cpu'` (joblib over subjects in the
-                M-step).
-            n_jobs (int): Number of CPU workers; -1 picks a count from available
-                memory.
 
         Returns:
             tuple[np.ndarray, list[np.ndarray], list[np.ndarray], np.ndarray, np.ndarray]:
@@ -578,59 +472,21 @@ class SRM(BaseEstimator, TransformerMixin):
             # Update each subject's mapping transform W_i and error variance rho_i^2
             # Each subject's transform is updated independently via Procrustes optimization
             # Noise variance is updated based on residual error after transform update
-            # Use CPU parallelization for multi-subject updates if requested
-            if parallel == "cpu" and subjects > 1:
-                from joblib import Parallel, delayed
-
-                def _update_one_subject(subj_idx):
-                    """Update transform and variance for one subject."""
-                    if x[subj_idx] is not None:
-                        a_subject = x[subj_idx].dot(shared_response.T)
-                        perturbation = np.zeros(a_subject.shape)
-                        np.fill_diagonal(perturbation, 0.001)
-                        u_subject, s_subject, v_subject = np.linalg.svd(
-                            a_subject + perturbation, full_matrices=False
-                        )
-                        w_new = u_subject.dot(v_subject)
-                        rho2_new = trace_xtx[subj_idx]
-                        rho2_new += -2 * np.sum(w_new * a_subject)
-                        rho2_new += trace_sigma_s
-                        rho2_new /= samples * voxels[subj_idx]
-                        return w_new, rho2_new
-                    return None, 0.0
-
-                # Auto-detect n_jobs if needed
-                n_jobs_to_use = n_jobs
-                if n_jobs_to_use == -1:
-                    from nltools.algorithms.backends import auto_n_jobs_for_arrays
-
-                    n_jobs_to_use = auto_n_jobs_for_arrays(
-                        [x[i] for i in range(subjects)]
+            for subject in range(subjects):
+                if x[subject] is not None:
+                    a_subject = x[subject].dot(shared_response.T)
+                    perturbation = np.zeros(a_subject.shape)
+                    np.fill_diagonal(perturbation, 0.001)
+                    u_subject, s_subject, v_subject = np.linalg.svd(
+                        a_subject + perturbation, full_matrices=False
                     )
-
-                # Parallel update
-                results = Parallel(n_jobs=n_jobs_to_use)(
-                    delayed(_update_one_subject)(i) for i in range(subjects)
-                )
-                for subject in range(subjects):
-                    w[subject], rho2[subject] = results[subject]
-            else:
-                # Single-threaded update
-                for subject in range(subjects):
-                    if x[subject] is not None:
-                        a_subject = x[subject].dot(shared_response.T)
-                        perturbation = np.zeros(a_subject.shape)
-                        np.fill_diagonal(perturbation, 0.001)
-                        u_subject, s_subject, v_subject = np.linalg.svd(
-                            a_subject + perturbation, full_matrices=False
-                        )
-                        w[subject] = u_subject.dot(v_subject)
-                        rho2[subject] = trace_xtx[subject]
-                        rho2[subject] += -2 * np.sum(w[subject] * a_subject)
-                        rho2[subject] += trace_sigma_s
-                        rho2[subject] /= samples * voxels[subject]
-                    else:
-                        rho2[subject] = 0
+                    w[subject] = u_subject.dot(v_subject)
+                    rho2[subject] = trace_xtx[subject]
+                    rho2[subject] += -2 * np.sum(w[subject] * a_subject)
+                    rho2[subject] += trace_sigma_s
+                    rho2[subject] /= samples * voxels[subject]
+                else:
+                    rho2[subject] = 0
             if logger.isEnabledFor(logging.INFO):
                 # Calculate and log the current log-likelihood for checking
                 # convergence
@@ -683,7 +539,7 @@ class DetSRM(BaseEstimator, TransformerMixin):
         data = [np.random.randn(100, 50) for _ in range(3)]  # 3 subjects
 
         detsrm = DetSRM(n_iter=10, n_features=50)
-        detsrm.fit(data, parallel="cpu", n_jobs=-1)
+        detsrm.fit(data)
         shared_responses = detsrm.transform(data)  # list of (50, 50) arrays
 
         w = detsrm.w_  # subject-specific transforms
@@ -698,36 +554,18 @@ class DetSRM(BaseEstimator, TransformerMixin):
         self.n_features = n_features
         self.random_state = random_state
 
-    def fit(
-        self,
-        X: list[np.ndarray],
-        y: Any | None = None,
-        *,
-        parallel: str | None = "cpu",
-        n_jobs: int = -1,
-    ) -> "DetSRM":
+    def fit(self, X: list[np.ndarray], y: Any | None = None) -> "DetSRM":
         """Compute the Deterministic Shared Response Model.
 
         Args:
             X (list[np.ndarray]): One (voxels_i, samples) array per subject; all
                 subjects must have the same number of samples.
             y (Any | None): Ignored; present for scikit-learn compatibility.
-            parallel (str | None): `'cpu'` (default) updates subjects in parallel
-                with joblib; None runs single-threaded NumPy; `'gpu'` raises
-                `NotImplementedError` (never a silent CPU fallback).
-            n_jobs (int): Number of CPU workers when `parallel='cpu'`; -1
-                (default) picks a count from available memory.
 
         Returns:
             DetSRM: Fitted model (`self`).
         """
         logger.info("Starting Deterministic SRM")
-
-        _validate_srm_parallel(parallel)
-
-        # Store parallel settings for use in _srm
-        self._parallel = parallel
-        self._n_jobs = n_jobs
 
         # Check the number of subjects
         if len(X) <= 1:
@@ -751,18 +589,11 @@ class DetSRM(BaseEstimator, TransformerMixin):
                 raise ValueError("Different number of samples between subjects.")
 
         # Run SRM
-        self.w_, self.s_ = self._srm(X, parallel=self._parallel, n_jobs=self._n_jobs)
+        self.w_, self.s_ = self._srm(X)
 
         return self
 
-    def transform(
-        self,
-        X: list[np.ndarray],
-        y: Any | None = None,
-        *,
-        parallel: str | None = "cpu",
-        n_jobs: int = -1,
-    ) -> list[np.ndarray]:
+    def transform(self, X: list[np.ndarray], y: Any | None = None) -> list[np.ndarray]:
         """Project each subject's data into the shared response subspace.
 
         Args:
@@ -770,19 +601,11 @@ class DetSRM(BaseEstimator, TransformerMixin):
                 subject, in the same order as `fit`; voxel and sample counts may
                 vary across subjects.
             y (Any | None): Ignored; present for scikit-learn compatibility.
-            parallel (str | None): `'cpu'` (default) transforms subjects in
-                parallel with joblib; None runs single-threaded NumPy; `'gpu'`
-                raises `NotImplementedError`.
-            n_jobs (int): Number of CPU workers when `parallel='cpu'`; -1
-                (default) reuses the value from `fit`, itself resolved from
-                available memory.
 
         Returns:
             list[np.ndarray]: Shared responses, element i of shape
                 (n_features, samples_i).
         """
-
-        _validate_srm_parallel(parallel)
 
         # Check if the model exist
         if hasattr(self, "w_") is False:
@@ -794,31 +617,7 @@ class DetSRM(BaseEstimator, TransformerMixin):
                 "The number of subjects does not match the one in the model."
             )
 
-        # Handle parallelization for transform
-        if parallel == "cpu" and len(X) > 1:
-            # CPU-parallel transform across subjects
-            from joblib import Parallel, delayed
-
-            def _transform_one_subject(subj_idx):
-                """Transform one subject."""
-                return self.w_[subj_idx].T.dot(X[subj_idx])
-
-            # Prefer an explicitly-passed n_jobs; fall back to the fit-time value
-            n_jobs_to_use = n_jobs if n_jobs != -1 else getattr(self, "_n_jobs", -1)
-            if n_jobs_to_use == -1:
-                # Auto-detect based on memory
-                from nltools.algorithms.backends import auto_n_jobs_for_arrays
-
-                n_jobs_to_use = auto_n_jobs_for_arrays(X)
-
-            s = Parallel(n_jobs=n_jobs_to_use)(
-                delayed(_transform_one_subject)(i) for i in range(len(X))
-            )
-        else:
-            # Single-threaded transform
-            s = [self.w_[subject].T.dot(X[subject]) for subject in range(len(X))]
-
-        return s
+        return [self.w_[subject].T.dot(X[subject]) for subject in range(len(X))]
 
     def _objective_function(self, data, w, s):
         """Calculate the objective function (mean squared reconstruction error).
@@ -906,15 +705,11 @@ class DetSRM(BaseEstimator, TransformerMixin):
 
         return w
 
-    def _srm(self, data, parallel: str | None = None, n_jobs: int = -1):
+    def _srm(self, data):
         """Block coordinate descent algorithm for fitting the deterministic SRM.
 
         Args:
             data (list[np.ndarray]): One (voxels_i, samples) array per subject.
-            parallel (str | None): None or `'cpu'` (joblib over subjects in the
-                transform update).
-            n_jobs (int): Number of CPU workers; -1 picks a count from available
-                memory.
 
         Returns:
             tuple[list[np.ndarray], np.ndarray]: `(w, s)` — the per-subject
@@ -944,43 +739,14 @@ class DetSRM(BaseEstimator, TransformerMixin):
             logger.info("Iteration %d", iteration + 1)
 
             # Update each subject's mapping transform W_i:
-            # Use CPU parallelization for multi-subject updates if requested
-            if parallel == "cpu" and subjects > 1:
-                from joblib import Parallel, delayed
-
-                def _update_one_subject(subj_idx):
-                    """Update transform for one subject."""
-                    a_subject = data[subj_idx].dot(shared_response.T)
-                    perturbation = np.zeros(a_subject.shape)
-                    np.fill_diagonal(perturbation, 0.001)
-                    u_subject, _, v_subject = np.linalg.svd(
-                        a_subject + perturbation, full_matrices=False
-                    )
-                    return u_subject.dot(v_subject)
-
-                # Auto-detect n_jobs if needed
-                n_jobs_to_use = n_jobs
-                if n_jobs_to_use == -1:
-                    from nltools.algorithms.backends import auto_n_jobs_for_arrays
-
-                    n_jobs_to_use = auto_n_jobs_for_arrays(
-                        [data[i] for i in range(subjects)]
-                    )
-
-                # Parallel update
-                w = Parallel(n_jobs=n_jobs_to_use)(
-                    delayed(_update_one_subject)(i) for i in range(subjects)
+            for subject in range(subjects):
+                a_subject = data[subject].dot(shared_response.T)
+                perturbation = np.zeros(a_subject.shape)
+                np.fill_diagonal(perturbation, 0.001)
+                u_subject, _, v_subject = np.linalg.svd(
+                    a_subject + perturbation, full_matrices=False
                 )
-            else:
-                # Single-threaded update
-                for subject in range(subjects):
-                    a_subject = data[subject].dot(shared_response.T)
-                    perturbation = np.zeros(a_subject.shape)
-                    np.fill_diagonal(perturbation, 0.001)
-                    u_subject, _, v_subject = np.linalg.svd(
-                        a_subject + perturbation, full_matrices=False
-                    )
-                    w[subject] = u_subject.dot(v_subject)
+                w[subject] = u_subject.dot(v_subject)
 
             # Update the shared response:
             shared_response = self._compute_shared_response(data, w)

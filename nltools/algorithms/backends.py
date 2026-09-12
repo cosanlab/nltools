@@ -6,7 +6,7 @@ GPU when one is available.
 
 This module is also the package's single GPU execution layer: memory budgets
 (`device_memory_budget`), batch sizing (`auto_batch_size`), out-of-memory
-recovery (`compute_oom_safe`), and CPU worker sizing (`auto_n_jobs_for_arrays`)
+recovery (`compute_oom_safe`), and CPU worker sizing (`_auto_n_jobs_cpu`)
 live only here. Algorithms supply per-item working-set estimates and never do
 their own budget math.
 """
@@ -1501,32 +1501,3 @@ def _estimate_data_size_mb(data: np.ndarray) -> float:
     total_size_mb = (base_size_bytes + overhead_bytes) / 1024**2
 
     return total_size_mb
-
-
-def auto_n_jobs_for_arrays(
-    arrays,
-    *,
-    max_memory_gb: float | None = None,
-) -> int:
-    """Memory-aware joblib worker count for a per-item map over arrays.
-
-    Sizes workers by the largest item (each worker pickles its item), using
-    the same measured budget as the device batching layer. None entries are
-    ignored; an empty list returns one worker.
-
-    Args:
-        arrays (Iterable[np.ndarray | None]): Arrays to map over (None entries allowed).
-        max_memory_gb (float | None): Explicit memory budget in GB. None (default)
-            measures available system RAM with headroom via `device_memory_budget`.
-    Returns:
-        int: Worker count for `joblib.Parallel(n_jobs=...)`.
-    """
-    arrays = [a for a in arrays if a is not None]
-    if not arrays:
-        return 1
-    max_size_mb = max(_estimate_data_size_mb(a) for a in arrays)
-    return _auto_n_jobs_cpu(
-        data_size_mb=max_size_mb,
-        n_permute=len(arrays),
-        max_memory_gb=max_memory_gb,
-    )

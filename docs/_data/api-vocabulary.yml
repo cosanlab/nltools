@@ -59,12 +59,9 @@ vocabulary:
   - concept: "GPU / CPU selection"
     kwarg: "device"
     index_md: "`device: str = \"cpu\"` — run-or-raise: explicit `'gpu'` never silently degrades to CPU; `'auto'` is the one graceful-fallback path"
-  - concept: "Backend (alignment internals)"
-    kwarg: "parallel"
-    index_md: "`parallel: None | 'cpu' | 'gpu'` (the inference engine and `Ridge` use `device` as of v0.6.0)"
   - concept: "Alignment refinement count"
     kwarg: "n_iter"
-    index_md: "`n_iter` on `SRM`, `DetSRM`, `HyperAlignment`, and `LocalAlignment` — EM iterations, coordinate-descent iterations, or template-refinement rounds, depending on the estimator; everywhere else `n_iter` is a banned alias for `n_permute`/`n_samples`/`search_iterations`"
+    index_md: "`n_iter` on `SRM` and `DetSRM` — EM iterations or coordinate-descent iterations; everywhere else `n_iter` is a banned alias for `n_permute`/`n_samples`/`search_iterations`"
   - concept: "Working-memory budget"
     kwarg: "memory_budget_gb"
     index_md: "`memory_budget_gb: float | None = None` — device-neutral working-memory budget for internal batching; `None` measures the selected device with headroom"
@@ -103,7 +100,7 @@ vocabulary:
     index_md: "`include_diag: bool`"
   - concept: "Radius (mm)"
     kwarg: "radius"
-    index_md: "`radius: float` in millimeters everywhere, following nilearn's `SearchLight` and `NiftiSpheresMasker` — `10.0` on the searchlight entry points (`BrainData.predict`, `BrainData.distance`, `BrainData.align`, `LocalAlignment`, `compute_searchlight_neighborhoods`), `3.0` on the surface plotters, and the same millimeter unit for `create_sphere` and `Simulator` geometry, converted to voxels through the image affine"
+    index_md: "`radius: float` in millimeters everywhere, following nilearn's `SearchLight` and `NiftiSpheresMasker` — `10.0` on the searchlight entry points (`BrainData.predict`, `BrainData.distance`, `compute_searchlight_neighborhoods`), `3.0` on the surface plotters, and the same millimeter unit for `create_sphere` and `Simulator` geometry, converted to voxels through the image affine"
   - concept: "GLM-specific fit option"
     kwarg: "glm_*"
     index_md: "`glm_*` on `BrainData.fit` (`glm_noise_model`, `glm_bins`, `glm_n_jobs`) — a non-default one under `model='ridge'` raises `ValueError`; `random_state` keeps its bare name because both estimators use it"
@@ -156,12 +153,11 @@ exceptions:
 #
 # Scope model mirrors .semgrep/rules.yml: rules bind PUBLIC (non-underscore)
 # defs; the pipelines subsystem is path-excluded (nltools/pipelines/ forwards
-# to its own dispatch layer). The alignment estimators (SRM, DetSRM,
-# HyperAlignment, LocalAlignment) are exported with no facade, so they are
-# checked directly; `n_iter` and `parallel` are that subsystem's own
-# vocabulary (see the "Alignment refinement count" / "Backend (alignment
-# internals)" rows above), suppressed from the general bans via per-alias
-# banned_kwargs.<name>.exclude_paths rather than a directory-wide exclusion.
+# to its own dispatch layer). The alignment estimators (SRM, DetSRM) are
+# exported with no facade, so they are checked directly; `n_iter` is that
+# subsystem's own vocabulary (see the "Alignment refinement count" row above),
+# suppressed from the general ban via per-alias banned_kwargs.<name>.exclude_paths
+# rather than a directory-wide exclusion.
 #
 #   banned_kwargs   — alias → {canonical, exclude_paths?}: the alias may not
 #                     appear as a parameter name on any public def in scope.
@@ -193,13 +189,9 @@ enforcement:
     mode: {canonical: "method"}
     parallel:
       canonical: "n_jobs (CPU workers) or device (cpu/gpu selection)"
-      # resolve_backend() is the boundary translator from the alignment
-      # layer's `parallel=` vocabulary to a Backend — its param IS the concept.
-      # The alignment estimators (SRM/DetSRM/HyperAlignment/LocalAlignment)
-      # are exported with no facade, so `parallel=` there IS the "Backend
-      # (alignment internals)" concept in the table above, not an alias.
-      exclude_paths:
-        ["nltools/algorithms/backends.py", "nltools/algorithms/alignment/"]
+      # resolve_backend()'s own `parallel=` param IS the concept it translates
+      # into a Backend. Nothing else takes the keyword any more.
+      exclude_paths: ["nltools/algorithms/backends.py"]
     backend:
       canonical: "device"
       # Home of the Backend abstraction itself — its `backend=` params ARE the concept.
@@ -207,8 +199,8 @@ enforcement:
     n_perm: {canonical: "n_permute"}
     n_iter:
       canonical: "n_permute (permutations), n_samples (bootstrap), or search_iterations (banded ridge)"
-      # SRM/DetSRM/HyperAlignment/LocalAlignment are exported with no facade;
-      # their n_iter IS the "Alignment refinement count" concept above, not an alias.
+      # SRM/DetSRM are exported with no facade; their n_iter IS the
+      # "Alignment refinement count" concept above, not an alias.
       exclude_paths: ["nltools/algorithms/alignment/"]
     alphas: {canonical: "alpha (a scalar fits it; a sequence selects among the candidates)"}
     concentration: {canonical: "dirichlet_concentration"}
@@ -289,9 +281,6 @@ enforcement:
     # Only autoregressive fits reach nilearn's parallel path, so the default
     # OLS fit never spawns workers.
     - {path: "nltools/models/glm.py", function: "Glm.__init__", kwarg: "n_jobs", reason: "nilearn's run_glm parallelizes AR groups only; documented in the docstring"}
-    # Legacy internal predating the progress_bar keyword-only contract; narrowed
-    # out of the old blanket nltools/algorithms/alignment/ exclude_paths (q31x gdzq).
-    - {path: "nltools/algorithms/alignment/local.py", function: "RoiNeighborhoods.iter_neighborhoods", kwarg: "progress_bar", reason: "predates the progress_bar keyword-only contract; no caller passes it positionally"}
   # Keyword-only `*`-marker carve-outs (scripts/check_kwonly.py). These
   # functions deliberately mirror numpy signatures so they are drop-in
   # substitutes inside backend-generic code (numpy accepts

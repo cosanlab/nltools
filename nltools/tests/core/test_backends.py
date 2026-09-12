@@ -1259,7 +1259,12 @@ class TestComputeOomSafe:
 
 
 class TestBudgetMathSingleSource:
-    """`device_memory_budget`/`auto_batch_size` are the only budget math in the package."""
+    """Memory sizing has one home.
+
+    `device_memory_budget`/`auto_batch_size` are the only budget math in the
+    package, and the `_auto_n_jobs_cpu`/`_estimate_data_size_mb` worker-sizing
+    helpers live only in `backends`.
+    """
 
     def test_no_budget_math_outside_backends(self):
         from pathlib import Path
@@ -1279,29 +1284,6 @@ class TestBudgetMathSingleSource:
             "(device_memory_budget / auto_batch_size). Offenders:\n"
             + "\n".join(offenders)
         )
-
-
-class TestAutoNJobsForArrays:
-    """One helper for the memory-aware joblib worker count over per-item arrays."""
-
-    def test_basic(self):
-        from nltools.algorithms.backends import auto_n_jobs_for_arrays
-
-        arrays = [np.zeros((10, 10)) for _ in range(4)]
-        n_jobs = auto_n_jobs_for_arrays(arrays)
-        assert n_jobs >= 1
-
-    def test_none_entries_filtered(self):
-        from nltools.algorithms.backends import auto_n_jobs_for_arrays
-
-        arrays = [np.zeros((10, 10)), None, np.zeros((5, 5))]
-        assert auto_n_jobs_for_arrays(arrays) >= 1
-
-    def test_empty_returns_one_worker(self):
-        from nltools.algorithms.backends import auto_n_jobs_for_arrays
-
-        assert auto_n_jobs_for_arrays([]) == 1
-        assert auto_n_jobs_for_arrays([None]) == 1
 
     def test_n_jobs_helpers_single_home(self):
         """The n_jobs memory helpers live only in backends.

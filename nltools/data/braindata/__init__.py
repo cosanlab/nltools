@@ -426,7 +426,6 @@ class BrainData:
         *,
         spatial_scale: str = "whole_brain",
         roi_mask=None,
-        radius: float = 10.0,
     ):
         """Align BrainData instance to target object using functional alignment.
 
@@ -435,14 +434,10 @@ class BrainData:
             method (str): Alignment method: ``'probabilistic_srm'``,
                 ``'deterministic_srm'``, or ``'procrustes'``. Default ``'procrustes'``.
             axis (int): Axis to align on. Default 0.
-            spatial_scale (str): ``'whole_brain'`` (default), ``'roi'``, or
-                ``'searchlight'``. ``'roi'`` is supported (per-parcel
-                transforms + reassembly, requires `roi_mask`). ``'searchlight'``
-                is not yet implemented (overlapping spheres have no canonical
-                per-voxel transform).
+            spatial_scale (str): ``'whole_brain'`` (default) or ``'roi'``
+                (per-parcel transforms + reassembly, requires `roi_mask`).
             roi_mask (BrainData | Nifti1Image | str | Path | None): Atlas image
                 used when ``spatial_scale='roi'``.
-            radius (float): Reserved for ``spatial_scale='searchlight'``.
 
         Returns:
             dict: ``'transformed'``, ``'transformation_matrix'`` and
@@ -471,7 +466,6 @@ class BrainData:
                 column count other than the mask support — for example a
                 ``'procrustes'`` target with more voxels than the source, which
                 zero-pads the source data to the target's width.
-            NotImplementedError: If ``spatial_scale='searchlight'``.
 
         Examples:
             ```python
@@ -480,19 +474,13 @@ class BrainData:
 
             # Align using shared response model
             out = data.align(target, method='probabilistic_srm')
+
+            # Project procrustes-aligned data back into original voxel space
+            original = np.dot(
+                out['transformed'].data, out['transformation_matrix'].data.T
+            )
             ```
         """
-        if spatial_scale == "searchlight":
-            raise NotImplementedError(
-                "align(spatial_scale='searchlight') is not implemented: "
-                "searchlight neighborhoods overlap, so a single voxel "
-                "belongs to many spheres and there is no canonical value "
-                "to put back at that voxel for the 'transformed' field. "
-                "Use spatial_scale='roi' (disjoint parcels) or "
-                "spatial_scale='whole_brain'; if you need per-sphere "
-                "transforms, iterate compute_searchlight_neighborhoods() "
-                "and call .align() yourself."
-            )
         if spatial_scale == "roi":
             from .analysis import align_per_roi
 
@@ -501,8 +489,8 @@ class BrainData:
             )
         if spatial_scale != "whole_brain":
             raise ValueError(
-                f"spatial_scale must be one of "
-                f"{{'whole_brain', 'roi', 'searchlight'}}, got {spatial_scale!r}"
+                f"spatial_scale must be one of {{'whole_brain', 'roi'}}, "
+                f"got {spatial_scale!r}"
             )
         from .analysis import align
 
