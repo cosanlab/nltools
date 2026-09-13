@@ -6,12 +6,14 @@ First call for a given file downloads it into the local HF cache
 (`~/.cache/huggingface/hub` by default); subsequent calls return the
 cached path without touching the network.
 
-In Pyodide the HF client is unusable: `hf_hub_download` HEAD-probes the
-resolve URL for metadata, and both Pyodide HTTP backends dereference the body
-of that bodiless response and crash. The browser path therefore skips the
-client and does a direct GET (`pyodide.http.pyfetch`) into an IDBFS-backed
-cache directory, which survives a page reload. Same repo, same revision, same
-memoization — only the transport differs.
+In Pyodide `hf_hub_download` is unusable: it HEAD-probes the resolve URL for
+metadata, and both Pyodide HTTP backends dereference the body of that bodiless
+response and crash. The browser path therefore skips the client and does a
+direct GET (`pyodide.http.pyfetch`) into an IDBFS-backed cache directory, which
+survives a page reload. Where the browser has no JavaScript Promise Integration
+to bridge that async fetch back to a synchronous call, a `requests` GET stands
+in and the cache is session-only — a page reload downloads again. Same repo,
+same revision, same memoization either way; only the transport differs.
 """
 
 import functools
@@ -22,7 +24,7 @@ REPO_ID = "nltools/niftis"
 REVISION = "main"
 
 # Mount point for the Pyodide cache. IDBFS is mounted at the parent so the
-# whole tree lands in one IndexedDB store. Unused outside Pyodide, where
+# whole tree lands in one IndexedDB store. Outside Pyodide this is unused;
 # huggingface_hub manages its own cache under ~/.cache/huggingface.
 _PYODIDE_CACHE_ROOT = Path("/nltools_cache") / REVISION
 
@@ -101,19 +103,12 @@ def list_resources(prefix: str | None = None) -> list[str]:
     Returns:
         list[str]: Sorted relative paths usable with `fetch_resource`.
 
-    Raises:
-        RuntimeError: Under Pyodide, where the HF client cannot run.
-
     Note:
-        Hits the HF API once per session (cached).
+        Hits the HF API once per session (cached). Under Pyodide this needs
+        `httpcore` installed — `huggingface_hub`'s client imports it lazily and
+        nothing else in the browser environment pulls it in, so run
+        `await micropip.install("httpcore")` first.
     """
-    if "pyodide" in sys.modules:
-        raise RuntimeError(
-            "list_resources() needs the huggingface_hub client, which cannot "
-            "run in Pyodide. Browse the file list at "
-            f"https://huggingface.co/datasets/{REPO_ID}/tree/{REVISION} and "
-            "pass the paths you need to fetch_resource()."
-        )
     files = _list_repo_files_cached(REPO_ID, REVISION)
     if prefix:
         return [f for f in files if f.startswith(prefix)]
@@ -123,14 +118,18 @@ def list_resources(prefix: str | None = None) -> list[str]:
 def _fetch_pyodide(relpath: str) -> str:
     """Return a cached path in the browser, downloading on a cache miss.
 
-    `pyodide.ffi.run_sync` bridges the async download back to this synchronous
-    call, so `fetch_resource` keeps the same signature everywhere. It needs the
-    JavaScript Promise Integration that Pyodide enables for code entered
-    through `runPythonAsync`.
+    Two transports, chosen by what the browser supports. With JavaScript
+    Promise Integration, `pyodide.ffi.run_sync` drives an async `pyfetch` and
+    the cache is IDBFS-backed, so it survives a page reload. Without it — an
+    older browser, or a synchronous entry point that cannot stack-switch — a
+    `requests` GET does the same job into a plain in-memory cache. Either way
+    `fetch_resource` keeps the signature it has everywhere else.
     """
-    from pyodide.ffi import run_sync
+    from pyodide.ffi import can_run_sync, run_sync
 
-    return run_sync(_download_pyodide(relpath))
+    if can_run_sync():
+        return run_sync(_download_pyodide(relpath))
+    return _download_pyodide_sync(relpath)
 
 
 async def _download_pyodide(relpath: str) -> str:
@@ -143,17 +142,68 @@ async def _download_pyodide(relpath: str) -> str:
 
     from pyodide.http import pyfetch
 
-    url = f"https://huggingface.co/datasets/{REPO_ID}/resolve/{REVISION}/{relpath}"
+    url = _resource_url(relpath)
     response = await pyfetch(url)
-    if response.status != 200:
+    _check_status(response.status, relpath, url)
+    path = _write_cached(target, await response.bytes())
+    await _flush_idbfs()
+    return path
+
+
+def _download_pyodide_sync(relpath: str) -> str:
+    """Fetch one dataset file with `requests`, into a session-only cache.
+
+    The fallback for a browser without Promise Integration. Mounting IDBFS
+    needs an await of its own, so this path stays on the in-memory filesystem
+    and a page reload downloads again.
+    """
+    target = _PYODIDE_CACHE_ROOT / relpath
+    if target.exists():
+        return str(target)
+
+    try:
+        import requests
+    except ImportError as error:
         raise RuntimeError(
-            f"Could not download {relpath!r} from {REPO_ID}: "
-            f"HTTP {response.status} for {url}"
+            "Downloading nltools data in this browser needs either JavaScript "
+            "Promise Integration (call from an async notebook cell) or "
+            "`requests` — run `await micropip.install('requests')`."
+        ) from error
+
+    url = _resource_url(relpath)
+    response = requests.get(url, timeout=60)
+    _check_status(response.status_code, relpath, url)
+    return _write_cached(target, response.content)
+
+
+def _resource_url(relpath: str) -> str:
+    """Build the HF resolve URL both browser transports GET."""
+    return f"https://huggingface.co/datasets/{REPO_ID}/resolve/{REVISION}/{relpath}"
+
+
+def _check_status(status: int, relpath: str, url: str) -> None:
+    """Raise unless the download returned 200."""
+    if status != 200:
+        raise RuntimeError(
+            f"Could not download {relpath!r} from {REPO_ID}: HTTP {status} for {url}"
         )
 
+
+def _write_cached(target: Path, payload: bytes) -> str:
+    """Write `payload` to `target` atomically and return the path.
+
+    A write that dies partway would otherwise leave a short file that every
+    later call serves as a cache hit — and that `_flush_idbfs` may already have
+    pushed into IndexedDB, where only wiping site data clears it. Renaming a
+    fully written sibling into place is atomic on Emscripten's filesystem.
+    """
     target.parent.mkdir(parents=True, exist_ok=True)
-    target.write_bytes(await response.bytes())
-    await _flush_idbfs()
+    partial = target.with_name(target.name + ".part")
+    try:
+        partial.write_bytes(payload)
+        partial.replace(target)
+    finally:
+        partial.unlink(missing_ok=True)
     return str(target)
 
 
@@ -173,8 +223,11 @@ async def _ensure_idbfs_mounted() -> None:
     # `FS.mount` wants a JS object for its options; a Python dict arrives as a
     # proxy the Emscripten filesystem cannot read.
     fs.mount(fs.filesystems.IDBFS, js.Object.new(), mount_point)
-    await _syncfs(populate=True)
+    # The mount is what must not be repeated: a second mount of a live point
+    # raises a bare Emscripten error. A failed populate costs the prior cache,
+    # not the mount, so the flag flips here rather than after the sync.
     _idbfs_mounted = True
+    await _syncfs(populate=True)
 
 
 async def _flush_idbfs() -> None:
