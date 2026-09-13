@@ -188,11 +188,9 @@ def _resolve_stored_y(bd, y):
     if stored is None or stored.is_empty():
         return None
 
-    if getattr(getattr(bd, "model_", None), "is_fitted_", False):
+    if bd.model is not None:
         # Fitted-model prediction wins over attached labels on a no-argument
-        # call; returning None lets the dispatcher fall through to it. An
-        # unfitted `model_` is not a model to predict from, so decoding the
-        # stored labels stays available.
+        # call; returning None lets the dispatcher fall through to it.
         return None
     if stored.shape[1] != 1:
         raise ValueError(
@@ -237,31 +235,28 @@ def _predict_timeseries(bd, *, X=None):
     ``BrainData``, so it composes directly with downstream methods (`.plot()`,
     `.standardize()`, etc.). MVPA decoding (``y=`` mode) returns ``PredictResult``.
 
-    With no ``X``, the fitted model returns an independent copy of the stored
-    training predictions and keeps their row metadata: ``glm_predicted`` for a
-    GLM, ``ridge_fitted_values`` for a Ridge. Neither retains the training
-    features, so a no-argument call never refits or re-multiplies. With an
+    With no ``X``, the fitted model returns an independent copy of
+    ``bd.model.predicted`` and keeps its row metadata. The record retains no
+    training features, so a no-argument call never refits or re-multiplies.
+    With an
     explicit ``X``, structural validation and alignment belong to the
     estimator's own ``predict`` — named design columns for `_Glm`, named feature
     spaces for a banded `_Ridge` — and the result clears the source row metadata.
     """
-    from nltools.models import _Glm
+    from .utils import _NO_FIT_EXPLANATION, _result_from_array
 
-    from .utils import _result_from_array
-
-    if not hasattr(bd, "model_"):
+    fit = bd.model
+    if fit is None:
         raise ValueError(
-            "Must call fit() before predict() for timeseries prediction. "
-            "Example: brain_data.fit(model='ridge', X=features)"
+            "Must call fit() before predict() for timeseries prediction "
+            "(example: brain_data.fit(model='ridge', X=features)). "
+            f"{_NO_FIT_EXPLANATION}"
         )
-    if not bd.model_.is_fitted_:
-        raise ValueError("Model is not fitted")
 
     if X is not None:
-        return _result_from_array(bd, bd.model_.predict(X), rows="clear")
+        return _result_from_array(bd, fit._estimator.predict(X), rows="clear")
 
-    stored = bd.glm_predicted if isinstance(bd.model_, _Glm) else bd.ridge_fitted_values
-    return _result_from_array(bd, np.array(stored.data, copy=True), rows="preserve")
+    return _result_from_array(bd, fit.predicted.data, rows="preserve")
 
 
 # ---------------------------------------------------------------------------

@@ -80,7 +80,7 @@ class TestStoredYFallback:
         predicted = minimal_brain_data.predict()
 
         np.testing.assert_allclose(
-            predicted.data, minimal_brain_data.ridge_fitted_values.data
+            predicted.data, minimal_brain_data.model.predicted.data
         )
 
 
@@ -509,7 +509,7 @@ class TestReturnedMapOwnership:
         assert brain_map.mask is not source.mask
         assert brain_map.X.is_empty()
         assert brain_map.Y.is_empty()
-        assert not hasattr(brain_map, "model_")
+        assert brain_map.model is None
 
         before = np.array(brain_map.data, copy=True)
         source.data[:] = source.data + 100.0

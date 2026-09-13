@@ -298,21 +298,22 @@ def _fitted_ridge(bd, statistic):
         _Ridge: The fitted estimator.
 
     Raises:
-        ValueError: If nothing is fitted, or the fit is not a `_Ridge`.
+        ValueError: If nothing is fitted, or the fit is not a ridge fit.
     """
-    from nltools.models import _Ridge
+    from .utils import _NO_FIT_EXPLANATION
 
-    model = getattr(bd, "model_", None)
-    if model is None or not getattr(model, "is_fitted_", False):
+    fit = bd.model
+    if fit is None:
         raise ValueError(
-            f"Must call .fit(model='ridge', X=features) before bootstrap('{statistic}')"
+            f"Must call .fit(model='ridge', X=features) before "
+            f"bootstrap('{statistic}'). {_NO_FIT_EXPLANATION}"
         )
-    if not isinstance(model, _Ridge):
+    if fit.kind != "ridge":
         raise ValueError(
-            f"bootstrap('{statistic}') only supports a fitted Ridge, but this "
-            f"BrainData holds a fitted {type(model).__name__}."
+            f"bootstrap('{statistic}') only supports a ridge fit, but this "
+            f"BrainData holds a {fit.kind} fit."
         )
-    return model
+    return fit._estimator
 
 
 def _training_feature_spaces(model, X, statistic, n_obs):

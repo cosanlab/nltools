@@ -158,9 +158,7 @@ class TestBrainDataIO:
         np.testing.assert_allclose(loaded.mask.get_fdata(), mask.get_fdata())
 
     def test_h5_round_trip_of_a_fitted_object_loads_back_unfitted(self, tmp_path):
-        """Writing a fitted object is allowed; the load is always unfitted."""
-        from nltools.data.braindata.utils import _FIT_STATE_ATTRIBUTES
-
+        """Writing a fitted object is allowed; the load carries no fit."""
         affine = np.eye(4) * 2
         affine[3, 3] = 1
         mask = nib.Nifti1Image(np.ones((4, 4, 4), dtype=np.int8), affine)
@@ -169,14 +167,13 @@ class TestBrainDataIO:
         X = pl.DataFrame({"intercept": [1.0] * 6, "cond": [0.0, 1.0] * 3})
         bd = BrainData(nib.Nifti1Image(vol, affine), mask=mask, X=X)
         bd.fit(model="ridge", X=X.to_numpy(), ridge_alpha=1.0)
-        assert any(hasattr(bd, name) for name in _FIT_STATE_ATTRIBUTES)
+        assert bd.model is not None
 
         path = str(tmp_path / "fitted.h5")
         bd.write(path)
         loaded = BrainData(path)
 
-        for name in _FIT_STATE_ATTRIBUTES:
-            assert not hasattr(loaded, name)
+        assert loaded.model is None
         np.testing.assert_allclose(np.asarray(loaded.data), np.asarray(bd.data))
         assert loaded.X.equals(bd.X)
 

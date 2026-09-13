@@ -12,7 +12,6 @@ import pytest
 from nilearn.image import resample_to_img
 
 from nltools.data import BrainData
-from nltools.data.braindata.utils import _FIT_STATE_ATTRIBUTES
 
 AFFINE_2MM = np.diag([2.0, 2.0, 2.0, 1.0])
 AFFINE_4MM = np.diag([4.0, 4.0, 4.0, 1.0])
@@ -131,10 +130,8 @@ class TestResampleResultState:
             else {"img": non_binary_target}
         )
         brain.fit(model="ridge", X=brain.X.to_numpy(), ridge_alpha=1.0)
-        assert any(hasattr(brain, name) for name in _FIT_STATE_ATTRIBUTES)
-        result = brain.resample(**kwargs)
-        for name in _FIT_STATE_ATTRIBUTES:
-            assert not hasattr(result, name)
+        assert brain.model is not None
+        assert brain.resample(**kwargs).model is None
 
     def test_result_retains_instance_settings(self, brain):
         brain._h5_compression = "lzf"
@@ -265,10 +262,8 @@ class TestApplyMask:
         values = np.zeros((8, 8, 8), dtype=np.uint8)
         values[2:4, 2:6, 2:6] = 1
         brain.fit(model="ridge", X=brain.X.to_numpy(), ridge_alpha=1.0)
-        assert any(hasattr(brain, name) for name in _FIT_STATE_ATTRIBUTES)
-        result = brain.apply_mask(nib.Nifti1Image(values, AFFINE_2MM))
-        for name in _FIT_STATE_ATTRIBUTES:
-            assert not hasattr(result, name)
+        assert brain.model is not None
+        assert brain.apply_mask(nib.Nifti1Image(values, AFFINE_2MM)).model is None
 
     def test_result_owns_its_mask_and_metadata(self, brain):
         values = np.zeros((8, 8, 8), dtype=np.uint8)

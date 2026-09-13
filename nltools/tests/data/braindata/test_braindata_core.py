@@ -43,13 +43,13 @@ class TestBrainDataCore:
         copied = minimal_brain_data.copy()
 
         copied.data[0, 0] = 11.0
-        copied.model_.coef_[0, 0] = 13.0
-        copied.ridge_weights.data[0, 0] = 14.0
+        copied.model._estimator.coef_[0, 0] = 13.0
+        copied.model.betas.data[0, 0] = 14.0
         copied.mask.get_fdata(caching="fill")[0, 0, 0] = 0.0
 
         assert minimal_brain_data.data[0, 0] != 11.0
-        assert minimal_brain_data.model_.coef_[0, 0] != 13.0
-        assert minimal_brain_data.ridge_weights.data[0, 0] != 14.0
+        assert minimal_brain_data.model._estimator.coef_[0, 0] != 13.0
+        assert minimal_brain_data.model.betas.data[0, 0] != 14.0
         assert minimal_brain_data.mask.get_fdata()[0, 0, 0] != 0.0
 
     def test_create_empty_drops_fitted_state(self, minimal_brain_data):
@@ -59,9 +59,8 @@ class TestBrainDataCore:
         empty = minimal_brain_data.create_empty()
 
         assert empty.data.size == 0
-        assert not hasattr(empty, "model_")
+        assert empty.model is None
         assert not hasattr(empty, "X_")
-        assert not hasattr(empty, "ridge_weights")
 
     def test_inplace_arithmetic_drops_fitted_state(self, minimal_brain_data):
         X = np.random.default_rng(2).standard_normal((len(minimal_brain_data), 3))
@@ -69,9 +68,8 @@ class TestBrainDataCore:
 
         minimal_brain_data += 1.0
 
-        assert not hasattr(minimal_brain_data, "model_")
+        assert minimal_brain_data.model is None
         assert not hasattr(minimal_brain_data, "X_")
-        assert not hasattr(minimal_brain_data, "ridge_weights")
 
     def test_setitem_drops_fitted_state(self, minimal_brain_data):
         replacement = minimal_brain_data[0]
@@ -80,9 +78,8 @@ class TestBrainDataCore:
 
         minimal_brain_data[0] = replacement
 
-        assert not hasattr(minimal_brain_data, "model_")
+        assert minimal_brain_data.model is None
         assert not hasattr(minimal_brain_data, "X_")
-        assert not hasattr(minimal_brain_data, "ridge_weights")
 
     def test_failed_setitem_preserves_data_and_fitted_state(self, minimal_brain_data):
         replacement = minimal_brain_data[0]
@@ -90,15 +87,13 @@ class TestBrainDataCore:
         X = np.random.default_rng(4).standard_normal((len(minimal_brain_data), 3))
         minimal_brain_data.fit(model="ridge", X=X, ridge_alpha=1.0)
         original_data = minimal_brain_data.data.copy()
-        original_model = minimal_brain_data.model_
-        original_weights = minimal_brain_data.ridge_weights
+        original_fit = minimal_brain_data.model
 
         with pytest.raises(ValueError, match="self.X is the same size"):
             minimal_brain_data[0] = replacement
 
         np.testing.assert_array_equal(minimal_brain_data.data, original_data)
-        assert minimal_brain_data.model_ is original_model
-        assert minimal_brain_data.ridge_weights is original_weights
+        assert minimal_brain_data.model is original_fit
 
     @pytest.mark.parametrize("method", ["median"])
     def test_stat_aggregation(self, minimal_brain_data, method):

@@ -62,7 +62,9 @@ class TestGLMFitMapsByteIdentical:
         ref = minimal_brain_data.copy()
         ref.fit(model="glm", X=design)
 
-        for attr in ("glm_betas", "glm_residual", "glm_predicted", "glm_r2"):
-            assert np.array_equal(getattr(fast, attr).data, getattr(ref, attr).data), (
-                f"{attr} differs between fast and functional mask paths"
+        for name in ("betas", "residual", "predicted", "r2"):
+            fast_map = getattr(fast.model, name)
+            ref_map = getattr(ref.model, name)
+            assert np.array_equal(fast_map.data, ref_map.data), (
+                f"{name} differs between fast and functional mask paths"
             )
