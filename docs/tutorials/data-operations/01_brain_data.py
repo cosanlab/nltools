@@ -199,7 +199,7 @@ def _(data, mean_map):
     from nilearn.plotting import plot_stat_map
 
     mean_map.plot(title="Mean activation")
-    data[:4].plot(limit=4)
+    data[:2].plot(limit=2)
     mean_map.plot(method="slices", view="xyz")
     mean_map.plot_surf()
     mean_map.plot_flatmap()
@@ -283,7 +283,8 @@ def _(mo):
     and keeping the tails outside the middle 95% gives a thresholded map, and
     `regions` splits that into one image per blob — smoothing the map first,
     cutting each connected component at its local peaks, and dropping anything
-    smaller than `min_region_size` (1350 mm³):
+    smaller than `min_region_size` (1350 mm³). The count is printed below; index
+    the stack, or raise `limit`, to draw more than the first three:
     """)
     return
 
@@ -303,7 +304,7 @@ def _(BrainData, high_pain):
 
     blobs = high_pain.mean().threshold(lower="2.5%", upper="97.5%").regions()
     print(f"{len(blobs)} regions from the thresholded high-pain mean")
-    blobs.plot(limit=len(blobs))
+    blobs[:3].plot()
     return parcellation, regions
 
 
