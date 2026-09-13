@@ -122,6 +122,11 @@ include = [
 exclude = [
   "nltools/resources/niftis/**",
   "nltools/tests/data/**",
+  # `poe test-pyodide` leaves a ~70 MB npm tree behind, and micropip caches
+  # every wheel it downloads inside it. Without this the next local `uv build`
+  # ships all of it.
+  "nltools/tests/pyodide/node_modules/**",
+  "nltools/tests/pyodide/package-lock.json",
   "**/.DS_Store",
 ]
 
