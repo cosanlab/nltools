@@ -2,7 +2,7 @@
 row-metadata policy that both share.
 
 The spec sections under test are "Spatial transformations" and "Row metadata"
-in `docs/development/specs/braindata.md`.
+in `development/specs/braindata.md`.
 """
 
 import nibabel as nib

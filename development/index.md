@@ -8,8 +8,8 @@ description: How nltools is put together — the functional core, the class faca
 This section is the design reference for **contributors and maintainers** (and for AI
 coding assistants working in the repo). It documents *how* nltools is built and *why*
 — the invariants that keep the codebase coherent. For *what the public API does*, see
-the reference: the [data classes](../api/data/brain_data.md) and the namespace
-pages, starting at [`nltools`](../api/nltools.md); for release recovery scope, see the [recovery inventory](recovery-plan.md) and the [release verification matrix](release-verification.md).
+the reference: the [data classes](../docs/api/data/brain_data.md) and the namespace
+pages, starting at [`nltools`](../docs/api/nltools.md); for release recovery scope, see the [recovery inventory](recovery-plan.md) and the [release verification matrix](release-verification.md).
 
 ## Functional core, imperative shell
 

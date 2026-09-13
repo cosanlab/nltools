@@ -8,7 +8,7 @@
 # feeds TWO consumers, both wired into `poe lint-api`:
 #
 #   1. Docs rendering — `scripts/build_api_vocabulary.py` injects a rendered table into
-#      docs/development/index.md (2-column prose table) between
+#      development/index.md (2-column prose table) between
 #      `<!-- AUTOGEN:api-vocabulary -->` marker pairs. Edit HERE, then
 #      `uv run poe docs-generate` to propagate; the `--check` mode fails CI if the
 #      committed table has drifted.

@@ -51,4 +51,4 @@ Page | Covers
 - `n_permute=` counts permutations; `n_samples=` counts bootstrap draws.
 - `random_state=` makes any resampling reproducible.
 
-The full manifest is in the [architecture notes](../development/index.md#canonical-api-vocabulary).
+The full manifest is in the [architecture notes](https://github.com/cosanlab/nltools/blob/master/development/index.md#canonical-api-vocabulary).

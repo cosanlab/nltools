@@ -1,6 +1,6 @@
 """Tests for the frozen structural `Predict` result record.
 
-The spec's shape table (`docs/development/specs/braindata.md`, "Prediction and
+The spec's shape table (`development/specs/braindata.md`, "Prediction and
 decoding") is the contract: one record class, a required ``spatial_scale``
 discriminator, and exactly one legal field combination per spatial scale.
 """

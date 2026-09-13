@@ -7,7 +7,7 @@ description: Non-parametric permutation and bootstrap testing on CPU workers —
 
 Non-parametric permutation and bootstrap testing on CPU workers. This is design
 reference for the `nltools/algorithms/inference/` module; for the public
-functions see [`nltools.algorithms`](../api/algorithms.md).
+functions see [`nltools.algorithms`](../docs/api/algorithms.md).
 
 ## Core algorithms
 

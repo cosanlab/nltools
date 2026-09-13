@@ -1,4 +1,4 @@
-"""Contract tests for `nltools.models._Glm` (docs/development/specs/glm.md).
+"""Contract tests for `nltools.models._Glm` (development/specs/glm.md).
 
 `_Glm` is a numerical estimator over a precomputed `DesignMatrix` and a
 one- or two-dimensional response. It delegates fitting to nilearn's
