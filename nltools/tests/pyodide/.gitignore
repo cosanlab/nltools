@@ -1,0 +1,4 @@
+node_modules/
+package-lock.json
+# The repo root ignores *.json; this one is the runner's manifest.
+!package.json
