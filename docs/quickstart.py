@@ -257,7 +257,8 @@ def _(mo):
     regression to keep the fit from blowing up. Here 100 random features, the first
     ten of which drive the sphere, and two runs of the same experiment so the model
     can be scored on data it never saw. `ridge_cv` picks the penalty by
-    cross-validation, one per voxel:
+    cross-validation, one per voxel, and the fit leaves `ridge_weights` on the
+    object, one map per feature:
     """)
     return
 
@@ -282,18 +283,15 @@ def _(Simulator, np):
         random_state=0,
     )
 
-    chosen, counts = np.unique(run1.model_.alpha_, return_counts=True)
-    print("penalty chosen, voxel count:")
-    for alpha, count in zip(chosen, counts):
-        print(f"  {alpha:>5}  {count}")
+    print(run1.ridge_weights)
     return features, rng, run1, run2
 
 
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    The fit leaves `ridge_weights` on the object, one map per feature, so predicting
-    the second run is a matrix product. Correlating that prediction with what the
+    With one weight map per feature, predicting the second run is a matrix
+    product. Correlating that prediction with what the
     second run actually did, voxel by voxel, gives a performance map: not how much
     this voxel responds, but how well the model accounts for it:
     """)
