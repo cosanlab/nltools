@@ -1,6 +1,6 @@
 [project]
 name = "nltools"
-version = "0.6.0"
+version = "0.6.0.dev0"
 requires-python = ">=3.11"
 description = "A Python package to analyze neuroimaging data"
 readme = "README.md"
@@ -256,12 +256,14 @@ rm docs/tutorials/*/[0-9]*_*.md 2>/dev/null || true
   { ref = "docs-prune" },
 ]
 
+# The tutorial pages are out of the site until #503 restores them one at a time,
+# so nothing here converts the marimo notebooks. Restoring a tutorial means
+# adding its `marimo_to_zensical.py` run back here and its page to the nav.
 [tool.poe.tasks.docs-generate]
-help = "Generate the API vocabulary tables and the tutorial pages (marimo → markdown-exec) from source"
+help = "Generate the API vocabulary tables from docs/_data/api-vocabulary.yml"
 shell = """
 set -eu
 python scripts/build_api_vocabulary.py
-python scripts/marimo_to_zensical.py --all
 """
 
 # Zensical builds every file under `docs_dir` into the site and offers no way to
@@ -276,55 +278,37 @@ if [ -d docs/_build ]; then rm -r docs/_build; fi
 rm -r docs/tutorials/*/__marimo__ 2>/dev/null || true
 """
 
-# Build + EXECUTE the site: markdown-exec runs every tutorial cell in the build
-# process to produce its outputs (figures, tables, prints). `-c` drops zensical's
-# page cache and `DOCS_EXEC=all` bypasses the tutorials' own output records, so
-# every build really re-executes: both caches are keyed on page content, which
-# does not change when the library under test does, and a build that skips the
-# tutorials also skips the gate that judges them. Run it from the repo root — the
-# notebooks cache their fits in `Memory(".tutorial-cache")`, a path relative to
-# the working directory, so a build started anywhere else recomputes every fit
-# into a new cache. A cell that raises, or that writes to stderr, fails the build
-# (scripts/docs_show.py).
+# Build the site. No page executes anything heavier than the home page's version
+# fence, so this is seconds, not minutes; `-c` drops zensical's page cache, which
+# is keyed on page content and so goes stale when the library changes.
 [tool.poe.tasks.docs-build]
-help = "Full docs build from the repo root: regenerate sources → build the zensical site into site/, re-executing every tutorial against the cached fits, with strict link checking"
+help = "Full docs build: regenerate sources → build the zensical site into site/ with strict link checking"
 sequence = [
   { ref = "docs-generate" },
   { ref = "docs-prune" },
   { shell = """
 set -eu
-# The tutorial pages import scripts/docs_show.py while they execute.
-export PYTHONPATH="$PWD/scripts${PYTHONPATH:+:$PYTHONPATH}"
-export DOCS_EXEC=all
 zensical build --strict -c
 """ },
 ]
 
-# The preview regenerates the sources first, so the tutorial pages exist and
-# match their notebooks, then serves with live reload. A tutorial executes only
-# when its cells changed since `.tutorial-cache/pages/` last recorded them
-# (scripts/docs_show.py); every other rebuild, including the whole-site rebuild
-# zensical does after a config edit, replays the records in seconds. Outputs go
-# stale when the library changes: `docs-build` re-executes everything, and so
-# does `DOCS_EXEC=all uv run poe docs-serve`.
+# The preview regenerates the sources first, then serves with live reload.
 [tool.poe.tasks.docs-serve]
-help = "Live preview the zensical site at http://localhost:8000 from the repo root: regenerate sources, then serve with live reload, executing a tutorial only when its cells changed (DOCS_EXEC=all executes every page)"
+help = "Live preview the zensical site at http://localhost:8000: regenerate sources, then serve with live reload"
 sequence = [
   { ref = "docs-generate" },
   { ref = "docs-prune" },
   { shell = """
 set -eu
-# The tutorial pages import scripts/docs_show.py while they execute.
-export PYTHONPATH="$PWD/scripts${PYTHONPATH:+:$PYTHONPATH}"
 zensical serve
 """ },
 ]
 
-# What CI runs (docs-deploy.yml). A fresh checkout has no caches, so this is a
-# no-op there; locally it guarantees every tutorial cell really re-executes and
-# every joblib-cached fit really recomputes before the build judges them.
+# What CI runs (docs-deploy.yml). With the tutorials out of the site this is just
+# `docs-build`; it stays so the tutorials' fit caches are dropped again as soon as
+# #503 puts a notebook back in the build.
 [tool.poe.tasks.docs-build-fresh]
-help = "Cold docs build, as CI runs it: drop the tutorials' fit caches and recorded outputs, then run the docs build so every fit really recomputes"
+help = "Cold docs build, as CI runs it: drop the tutorials' fit caches and recorded outputs, then run the docs build"
 sequence = [
   { ref = "tutorials-clean-cache" },
   { ref = "docs-build" },
