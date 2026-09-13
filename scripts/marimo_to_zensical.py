@@ -57,6 +57,7 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 # be converted, because zensical builds and executes every `.md` under `docs/`.
 TUTORIAL_GLOBS = [
     "docs/tutorials/data-operations/01_brain_data.py",
+    "docs/tutorials/data-operations/02_design_matrix.py",
 ]
 
 # Where the source notebooks live on GitHub. The docs site deploys from `master`,

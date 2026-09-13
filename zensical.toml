@@ -21,6 +21,7 @@ nav = [
     "tutorials/index.md",
     { "Data operations" = [
       "tutorials/data-operations/01_brain_data.md",
+      "tutorials/data-operations/02_design_matrix.md",
     ] },
   ] },
   # One page per user-facing namespace, rendered by mkdocstrings from docs/api/.
