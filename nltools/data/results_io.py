@@ -5,6 +5,11 @@ One layout serves both records: every brain map becomes a compressed NIfTI named
 sidecar names the kind of result and whatever describes its columns. Nothing
 here is BIDS: the files are the ones a user would otherwise write by hand after
 a fit.
+
+`ContrastResult` lives in `nltools/models`, the functional core, and delegates
+here, so nothing on the contrast path may import a facade class. It duck-types
+on the payload instead. `DesignMatrix` is reached only from `_write_fit`, which
+is called from the facade side.
 """
 
 from __future__ import annotations
@@ -146,9 +151,10 @@ def _write_contrast(result, directory, prefix: str | None) -> list[Path]:
     """
     import numpy as np
 
-    from nltools.data.braindata import BrainData
-
-    if not isinstance(result.effect, BrainData):
+    # A payload that can write itself is a brain map; asking for the method
+    # rather than the class keeps this module — which `nltools.models` reaches
+    # for `ContrastResult.write` — from importing a facade package.
+    if not hasattr(result.effect, "write"):
         raise TypeError(
             f"write() saves brain maps as NIfTI, but this contrast holds "
             f"{type(result.effect).__name__} payloads. Contrasts computed "
