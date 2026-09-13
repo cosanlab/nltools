@@ -296,6 +296,12 @@ def _write_fit_record(h5_file, fit, compression):
         _write_h5_group(group.create_group("design"), design, compression)
     elif isinstance(design, Mapping):
         spaces = group.create_group("design_spaces")
+        # h5py iterates a group's members by name, but the coefficient blocks
+        # follow the order the fit saw the spaces, so the order is recorded
+        # rather than recovered from the member names.
+        spaces.attrs["order"] = np.array(
+            [str(name) for name in design], dtype=h5py.string_dtype("utf-8")
+        )
         for name, matrix in design.items():
             spaces.create_dataset(
                 str(name), data=np.asarray(matrix), compression=compression
@@ -330,10 +336,12 @@ def _read_fit_record(h5_file):
     if "design" in group:
         design = _design_matrix_from_h5_group(group["design"])
     elif "design_spaces" in group:
-        design = {
-            name: np.array(group["design_spaces"][name])
-            for name in group["design_spaces"]
-        }
+        spaces = group["design_spaces"]
+        order = [
+            name.decode() if isinstance(name, bytes) else str(name)
+            for name in spaces.attrs["order"]
+        ]
+        design = {name: np.array(spaces[name]) for name in order}
     elif "design_array" in group:
         design = np.array(group["design_array"])
 
