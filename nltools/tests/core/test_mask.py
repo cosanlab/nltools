@@ -90,9 +90,8 @@ def test_roi_to_brain_drops_fitted_mask_state():
 
     result = roi_to_brain(np.ones((3, 2)), masks)
 
-    assert not hasattr(result, "model_")
+    assert result.model is None
     assert not hasattr(result, "X_")
-    assert not hasattr(result, "ridge_weights")
 
 
 def _isotropic_grid_mask(voxel_size, extent_mm=72.0):

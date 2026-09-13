@@ -140,9 +140,9 @@ def _fit(
 ):
     """Fit a model to brain imaging data.
 
-    `bd.data` is always the response. The estimator and its results are stored
-    on the returned `BrainData` for later use with `predict` and, for a GLM,
-    `compute_contrasts`.
+    `bd.data` is always the response. The fit is recorded on the returned
+    `BrainData` as `model`, a frozen `FitResult`, for later use with `predict`
+    and, for a GLM, `compute_contrasts`.
 
     For `model='glm'` the design is diagnosed before estimation, as a warning
     only — nothing is ever dropped, modified, or raised on. A rank-deficient
@@ -159,11 +159,9 @@ def _fit(
     both estimators accept it. A non-default option belonging to the estimator
     `model` did not select raises `ValueError`.
 
-    **Results stored on the returned `BrainData`:**
-
-    - `model_` — the fitted `_Ridge` or `_Glm`.
-    - GLM: `glm_betas`, `glm_residual`, `glm_predicted`, `glm_r2`.
-    - _Ridge: `ridge_weights`, `ridge_fitted_values`, `ridge_r2`.
+    **What the fit records.** `bd.model` is a `FitResult` holding `kind`,
+    the `betas`, `predicted`, `residual` and `r2` maps, the `design`, and —
+    for ridge — the selected `alpha` map and resolved `cv`.
 
     Args:
         bd (BrainData): Data whose `.data` is the regression target.
@@ -219,9 +217,9 @@ def _fit(
 
     Examples:
         ```python
-        # inplace=True (default): results are stored on brain_data
+        # inplace=True (default): the fit is recorded on brain_data
         brain_data.fit(model='ridge', ridge_alpha=1.0, X=features)
-        weights = brain_data.ridge_weights
+        weights = brain_data.model.betas
 
         # inplace=False: fit a copy; brain_data remains completely unchanged
         fitted = brain_data.fit(model='glm', X=design, inplace=False)
@@ -334,78 +332,86 @@ def _fit(
 
 
 def _fit_ridge(bd, X, model):
-    """Fit `model` on `X` and attach it and the ridge results the facade owns.
+    """Fit `model` on `X` and record the result on `bd.model`.
 
     Alpha selection and the banded search belong to `_Ridge`; this layer only
-    stores the results the facade owns. `model_` is attached only once the fit
-    succeeds, so a failed fit never leaves an unfitted estimator on `bd`.
+    shapes the results the facade owns. The record is set only once the fit
+    succeeds, so a failed fit never leaves an unfitted estimator behind.
 
     Args:
         bd (BrainData): Data whose `.data` is the response.
         X (np.ndarray | Mapping[str, np.ndarray]): Training features.
-        model (Ridge): An unfitted estimator.
-
-    Note:
-        Sets `model_`, `ridge_weights`, `ridge_fitted_values`, and `ridge_r2`
-        on `bd`.
+        model (_Ridge): An unfitted estimator.
     """
     model.fit(X, bd.data)
-    bd.model_ = model
-    _populate_ridge_attributes(bd, X)
+    bd.model = _ridge_fit_result(bd, X, model)
 
 
-def _populate_ridge_attributes(bd, X):
-    """Set ridge_weights / ridge_fitted_values / ridge_r2 from bd.model_."""
+def _ridge_fit_result(bd, X, model):
+    """Build the `FitResult` a ridge fit leaves on `BrainData.model`.
+
+    Ridge fits no intercept, so the residual is the response minus the fitted
+    values with nothing else subtracted. The selected penalty is broadcast to
+    one value per voxel whether it was chosen per voxel or shared, so `alpha`
+    is one map in every case.
+    """
+    from nltools.data.results import FitResult
+
+    n_voxels = bd.data.shape[-1]
     # _Ridge.coef_ is (n_features, n_voxels); no transpose.
-    bd.ridge_weights = _result_from_array(
-        bd, np.array(bd.model_.coef_, copy=True), rows="clear"
-    )
-
-    fitted = bd.model_.predict(X)
-    bd.ridge_fitted_values = _result_from_array(
-        bd, np.array(fitted, copy=True), rows="preserve"
-    )
-
-    r2 = bd.model_.score(X, bd.data)  # (n_voxels,)
-    bd.ridge_r2 = _result_from_array(
-        bd, np.array(r2, copy=True).reshape(1, -1), rows="clear"
+    fitted = np.asarray(model.predict(X))
+    alpha = np.broadcast_to(np.asarray(model.alpha_, dtype=float), (n_voxels,))
+    return FitResult(
+        kind="ridge",
+        betas=_result_from_array(bd, np.asarray(model.coef_), rows="clear"),
+        predicted=_result_from_array(bd, fitted, rows="preserve"),
+        residual=_result_from_array(bd, bd.data - fitted, rows="preserve"),
+        r2=_result_from_array(
+            bd, np.asarray(model.score(X, bd.data)).reshape(1, -1), rows="clear"
+        ),
+        design=X,
+        alpha=_result_from_array(bd, alpha.reshape(1, -1), rows="clear"),
+        cv=model._resolved_cv(),
+        _estimator=model,
     )
 
 
 def _fit_glm(bd, X, model):
-    """Fit `model` on `X` and attach it and the GLM results the facade owns.
+    """Fit `model` on `X` and record the result on `bd.model`.
 
     Numerical fitting, coefficients, predictions, residuals, and R-squared all
-    come from `_Glm`; this layer only wraps them as independently owned
-    `BrainData` results. `model_` is attached only once the fit succeeds, so a
-    failed fit never leaves an unfitted estimator on `bd`.
+    come from `_Glm`; this layer only wraps them as `BrainData` maps. The
+    record is set only once the fit succeeds, so a failed fit never leaves an
+    unfitted estimator behind.
 
     Args:
         bd (BrainData): Data whose `.data` is the response.
         X (DesignMatrix): The training design.
         model (_Glm): An unfitted estimator.
-
-    Note:
-        Sets `model_`, `glm_betas` (one map per design column), `glm_predicted`
-        and `glm_residual` (one row per training observation, row metadata
-        retained), and `glm_r2` (one fit-quality map). `glm_r2` carries
-        Nilearn's whitened variance-ratio semantics: conventional R-squared for
-        an OLS fit with an intercept, a pseudo-R-squared in the whitened space
-        for an autoregressive one.
     """
     model.fit(X, bd.data)
-    bd.model_ = model
-    bd.glm_betas = _result_from_array(
-        bd, np.array(model.coef_, copy=True), rows="clear"
-    )
-    bd.glm_predicted = _result_from_array(
-        bd, np.array(model.predicted_, copy=True), rows="preserve"
-    )
-    bd.glm_residual = _result_from_array(
-        bd, np.array(model.residuals_, copy=True), rows="preserve"
-    )
-    bd.glm_r2 = _result_from_array(
-        bd, np.array(model.r2_, copy=True).reshape(1, -1), rows="clear"
+    bd.model = _glm_fit_result(bd, X, model)
+
+
+def _glm_fit_result(bd, X, model):
+    """Build the `FitResult` a GLM fit leaves on `BrainData.model`.
+
+    `betas` carries one map per design column, in column order; `predicted`
+    and `residual` keep one row per training observation with its row
+    metadata. `r2` carries Nilearn's whitened variance-ratio semantics:
+    conventional R-squared for an OLS fit with an intercept, a pseudo-R-squared
+    in the whitened space for an autoregressive one.
+    """
+    from nltools.data.results import FitResult
+
+    return FitResult(
+        kind="glm",
+        betas=_result_from_array(bd, np.asarray(model.coef_), rows="clear"),
+        predicted=_result_from_array(bd, np.asarray(model.predicted_), rows="preserve"),
+        residual=_result_from_array(bd, np.asarray(model.residuals_), rows="preserve"),
+        r2=_result_from_array(bd, np.asarray(model.r2_).reshape(1, -1), rows="clear"),
+        design=X,
+        _estimator=model,
     )
 
 
@@ -543,21 +549,20 @@ def _compute_contrasts(bd, contrasts, *, inference=False):
         direction. This is the documented exception to the library's two-tailed
         default.
     """
-    from nltools.models import _Glm
+    from .utils import _NO_FIT_EXPLANATION
 
-    model = getattr(bd, "model_", None)
-    if model is None:
+    fit = bd.model
+    if fit is None:
         raise RuntimeError(
             "compute_contrasts requires a fitted GLM. Run "
-            ".fit(model='glm', X=design_matrix) first."
+            f".fit(model='glm', X=design_matrix) first. {_NO_FIT_EXPLANATION}"
         )
-    if not isinstance(model, _Glm):
+    if fit.kind != "glm":
         raise ValueError(
-            f"compute_contrasts requires a fitted _Glm, but this BrainData holds "
-            f"a fitted {type(model).__name__}. Refit with model='glm'."
+            f"compute_contrasts requires a GLM fit, but this BrainData holds a "
+            f"{fit.kind} fit. Refit with model='glm'."
         )
-
-    computed = model.compute_contrasts(contrasts, inference=inference)
+    computed = fit._estimator.compute_contrasts(contrasts, inference=inference)
     if isinstance(computed, dict):
         return {name: _contrast_maps(bd, value) for name, value in computed.items()}
     return _contrast_maps(bd, computed)

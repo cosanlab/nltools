@@ -153,27 +153,26 @@ def _check_brain_data_is_single(data):
     return len(data.shape) <= 1
 
 
-#: Every attribute a fit may attach to a BrainData. The enumeration is
-#: exhaustive: clearing fitted state deletes exactly these names, with no
-#: predicates and no special cases. `predict` attaches nothing, so it
-#: contributes no names.
-_FIT_STATE_ATTRIBUTES = (
-    "model_",
-    "ridge_weights",
-    "ridge_fitted_values",
-    "ridge_r2",
-    "glm_betas",
-    "glm_residual",
-    "glm_predicted",
-    "glm_r2",
+#: The one attribute a fit leaves on a BrainData. Copying with this name
+#: excluded is how every derived result comes back unfitted; `BrainData`
+#: declares `model = None` in `__init__`, so an excluded clone still answers
+#: `.model`. `predict` attaches nothing, so it contributes no names.
+_FIT_STATE_ATTRIBUTES = ("model",)
+
+#: Appended to every "no fit here" error. A fit belongs to the exact object it
+#: ran on, and there are only two ways `model` can be None, so both are named
+#: rather than leaving the caller to guess which one they hit.
+_NO_FIT_EXPLANATION = (
+    "Either nothing has been fitted on this object, or it was derived from a "
+    "fitted one: indexing, masking, resampling, standardizing, arithmetic and "
+    "in-place mutation all return unfitted objects, and only copy() carries a "
+    "fit forward."
 )
 
 
 def _clear_fit_state(bd):
-    """Remove state invalidated by changing a BrainData object's data."""
-    for name in _FIT_STATE_ATTRIBUTES:
-        if hasattr(bd, name):
-            delattr(bd, name)
+    """Drop the fit invalidated by changing a BrainData object's data."""
+    bd.model = None
 
 
 def _copy_for_fit(source):

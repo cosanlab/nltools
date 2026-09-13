@@ -394,10 +394,9 @@ class TestAlign:
         out = align(brains, method="procrustes")
 
         for result in [*out["transformed"], *out["transformation_matrix"]]:
-            assert not hasattr(result, "model_")
-            assert not hasattr(result, "ridge_weights")
-        assert not hasattr(out["common_model"], "model_")
-        assert all(hasattr(brain, "model_") for brain in brains)
+            assert result.model is None
+        assert out["common_model"].model is None
+        assert all(brain.model is not None for brain in brains)
 
 
 class TestProcrustes:

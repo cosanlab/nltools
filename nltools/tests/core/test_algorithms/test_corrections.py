@@ -49,9 +49,8 @@ class TestThreshold:
 
         result = threshold(minimal_brain_data, p)
 
-        assert not hasattr(result, "model_")
+        assert result.model is None
         assert not hasattr(result, "X_")
-        assert not hasattr(result, "ridge_weights")
 
 
 class TestMultiThreshold:

@@ -15,7 +15,7 @@ if TYPE_CHECKING:
 
     from nltools.data.atlases import _Atlas, _ClusterReport
     from nltools.data.designmatrix import DesignMatrix
-    from nltools.data.results import PredictResult
+    from nltools.data.results import FitResult, PredictResult
 
 from .utils import _check_brain_data, _coalesced_gc
 
@@ -72,6 +72,10 @@ class BrainData:
         verbose (bool): Whether informational messages are emitted.
         X (pl.DataFrame): Design matrix / per-image covariates (possibly empty).
         Y (pl.DataFrame): Per-image targets (possibly empty).
+        model (FitResult | None): The record `fit` leaves behind, or ``None``
+            when nothing has been fitted. Every derived object — an index, a
+            mask, a transform, an in-place mutation — is unfitted; ``copy()``
+            keeps the record.
         dtype (np.dtype): Data type of ``data``.
         is_empty (bool): Whether ``data`` holds no elements.
         shape (tuple[int, ...]): Images-by-voxels shape of ``data``.
@@ -85,6 +89,11 @@ class BrainData:
         To keep the native resolution, pass ``mask`` with a mask in the data's
         own space.
     """
+
+    #: The fit `fit` leaves behind, or None. A class-level default so a derived
+    #: object — built by copying the graph with this name excluded — still
+    #: answers `.model` without carrying its source's fit.
+    model: "FitResult | None" = None
 
     def __init__(
         self,
@@ -122,6 +131,10 @@ class BrainData:
             )
         self.masker = masker
         self._labels = None
+        #: The fit `fit` left here, or None. Set before the load dispatch so
+        #: every construction path — including the early-returning HDF5 one —
+        #: has it.
+        self.model = None
 
         # Initialize mask
         _initialize_mask(self, mask)
@@ -1016,8 +1029,8 @@ class BrainData:
     ):
         """Fit a model to brain imaging data.
 
-        ``self.data`` is always the response. The fitted estimator and its
-        results are stored for later use with `predict` and, for a GLM,
+        ``self.data`` is always the response. The fit is recorded on `model`,
+        a frozen `FitResult`, for later use with `predict` and, for a GLM,
         `compute_contrasts`.
 
         Every model-specific option carries a ``glm_`` or ``ridge_`` prefix
@@ -1075,16 +1088,24 @@ class BrainData:
                 owned fitted copy.
 
         Note:
-            A GLM fit attaches ``model_``, ``glm_betas`` (one map per design
-            column), ``glm_residual``, ``glm_predicted``, and ``glm_r2``.
-            ``glm_r2`` is Nilearn's whitened variance ratio: conventional
-            R-squared for an OLS fit whose design has an intercept, and a
-            pseudo-R-squared in the whitened space for an autoregressive one.
-            A GLM fit does not compute eager per-regressor t, p, or
-            standard-error maps: ask for them one contrast at a time with
+            The fit lands on ``self.model``: ``kind``, the ``betas`` (one map
+            per design column, in column order), ``predicted``, ``residual``
+            and ``r2`` maps, the ``design``, and — for ridge — the selected
+            ``alpha`` map and the resolved ``cv``. A GLM's ``r2`` is Nilearn's
+            whitened variance ratio: conventional R-squared for an OLS fit
+            whose design has an intercept, and a pseudo-R-squared in the
+            whitened space for an autoregressive one. A GLM fit does not
+            compute eager per-regressor t, p, or standard-error maps: ask for
+            them one contrast at a time with
             ``compute_contrasts(..., inference=True)``, which uses the full
             per-voxel parameter covariance and is therefore correct for
             contrasts spanning several regressors.
+
+        Note:
+            Only ``copy()`` carries the record forward. Indexing, masking,
+            resampling, standardizing, arithmetic and in-place mutation all
+            return objects whose ``model`` is ``None``, and a refit replaces
+            the record outright.
 
         Note:
             A rank-deficient design fires `DesignMatrixWarning`. It describes

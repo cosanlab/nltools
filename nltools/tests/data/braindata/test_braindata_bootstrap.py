@@ -231,8 +231,7 @@ class TestBrainDataBootstrapOwnership:
             payload = getattr(result, field)
             assert payload.X.shape == (0, 0)
             assert payload.Y.shape == (0, 0)
-            assert not hasattr(payload, "model_")
-            assert not hasattr(payload, "ridge_weights")
+            assert payload.model is None
 
 
 class TestRidgeBootstrapContract:
@@ -271,9 +270,8 @@ class TestRidgeBootstrapContract:
 
         result = masked.bootstrap("weights", X=X, n_samples=20, random_state=0)
 
-        np.testing.assert_allclose(result.estimate.data, masked.model_.coef_)
         np.testing.assert_allclose(
-            result.estimate.data, masked.ridge_weights.data, atol=1e-10
+            result.estimate.data, masked.model.betas.data, atol=1e-10
         )
 
     def test_predict_estimate_is_the_full_data_model_at_the_test_rows(self, masked):
@@ -285,7 +283,7 @@ class TestRidgeBootstrapContract:
         )
 
         np.testing.assert_allclose(
-            result.estimate.data, X_test @ masked.model_.coef_, rtol=1e-10
+            result.estimate.data, X_test @ masked.model.betas.data, rtol=1e-10
         )
 
     def test_a_tiny_memory_budget_raises_before_resampling(self, masked, monkeypatch):
@@ -351,8 +349,8 @@ class TestRidgeBootstrapContract:
         expected = _refit_resample(
             _bootstrap_design([spaces["a"], spaces["b"]], masked.data),
             indices[0],
-            masked.model_.alpha_,
-            masked.model_.feature_space_weights_,
+            masked.model._estimator.alpha_,
+            masked.model._estimator.feature_space_weights_,
         )
         np.testing.assert_allclose(result.samples[0], expected, atol=1e-8)
 

@@ -35,12 +35,12 @@ def test_complete_graph_copy(brain, copier):
     assert other.cycle is other
     other.masker.mask_img_.get_fdata()[0, 0, 0] = 77
     other.data[0, 0] = 888
-    other.model_.coef_[0, 0] = 999
-    other.ridge_weights.data[0, 0] = 333
+    other.model._estimator.coef_[0, 0] = 999
+    other.model.betas.data[0, 0] = 333
     assert brain.masker.mask_img_.get_fdata()[0, 0, 0] == 1
     assert brain.data[0, 0] != 888
-    assert brain.model_.coef_[0, 0] != 999
-    assert brain.ridge_weights.data[0, 0] != 333
+    assert brain.model._estimator.coef_[0, 0] != 999
+    assert brain.model.betas.data[0, 0] != 333
 
 
 @pytest.mark.parametrize("model", ["glm"])
@@ -59,7 +59,7 @@ def test_fit_maps_predictions_and_numerics(brain, model):
         if model == "glm"
         else np.linalg.solve(x.T @ x + 2 * np.eye(2), x.T @ y)
     )
-    weights = fitted.glm_betas if model == "glm" else fitted.ridge_weights
+    weights = fitted.model.betas
     np.testing.assert_allclose(weights.data, expected, atol=2e-6, rtol=2e-6)
     from nltools.data.braindata.prediction import _predict_timeseries
 
@@ -72,11 +72,10 @@ def test_fit_maps_predictions_and_numerics(brain, model):
     assert weights.X.is_empty() and weights.Y.is_empty()
     assert new.X.is_empty() and new.Y.is_empty()
     assert predicted.X.equals(brain.X) and predicted.Y.equals(brain.Y)
-    if model == "glm":
-        assert fitted.glm_residual.Y.equals(brain.Y)
-        np.testing.assert_allclose(
-            fitted.glm_residual.data, y - x @ expected, atol=2e-6, rtol=2e-6
-        )
+    assert fitted.model.residual.Y.equals(brain.Y)
+    np.testing.assert_allclose(
+        fitted.model.residual.data, y - x @ expected, atol=2e-6, rtol=2e-6
+    )
     weights.mask.get_fdata()[0, 0, 0] = 9
     new.masker.mask_img_.get_fdata()[0, 0, 0] = 8
     assert fitted.mask.get_fdata()[0, 0, 0] == 1
@@ -108,13 +107,13 @@ def test_contrast_results_clear_rows_and_own_their_maps(brain):
     ]
     for payload in payloads:
         assert payload.X.is_empty() and payload.Y.is_empty()
-        assert not np.shares_memory(payload.data, fitted.glm_betas.data)
+        assert not np.shares_memory(payload.data, fitted.model.betas.data)
     assert not fitted.X.is_empty() and not fitted.Y.is_empty()
     assert fitted.X.equals(brain.X) and fitted.Y.equals(brain.Y)
 
     effect.data[0] = 4242.0
     result.effect.data[0] = 4243.0
-    assert fitted.glm_betas.data[0, 0] not in (4242.0, 4243.0)
+    assert fitted.model.betas.data[0, 0] not in (4242.0, 4243.0)
     assert brain.X["column_0"].to_list() == [1.0] * 12
 
 
@@ -164,12 +163,12 @@ def test_fit_copy_skips_obsolete_fitted_state(brain):
         def __deepcopy__(self, memo):
             raise AssertionError("obsolete fitted state was copied")
 
-    brain.model_ = ObsoleteFit()
+    brain.model = ObsoleteFit()
     for result in [
         _copy_for_fit(brain),
         _result_from_array(brain, brain.data, rows="preserve"),
     ]:
-        assert not hasattr(result, "model_")
+        assert result.model is None
         result.data[0, 0] = 999
         assert brain.data[0, 0] != 999
 
@@ -182,7 +181,7 @@ def test_source_and_sibling_mutation_after_fitting(brain, model):
         X=DesignMatrix(x) if model == "glm" else x,
         inplace=False,
     )
-    training = fitted.glm_predicted if model == "glm" else fitted.ridge_fitted_values
+    training = fitted.model.predicted
     expected = training.data.copy()
     brain.data[:] = -999
     np.asarray(brain.mask.dataobj)[:] = 0
@@ -197,7 +196,7 @@ def test_source_and_sibling_mutation_after_fitting(brain, model):
     fitted.Y = None
     public_training = fitted.predict()
     assert public_training.X.equals(fitted.X)
-    assert not hasattr(public_training, "model_")
+    assert public_training.model is None
 
 
 def test_refit_and_transforms_clear_old_fit_family(brain):
@@ -205,13 +204,10 @@ def test_refit_and_transforms_clear_old_fit_family(brain):
     brain.fit(model="ridge", X=x)
     old = brain.copy()
     for transformed in [brain.scale(), brain + 2, brain[:2]]:
-        assert not hasattr(transformed, "model_")
-        assert not hasattr(transformed, "ridge_weights")
+        assert transformed.model is None
     brain.fit(model="glm", X=DesignMatrix(x))
-    assert not hasattr(brain, "ridge_weights")
-    assert hasattr(brain, "glm_betas")
-    assert hasattr(old, "ridge_weights")
-    assert not hasattr(old, "glm_betas")
+    assert brain.model.kind == "glm"
+    assert old.model.kind == "ridge"
 
 
 def test_append_metadata_requires_matching_operands(brain):
