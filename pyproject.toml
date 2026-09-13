@@ -20,8 +20,12 @@ classifiers = [
 keywords=["neuroimaging", "preprocessing", "analysis", "machine-learning"]
 dependencies = [
     "anywidget>=0.9",
-    # Shared BrainData, DesignMatrix, and Adjacency HDF5 persistence.
-    "h5py>=3.15",
+    # Shared BrainData, DesignMatrix, and Adjacency HDF5 persistence. >=3.13 is
+    # the h5py that Pyodide 314 bundles, and h5py is compiled, so nothing newer
+    # can resolve in the browser; every API nltools calls (File, create_dataset,
+    # create_group, attrs, string_dtype, check_string_dtype, Dataset.asstr) has
+    # been there since 3.0.
+    "h5py>=3.13",
     "himalaya>=0.4.11,<0.5",
     "huggingface-hub>=0.30",
     "joblib>=1.5.3",
@@ -62,7 +66,7 @@ dependencies = [
 # h5py is a core dependency (see above); the extra is kept as an alias so
 # `pip install nltools[h5]` — what the missing-h5py error tells users to run —
 # keeps resolving for anyone who already pins it.
-h5 = ["h5py>=3.15"]
+h5 = ["h5py>=3.13"]
 graph = ["networkx>=3.5"]
 interactive_plots = ["ipywidgets>=8.1.7"]
 all = ["nltools[h5,graph,interactive_plots]"]
@@ -71,7 +75,7 @@ all = ["nltools[h5,graph,interactive_plots]"]
 [dependency-groups]
 dev = [
     "git-cliff>=2.0",
-    "h5py>=3.15",
+    "h5py>=3.13",
     "ipywidgets>=8.1.7",
     "marimo>=0.23",
     "markdown-exec>=1.12.3",
