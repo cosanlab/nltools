@@ -36,9 +36,11 @@ Watch a video in which [Dr. Eshin Jolly, PhD](https://sciminds.studio) outlines 
     <iframe src="https://www.youtube.com/embed/1c1AnXLs7xM" frameborder="0" allowfullscreen style="position: absolute; top: 0; left: 0; width: 100%; height: 100%;"></iframe>
 </div>
 
-Learn how to use nltools through these full courses:
-
-- [DartBrains](https://dartbrains.org/) is an introductory neuroimaging analysis course that uses nltools.
-- [Naturalistic-Data](http://naturalistic-data.org/) is a course covering advanced methods for analyzing naturalistic data. Many of its tutorials use nltools.
-
 The [Reference](api/nltools.md) has one page per namespace: the data classes you work with ([`BrainData`](api/data/brain_data.md), [`Adjacency`](api/data/adjacency.md), [`DesignMatrix`](api/data/design_matrix.md)), and the functions in [`nltools.algorithms`](api/algorithms.md) and the smaller namespaces. Upgrading from v0.5? Start with [Migrating from v0.5](migration-guide.md).
+
+## Learning nltools
+
+- [DartBrains](https://dartbrains.org) — an undergraduate-level course on the fundamentals of neuroimaging, taught with nltools.
+- [Naturalistic Data](https://naturalistic-data.org) — a more advanced course on working with *naturalistic* datasets (watching movies, playing games, etc.).
+- [Discourse community](https://www.askpbs.org/c/nltools/13) — a Stack Overflow-like forum where you can view, contribute, and vote on FAQs about nltools. Ask questions here *first* so other users benefit from the answers.
+- [GitHub issues](https://github.com/cosanlab/nltools/issues) — for bugs and anything else code-related.
