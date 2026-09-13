@@ -51,9 +51,9 @@ _result_with_mask(
 
 `copy()`, `__copy__`, and `__deepcopy__` delegate to `_copy_complete`
 (`nltools/data/ownership.py`).
-`_copy_for_fit` excludes every attribute in `_FIT_STATE_ATTRIBUTES` before
-copying retained state, so `fit(inplace=False)` does not copy an old estimator
-merely to delete it. Both copy operations independently own every retained
+`_copy_for_fit` excludes the names in `_FIT_STATE_ATTRIBUTES` — just `model` —
+before copying retained state, so `fit(inplace=False)` does not copy an old
+estimator merely to delete it. Both copy operations independently own every retained
 mutable value.
 
 The array, replacement-row, and replacement-mask constructors require final
@@ -183,31 +183,34 @@ fitted copy.
 
 ## Fitted state
 
-A successful GLM fit attaches only:
+A successful fit sets one declared attribute, `model`, holding a frozen
+`FitResult` (`nltools/data/results.py`). It is `None` on an unfitted object,
+declared on the class so the type checker and the rendered API both see it.
 
-- `model_`: the fitted `_Glm`;
-- `glm_betas`: one map per design column;
-- `glm_residual`: one row per training observation;
-- `glm_predicted`: one row per training observation; and
-- `glm_r2`: one fit-quality map.
+The record holds:
 
-A successful Ridge fit attaches only:
+- `kind`: `'glm'` or `'ridge'`;
+- `betas`: one map per design column or feature, in column order;
+- `predicted` and `residual`: one row per training observation, row metadata
+  retained;
+- `r2`: one fit-quality map;
+- `design`: the `DesignMatrix`, feature matrix, or named feature spaces the fit
+  ran on;
+- `alpha`: ridge only, the selected penalty as one value per voxel;
+- `cv`: ridge only, the resolved cross-validator; and
+- `_estimator`: the fitted `_Glm` or `_Ridge` the facade methods drive, absent
+  from the repr, excluded from the record's ownership copy, and `None` on a
+  record restored from HDF5.
 
-- `model_`: the fitted `_Ridge`;
-- `ridge_weights`: one map per feature;
-- `ridge_fitted_values`: one row per training observation; and
-- `ridge_r2`: one R-squared map.
-
-Estimator selection state remains on `model_`. `BrainData` does not duplicate
-selected alphas, cross-validation scores, banded feature weights, or feature
-metadata.
+Estimator selection state stays on `_estimator`. `BrainData` does not duplicate
+cross-validation scores, banded feature weights, or feature metadata.
 
 The fitted object does not retain `X_`, `design_matrix`, `cv_results_`,
 `ridge_scores`, eager `glm_t`, `glm_p`, or `glm_se`, or a Ridge intercept.
 
-`_FIT_STATE_ATTRIBUTES` is an exhaustive enumeration of every fitted estimator
-and attached model result. Clearing fitted state uses only that enumeration; it
-does not combine a partial list with predicates or special-case assignments.
+`_FIT_STATE_ATTRIBUTES` is the exhaustive enumeration of the names a fit sets —
+now the single name `model`. Clearing fitted state uses only that enumeration;
+it does not combine a partial list with predicates or special-case assignments.
 
 Any in-place operation that changes data values, the row axis, or the voxel axis
 clears all fitted state, including stored predictions. Derived analytical
@@ -474,7 +477,7 @@ expressions or implement contrast arithmetic or inference independently.
 
 With `inference=False`, one contrast returns an effect `BrainData`; a mapping
 returns keyed effect objects. Numeric effect calculation equals
-`contrast @ glm_betas.data`. String expressions provide the named syntax that
+`contrast @ model.betas.data`. String expressions provide the named syntax that
 plain coefficient arithmetic cannot.
 
 With `inference=True`, one contrast returns
@@ -731,8 +734,12 @@ file-backed, HDF5 retains only the basename of its filename, never the parent
 path. The reconstructed in-memory mask reports that basename from
 `get_filename()`; a mask created in memory continues to report `None`. Embedded
 mask data and geometry are authoritative, and no operation reopens the retained
-basename. Neither format stores `model_`, attached fit maps, result records,
-masker caches, or execution settings.
+basename. NIfTI stores no fit. HDF5 stores the fit record's maps, its design and its
+kind in a `model` group, so a load restores `data.model` with its `_estimator`
+`None`: every map reads back and a contrast effect, a linear combination of the
+betas, still computes, while inference, `predict(X=...)` and `bootstrap` raise
+and name the one-line refit from `data.model.design`. Neither format stores
+result records, masker caches, or execution settings.
 
 The HDF5 input boundary reads only the current layout; it recognizes a file
 written by nltools 0.5.1 or earlier and raises, directing the user to export

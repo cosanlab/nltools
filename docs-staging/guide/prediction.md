@@ -148,14 +148,15 @@ Dirichlet controlled by `dirichlet_concentration=` and exposing the result as
 `feature_space_weights_`. Both forms accept `device='gpu'`; see the `n_jobs` vs `device` guidance in
 [Statistics & inference](statistics-and-inference.md).
 
-The same fit through the facade carries a `ridge_` prefix on every estimator option, and attaches
-`ridge_weights`, `ridge_fitted_values`, and `ridge_r2`:
+The same fit through the facade carries a `ridge_` prefix on every estimator option, and leaves one
+frozen `FitResult` on `brain.model`:
 
 ```python
 brain.fit(model="ridge", X=X, ridge_alpha=np.logspace(0, 6, 20), ridge_cv=5)
-brain.ridge_r2                     # full-data R² per voxel
-brain.predict()                    # an owned copy of ridge_fitted_values
-brain.model_.alpha_                # the selection lives on the estimator
+brain.model.r2                     # full-data R² per voxel
+brain.model.alpha                  # the selected penalty, one value per voxel
+brain.predict()                    # an owned copy of brain.model.predicted
+brain.model.write("derivatives")   # every map as NIfTI, the design as CSV
 ```
 
 Fitting keeps no copy of `X`, so a coefficient or prediction bootstrap takes the training features

@@ -40,7 +40,7 @@ apply `BrainData` methods per subject and stack the results with
 | Design matrix | `dm.append(dm=…)` | `dm.append(data=…)` | `data` is the second operand on all three data classes |
 | Design matrix | `dm.heatmap()` | `dm.plot()` | One plotting method name per class |
 | Design matrix | `find_spikes` emitted duplicate regressors | One regressor per spike | The design is full rank again |
-| GLM | `brain.regress(mode='ols')` → dict | `brain.fit(model='glm', X=dm)` then `compute_contrasts` | t/p are per contrast, not per regressor |
+| GLM | `brain.regress(mode='ols')` → dict | `brain.fit(model='glm', X=dm)`, read `brain.model`, then `compute_contrasts` | The fit is a frozen `FitResult` with `betas`, `predicted`, `residual` and `r2`; t/p are per contrast, not per regressor |
 | GLM | `nltools.stats.regress(X, Y, mode=…)` | `nltools.algorithms.regress(X, Y, *, stats=…, tail=…)` | OLS was the only working mode; robust/ARMA are gone |
 | GLM | `brain.randomise(...)` | `brain.ttest(permutation=True)` | Voxelwise permutation on the entry point that already existed |
 | GLM | `adjacency.regress(X, mode='ols')` | `adjacency.regress(X)` | Same removal as the standalone `regress`; `tail` is keyword-only |
@@ -232,7 +232,7 @@ fit_design = DesignMatrix({"stim": conditions}, sampling_freq=0.5).add_poly(0)
 
 # v0.5.1: brain.X = df; out = brain.regress(); out['beta'], out['t'], out['p']
 fitted = brain.fit(model="glm", X=fit_design)
-print(fitted.glm_betas.shape, round(float(fitted.glm_r2.data.mean()), 4))
+print(fitted.model.betas.shape, round(float(fitted.model.r2.data.mean()), 4))
 
 result = fitted.compute_contrasts({"stim": [1, 0]}, inference=True)["stim"]
 print(type(result).__name__, result.statistic.shape, result.degrees_of_freedom)
