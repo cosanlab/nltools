@@ -199,8 +199,16 @@ The record holds:
 - `alpha`: ridge only, the selected penalty as one value per voxel;
 - `cv`: ridge only, the resolved cross-validator; and
 - `_estimator`: the fitted `_Glm` or `_Ridge` the facade methods drive, absent
-  from the repr, excluded from the record's ownership copy, and `None` on a
-  record restored from HDF5.
+  from the repr, held by identity rather than copied, and `None` on a record
+  restored from HDF5.
+
+The record's payloads are owned by whoever produces them, not copied on
+construction: `_result_from_array` builds each map independently owned and
+`_owned_design` detaches the caller's design. `FitResult` and `ContrastResult`
+work this way; `PredictResult` and `BootstrapResult` deep-copy in
+`__post_init__` instead. Either way a returned record aliases nothing a caller
+holds, which is the contract; a hand-constructed record is not covered, and
+records are read rather than built.
 
 Estimator selection state stays on `_estimator`. `BrainData` does not duplicate
 cross-validation scores, banded feature weights, or feature metadata.
