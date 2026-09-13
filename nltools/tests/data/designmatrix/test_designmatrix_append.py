@@ -440,12 +440,30 @@ class TestPolarsHorizontalConcatName:
     both so it can run against the polars 1.33.1 that Pyodide bundles.
     """
 
-    def test_constant_matches_installed_polars(self):
+    def test_constant_is_a_name_the_installed_polars_accepts(self):
         from nltools.utils import _HORIZONTAL_CONCAT
 
-        version = tuple(int(part) for part in pl.__version__.split(".")[:3])
-        expected = "horizontal_extend" if version >= (1, 42, 1) else "horizontal"
-        assert expected == _HORIZONTAL_CONCAT
+        assert _HORIZONTAL_CONCAT in {"horizontal", "horizontal_extend"}
+        pl.concat(
+            [pl.DataFrame({"a": [1]}), pl.DataFrame({"b": [2]})],
+            how=_HORIZONTAL_CONCAT,
+        )
+
+    @pytest.mark.parametrize(
+        ("text", "expected"),
+        [
+            ("1.33.1", (1, 33, 1)),
+            ("1.44.1", (1, 44, 1)),
+            ("1.36.0-beta.2", (1, 36, 0)),
+            ("2.0.0rc1", (2, 0, 0)),
+            ("1.50.0.dev0", (1, 50, 0)),
+        ],
+    )
+    def test_version_parse_survives_a_prerelease_suffix(self, text, expected):
+        """polars betas every minor release; `int(part)` on the pieces raises."""
+        from nltools.utils import _polars_version_tuple
+
+        assert expected == _polars_version_tuple(text)
 
     def test_horizontal_append_stacks_without_warning(self):
         dm1 = DesignMatrix({"a": [1.0, 2.0, 3.0]}, sampling_freq=1)

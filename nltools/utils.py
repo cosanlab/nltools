@@ -4,6 +4,7 @@ __all__ = ["DesignMatrixWarning", "ResamplingWarning"]
 
 import contextlib
 import inspect
+import re
 from os.path import dirname, join, sep as pathsep
 
 import polars as pl
@@ -13,6 +14,23 @@ import polars as pl
 # polars compatibility
 # ---------------------------------------------------------------------------
 
+
+def _polars_version_tuple(text: str) -> tuple[int, ...]:
+    """Read the leading `(major, minor, patch)` numbers out of a version string.
+
+    polars ships a beta of every minor release and reports it in a dashed form
+    (`'1.36.0-beta.2'`), so splitting on `'.'` and calling `int` on the pieces
+    raises. Only the numeric prefix matters for a feature check.
+
+    Args:
+        text (str): A version string, e.g. `'1.33.1'` or `'1.36.0-beta.2'`.
+
+    Returns:
+        tuple[int, ...]: Up to three leading integers, e.g. `(1, 36, 0)`.
+    """
+    return tuple(int(part) for part in re.findall(r"\d+", text)[:3])
+
+
 # polars 1.42.1 renamed the classic equal-height horizontal concat to
 # ``horizontal_extend`` and deprecated the old ``horizontal`` spelling, which
 # will start padding to the tallest frame in the next breaking release. Below
@@ -20,9 +38,10 @@ import polars as pl
 # frames of equal height, so the two names are interchangeable there, and
 # picking by version lets the package run on the polars 1.33.1 that Pyodide
 # bundles as well as on current releases.
-_POLARS_VERSION = tuple(int(part) for part in pl.__version__.split(".")[:3])
 _HORIZONTAL_CONCAT = (
-    "horizontal_extend" if _POLARS_VERSION >= (1, 42, 1) else "horizontal"
+    "horizontal_extend"
+    if _polars_version_tuple(pl.__version__) >= (1, 42, 1)
+    else "horizontal"
 )
 
 
