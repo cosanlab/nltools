@@ -49,7 +49,8 @@ postprocessors = [
   { pattern = "\n{3,}", replace = "\n\n" },
   # Remove stray blank lines between list entries (but not before sub-bullets)
   { pattern = "\n\n(- (?:⚠ \\*\\*Breaking\\*\\* )?<span)", replace = "\n$1" },
-  # Escape @-tokens (e.g. @pytest.mark.slow) so MyST doesn't parse them as citations
+  # Escape @-tokens (e.g. @pytest.mark.slow) so pymdownx.magiclink does not render
+  # them as GitHub mentions
   { pattern = "@([A-Za-z_])", replace = "\\@$1" },
 ]
 

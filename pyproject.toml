@@ -71,11 +71,9 @@ dev = [
     "git-cliff>=2.0",
     "h5py>=3.15",
     "ipywidgets>=8.1.7",
-    "jupyter-book>=2.1.4",
     "marimo>=0.23",
     "markdown-exec>=1.12.3",
     "mkdocstrings-python>=2.0.8",
-    "mystmd>=1.10.1",
     "networkx>=3.5",
     "poethepoet>=0.40.0",
     "pytest>=8.4",
@@ -250,11 +248,12 @@ cmd = "pytest nltools/tests/datasets nltools/tests/templates nltools/tests/data/
 # Leaves `.tutorial-cache/` alone: that holds the tutorials' joblib fits, which
 # `tutorials-clean-cache` (and `docs-build-fresh`) drop deliberately.
 [tool.poe.tasks.docs-clean]
-help = "Remove the built site (site/), the generated tutorial pages and the build leftovers under docs/"
+help = "Remove the built site (site/), zensical's page cache (.cache/), the generated tutorial pages and the build leftovers under docs/"
 sequence = [
   { shell = """
 set -eu
 rm -r site 2>/dev/null || true
+rm -r .cache 2>/dev/null || true
 rm docs/tutorials/*/[0-9]*_*.md 2>/dev/null || true
 """ },
   { ref = "docs-prune" },
@@ -272,13 +271,12 @@ python scripts/build_api_vocabulary.py
 
 # Zensical builds every file under `docs_dir` into the site and offers no way to
 # exclude one, so whatever else lands there ships with the site: marimo's editor
-# session state (several MB of cached notebook outputs) and, until the MyST
-# toolchain is removed, its rendered output (thousands of intermediate files).
+# session state under `docs/tutorials/*/__marimo__` is several MB of cached
+# notebook outputs.
 [tool.poe.tasks.docs-prune]
 help = "Drop the build leftovers under docs/ that zensical would otherwise copy into the site"
 shell = """
 set -eu
-if [ -d docs/_build ]; then rm -r docs/_build; fi
 rm -r docs/tutorials/*/__marimo__ 2>/dev/null || true
 """
 

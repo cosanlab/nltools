@@ -42,10 +42,9 @@ _CODE_SPAN_RE = re.compile(r"`([^`]+)`")
 def _escape_table_cell(md: str) -> str:
     """Make a Markdown value set survive inside a table cell.
 
-    A pipe inside a code span has no escape both renderers accept: Python-Markdown
-    leaves the backslash visible, and markdown-it (MyST) splits the row on a raw
-    pipe. Such spans become raw `<code>` with the pipe as a character reference.
-    Pipes outside a code span take the usual backslash.
+    A pipe inside a code span has no escape Python-Markdown accepts: it leaves the
+    backslash visible. Such spans become raw `<code>` with the pipe as a character
+    reference. Pipes outside a code span take the usual backslash.
     """
     return _CODE_SPAN_RE.sub(_code_span_to_html, md).replace("|", r"\|")
 

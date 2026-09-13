@@ -55,11 +55,9 @@ jobs:
           HF_HUB_ETAG_TIMEOUT: "30"
         run: uv run poe test-all
 
-      - name: Build docs (API generation + MyST site smoke)
+      - name: Build docs (zensical strict build)
         if: matrix.os == 'ubuntu-latest' && matrix.python-version == '3.12'
-        run: |
-          uv run poe docs-generate
-          cd docs && uv run myst build --html
+        run: uv run poe docs-build
 
       - name: Build package
         if: matrix.os == 'ubuntu-latest' && matrix.python-version == '3.12'

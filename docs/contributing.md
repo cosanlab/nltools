@@ -34,6 +34,8 @@ Preview the site with live reload: `uv run poe docs-serve`
 
 Build the site cold, as CI does: `uv run poe docs-build-fresh` — the same build with the tutorials' fit caches dropped first
 
+Remove the build outputs: `uv run poe docs-clean` — drops `site/`, zensical's page cache and the generated tutorial pages
+
 Edit a tutorial notebook: `uv run marimo edit docs/tutorials/<group>/<notebook>.py`. The tutorial pages are out of the site until #503 restores them
 
 Generate changelog: `uv run poe changelog`
@@ -45,6 +47,8 @@ Add or remove development dependencies: `uv add/remove --dev packagename`
 Build package locally: `uv build`
 
 ## Documentation
+
+The site is built by zensical, configured in `zensical.toml` at the repo root: nav, theme, markdown extensions, and the mkdocstrings and markdown-exec plugins. It is the only docs toolchain.
 
 Pages under `docs/api/` are hand-written: frontmatter, prose, and `::: dotted.path` directives that mkdocstrings renders at build time. There is one page per user-facing namespace, and each page's `members:` list mirrors the API table in `CLAUDE.md`. Add a new user-facing object to its namespace's page, and add a new page to the `nav` in `zensical.toml`. The strict build is the only check on these pages: a directive naming something that does not exist fails it.
 

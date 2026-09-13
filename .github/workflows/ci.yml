@@ -93,24 +93,13 @@ jobs:
           HF_HUB_ETAG_TIMEOUT: "30"
         run: uv run poe test
 
-      # mystmd is an npm package (not a Python dep); the docs smoke step below
-      # shells out to `myst`, so Node + a PATH-global myst are required. Pinned
-      # to match local dev (v1.10.1). Only needed on the 3.12 docs leg.
-      - name: Set up Node
+      # Smoke the site the deploy builds: `docs-build` regenerates the API
+      # vocabulary tables, then runs `zensical build --strict`, which fails on a
+      # broken internal link or a `:::` directive naming something that does not
+      # exist. No page executes a notebook, so this is seconds. 3.12 leg only.
+      - name: Build docs (zensical strict build)
         if: matrix.python-version == '3.12'
-        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e  # v6.4.0
-        with:
-          node-version: "22"
-
-      - name: Install MyST
-        if: matrix.python-version == '3.12'
-        run: npm install -g mystmd@1.10.1
-
-      - name: Build docs (API generation + MyST site smoke; no notebook execution)
-        if: matrix.python-version == '3.12'
-        run: |
-          uv run poe docs-generate
-          cd docs && uv run myst build --html
+        run: uv run poe docs-build
 
       - name: Build package
         if: matrix.python-version == '3.12'
