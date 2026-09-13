@@ -8,7 +8,7 @@ import pytest
 
 from nltools.algorithms.backends import check_gpu_available
 from nltools.algorithms.inference.bootstrap import (
-    BootstrapAccumulator,
+    _BootstrapAccumulator,
     _bootstrap_ridge_predict_cpu_parallel,
     _bootstrap_ridge_weights_cpu_parallel,
     _bootstrap_simple_cpu_parallel,
@@ -101,7 +101,7 @@ class TestBootstrapAccumulator:
     def _accumulate(
         samples, confidence_level=0.95, retain_samples=False, n_replicates=None
     ):
-        accumulator = BootstrapAccumulator(
+        accumulator = _BootstrapAccumulator(
             samples.shape[1:],
             n_replicates=samples.shape[0] if n_replicates is None else n_replicates,
             confidence_level=confidence_level,
@@ -112,7 +112,7 @@ class TestBootstrapAccumulator:
         return accumulator
 
     def test_tail_size_follows_the_specified_formula(self):
-        from nltools.algorithms.backends import bootstrap_retained_tail_size
+        from nltools.algorithms.backends import _bootstrap_retained_tail_size
 
         for n_samples, confidence_level in [
             (1000, 0.95),
@@ -122,7 +122,7 @@ class TestBootstrapAccumulator:
         ]:
             expected = int(np.ceil((n_samples - 1) * (1 - confidence_level) / 2)) + 1
             assert (
-                bootstrap_retained_tail_size(
+                _bootstrap_retained_tail_size(
                     n_samples, confidence_level=confidence_level
                 )
                 == expected
@@ -130,7 +130,7 @@ class TestBootstrapAccumulator:
 
     def test_tail_storage_is_a_fraction_of_the_replicates(self):
         """95% confidence retains roughly 5% of the distribution per element."""
-        accumulator = BootstrapAccumulator((4,), n_replicates=5000)
+        accumulator = _BootstrapAccumulator((4,), n_replicates=5000)
         assert accumulator.tail_size * 2 / 5000 < 0.06
 
     @pytest.mark.parametrize("confidence_level", [0.5, 0.9, 0.95, 0.99])
@@ -205,7 +205,7 @@ class TestBootstrapAccumulator:
         whole = self._accumulate(samples).results()
         first = self._accumulate(samples[:split], n_replicates=len(samples))
         second = self._accumulate(samples[split:], n_replicates=len(samples))
-        merged = BootstrapAccumulator.merge(first, second).results()
+        merged = _BootstrapAccumulator.merge(first, second).results()
 
         for key in ("standard_error", "ci_lower", "ci_upper"):
             np.testing.assert_allclose(merged[key], whole[key], rtol=1e-10)
@@ -216,8 +216,8 @@ class TestBootstrapAccumulator:
         first = self._accumulate(samples[:50], n_replicates=len(samples))
         second = self._accumulate(samples[50:], n_replicates=len(samples))
 
-        forward = BootstrapAccumulator.merge(first, second).results()
-        backward = BootstrapAccumulator.merge(second, first).results()
+        forward = _BootstrapAccumulator.merge(first, second).results()
+        backward = _BootstrapAccumulator.merge(second, first).results()
 
         for key in ("standard_error", "ci_lower", "ci_upper"):
             np.testing.assert_allclose(forward[key], backward[key], rtol=1e-10)
@@ -234,7 +234,7 @@ class TestBootstrapAccumulator:
         second = self._accumulate(samples[40:], n_replicates=100)
 
         with pytest.raises(ValueError, match="sized for"):
-            BootstrapAccumulator.merge(first, second)
+            _BootstrapAccumulator.merge(first, second)
 
     def test_merge_rejects_a_retention_mismatch(self):
         """Merging a retaining block with a non-retaining one would lose draws."""
@@ -246,9 +246,9 @@ class TestBootstrapAccumulator:
         bounded = self._accumulate(samples[30:], n_replicates=len(samples))
 
         with pytest.raises(ValueError, match="retain_samples"):
-            BootstrapAccumulator.merge(retaining, bounded)
+            _BootstrapAccumulator.merge(retaining, bounded)
         with pytest.raises(ValueError, match="retain_samples"):
-            BootstrapAccumulator.merge(bounded, retaining)
+            _BootstrapAccumulator.merge(bounded, retaining)
 
     def test_merged_retention_keeps_every_replicate_in_order(self):
         rng = np.random.default_rng(10)
@@ -260,13 +260,13 @@ class TestBootstrapAccumulator:
             samples[25:], retain_samples=True, n_replicates=len(samples)
         )
 
-        merged = BootstrapAccumulator.merge(first, second).results()
+        merged = _BootstrapAccumulator.merge(first, second).results()
 
         np.testing.assert_array_equal(merged["samples"], samples)
 
     def test_more_replicates_than_the_accumulator_was_sized_for_raises(self):
         """The tail is sized for `n_replicates`; a further one would misread it."""
-        accumulator = BootstrapAccumulator((3,), n_replicates=2)
+        accumulator = _BootstrapAccumulator((3,), n_replicates=2)
         accumulator.update(np.zeros(3))
         accumulator.update(np.ones(3))
 
@@ -274,7 +274,7 @@ class TestBootstrapAccumulator:
             accumulator.update(np.zeros(3))
 
     def test_a_mismatched_sample_shape_raises(self):
-        accumulator = BootstrapAccumulator((3,), n_replicates=10)
+        accumulator = _BootstrapAccumulator((3,), n_replicates=10)
         with pytest.raises(ValueError, match="shape"):
             accumulator.update(np.zeros(4))
 
@@ -552,7 +552,7 @@ class TestBootstrapRidgePredict:
             _bootstrap_design,
             _refit_resample,
         )
-        from nltools.algorithms.inference.random import generate_bootstrap_indices
+        from nltools.algorithms.inference.random import _generate_bootstrap_indices
 
         X, y, X_test, coef = self._problem()
         result = _bootstrap_ridge_predict_cpu_parallel(
@@ -567,7 +567,7 @@ class TestBootstrapRidgePredict:
             random_state=11,
         )
 
-        indices = generate_bootstrap_indices(len(X), 5, random_state=11)
+        indices = _generate_bootstrap_indices(len(X), 5, random_state=11)
         expected = X_test @ _refit_resample(_bootstrap_design([X], y), indices[0], 1.0)
         np.testing.assert_allclose(result["samples"][0], expected, atol=1e-8)
 
@@ -671,7 +671,7 @@ class TestBootstrapMemoryPreflight:
         def _never(*args, **kwargs):
             raise AssertionError("resampling started despite an over-budget preflight")
 
-        monkeypatch.setattr(engine, "generate_bootstrap_indices", _never)
+        monkeypatch.setattr(engine, "_generate_bootstrap_indices", _never)
 
         with pytest.raises(ValueError, match="exceeds the .* GB budget"):
             _bootstrap_simple_cpu_parallel(
@@ -708,25 +708,25 @@ class TestBootstrapMemoryPreflight:
         """Every array the run holds at once is charged, not just the tails."""
         from nltools.algorithms.backends import (
             BOOTSTRAP_TAIL_FLUSH_BLOCK as BLOCK,
-            bootstrap_output_bytes,
-            bootstrap_replicate_window,
-            bootstrap_retained_tail_size,
+            _bootstrap_output_bytes,
+            _bootstrap_replicate_window,
+            _bootstrap_retained_tail_size,
         )
 
-        tail = bootstrap_retained_tail_size(1000, confidence_level=0.95)
-        window = bootstrap_replicate_window(1000, n_workers=1)
+        tail = _bootstrap_retained_tail_size(1000, confidence_level=0.95)
+        window = _bootstrap_replicate_window(1000, n_workers=1)
         # tails + flush buffer + the flush's two temporaries + one dispatch
         # window + two Welford accumulators + four summary payloads
         bounded = 2 * tail + BLOCK + 2 * (tail + BLOCK) + window + 6
 
         assert (
-            bootstrap_output_bytes(
+            _bootstrap_output_bytes(
                 (7,), 1000, confidence_level=0.95, return_samples=False
             )
             == 7 * bounded * 8
         )
         assert (
-            bootstrap_output_bytes(
+            _bootstrap_output_bytes(
                 (7,), 1000, confidence_level=0.95, return_samples=True
             )
             == 7 * (bounded + 1000) * 8
@@ -735,45 +735,45 @@ class TestBootstrapMemoryPreflight:
     def test_the_flush_buffer_and_dispatch_window_are_budgeted(self):
         """The two allocations the engine controls are charged, not ignored."""
         from nltools.algorithms.backends import (
-            bootstrap_output_bytes,
-            bootstrap_replicate_window,
+            _bootstrap_output_bytes,
+            _bootstrap_replicate_window,
         )
 
-        one_worker = bootstrap_output_bytes(
+        one_worker = _bootstrap_output_bytes(
             (7,), 5000, confidence_level=0.95, return_samples=False, n_workers=1
         )
-        many_workers = bootstrap_output_bytes(
+        many_workers = _bootstrap_output_bytes(
             (7,), 5000, confidence_level=0.95, return_samples=False, n_workers=8
         )
-        extra_window = bootstrap_replicate_window(
+        extra_window = _bootstrap_replicate_window(
             5000, n_workers=8
-        ) - bootstrap_replicate_window(5000, n_workers=1)
+        ) - _bootstrap_replicate_window(5000, n_workers=1)
 
         assert many_workers - one_worker == 7 * extra_window * 8
 
     def test_the_dispatch_window_never_scales_with_the_replicate_count(self):
-        from nltools.algorithms.backends import bootstrap_replicate_window
+        from nltools.algorithms.backends import _bootstrap_replicate_window
 
-        assert bootstrap_replicate_window(
+        assert _bootstrap_replicate_window(
             5_000, n_workers=4
-        ) == bootstrap_replicate_window(500_000, n_workers=4)
-        assert bootstrap_replicate_window(10, n_workers=4) == 10
+        ) == _bootstrap_replicate_window(500_000, n_workers=4)
+        assert _bootstrap_replicate_window(10, n_workers=4) == 10
 
 
 class TestBootstrapWorkerPlanning:
     """`n_jobs` is a ceiling the memory planner may lower, never raise."""
 
     def test_worker_count_never_exceeds_the_requested_ceiling(self):
-        from nltools.algorithms.backends import bootstrap_n_jobs_cpu
+        from nltools.algorithms.backends import _bootstrap_n_jobs_cpu
 
-        assert bootstrap_n_jobs_cpu(1.0, 100, n_jobs=2) <= 2
-        assert bootstrap_n_jobs_cpu(1.0, 100, n_jobs=1) == 1
+        assert _bootstrap_n_jobs_cpu(1.0, 100, n_jobs=2) <= 2
+        assert _bootstrap_n_jobs_cpu(1.0, 100, n_jobs=1) == 1
 
     def test_a_tight_budget_lowers_the_worker_count(self):
-        from nltools.algorithms.backends import bootstrap_n_jobs_cpu
+        from nltools.algorithms.backends import _bootstrap_n_jobs_cpu
 
-        roomy = bootstrap_n_jobs_cpu(1.0, 100, memory_budget_gb=64.0, n_jobs=8)
-        tight = bootstrap_n_jobs_cpu(512.0, 100, memory_budget_gb=1.0, n_jobs=8)
+        roomy = _bootstrap_n_jobs_cpu(1.0, 100, memory_budget_gb=64.0, n_jobs=8)
+        tight = _bootstrap_n_jobs_cpu(512.0, 100, memory_budget_gb=1.0, n_jobs=8)
         assert tight < roomy
         assert tight >= 1
 
@@ -842,7 +842,7 @@ class TestBootstrapRidgeGpu:
         return X, y, X_test, _ridge_coefficients(X, y)
 
     def test_weights_match_the_cpu_engine(self):
-        from nltools.algorithms.backends import Backend
+        from nltools.algorithms.backends import _Backend
         from nltools.algorithms.inference.bootstrap import (
             _bootstrap_ridge_weights_gpu_batched,
         )
@@ -857,7 +857,7 @@ class TestBootstrapRidgeGpu:
             1.0,
             coef,
             n_samples=100,
-            backend=Backend("torch"),
+            backend=_Backend("torch"),
             memory_budget_gb=4.0,
             random_state=42,
         )
@@ -871,7 +871,7 @@ class TestBootstrapRidgeGpu:
         )
 
     def test_predictions_match_the_cpu_engine(self):
-        from nltools.algorithms.backends import Backend
+        from nltools.algorithms.backends import _Backend
         from nltools.algorithms.inference.bootstrap import (
             _bootstrap_ridge_predict_gpu_batched,
         )
@@ -888,7 +888,7 @@ class TestBootstrapRidgeGpu:
             1.0,
             estimate,
             n_samples=100,
-            backend=Backend("torch"),
+            backend=_Backend("torch"),
             memory_budget_gb=4.0,
             random_state=42,
         )
@@ -900,13 +900,13 @@ class TestBootstrapRidgeGpu:
 
     def test_forced_small_batches_do_not_change_the_result(self):
         """Scheduling is a memory decision, not a numerical one."""
-        from nltools.algorithms.backends import Backend
+        from nltools.algorithms.backends import _Backend
         from nltools.algorithms.inference.bootstrap import (
             _bootstrap_ridge_weights_gpu_batched,
         )
 
         X, y, _, coef = self._problem()
-        kwargs = {"n_samples": 200, "backend": Backend("torch"), "random_state": 42}
+        kwargs = {"n_samples": 200, "backend": _Backend("torch"), "random_state": 42}
 
         one_batch = _bootstrap_ridge_weights_gpu_batched(
             X, y, 1.0, coef, memory_budget_gb=4.0, **kwargs
@@ -921,7 +921,7 @@ class TestBootstrapRidgeGpu:
             )
 
     def test_confidence_interval_covers_the_full_data_estimate(self):
-        from nltools.algorithms.backends import Backend
+        from nltools.algorithms.backends import _Backend
         from nltools.algorithms.inference.bootstrap import (
             _bootstrap_ridge_weights_gpu_batched,
         )
@@ -938,7 +938,7 @@ class TestBootstrapRidgeGpu:
             1.0,
             coef,
             n_samples=2000,
-            backend=Backend("torch"),
+            backend=_Backend("torch"),
             memory_budget_gb=4.0,
             random_state=42,
         )
@@ -978,9 +978,9 @@ class TestBootstrapPeakMemory:
             tracemalloc.stop()
 
     def test_peak_stays_within_a_small_multiple_of_the_preflight_figure(self):
-        from nltools.algorithms.backends import bootstrap_output_bytes
+        from nltools.algorithms.backends import _bootstrap_output_bytes
 
-        budgeted = bootstrap_output_bytes(
+        budgeted = _bootstrap_output_bytes(
             (self.N_VOXELS,),
             self.N_SAMPLES,
             confidence_level=0.95,
@@ -1010,9 +1010,9 @@ class TestBootstrapPeakMemory:
 
     def test_full_retention_peak_matches_its_larger_budget(self):
         """`return_samples=True` costs the distribution once, not twice."""
-        from nltools.algorithms.backends import bootstrap_output_bytes
+        from nltools.algorithms.backends import _bootstrap_output_bytes
 
-        budgeted = bootstrap_output_bytes(
+        budgeted = _bootstrap_output_bytes(
             (self.N_VOXELS,),
             self.N_SAMPLES,
             confidence_level=0.95,
@@ -1077,7 +1077,7 @@ class TestGpuReplicateFailure:
     """A terminal GPU replicate failure names its global replicate index."""
 
     def test_failure_names_the_global_replicate_index(self, monkeypatch):
-        from nltools.algorithms.backends import Backend
+        from nltools.algorithms.backends import _Backend
         from nltools.algorithms.inference import bootstrap as engine
         from nltools.algorithms.inference.bootstrap import (
             _bootstrap_ridge_weights_gpu_batched,
@@ -1106,7 +1106,7 @@ class TestGpuReplicateFailure:
                 1.0,
                 coef,
                 n_samples=10,
-                backend=Backend("torch"),
+                backend=_Backend("torch"),
                 memory_budget_gb=4.0,
                 random_state=0,
             )

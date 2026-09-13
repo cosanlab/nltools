@@ -304,7 +304,7 @@ losslessly and without downcasting it to float32. Cached and in-memory members
 use the same GLM contrast implementation.
 
 Collection Ridge fitting supports ordinary and banded models. Each fitted
-member contains the complete `BrainData` Ridge state. Its fitted `Ridge`
+member contains the complete `BrainData` Ridge state. Its fitted `_Ridge`
 preserves coefficients, selected alpha, selection scores, named feature-space
 structure, and selected feature-space weights. Cached members do not retain
 training matrices or copy estimator state onto the `BrainData` facade.
@@ -481,7 +481,7 @@ The collection resolves one mode before scheduling any workers:
 
 For stored training predictions, every member retains aligned row metadata.
 Predictions for explicit new designs clear source row metadata. In-memory and
-cached prediction delegate to the fitted `Glm` or `Ridge`; collection code must
+cached prediction delegate to the fitted `_Glm` or `_Ridge`; collection code must
 not reimplement matrix multiplication, add an intercept, or special-case one
 storage mode.
 
@@ -653,7 +653,7 @@ Every other member must have exactly the same feature-name set and is reordered
 to canonical order. Missing or additional features raise rather than allowing
 one vector to describe different scientific contrasts.
 
-All parsing and computation delegate to fitted `Glm` objects and the shared GLM
+All parsing and computation delegate to fitted `_Glm` objects and the shared GLM
 contrast core. `BrainCollection` does not implement a second expression parser,
 OLS covariance formula, or cached-only inference path.
 

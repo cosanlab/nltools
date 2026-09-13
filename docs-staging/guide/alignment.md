@@ -65,9 +65,9 @@ test subjects into it. Fitting the model on everyone and then decoding across su
 ## Estimators
 
 ```python
-from nltools.algorithms import DetSRM, procrustes
+from nltools.algorithms import _DetSRM, procrustes
 
-srm = DetSRM(n_features=10, n_iter=5)
+srm = _DetSRM(n_features=10, n_iter=5)
 srm.fit([s.data.T for s in subjects])          # each array is voxels x samples
 srm.transform([s.data.T for s in subjects])
 
@@ -75,7 +75,7 @@ mtx1, mtx2, disparity, R, scale = procrustes(subjects[0].data, subjects[1].data)
 ```
 
 Note the transpose. `BrainData.data` is `(n_samples, n_voxels)`, but the sklearn-style estimators
-(`SRM`, `DetSRM`) take `(n_voxels, n_samples)`, the shape convention from the original SRM
+(`_SRM`, `_DetSRM`) take `(n_voxels, n_samples)`, the shape convention from the original SRM
 implementations. `BrainData.align` and `nltools.algorithms.align` handle this for you; the
 estimators do not.
 

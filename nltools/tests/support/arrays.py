@@ -2,7 +2,7 @@
 
 import numpy as np
 
-from nltools.utils import find_stack_level
+from nltools.utils import _find_stack_level
 
 
 def assert_array_almost_equal(x, y, decimal=6, err_msg="", verbose=True, backend=None):
@@ -51,7 +51,7 @@ def assert_array_almost_equal(x, y, decimal=6, err_msg="", verbose=True, backend
                 f"Reducing precision from decimal={decimal} to decimal=2 for "
                 "torch-mps backend due to float32 conversion limitations",
                 UserWarning,
-                stacklevel=find_stack_level(),
+                stacklevel=_find_stack_level(),
             )
             decimal = 2
 

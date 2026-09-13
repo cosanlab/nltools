@@ -15,7 +15,7 @@ from ..ownership import _copy_graph
 
 
 @contextmanager
-def coalesced_gc():
+def _coalesced_gc():
     """Collapse nilearn's forced per-copy `gc.collect()` calls into one per operation.
 
     nilearn runs a full `gc.collect()` after every masked-array copy it makes; a
@@ -31,7 +31,7 @@ def coalesced_gc():
     `NLTOOLS_NO_GC_COALESCE=1`.
 
     Because `@contextmanager` results double as decorators, this can also be
-    used as `@coalesced_gc()` on an operation-boundary method.
+    used as `@_coalesced_gc()` on an operation-boundary method.
 
     Nesting is safe: each frame restores whatever it saved, so only the
     outermost frame restores the real `gc.collect` and runs the final sweep;
@@ -54,7 +54,7 @@ def coalesced_gc():
         gc.collect()  # no-op if still nested; one real sweep at the top
 
 
-def resolve_threshold(value: float | str | None, data: ArrayLike) -> float | None:
+def _resolve_threshold(value: float | str | None, data: ArrayLike) -> float | None:
     """Resolve a threshold spec — a number or a percentile string — to a float.
 
     The single source of truth for what `"98%"` means across the library
@@ -120,7 +120,7 @@ def _is_default(value, default):
     return bool(np.array_equal(value, default))
 
 
-def check_brain_data(data, mask=None):
+def _check_brain_data(data, mask=None):
     """Return *data* as a BrainData, coercing Niimg-like inputs if needed.
 
     If *data* is already a BrainData, the optional *mask* is applied via
@@ -128,7 +128,7 @@ def check_brain_data(data, mask=None):
     `BrainData`, which dispatches on type (file path, list of paths,
     URL, h5, ``nib.Nifti1Image``, numpy array).  Unsupported types raise
     ``TypeError`` from
-    `validate_data_type`.
+    `_validate_data_type`.
     """
     from . import BrainData
 
@@ -139,7 +139,7 @@ def check_brain_data(data, mask=None):
     return BrainData(data, mask=mask)
 
 
-def check_brain_data_is_single(data):
+def _check_brain_data_is_single(data):
     """Logical test if BrainData instance is a single image.
 
     Args:
@@ -149,7 +149,7 @@ def check_brain_data_is_single(data):
     Returns:
         bool: True if the data holds a single image.
     """
-    data = check_brain_data(data)
+    data = _check_brain_data(data)
     return len(data.shape) <= 1
 
 
@@ -183,11 +183,11 @@ def _copy_for_fit(source):
 
 def _row_values(data, X, Y):
     """Validate the complete replacement row state before graph construction."""
-    from ..validation import validate_frame
+    from ..validation import _validate_frame
 
     data = np.asarray(data)
     count = 0 if data.size == 0 else (1 if data.ndim == 1 else data.shape[0])
-    X, Y = validate_frame(X, frame_type="X"), validate_frame(Y, frame_type="Y")
+    X, Y = _validate_frame(X, frame_type="X"), _validate_frame(Y, frame_type="Y")
     for name, frame in (("X", X), ("Y", Y)):
         if not frame.is_empty() and frame.height != count:
             raise ValueError(
@@ -232,7 +232,7 @@ def _result_from_selection(source, index):
 
 def _result_with_mask(source, data, mask, *, rows):
     """Install independent replacement spatial state for a changed voxel axis."""
-    from .io import initialize_mask
+    from .io import _initialize_mask
 
     data = np.asarray(data)
     if data.size and data.shape[-1] != int(np.count_nonzero(mask.get_fdata() > 0)):
@@ -246,11 +246,11 @@ def _result_with_mask(source, data, mask, *, rows):
     )
     values.update({"mask": mask, "masker": None, "_labels": None})
     result = _copy_graph(source, exclude=_FIT_STATE_ATTRIBUTES, replacements=values)
-    initialize_mask(result, result.mask)
+    _initialize_mask(result, result.mask)
     return result
 
 
-def perform_arithmetic(
+def _perform_arithmetic(
     bd, other, operation, operation_name, inplace=False, reverse=False
 ):
     """Perform an arithmetic operation with validation.
@@ -266,9 +266,9 @@ def perform_arithmetic(
     Returns:
         BrainData: Result of the operation.
     """
-    from .validation import validate_arithmetic_operand, validate_brain_data_shapes
+    from .validation import _validate_arithmetic_operand, _validate_brain_data_shapes
 
-    operand_type = validate_arithmetic_operand(other, operation_name)
+    operand_type = _validate_arithmetic_operand(other, operation_name)
 
     if operand_type == "scalar":
         if reverse:
@@ -276,7 +276,7 @@ def perform_arithmetic(
         else:
             result_data = operation(bd.data, other)
     elif operand_type == "brain_data":
-        validate_brain_data_shapes(bd, other, operation_name)
+        _validate_brain_data_shapes(bd, other, operation_name)
         if reverse:
             result_data = operation(other.data, bd.data)
         else:
@@ -301,7 +301,7 @@ def perform_arithmetic(
     )
 
 
-def apply_func(bd, stat_func, axis=0):
+def _apply_func(bd, stat_func, axis=0):
     """Apply a statistical function to BrainData's ``.data`` attribute.
 
     If *axis* is 0, returns a BrainData with the statistic computed across
@@ -318,7 +318,7 @@ def apply_func(bd, stat_func, axis=0):
         float | np.ndarray | BrainData: The reduced result; type depends on
             whether the input is a single image and on ``axis``.
     """
-    if check_brain_data_is_single(bd):
+    if _check_brain_data_is_single(bd):
         return stat_func(bd.data)
 
     if axis == 1:

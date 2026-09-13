@@ -13,7 +13,7 @@ from typing import TYPE_CHECKING
 
 import polars as pl
 
-from nltools.data.ownership import copy_frame
+from nltools.data.ownership import _copy_frame
 
 
 if TYPE_CHECKING:
@@ -35,7 +35,7 @@ colliding with nltools internals.
 _RUN_SEPARATED_RE = re.compile(re.escape(RESERVED_PREFIX) + r"r(\d+)_(.+)")
 
 
-def reserved_name(base: str) -> str:
+def _reserved_name(base: str) -> str:
     """Build a generated column name inside the reserved namespace.
 
     Args:
@@ -45,20 +45,20 @@ def reserved_name(base: str) -> str:
         str: `base` prefixed with `RESERVED_PREFIX`, idempotently — a name
             that already carries the prefix is returned unchanged.
     """
-    return base if is_reserved_name(base) else f"{RESERVED_PREFIX}{base}"
+    return base if _is_reserved_name(base) else f"{RESERVED_PREFIX}{base}"
 
 
-def is_reserved_name(name: str) -> bool:
+def _is_reserved_name(name: str) -> bool:
     """Return True if ``name`` is in the nltools-generated column namespace."""
     return name.startswith(RESERVED_PREFIX)
 
 
-def strip_reserved_prefix(name: str) -> str:
+def _strip_reserved_prefix(name: str) -> str:
     """Return ``name`` without its reserved prefix (a no-op if it has none)."""
-    return name[len(RESERVED_PREFIX) :] if is_reserved_name(name) else name
+    return name[len(RESERVED_PREFIX) :] if _is_reserved_name(name) else name
 
 
-def run_separated_name(run_idx: int, name: str) -> str:
+def _run_separated_name(run_idx: int, name: str) -> str:
     """Build the run-separated variant of a column name.
 
     Run separation is an nltools-generated naming decision, so the result
@@ -73,10 +73,10 @@ def run_separated_name(run_idx: int, name: str) -> str:
     Returns:
         str: ``.nl_r{run_idx}_{base}``.
     """
-    return f"{RESERVED_PREFIX}r{run_idx}_{strip_reserved_prefix(name)}"
+    return f"{RESERVED_PREFIX}r{run_idx}_{_strip_reserved_prefix(name)}"
 
 
-def parse_run_separated(name: str) -> tuple[int, str] | None:
+def _parse_run_separated(name: str) -> tuple[int, str] | None:
     """Split a run-separated column name into its run index and base name.
 
     Args:
@@ -95,7 +95,7 @@ _ROW_SELECTION = frozenset({"head", "tail", "slice", "filter", "limit"})
 _MUTATORS = frozenset({"insert_column", "replace_column", "drop_in_place", "extend"})
 
 
-def design_from_generated(
+def _design_from_generated(
     frame: pl.DataFrame,
     *,
     sampling_freq: float | None = None,
@@ -118,7 +118,7 @@ def design_from_generated(
     """
     from nltools.data.designmatrix import DesignMatrix
 
-    renamed = frame.rename({name: reserved_name(name) for name in frame.columns})
+    renamed = frame.rename({name: _reserved_name(name) for name in frame.columns})
     return DesignMatrix(
         renamed,
         sampling_freq=sampling_freq,
@@ -127,14 +127,14 @@ def design_from_generated(
     )
 
 
-def effective_frame(dm: DesignMatrix) -> pl.DataFrame:
+def _effective_frame(dm: DesignMatrix) -> pl.DataFrame:
     """Represent recorded observations during operations on a column-less frame."""
     if dm.data.width == 0 and dm._n_rows is not None:
         return pl.DataFrame({"": pl.repeat(None, dm.shape[0], eager=True)})
     return dm.data
 
 
-def replacement_names(frame: pl.DataFrame, exprs, named_exprs) -> list[str]:
+def _replacement_names(frame: pl.DataFrame, exprs, named_exprs) -> list[str]:
     """Ask Polars which columns the supplied expressions produce."""
     return frame.lazy().select(*exprs, **named_exprs).collect_schema().names()
 
@@ -145,7 +145,7 @@ _DRIFT_BASE_RE = re.compile(r"(?:poly|cosine)_\d+")
 _INTERCEPT_BASE_RE = re.compile(r"(?:poly|cosine)_0")
 
 
-def is_generated_intercept(name: str) -> bool:
+def _is_generated_intercept(name: str) -> bool:
     """Return True if ``name`` is an intercept column nltools generated.
 
     Covers the zeroth-order drift terms from `add_poly` / `add_dct_basis`
@@ -154,14 +154,14 @@ def is_generated_intercept(name: str) -> bool:
     drop them. Keyed on the reserved namespace: a user column is never an
     intercept by this definition, however it happens to be named.
     """
-    if not is_reserved_name(name):
+    if not _is_reserved_name(name):
         return False
-    parsed = parse_run_separated(name)
-    base = parsed[1] if parsed is not None else strip_reserved_prefix(name)
+    parsed = _parse_run_separated(name)
+    base = parsed[1] if parsed is not None else _strip_reserved_prefix(name)
     return _INTERCEPT_BASE_RE.fullmatch(base) is not None
 
 
-def has_run_separated_drift(dm: DesignMatrix) -> bool:
+def _has_run_separated_drift(dm: DesignMatrix) -> bool:
     """Return True if ``dm`` carries per-run polynomial or cosine drift terms.
 
     Adding a global drift term to a design that already models drift per run
@@ -171,24 +171,24 @@ def has_run_separated_drift(dm: DesignMatrix) -> bool:
     however it is named.
     """
     for col in dm.confounds or []:
-        parsed = parse_run_separated(col)
+        parsed = _parse_run_separated(col)
         if parsed is not None and _DRIFT_BASE_RE.fullmatch(parsed[1]):
             return True
     return False
 
 
-def is_column_selection(value) -> bool:
+def _is_column_selection(value) -> bool:
     """Recognize plain Polars column selectors without interpreting expressions."""
     if isinstance(value, str):
         return True
     if isinstance(value, pl.Expr):
         return value.meta.is_column_selection()
     if isinstance(value, (list, tuple)):
-        return all(is_column_selection(item) for item in value)
+        return all(_is_column_selection(item) for item in value)
     return False
 
 
-def df_passthrough(dm: DesignMatrix, name: str):
+def _df_passthrough(dm: DesignMatrix, name: str):
     """Forward Polars operations with explicit row, column and mutation context."""
     attr = getattr(dm.data, name)
     if not callable(attr):
@@ -200,9 +200,9 @@ def df_passthrough(dm: DesignMatrix, name: str):
             name in {"hstack", "vstack", "shrink_to_fit"}
             and kwargs.get("in_place", False)
         )
-        frame = copy_frame(dm.data) if mutation else dm.data
+        frame = _copy_frame(dm.data) if mutation else dm.data
         if name in _ROW_SELECTION:
-            frame = effective_frame(dm)
+            frame = _effective_frame(dm)
         result = getattr(frame, name)(*args, **kwargs)
         if (
             name in {"insert_column", "hstack"}
@@ -222,7 +222,7 @@ def df_passthrough(dm: DesignMatrix, name: str):
         elif (
             name == "select"
             and not kwargs
-            and all(is_column_selection(arg) for arg in args)
+            and all(_is_column_selection(arg) for arg in args)
         ):
             operation = "preserve"
         elif name == "rename":
@@ -237,7 +237,7 @@ def df_passthrough(dm: DesignMatrix, name: str):
         elif name in {"drop_in_place", "shrink_to_fit"}:
             operation = "preserve"
         if mutation:
-            updated = copy_with(dm, frame, operation=operation, replaced=replaced)
+            updated = _copy_with(dm, frame, operation=operation, replaced=replaced)
             dm.__dict__.update(updated.__dict__)
             return dm if result is frame else result
         if isinstance(result, pl.DataFrame):
@@ -246,17 +246,17 @@ def df_passthrough(dm: DesignMatrix, name: str):
                 result = pl.DataFrame()
             elif name == "select" and operation == "preserve" and result.width == 0:
                 n_rows = dm.shape[0]
-            return copy_with(
+            return _copy_with(
                 dm, result, operation=operation, rename=rename, n_rows=n_rows
             )
         if isinstance(result, pl.Series):
-            return copy_frame(result.to_frame()).to_series()
+            return _copy_frame(result.to_frame()).to_series()
         return result
 
     return wrapped
 
 
-def copy_with(
+def _copy_with(
     dm: DesignMatrix,
     new_df: pl.DataFrame,
     *,
@@ -273,7 +273,7 @@ def copy_with(
     """Own a transformed frame and apply its caller-established metadata policy."""
     from nltools.data.designmatrix import DesignMatrix
 
-    metadata = get_metadata(dm)
+    metadata = _get_metadata(dm)
     if operation == "unknown":
         metadata.update(
             sampling_freq=None, convolved=[], confounds=[], multi=False, run_count=0
@@ -299,7 +299,7 @@ def copy_with(
         metadata[key] = [c for c in metadata[key] if c in new_df.columns]
     new = DesignMatrix.__new__(DesignMatrix)
     memo = {id(dm): new}
-    new.data = copy_frame(new_df, memo)
+    new.data = _copy_frame(new_df, memo)
     new.sampling_freq = metadata["sampling_freq"]
     new._convolved = deepcopy(metadata["convolved"], memo)
     new._confounds = deepcopy(metadata["confounds"], memo)
@@ -311,7 +311,7 @@ def copy_with(
     return new
 
 
-def get_metadata(dm: DesignMatrix) -> dict:
+def _get_metadata(dm: DesignMatrix) -> dict:
     """Extract metadata as a dict (for copying).
 
     Args:
@@ -331,7 +331,7 @@ def get_metadata(dm: DesignMatrix) -> dict:
     }
 
 
-def get_data_columns(dm: DesignMatrix, exclude_confounds: bool = True) -> list[str]:
+def _get_data_columns(dm: DesignMatrix, exclude_confounds: bool = True) -> list[str]:
     """Get column names, optionally excluding confound regressors.
 
     Used wherever experimental regressors must be distinguished from

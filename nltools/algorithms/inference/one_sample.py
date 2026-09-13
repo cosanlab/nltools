@@ -12,10 +12,10 @@ from scipy.stats import ttest_1samp
 from .utils import (
     _generate_sign_flips,
     _signed_z_from_p,
-    maybe_tqdm,
+    _maybe_tqdm,
 )
-from .validation import validate_array_shape_range
-from ..validation import _compute_pvalue, validate_tail_parameter
+from .validation import _validate_array_shape_range
+from ..validation import _compute_pvalue, _validate_tail_parameter
 
 
 def _one_sample_permutation_cpu_parallel(
@@ -71,7 +71,7 @@ def _one_sample_permutation_cpu_parallel(
     # Execute in parallel with progress bar
     null_dist = Parallel(n_jobs=n_jobs)(
         delayed(_compute_one_perm)(sign_flips[i])
-        for i in maybe_tqdm(
+        for i in _maybe_tqdm(
             range(n_permute),
             progress_bar=progress_bar,
             desc="CPU parallel perms",
@@ -162,8 +162,8 @@ def one_sample_permutation_test(
     """
     # Input validation
     data = np.asarray(data, dtype=np.float64)
-    validate_array_shape_range(data, 1, 2, name="data")
-    validate_tail_parameter(tail)
+    _validate_array_shape_range(data, 1, 2, name="data")
+    _validate_tail_parameter(tail)
 
     # Handle shape
     single_feature = data.ndim == 1
@@ -245,7 +245,7 @@ def _one_sample_statistics(
             "the variance."
         )
 
-    tail_internal = validate_tail_parameter(tail)
+    tail_internal = _validate_tail_parameter(tail)
     # 'one' is the test's positive direction: mean > popmean.
     alternative = "two-sided" if tail_internal == "two" else "greater"
     t_values, p_parametric = ttest_1samp(

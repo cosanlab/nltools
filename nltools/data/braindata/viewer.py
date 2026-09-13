@@ -1,6 +1,6 @@
 """niivue interactive viewer for BrainData, as a self-owned `anywidget`.
 
-`build_viewer` returns a `NiivueViewer` — a WebGL brain viewer with live
+`_build_viewer` returns a `_NiivueViewer` — a WebGL brain viewer with live
 windowing, slice scrolling, native 4D frame scrubbing, true 3D rendering, and
 optional nltools-atlas overlays (colored regions / outlines / hover labels).
 
@@ -10,15 +10,15 @@ in Jupyter and ``marimo edit`` without depending on any host-specific protocol.
 
 The module is split functional-core / imperative-shell:
 
-- Pure helpers (`resolve_cmap`, `divergent_partner`, `slice_type_for`,
-  `qualitative_colors`, `atlas_to_label_lut`, `resolve_background`,
-  `bd_to_nifti_bytes`, `compute_display_window`) translate BrainData /
-  `Atlas` state into the vocabulary niivue understands.
-- `NiivueViewer` is the thin traitlets widget; `build_viewer` is the assembler
+- Pure helpers (`_resolve_cmap`, `_divergent_partner`, `_slice_type_for`,
+  `_qualitative_colors`, `_atlas_to_label_lut`, `_resolve_background`,
+  `_bd_to_nifti_bytes`, `_compute_display_window`) translate BrainData /
+  `_Atlas` state into the vocabulary niivue understands.
+- `_NiivueViewer` is the thin traitlets widget; `_build_viewer` is the assembler
   that fills its traits from a BrainData.
 
 niivue formatting deliberately lives here, not in ``nltools/data/atlases/`` —
-the atlas package stays niivue-agnostic and only exposes the generic `Atlas`
+the atlas package stays niivue-agnostic and only exposes the generic `_Atlas`
 dataclass.
 """
 
@@ -35,9 +35,9 @@ from typing import Literal
 import anywidget
 import traitlets
 
-from nltools.data.atlases import Atlas, load_atlas
-from nltools.templates.matching import get_bg_image, is_standard_space
-from nltools.utils import find_stack_level
+from nltools.data.atlases import _Atlas, load_atlas
+from nltools.templates.matching import _get_bg_image, _is_standard_space
+from nltools.utils import _find_stack_level
 
 _VIEWER_JS = pathlib.Path(__file__).parent / "viewer.js"
 
@@ -69,7 +69,7 @@ _NIIVUE_COLORMAPS: frozenset[str] = frozenset(
 
 # Common matplotlib colormap names with no exact niivue equivalent. niivue
 # silently renders gray for unknown names, so we map the popular ones and
-# warn (see resolve_cmap) rather than letting them fall through.
+# warn (see _resolve_cmap) rather than letting them fall through.
 _MPL_TO_NIIVUE: dict[str, str] = {
     "rdbu_r": "warm",
     "rdbu": "winter",
@@ -116,7 +116,7 @@ def _niivue_colormaps() -> frozenset[str]:
     return _NIIVUE_COLORMAPS
 
 
-def resolve_cmap(name: str) -> str:
+def _resolve_cmap(name: str) -> str:
     """Resolve a colormap name to a valid niivue colormap.
 
     Valid niivue names pass through. Common matplotlib names are mapped to
@@ -140,18 +140,18 @@ def resolve_cmap(name: str) -> str:
             f"equivalent; using {mapped!r}. Pass a niivue colormap name to "
             "silence this.",
             UserWarning,
-            stacklevel=find_stack_level(),
+            stacklevel=_find_stack_level(),
         )
         return mapped
     warnings.warn(
         f"colormap {name!r} is not a known niivue colormap; falling back to 'warm'.",
         UserWarning,
-        stacklevel=find_stack_level(),
+        stacklevel=_find_stack_level(),
     )
     return "warm"
 
 
-def divergent_partner(cmap: str) -> str:
+def _divergent_partner(cmap: str) -> str:
     """Return the ``colormap_negative`` partner for a positive colormap.
 
     Args:
@@ -178,7 +178,7 @@ _VIEW_TO_SLICE: dict[str, str] = {
 }
 
 
-def slice_type_for(view: str) -> str:
+def _slice_type_for(view: str) -> str:
     """Map a ``view`` string to a niivue ``SLICE_TYPE`` enum name.
 
     Args:
@@ -213,7 +213,7 @@ def slice_type_for(view: str) -> str:
 # --------------------------------------------------------------------------- #
 
 
-def qualitative_colors(n: int, *, seed: int = 0) -> list[tuple[int, int, int]]:
+def _qualitative_colors(n: int, *, seed: int = 0) -> list[tuple[int, int, int]]:
     """Deterministic qualitative RGB palette of length ``n``.
 
     Hues are spaced by the golden angle for maximal separation; saturation
@@ -243,17 +243,17 @@ def qualitative_colors(n: int, *, seed: int = 0) -> list[tuple[int, int, int]]:
     return out
 
 
-def atlas_to_label_lut(atlas: Atlas) -> dict:
+def _atlas_to_label_lut(atlas: _Atlas) -> dict:
     """Build a niivue integer-indexed label LUT from a deterministic atlas.
 
     The LUT arrays are dense (length ``max_index + 1``) because niivue
     indexes them by integer voxel value. Index 0 and any gap indices are
     transparent (``A=0``, empty label); each present region gets a color
-    from `qualitative_colors` (assigned in table-enumeration order, so
+    from `_qualitative_colors` (assigned in table-enumeration order, so
     colors stay stable under sparse / non-contiguous indices) and its name.
 
     Args:
-        atlas: A loaded deterministic `Atlas`.
+        atlas: A loaded deterministic `_Atlas`.
 
     Returns:
         dict: Keys ``"R"``, ``"G"``, ``"B"``, ``"A"``, ``"labels"``, suitable for
@@ -279,17 +279,17 @@ def atlas_to_label_lut(atlas: Atlas) -> dict:
     b = [0] * size
     a = [0] * size
     labels = [""] * size
-    for (idx, name), (cr, cg, cb) in zip(present, qualitative_colors(len(present))):
+    for (idx, name), (cr, cg, cb) in zip(present, _qualitative_colors(len(present))):
         r[idx], g[idx], b[idx], a[idx] = cr, cg, cb, 255
         labels[idx] = name
     return {"R": r, "G": g, "B": b, "A": a, "labels": labels}
 
 
-def _coerce_atlas(atlas: str | Atlas | None) -> Atlas | None:
-    """Resolve the ``atlas`` argument to an `Atlas` or ``None``."""
+def _coerce_atlas(atlas: str | _Atlas | None) -> _Atlas | None:
+    """Resolve the ``atlas`` argument to an `_Atlas` or ``None``."""
     if atlas is None:
         return None
-    if isinstance(atlas, Atlas):
+    if isinstance(atlas, _Atlas):
         return atlas
     if isinstance(atlas, str):
         return load_atlas(atlas)
@@ -303,7 +303,7 @@ def _coerce_atlas(atlas: str | Atlas | None) -> Atlas | None:
 # --------------------------------------------------------------------------- #
 
 
-def resolve_background(affine, bg_img: str | bool | None) -> str | None:
+def _resolve_background(affine, bg_img: str | bool | None) -> str | None:
     """Resolve the ``bg_img`` argument to a background-image path or ``None``.
 
     Args:
@@ -317,7 +317,7 @@ def resolve_background(affine, bg_img: str | bool | None) -> str | None:
         A path to a background image, or ``None`` for no background.
 
     Note:
-        ``is_standard_space(np.eye(4)) == (True, None)`` (1mm is a valid
+        ``_is_standard_space(np.eye(4)) == (True, None)`` (1mm is a valid
         template resolution), so identity-affine fixtures count as standard
         space and auto would fetch a template from HuggingFace. Offline
         callers should pass ``bg_img=False``.
@@ -325,8 +325,8 @@ def resolve_background(affine, bg_img: str | bool | None) -> str | None:
     if bg_img is False:
         return None
     if bg_img is None or bg_img is True:
-        ok, _ = is_standard_space(affine)
-        return get_bg_image(affine) if ok else None
+        ok, _ = _is_standard_space(affine)
+        return _get_bg_image(affine) if ok else None
     return str(bg_img)
 
 
@@ -335,7 +335,7 @@ def resolve_background(affine, bg_img: str | bool | None) -> str | None:
 # --------------------------------------------------------------------------- #
 
 
-def gzip_nifti(raw: bytes) -> bytes:
+def _gzip_nifti(raw: bytes) -> bytes:
     """Gzip NIfTI bytes unless they are already gzip-compressed.
 
     The frontend hands every volume to niivue under a ``.nii.gz`` name, so the
@@ -358,13 +358,13 @@ def gzip_nifti(raw: bytes) -> bytes:
     return raw if raw[:2] == b"\x1f\x8b" else gzip.compress(raw, mtime=0)
 
 
-def bd_to_nifti_bytes(bd) -> bytes:
+def _bd_to_nifti_bytes(bd) -> bytes:
     """Serialize a BrainData (3D or 4D) to gzip-compressed NIfTI bytes.
 
     The image is sent to niivue **once** as a single volume — niivue scrubs
     4D frames natively, so there is no per-frame re-render. niivue infers the
     format from the ``.nii.gz`` name the frontend assigns, so the bytes are
-    gzip-compressed to match (see `gzip_nifti`).
+    gzip-compressed to match (see `_gzip_nifti`).
 
     Args:
         bd (BrainData): A single map (3D) or a stack (4D).
@@ -372,7 +372,7 @@ def bd_to_nifti_bytes(bd) -> bytes:
     Returns:
         The image encoded as gzip-compressed NIfTI-1 bytes.
     """
-    return gzip_nifti(bd.to_nifti().to_bytes())
+    return _gzip_nifti(bd.to_nifti().to_bytes())
 
 
 # --------------------------------------------------------------------------- #
@@ -395,7 +395,7 @@ _AUTOSCALE_FLOOR_FRAC = 1e-6
 
 
 @dataclass(frozen=True)
-class DisplayWindow:
+class _DisplayWindow:
     """The resolved niivue display window and its threshold-slider bounds.
 
     Both halves come out of one pass over the data so the slider handles and
@@ -429,7 +429,7 @@ class DisplayWindow:
     slider_step: float
 
 
-def compute_display_window(
+def _compute_display_window(
     data,
     *,
     autoscale: bool = True,
@@ -437,7 +437,7 @@ def compute_display_window(
     lower=None,
     upper=None,
     symmetric: bool | Literal["auto"] = "auto",
-) -> DisplayWindow:
+) -> _DisplayWindow:
     """Resolve the viewer's display window and threshold-slider bounds.
 
     The window is always computed here and passed to niivue explicitly, so
@@ -458,7 +458,7 @@ def compute_display_window(
 
     ``threshold`` / ``lower`` / ``upper`` accept percentile strings
     (``"98%"``), resolved over the finite nonzero **magnitudes** via
-    `resolve_threshold`: the viewer's window is a divergent magnitude window,
+    `_resolve_threshold`: the viewer's window is a divergent magnitude window,
     so its percentiles are magnitude percentiles.
 
     ``symmetric='auto'`` mirrors the positive and negative limbs only for
@@ -487,7 +487,7 @@ def compute_display_window(
         symmetric (bool | str): ``True``, ``False``, or ``'auto'``. See above.
 
     Returns:
-        DisplayWindow: The window endpoints and the slider bounds.
+        _DisplayWindow: The window endpoints and the slider bounds.
 
     Raises:
         TypeError: If ``autoscale`` is not a bool, or ``symmetric`` is not
@@ -495,7 +495,7 @@ def compute_display_window(
     """
     import numpy as np
 
-    from .utils import resolve_threshold
+    from .utils import _resolve_threshold
 
     if not isinstance(autoscale, bool):
         raise TypeError("autoscale must be a bool")
@@ -519,12 +519,12 @@ def compute_display_window(
 
     # Resolve percentile strings against the magnitude distribution.
     # `magnitudes` (finite nonzero |values|) is exactly the population
-    # resolve_threshold would keep after its own finite/nonzero filtering, so
+    # _resolve_threshold would keep after its own finite/nonzero filtering, so
     # reuse it instead of materializing np.abs(arr) three times per call
     # (~540 MB of transients on a 100×228k float64 map).
-    threshold = resolve_threshold(threshold, magnitudes)
-    lower = resolve_threshold(lower, magnitudes)
-    upper = resolve_threshold(upper, magnitudes)
+    threshold = _resolve_threshold(threshold, magnitudes)
+    lower = _resolve_threshold(lower, magnitudes)
+    upper = _resolve_threshold(upper, magnitudes)
 
     # Precedence: lower/upper win; else threshold sets the floor.
     if lower is not None or upper is not None:
@@ -605,7 +605,7 @@ def compute_display_window(
     slider_max = max(span, cal_min, cal_max)
     slider_step = slider_max / 200.0
 
-    return DisplayWindow(
+    return _DisplayWindow(
         cal_min=cal_min,
         cal_max=cal_max,
         cal_min_neg=cal_min_neg,
@@ -624,7 +624,7 @@ def compute_display_window(
 # --------------------------------------------------------------------------- #
 
 
-class NiivueViewer(anywidget.AnyWidget):
+class _NiivueViewer(anywidget.AnyWidget):
     """anywidget wrapper around ``@niivue/niivue``, driven via the standard API.
 
     Holds the volume stack as byte traits (``bg_bytes`` / ``statmap_bytes`` /
@@ -635,7 +635,7 @@ class NiivueViewer(anywidget.AnyWidget):
     reactive: set them from Python and the frontend updates in place; the
     in-widget threshold slider writes ``cal_min`` / ``cal_max`` back.
 
-    Not constructed directly — `build_viewer` fills it from a BrainData.
+    Not constructed directly — `_build_viewer` fills it from a BrainData.
     """
 
     _esm = _VIEWER_JS
@@ -671,21 +671,21 @@ class NiivueViewer(anywidget.AnyWidget):
     niivue_opts = traitlets.Dict().tag(sync=True)
 
 
-def build_viewer(
+def _build_viewer(
     bd,
     *,
-    window: DisplayWindow,
+    window: _DisplayWindow,
     view: str = "ortho",
     cmap: str | None = None,
-    atlas: str | Atlas | None = None,
+    atlas: str | _Atlas | None = None,
     bg_img: str | bool | None = None,
     opacity: float = 1.0,
     outline: float = 0.0,
     colorbar: bool = True,
     controls: bool = True,
     niivue_opts: dict | None = None,
-) -> NiivueViewer:
-    """Assemble a configured `NiivueViewer` for a BrainData.
+) -> _NiivueViewer:
+    """Assemble a configured `_NiivueViewer` for a BrainData.
 
     Builds the volume stack ``[background?, statmap, atlas?]`` (atlas on top
     so its outlines/opacity keep the stat map readable) as byte + parameter
@@ -694,14 +694,14 @@ def build_viewer(
     Args:
         bd (BrainData): BrainData to view.
         window: The resolved display window and slider bounds. Required, and
-            must be built from ``bd.data`` with `compute_display_window` — the
+            must be built from ``bd.data`` with `_compute_display_window` — the
             slider handles and the rendered window come from it together, so
             they can never disagree.
-        view: See `slice_type_for`.
+        view: See `_slice_type_for`.
         cmap: Positive colormap (niivue or matplotlib name). ``None`` uses the
             sign-aware red-positive/blue-negative default.
-        atlas: Atlas name, `Atlas`, or ``None``.
-        bg_img: See `resolve_background`.
+        atlas: Atlas name, `_Atlas`, or ``None``.
+        bg_img: See `_resolve_background`.
         opacity: Stat-map (and filled-atlas) opacity.
         outline: ``> 0`` draws atlas region boundaries of that width;
             ``0`` draws filled regions.
@@ -714,19 +714,19 @@ def build_viewer(
             defaults; an ``is_colorbar`` key overrides ``colorbar``.
 
     Returns:
-        NiivueViewer: A configured widget ready to display.
+        _NiivueViewer: A configured widget ready to display.
     """
     # niivue selects the positive/negative limb from the voxel sign, so this
     # pair is already sign-aware without swapping colormap names per map.
-    cmap_resolved = "warm" if cmap is None else resolve_cmap(cmap)
-    cmap_negative = divergent_partner(cmap_resolved)
-    slice_name = slice_type_for(view)
+    cmap_resolved = "warm" if cmap is None else _resolve_cmap(cmap)
+    cmap_negative = _divergent_partner(cmap_resolved)
+    slice_name = _slice_type_for(view)
     atlas_obj = _coerce_atlas(atlas)
-    bg_path = resolve_background(bd.mask.affine, bg_img)
+    bg_path = _resolve_background(bd.mask.affine, bg_img)
 
     # Validate / compute the atlas LUT up front so a probabilistic atlas
     # raises before we serialize any image bytes.
-    atlas_lut = atlas_to_label_lut(atlas_obj) if atlas_obj is not None else {}
+    atlas_lut = _atlas_to_label_lut(atlas_obj) if atlas_obj is not None else {}
 
     # Pull height / is_colorbar out of the forwarded niivue opts: height is a
     # canvas-layout trait, and an explicit is_colorbar wins over colorbar=.
@@ -735,11 +735,11 @@ def build_viewer(
     if "is_colorbar" in opts:
         colorbar = bool(opts.pop("is_colorbar"))
 
-    return NiivueViewer(
-        bg_bytes=gzip_nifti(pathlib.Path(bg_path).read_bytes()) if bg_path else b"",
-        statmap_bytes=bd_to_nifti_bytes(bd),
+    return _NiivueViewer(
+        bg_bytes=_gzip_nifti(pathlib.Path(bg_path).read_bytes()) if bg_path else b"",
+        statmap_bytes=_bd_to_nifti_bytes(bd),
         atlas_bytes=(
-            gzip_nifti(atlas_obj.image.to_bytes()) if atlas_obj is not None else b""
+            _gzip_nifti(atlas_obj.image.to_bytes()) if atlas_obj is not None else b""
         ),
         statmap={
             "name": "statmap",

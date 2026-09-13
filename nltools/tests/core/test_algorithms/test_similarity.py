@@ -7,7 +7,7 @@ from nltools.algorithms.similarity import (
     fisher_r_to_z,
     fisher_z_to_r,
     compute_similarity,
-    compute_multivariate_similarity,
+    _compute_multivariate_similarity,
     transform_pairwise,
 )
 
@@ -103,7 +103,7 @@ class TestComputeMultivariateSimilarity:
         np.random.seed(42)
         y = np.random.randn(100)
         X = np.random.randn(100, 5)
-        result = compute_multivariate_similarity(y, X)
+        result = _compute_multivariate_similarity(y, X)
 
         assert set(result) == {"beta", "t", "p", "df", "sigma", "residual"}
         assert result["beta"].shape == (6,)  # +1 for intercept
@@ -149,8 +149,8 @@ class TestComputeMultivariateSimilarity:
         np.random.seed(42)
         y = np.random.randn(100)
         X = np.random.randn(100, 5)
-        r1 = compute_multivariate_similarity(y, X)
-        r2 = compute_multivariate_similarity(y, X.T)
+        r1 = _compute_multivariate_similarity(y, X)
+        r2 = _compute_multivariate_similarity(y, X.T)
         np.testing.assert_allclose(r1["beta"], r2["beta"], rtol=1e-10)
 
     def test_rank_deficient_predictors_give_finite_statistics(self):
@@ -159,7 +159,7 @@ class TestComputeMultivariateSimilarity:
         y = np.random.randn(100)
         X = np.random.randn(100, 5)
         # The last column duplicates the intercept, so the design is singular.
-        result = compute_multivariate_similarity(y, np.hstack([X, np.ones((100, 1))]))
+        result = _compute_multivariate_similarity(y, np.hstack([X, np.ones((100, 1))]))
 
         assert np.isfinite(result["beta"]).all()
         assert np.isfinite(result["t"]).all()

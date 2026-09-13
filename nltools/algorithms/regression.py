@@ -34,11 +34,11 @@ def regress(X, Y, *, stats: str = "full", tail: int | str = 2):
             degrees of freedom, and residuals. `stats='betas'` returns just `b`;
             `stats='tstats'` returns `(b, t)`.
     """
-    from .validation import validate_tail_parameter
+    from .validation import _validate_tail_parameter
 
     if stats not in ("full", "betas", "tstats"):
         raise ValueError("stats must be one of 'full', 'betas', 'tstats'")
-    tail_internal = validate_tail_parameter(tail)
+    tail_internal = _validate_tail_parameter(tail)
 
     X = np.asarray(X)
     Y = np.asarray(Y)

@@ -8,7 +8,7 @@ from nltools.algorithms import (
     one_sample_permutation_test,
     two_sample_permutation_test,
 )
-from nltools.algorithms.inference import timeseries_correlation_permutation_test
+from nltools.algorithms.inference import _timeseries_correlation_permutation_test
 
 
 def _one_sample_at(n_jobs):
@@ -37,7 +37,7 @@ def _correlation_at(n_jobs):
 def _timeseries_at(n_jobs):
     rng = np.random.RandomState(0)
     data1, data2 = rng.randn(40), rng.randn(40)
-    return timeseries_correlation_permutation_test(
+    return _timeseries_correlation_permutation_test(
         data1, data2, n_permute=60, return_null=True, n_jobs=n_jobs, random_state=42
     )
 

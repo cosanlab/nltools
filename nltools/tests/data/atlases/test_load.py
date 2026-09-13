@@ -4,7 +4,7 @@ import nibabel as nb
 import polars as pl
 import pytest
 
-from nltools.data.atlases import Atlas, list_atlases, load_atlas
+from nltools.data.atlases import _Atlas, list_atlases, load_atlas
 
 # All 11 atlases hosted at huggingface.co/datasets/nltools/niftis under atlases/.
 EXPECTED_ATLASES = {
@@ -31,7 +31,7 @@ def test_list_atlases_returns_all_eleven():
 @pytest.mark.parametrize("name", ["aal", "harvard_oxford"])
 def test_load_atlas_returns_Atlas(name):
     atlas = load_atlas(name)
-    assert isinstance(atlas, Atlas)
+    assert isinstance(atlas, _Atlas)
     assert atlas.name == name
 
 

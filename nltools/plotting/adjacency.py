@@ -79,7 +79,7 @@ def _stacked_adjacency_matrix(adjacency1, adjacency2, normalize=True):
     return upper + lower
 
 
-def plot_stacked_adjacency(adjacency1, adjacency2, normalize=True, **kwargs):
+def _plot_stacked_adjacency(adjacency1, adjacency2, normalize=True, **kwargs):
     """Create stacked adjacency to illustrate similarity.
 
     `adjacency1` is drawn in the upper triangle and `adjacency2` in the lower,
@@ -105,7 +105,7 @@ def plot_stacked_adjacency(adjacency1, adjacency2, normalize=True, **kwargs):
     )
 
 
-def plot_mean_label_distance(
+def _plot_mean_label_distance(
     distance,
     labels,
     *,
@@ -188,7 +188,7 @@ def plot_mean_label_distance(
     return out
 
 
-def plot_between_label_distance(
+def _plot_between_label_distance(
     distance,
     labels,
     *,
@@ -318,7 +318,7 @@ def _long_to_matrix(long_df, row_col, col_col, value_col, order):
     return out
 
 
-def plot_silhouette(
+def _plot_silhouette(
     distance,
     labels,
     *,

@@ -5,14 +5,14 @@
 
 SRM factorizes each subject's data as `X_i ≈ W_i S`: a shared low-dimensional
 response `S` common to all subjects plus a subject-specific orthogonal
-transform `W_i`. `SRM` is the probabilistic model fit by
-expectation-maximization; `DetSRM` is the deterministic variant fit by block
+transform `W_i`. `_SRM` is the probabilistic model fit by
+expectation-maximization; `_DetSRM` is the deterministic variant fit by block
 coordinate descent.
 
 **Algorithm.** Initialize each `W_i` as a random orthogonal matrix (QR of a
 random matrix), then iterate: update the shared response `S` from the current
 transforms, update each `W_i` by solving an orthogonal Procrustes problem
-(`SRM` also re-estimates the per-subject noise variance `rho_i^2` and the
+(`_SRM` also re-estimates the per-subject noise variance `rho_i^2` and the
 shared-response covariance), for `n_iter` iterations.
 
 **Performance.** Time is O(n_iter × (V T K + V K^2 + K^3)) and memory O(V T),
@@ -104,7 +104,7 @@ def _init_w_transforms(
     return w, voxels
 
 
-class SRM(BaseEstimator, TransformerMixin):
+class _SRM(BaseEstimator, TransformerMixin):
     """Probabilistic Shared Response Model (SRM).
 
     Factorizes multi-subject data as a shared response S plus one orthogonal
@@ -146,7 +146,7 @@ class SRM(BaseEstimator, TransformerMixin):
 
         data = [np.random.randn(100, 50) for _ in range(3)]  # 3 subjects
 
-        srm = SRM(n_iter=10, n_features=50)
+        srm = _SRM(n_iter=10, n_features=50)
         srm.fit(data)
         shared_responses = srm.transform(data)  # list of (50, 50) arrays
 
@@ -163,7 +163,7 @@ class SRM(BaseEstimator, TransformerMixin):
         self.random_state = random_state
         return
 
-    def fit(self, X: list[np.ndarray], y: Any | None = None) -> "SRM":
+    def fit(self, X: list[np.ndarray], y: Any | None = None) -> "_SRM":
         """Compute the probabilistic Shared Response Model.
 
         Args:
@@ -172,7 +172,7 @@ class SRM(BaseEstimator, TransformerMixin):
             y (Any | None): Ignored; present for scikit-learn compatibility.
 
         Returns:
-            SRM: Fitted model (`self`).
+            _SRM: Fitted model (`self`).
         """
         logger.info("Starting Probabilistic SRM")
 
@@ -503,7 +503,7 @@ class SRM(BaseEstimator, TransformerMixin):
         return sigma_s, w, mu, rho2, shared_response
 
 
-class DetSRM(BaseEstimator, TransformerMixin):
+class _DetSRM(BaseEstimator, TransformerMixin):
     """Deterministic Shared Response Model (DetSRM).
 
     Factorizes multi-subject data as a shared response S plus one orthogonal
@@ -537,7 +537,7 @@ class DetSRM(BaseEstimator, TransformerMixin):
 
         data = [np.random.randn(100, 50) for _ in range(3)]  # 3 subjects
 
-        detsrm = DetSRM(n_iter=10, n_features=50)
+        detsrm = _DetSRM(n_iter=10, n_features=50)
         detsrm.fit(data)
         shared_responses = detsrm.transform(data)  # list of (50, 50) arrays
 
@@ -553,7 +553,7 @@ class DetSRM(BaseEstimator, TransformerMixin):
         self.n_features = n_features
         self.random_state = random_state
 
-    def fit(self, X: list[np.ndarray], y: Any | None = None) -> "DetSRM":
+    def fit(self, X: list[np.ndarray], y: Any | None = None) -> "_DetSRM":
         """Compute the Deterministic Shared Response Model.
 
         Args:
@@ -562,7 +562,7 @@ class DetSRM(BaseEstimator, TransformerMixin):
             y (Any | None): Ignored; present for scikit-learn compatibility.
 
         Returns:
-            DetSRM: Fitted model (`self`).
+            _DetSRM: Fitted model (`self`).
         """
         logger.info("Starting Deterministic SRM")
 

@@ -8,8 +8,8 @@ from scipy.spatial import procrustes as procrust
 from sklearn.metrics import pairwise_distances
 from sklearn.utils import check_random_state
 
-from ..validation import _compute_pvalue, validate_tail_parameter
-from .srm import SRM, DetSRM
+from ..validation import _compute_pvalue, _validate_tail_parameter
+from .srm import _SRM, _DetSRM
 
 
 def _hyperalign(data, n_iter):
@@ -122,7 +122,7 @@ def align(
 
     Aligns a group of subjects either by Procrustes-based hyperalignment
     (Haxby et al., 2011) or by the Shared Response Model (Chen et al., 2015),
-    the latter through `SRM`/`DetSRM`.
+    the latter through `_SRM`/`_DetSRM`.
     The common model is the shared response (SRM) or the centered group template
     (Procrustes). Transformed data can be projected back into each subject's
     original space with its transformation matrix. To align a single `BrainData`
@@ -137,9 +137,9 @@ def align(
             None uses the number of voxels. Must be None for `'procrustes'`.
         axis (int): Axis to align on: 0 aligns timepoints (ISC computed per voxel),
             1 aligns voxels (ISC computed per timepoint). Defaults to 0.
-        n_iter (int): Number of `SRM`/`DetSRM` iterations; ignored by
+        n_iter (int): Number of `_SRM`/`_DetSRM` iterations; ignored by
             `method='procrustes'`. Defaults to 10.
-        random_state (int): Seed forwarded to the constructed `SRM`/`DetSRM`;
+        random_state (int): Seed forwarded to the constructed `_SRM`/`_DetSRM`;
             ignored by `method='procrustes'`. Defaults to 0.
 
     Returns:
@@ -213,11 +213,11 @@ def align(
         if n_features is None:
             n_features = int(data[0].shape[0])
         if method == "deterministic_srm":
-            srm = DetSRM(
+            srm = _DetSRM(
                 n_features=n_features, n_iter=n_iter, random_state=random_state
             )
         elif method == "probabilistic_srm":
-            srm = SRM(n_features=n_features, n_iter=n_iter, random_state=random_state)
+            srm = _SRM(n_features=n_features, n_iter=n_iter, random_state=random_state)
         srm.fit(data)
         out["transformed"] = list(srm.transform(data))
         out["common_model"] = srm.s_.T
@@ -461,7 +461,7 @@ def procrustes_distance(
     random_state = check_random_state(random_state)
 
     # Make sure both matrices are 2d and the same dimension via padding
-    validate_tail_parameter(tail)
+    _validate_tail_parameter(tail)
     if len(mat1.shape) < 2:
         mat1 = mat1[:, np.newaxis]
     if len(mat2.shape) < 2:

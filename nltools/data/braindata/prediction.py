@@ -14,11 +14,11 @@ from typing import Any
 import numpy as np
 
 from nltools.algorithms.decoding import (
-    back_project_weight_maps,
-    validate_decoding_pipeline,
+    _back_project_weight_maps,
+    _validate_decoding_pipeline,
 )
 from nltools.data.results import Predict
-from nltools.utils import maybe_tqdm
+from nltools.utils import _maybe_tqdm
 
 from .utils import _is_default
 
@@ -46,7 +46,7 @@ MVPA_ONLY_DEFAULTS = {
 }
 
 
-def predict(
+def _predict(
     bd,
     *,
     X=None,
@@ -90,16 +90,16 @@ def predict(
 
     if X is not None:
         _reject_decoding_arguments(decoding_arguments)
-        return predict_timeseries(bd, X=X)
+        return _predict_timeseries(bd, X=X)
 
     resolved_y = _resolve_stored_y(bd, y)
     if resolved_y is None:
         # No labels to decode: the only remaining mode is prediction from a
         # fitted model, which takes none of the decoding arguments.
         _reject_decoding_arguments(decoding_arguments)
-        return predict_timeseries(bd, X=None)
+        return _predict_timeseries(bd, X=None)
 
-    return predict_mvpa(
+    return _predict_mvpa(
         bd,
         y=resolved_y,
         estimator=estimator,
@@ -229,7 +229,7 @@ def _resolve_stored_groups(bd, groups):
 # ---------------------------------------------------------------------------
 
 
-def predict_timeseries(bd, *, X=None):
+def _predict_timeseries(bd, *, X=None):
     """Predict voxel timeseries from a fitted encoding model.
 
     Returns a fresh ``BrainData`` whose ``.data`` is the predicted timeseries.
@@ -242,10 +242,10 @@ def predict_timeseries(bd, *, X=None):
     GLM, ``ridge_fitted_values`` for a Ridge. Neither retains the training
     features, so a no-argument call never refits or re-multiplies. With an
     explicit ``X``, structural validation and alignment belong to the
-    estimator's own ``predict`` — named design columns for `Glm`, named feature
-    spaces for a banded `Ridge` — and the result clears the source row metadata.
+    estimator's own ``predict`` — named design columns for `_Glm`, named feature
+    spaces for a banded `_Ridge` — and the result clears the source row metadata.
     """
-    from nltools.models import Glm
+    from nltools.models import _Glm
 
     from .utils import _result_from_array
 
@@ -260,7 +260,7 @@ def predict_timeseries(bd, *, X=None):
     if X is not None:
         return _result_from_array(bd, bd.model_.predict(X), rows="clear")
 
-    stored = bd.glm_predicted if isinstance(bd.model_, Glm) else bd.ridge_fitted_values
+    stored = bd.glm_predicted if isinstance(bd.model_, _Glm) else bd.ridge_fitted_values
     return _result_from_array(bd, np.array(stored.data, copy=True), rows="preserve")
 
 
@@ -272,7 +272,7 @@ def predict_timeseries(bd, *, X=None):
 VALID_SPATIAL_SCALES = {"whole_brain", "searchlight", "roi"}
 
 
-def predict_mvpa(
+def _predict_mvpa(
     bd,
     *,
     y,
@@ -298,12 +298,12 @@ def predict_mvpa(
     _validate_spatial_scale(spatial_scale, roi_mask=roi_mask, radius=radius)
     y = _validate_target(y, n_rows=bd.shape[0])
     groups = _validate_groups(groups, n_rows=bd.shape[0])
-    validate_scoring(scoring)
+    _validate_scoring(scoring)
 
-    pipe = build_pipeline(estimator, y=y, estimator_kwargs=estimator_kwargs)
-    validate_decoding_pipeline(pipe)
+    pipe = _build_pipeline(estimator, y=y, estimator_kwargs=estimator_kwargs)
+    _validate_decoding_pipeline(pipe)
     classifier = is_classifier(pipe)
-    splits = resolve_splits(cv, X=bd.data, y=y, groups=groups, classifier=classifier)
+    splits = _resolve_splits(cv, X=bd.data, y=y, groups=groups, classifier=classifier)
     classes = np.unique(y) if classifier else None
     _validate_plot(plot, spatial_scale=spatial_scale, pipe=pipe, classes=classes)
 
@@ -443,7 +443,7 @@ def _validate_groups(groups, *, n_rows: int):
     return groups
 
 
-def validate_scoring(scoring) -> None:
+def _validate_scoring(scoring) -> None:
     """Reject the removed `'auto'` value and multimetric scoring mappings."""
     from collections.abc import Mapping
 
@@ -497,7 +497,7 @@ REJECTED_ABBREVIATIONS = {
 }
 
 
-def resolve_estimator(estimator: Any, *, estimator_kwargs: dict | None = None):
+def _resolve_estimator(estimator: Any, *, estimator_kwargs: dict | None = None):
     """Resolve a shortcut name to an estimator, or pass an sklearn object through.
 
     Each shortcut names a class and the constructor options that make it work at
@@ -566,7 +566,7 @@ def resolve_estimator(estimator: Any, *, estimator_kwargs: dict | None = None):
     return estimator
 
 
-def build_pipeline(
+def _build_pipeline(
     estimator: Any, *, y: np.ndarray, estimator_kwargs: dict | None = None
 ) -> Any:
     """Build the per-fold pipeline for `estimator`.
@@ -598,7 +598,7 @@ def build_pipeline(
     from sklearn.pipeline import make_pipeline
     from sklearn.preprocessing import StandardScaler
 
-    resolved = resolve_estimator(estimator, estimator_kwargs=estimator_kwargs)
+    resolved = _resolve_estimator(estimator, estimator_kwargs=estimator_kwargs)
     if not isinstance(estimator, str):
         return resolved
     if is_classifier(resolved) and len(np.unique(y)) > 2:
@@ -611,7 +611,7 @@ def build_pipeline(
 # ---------------------------------------------------------------------------
 
 
-def resolve_splits(cv, *, X, y, groups, classifier: bool) -> list:
+def _resolve_splits(cv, *, X, y, groups, classifier: bool) -> list:
     """Resolve `cv` into materialized train/test splits and check the partition.
 
     Materializing once means every runner — and every parallel worker — sees
@@ -746,7 +746,7 @@ class _ContinuousStratifiedSplitter:
     it slots into every code path that consumes `cv`; the binning happens at
     split time from whatever `y` the caller passes.
 
-    It is not a `BaseCrossValidator`. Only `resolve_splits` consumes it, and
+    It is not a `BaseCrossValidator`. Only `_resolve_splits` consumes it, and
     it materializes the folds immediately, so the object itself never reaches
     scikit-learn's `check_cv`. Keep it that way, or make it a subclass.
     """
@@ -879,7 +879,7 @@ def _run_whole_brain(bd, X, y, pipe, *, splits, scoring, classes, n_jobs):
     n_samples, n_voxels = X.shape
 
     estimator = clone(pipe).fit(X, y)
-    weight_map_arr = _as_predict_map(back_project_weight_maps(estimator, n_voxels))
+    weight_map_arr = _as_predict_map(_back_project_weight_maps(estimator, n_voxels))
 
     if n_jobs == 1:
         fold_results = [
@@ -950,9 +950,9 @@ def _plot_whole_brain_result(record, *, y, out_of_fold_values, classifier) -> No
     """
     from nltools.data.roc import Roc
     from nltools.plotting.prediction import (
-        plot_class_probability,
-        plot_decision_margin,
-        plot_predicted_versus_actual,
+        _plot_class_probability,
+        _plot_decision_margin,
+        _plot_predicted_versus_actual,
     )
 
     y = np.asarray(y)
@@ -967,7 +967,7 @@ def _plot_whole_brain_result(record, *, y, out_of_fold_values, classifier) -> No
             if degenerate
             else float(np.corrcoef(y.astype(float), predictions)[0, 1])
         )
-        plot_predicted_versus_actual(y, predictions, r=r)
+        _plot_predicted_versus_actual(y, predictions, r=r)
     else:
         if out_of_fold_values is None:
             raise ValueError(
@@ -980,9 +980,9 @@ def _plot_whole_brain_result(record, *, y, out_of_fold_values, classifier) -> No
         outcome = y == record.classes[1]
         Roc(input_values=out_of_fold_values, binary_outcome=outcome).plot()
         if hasattr(record.estimator, "decision_function"):
-            plot_decision_margin(out_of_fold_values, y)
+            _plot_decision_margin(out_of_fold_values, y)
         else:
-            plot_class_probability(out_of_fold_values, y)
+            _plot_class_probability(out_of_fold_values, y)
     record.weight_map.plot()
 
 
@@ -1084,7 +1084,7 @@ def _run_searchlight(
     def decode_sphere(center_idx, neighbor_indices):
         return _score_sphere(X, y, pipe, splits, scoring, neighbor_indices)
 
-    neighborhood_list = maybe_tqdm(
+    neighborhood_list = _maybe_tqdm(
         list(neighborhoods.iter_neighborhoods()),
         progress_bar=progress_bar,
         desc="Searchlight",
@@ -1209,10 +1209,12 @@ def _run_roi(
         # the whole call, not a parcel that happened to fail.
         return {
             "fold_scores": np.asarray(fold_scores, dtype=float),
-            "coef": back_project_weight_maps(estimator, int(cols.sum())),
+            "coef": _back_project_weight_maps(estimator, int(cols.sum())),
         }
 
-    iterator = maybe_tqdm(unique_labels, progress_bar=progress_bar, desc="ROI decoding")
+    iterator = _maybe_tqdm(
+        unique_labels, progress_bar=progress_bar, desc="ROI decoding"
+    )
 
     if n_jobs == 1:
         per_roi = [decode_roi(label) for label in iterator]

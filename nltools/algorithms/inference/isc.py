@@ -26,8 +26,8 @@ from scipy.stats import rankdata
 from sklearn.utils import check_random_state
 from sklearn.metrics import pairwise_distances
 
-from .utils import EPSILON, maybe_tqdm
-from ..validation import _compute_pvalue, validate_tail_parameter
+from .utils import EPSILON, _maybe_tqdm
+from ..validation import _compute_pvalue, _validate_tail_parameter
 
 
 # ============================================================================
@@ -517,7 +517,7 @@ def _permute_isc_group_cpu_parallel(
     seeds = rng.randint(MAX_INT, size=n_permute)
 
     # Parallelize
-    iterator = maybe_tqdm(
+    iterator = _maybe_tqdm(
         range(n_permute), progress_bar=progress_bar, desc="Permute ISC Group"
     )
 
@@ -713,7 +713,7 @@ def _bootstrap_isc_group_cpu_parallel(
     seeds = rng.randint(MAX_INT, size=n_permute)
 
     # Parallelize
-    iterator = maybe_tqdm(
+    iterator = _maybe_tqdm(
         range(n_permute), progress_bar=progress_bar, desc="Bootstrap ISC Group"
     )
 
@@ -739,7 +739,7 @@ def _bootstrap_isc_group_cpu_parallel(
 # ============================================================================
 
 
-def isc_group_permutation_test(
+def _isc_group_permutation_test(
     group1: np.ndarray,
     group2: np.ndarray,
     *,
@@ -813,13 +813,13 @@ def isc_group_permutation_test(
         # Single-feature comparison
         group1 = np.random.randn(100, 10)  # 10 subjects
         group2 = np.random.randn(100, 10)
-        result = isc_group_permutation_test(group1, group2, n_permute=1000)
+        result = _isc_group_permutation_test(group1, group2, n_permute=1000)
         result["isc_group_difference"], result["p"]
 
         # Voxel-wise comparison
         group1_voxels = np.random.randn(100, 10, 5000)  # 5K voxels
         group2_voxels = np.random.randn(100, 10, 5000)
-        result = isc_group_permutation_test(
+        result = _isc_group_permutation_test(
             group1_voxels,
             group2_voxels,
             summary_statistic="leave-one-out",
@@ -835,7 +835,7 @@ def isc_group_permutation_test(
         correlation analysis at the group level. NeuroImage, 142, 248-259.
     """
     # Input validation
-    validate_tail_parameter(tail)
+    _validate_tail_parameter(tail)
     group1 = np.asarray(group1)
     group2 = np.asarray(group2)
 
@@ -939,7 +939,7 @@ def isc_group_permutation_test(
     # against H0: difference == 0. A confidence interval, however, must bracket
     # the ESTIMATE, so we re-add observed_diff to recover the uncentered
     # bootstrap distribution before taking percentiles (matching
-    # isc_permutation_test). For method='permute' the null is a label-permutation
+    # _isc_permutation_test). For method='permute' the null is a label-permutation
     # band around zero, not a bootstrap of the estimate; its percentiles describe
     # the null spread and are left uncentered.
     ci_source = null_dist + observed_diff if method == "bootstrap" else null_dist
@@ -1060,7 +1060,7 @@ def _bootstrap_loo_cpu_parallel(
     seeds = rng.randint(0, 2**31 - 1, size=n_permute)
 
     # Parallelize with independent RandomState per permutation
-    iterator = maybe_tqdm(
+    iterator = _maybe_tqdm(
         range(n_permute), progress_bar=progress_bar, desc="Bootstrap LOO"
     )
 
@@ -1243,7 +1243,7 @@ def _bootstrap_pairwise_cpu_parallel(
     seeds = rng.randint(0, 2**31 - 1, size=n_permute)
 
     # Parallelize
-    iterator = maybe_tqdm(
+    iterator = _maybe_tqdm(
         range(n_permute), progress_bar=progress_bar, desc="Bootstrap Pairwise"
     )
 
@@ -1261,7 +1261,7 @@ def _bootstrap_pairwise_cpu_parallel(
     return np.array(bootstraps)
 
 
-def isc_permutation_test(
+def _isc_permutation_test(
     # Required
     data: np.ndarray,
     *,
@@ -1334,12 +1334,12 @@ def isc_permutation_test(
         ```python
         # Single-feature ISC
         data = np.random.randn(100, 10)  # 100 timepoints, 10 subjects
-        result = isc_permutation_test(data, n_permute=1000)
+        result = _isc_permutation_test(data, n_permute=1000)
         result["isc"], result["p"]
 
         # Voxel-wise leave-one-out ISC
         data_voxels = np.random.randn(100, 50, 5000)  # 5K voxels
-        result = isc_permutation_test(
+        result = _isc_permutation_test(
             data_voxels,
             summary_statistic="leave-one-out",
             n_permute=5000,
@@ -1347,8 +1347,8 @@ def isc_permutation_test(
         (result["p"] < 0.05).sum()  # → number of significant voxels
 
         # Leave-one-out vs pairwise
-        result_loo = isc_permutation_test(data, summary_statistic="leave-one-out")
-        result_pair = isc_permutation_test(data, summary_statistic="pairwise")
+        result_loo = _isc_permutation_test(data, summary_statistic="leave-one-out")
+        result_pair = _isc_permutation_test(data, summary_statistic="pairwise")
         ```
 
     References:
@@ -1358,7 +1358,7 @@ def isc_permutation_test(
         correlation analysis at the group level. NeuroImage, 142, 248-259.
     """
     # Input validation
-    validate_tail_parameter(tail)
+    _validate_tail_parameter(tail)
     data = np.asarray(data)
     if data.ndim not in [2, 3]:
         raise ValueError(f"data must be 2D or 3D, got shape {data.shape}")

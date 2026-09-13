@@ -346,7 +346,7 @@ class TestRidgeBootstrapContract:
         def _never(*args, **kwargs):
             raise AssertionError("resampling started despite an over-budget preflight")
 
-        monkeypatch.setattr(engine, "generate_bootstrap_indices", _never)
+        monkeypatch.setattr(engine, "_generate_bootstrap_indices", _never)
 
         with pytest.raises(ValueError, match="memory_budget_gb="):
             masked.bootstrap(
@@ -476,7 +476,7 @@ class TestRidgeBootstrapContract:
             _bootstrap_design,
             _refit_resample,
         )
-        from nltools.algorithms.inference.random import generate_bootstrap_indices
+        from nltools.algorithms.inference.random import _generate_bootstrap_indices
 
         spaces = self._fitted_banded(masked)
         result = masked.bootstrap(
@@ -488,7 +488,7 @@ class TestRidgeBootstrapContract:
             n_jobs=1,
         )
 
-        indices = generate_bootstrap_indices(len(masked), 3, random_state=11)
+        indices = _generate_bootstrap_indices(len(masked), 3, random_state=11)
         expected = _refit_resample(
             _bootstrap_design([spaces["a"], spaces["b"]], masked.data),
             indices[0],

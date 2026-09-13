@@ -8,10 +8,10 @@ given `random_state` gives the same result at any worker count.
 
 import numpy as np
 
-from .utils import maybe_tqdm
-from .validation import validate_array_shape_range
-from ..validation import _compute_pvalue, validate_tail_parameter
-from .random import generate_seeds
+from .utils import _maybe_tqdm
+from .validation import _validate_array_shape_range
+from ..validation import _compute_pvalue, _validate_tail_parameter
+from .random import _generate_seeds
 
 
 def _two_sample_permutation_cpu_parallel(
@@ -51,7 +51,7 @@ def _two_sample_permutation_cpu_parallel(
     from joblib import Parallel, delayed
 
     # Setup random state and generate seeds for workers
-    seeds = generate_seeds(n_permute, random_state=random_state)
+    seeds = _generate_seeds(n_permute, random_state=random_state)
 
     # Get dimensions (data already reshaped by caller)
     n1, n_features = data1.shape
@@ -81,7 +81,7 @@ def _two_sample_permutation_cpu_parallel(
     # Execute in parallel with progress bar
     null_dist = Parallel(n_jobs=n_jobs)(
         delayed(_compute_one_perm)(seeds[i])
-        for i in maybe_tqdm(
+        for i in _maybe_tqdm(
             range(n_permute),
             progress_bar=progress_bar,
             desc="CPU parallel perms",
@@ -181,9 +181,9 @@ def two_sample_permutation_test(
     data1 = np.asarray(data1, dtype=np.float64)
     data2 = np.asarray(data2, dtype=np.float64)
 
-    validate_array_shape_range(data1, 1, 2, name="data1")
-    validate_array_shape_range(data2, 1, 2, name="data2")
-    validate_tail_parameter(tail)
+    _validate_array_shape_range(data1, 1, 2, name="data1")
+    _validate_array_shape_range(data2, 1, 2, name="data2")
+    _validate_tail_parameter(tail)
 
     # Handle shape
     single_feature = data1.ndim == 1 and data2.ndim == 1

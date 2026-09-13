@@ -3,7 +3,7 @@
 import numpy as np
 
 
-def plot_adjacency(adj, *, limit=3, ax=None, **kwargs):
+def _plot_adjacency(adj, *, limit=3, ax=None, **kwargs):
     """Create a heatmap of an Adjacency matrix.
 
     Args:
@@ -50,7 +50,7 @@ def plot_adjacency(adj, *, limit=3, ax=None, **kwargs):
     return
 
 
-def plot_mds(
+def _plot_mds(
     adj,
     *,
     n_components=2,

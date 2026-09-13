@@ -110,7 +110,7 @@ class TestBrainDataIO:
     def test_h5_roundtrip_in_memory_mask(self, tmp_path):
         """write(...h5) with a programmatically built mask (no filename) works.
 
-        ``to_h5`` used to call ``mask.get_filename()`` unconditionally, which
+        ``_to_h5`` used to call ``mask.get_filename()`` unconditionally, which
         is None for an in-memory Nifti — crash. The mask must instead
         round-trip by value (data + affine).
         """
@@ -441,7 +441,7 @@ class TestLoadPathSetsSform:
 # - F057: ``upload_neurovault`` left ``collection`` unbound when
 #   ``create_collection`` raised ValueError, so it fell through to an
 #   ``UnboundLocalError`` instead of surfacing a clean error.
-# - F058: ``load_from_url`` never removed the temp dir it created (leak).
+# - F058: ``_load_from_url`` never removed the temp dir it created (leak).
 # - F059: both helpers named their temp dir from ``os.times()[-1]``
 #   (collision-prone; ``os.makedirs`` without ``exist_ok`` could crash).
 #   The fix uses ``tempfile`` so the dir is unique and cleaned up.
@@ -468,7 +468,7 @@ class TestUploadNeurovaultUnbound:
         monkeypatch.setattr(pynv, "Client", _FakeClientCreateFails)
 
         with pytest.raises(ValueError):
-            io_mod.upload_neurovault(
+            io_mod._upload_neurovault(
                 minimal_brain_data,
                 access_token="token",
                 collection_name="dupe",
@@ -479,7 +479,7 @@ class TestUploadNeurovaultUnbound:
 
 class TestLoadFromUrlTempDir:
     def test_temp_dir_cleaned_up(self, minimal_brain_data, monkeypatch):
-        """load_from_url must remove the temp dir it downloads into."""
+        """_load_from_url must remove the temp dir it downloads into."""
         seen = {}
 
         def fake_download_nifti(url, data_dir=None):
@@ -492,15 +492,15 @@ class TestLoadFromUrlTempDir:
             return path
 
         monkeypatch.setattr("nltools.datasets.download_nifti", fake_download_nifti)
-        monkeypatch.setattr(io_mod, "load_from_file", lambda bd, data: None)
+        monkeypatch.setattr(io_mod, "_load_from_file", lambda bd, data: None)
 
         monkeypatch.setattr(nib, "load", lambda path: object())
 
-        io_mod.load_from_url(minimal_brain_data, "http://example.com/img.nii.gz")
+        io_mod._load_from_url(minimal_brain_data, "http://example.com/img.nii.gz")
 
         assert "data_dir" in seen
         assert not os.path.exists(seen["data_dir"]), (
-            "load_from_url leaked its temp directory"
+            "_load_from_url leaked its temp directory"
         )
 
     def test_repeated_calls_do_not_collide(self, minimal_brain_data, monkeypatch):
@@ -515,12 +515,12 @@ class TestLoadFromUrlTempDir:
             return path
 
         monkeypatch.setattr("nltools.datasets.download_nifti", fake_download_nifti)
-        monkeypatch.setattr(io_mod, "load_from_file", lambda bd, data: None)
+        monkeypatch.setattr(io_mod, "_load_from_file", lambda bd, data: None)
 
         monkeypatch.setattr(nib, "load", lambda path: object())
 
         for _ in range(3):
-            io_mod.load_from_url(minimal_brain_data, "http://example.com/img.nii.gz")
+            io_mod._load_from_url(minimal_brain_data, "http://example.com/img.nii.gz")
 
         assert len(dirs) == 3
         for d in dirs:

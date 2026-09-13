@@ -73,7 +73,7 @@ vocabulary:
     index_md: "`device: str = \"cpu\"` on the ridge entry points — `BrainData.fit(ridge_device=)`, `BrainData.bootstrap`, and the internal ridge estimator they drive — the only paths with a GPU implementation. Run-or-raise: explicit `'gpu'` either runs on the GPU or raises, and there is no `'auto'`"
   - concept: "Alignment refinement count"
     kwarg: "n_iter"
-    index_md: "`n_iter` on `SRM` and `DetSRM` — EM iterations or coordinate-descent iterations; everywhere else `n_iter` is a banned alias for `n_permute`/`n_samples`/`search_iterations`"
+    index_md: "`n_iter` on `_SRM` and `_DetSRM` — EM iterations or coordinate-descent iterations; everywhere else `n_iter` is a banned alias for `n_permute`/`n_samples`/`search_iterations`"
   - concept: "Working-memory budget"
     kwarg: "memory_budget_gb"
     index_md: "`memory_budget_gb: float | None = None` — device-neutral working-memory budget for internal batching; `None` measures the selected device with headroom"
@@ -148,7 +148,7 @@ exceptions:
     finding: F175
     text: "`fit(model='glm'|'ridge')` selects an estimator *class*, not a variant."
   - path: "nltools/models/glm.py"
-    function: "Glm.compute_contrasts"
+    function: "_Glm.compute_contrasts"
     kwarg: "tail"
     finding: tails-sweep
     text: "GLM contrast p-values are *one-sided* (the nilearn/SPM directional-contrast convention) and take no `tail=` knob — the one deliberate exception to the two-tailed default."
@@ -158,28 +158,27 @@ exceptions:
     finding: tails-sweep
     text: "`BrainData.bootstrap` and `Adjacency.bootstrap` report a percentile confidence interval and no p-value, so they take no `tail=` knob — a deliberate carve-out from the tails sweep, not an omission."
   - path: "nltools/algorithms/alignment/srm.py"
-    function: "SRM.__init__"
+    function: "_SRM.__init__"
     kwarg: "random_state"
     finding: alignment-random-state
-    text: "`SRM`, `DetSRM`, and `align()` keep `random_state: int = 0` rather than the codebase's otherwise-uniform bare `random_state: int | None = None`: v0.5.1's alignment was deterministic by default via brainiak's `rand_seed=0`, and a `None` default would make alignment nondeterministic by default — a v0.5.1-visible behavior change this rename does not make."
+    text: "`_SRM`, `_DetSRM`, and `align()` keep `random_state: int = 0` rather than the codebase's otherwise-uniform bare `random_state: int | None = None`: v0.5.1's alignment was deterministic by default via brainiak's `rand_seed=0`, and a `None` default would make alignment nondeterministic by default — a v0.5.1-visible behavior change this rename does not make."
   - path: "nltools/algorithms/alignment/srm.py"
-    function: "DetSRM.__init__"
+    function: "_DetSRM.__init__"
     kwarg: "random_state"
     finding: alignment-random-state
-    text: "Same `random_state: int = 0` contract as `SRM` (see above), not the bare `int | None = None` used elsewhere."
+    text: "Same `random_state: int = 0` contract as `_SRM` (see above), not the bare `int | None = None` used elsewhere."
   - path: "nltools/algorithms/alignment/procrustes.py"
     function: "align"
     kwarg: "random_state"
     finding: alignment-random-state
-    text: "`align()` forwards the same `random_state: int = 0` default to the constructed `SRM`/`DetSRM` (see above)."
+    text: "`align()` forwards the same `random_state: int = 0` default to the constructed `_SRM`/`_DetSRM` (see above)."
 
 # ── Machine-checkable enforcement rules (scripts/check_api_vocabulary.py) ─────
 #
 # Scope model mirrors .semgrep/rules.yml: rules bind PUBLIC (non-underscore)
 # defs; the pipelines subsystem is path-excluded (nltools/pipelines/ forwards
-# to its own dispatch layer). The alignment estimators (SRM, DetSRM) are
-# internal after 8g3b but still unprefixed, so they are checked directly as
-# ordinary public defs; `n_iter` is that
+# to its own dispatch layer). The alignment estimators (_SRM, _DetSRM) are
+# internal, but the checker still reads their `__init__`; `n_iter` is that
 # subsystem's own vocabulary (see the "Alignment refinement count" row above),
 # suppressed from the general ban via per-alias banned_kwargs.<name>.exclude_paths
 # rather than a directory-wide exclusion.
@@ -214,18 +213,18 @@ enforcement:
     mode: {canonical: "method"}
     parallel:
       canonical: "n_jobs (CPU workers) or device (cpu/gpu selection)"
-      # resolve_backend()'s own `parallel=` param IS the concept it translates
-      # into a Backend. Nothing else takes the keyword any more.
+      # _resolve_backend()'s own `parallel=` param IS the concept it translates
+      # into a _Backend. Nothing else takes the keyword any more.
       exclude_paths: ["nltools/algorithms/backends.py"]
     backend:
       canonical: "device"
-      # Home of the Backend abstraction itself — its `backend=` params ARE the concept.
+      # Home of the _Backend abstraction itself — its `backend=` params ARE the concept.
       exclude_paths: ["nltools/algorithms/backends.py"]
     conv_func: {canonical: "kernel (the convolution kernel on DesignMatrix.convolve)"}
     n_perm: {canonical: "n_permute"}
     n_iter:
       canonical: "n_permute (permutations), n_samples (bootstrap), or search_iterations (banded ridge)"
-      # SRM/DetSRM are internal after 8g3b (reached through BrainData.align);
+      # _SRM/_DetSRM are internal (reached through BrainData.align);
       # their n_iter IS the "Alignment refinement count" concept above, not an
       # alias.
       exclude_paths: ["nltools/algorithms/alignment/"]
@@ -274,7 +273,7 @@ enforcement:
     device:
       allowed_defaults: ["cpu"]
       hint: "canonical form is `device: str = 'cpu'` on the ridge fit and the ridge bootstrap, the only GPU paths; run-or-raise — explicit 'gpu' either runs on the GPU or raises, never a silent CPU fallback, and there is no 'auto' value"
-      # Backend's own methods use `device=None` to mean "the backend's device".
+      # _Backend's own methods use `device=None` to mean "the backend's device".
       exclude_paths: ["nltools/algorithms/backends.py"]
     memory_budget_gb:
       allowed_defaults: [null]
@@ -287,29 +286,18 @@ enforcement:
       allowed_defaults: [2]
       hint: "canonical form is `tail: int | str = 2` — 2|'two' (two-tailed, the library default) or 1|'one' (one-tailed in the test's positive direction); sites where only one tail is statistically valid (dcorr, F, Rayleigh) take no tail kwarg at all"
   exemptions:
-    # `stat=` is banned as a bootstrap-statistic alias. These three predate that
+    # `stat=` is banned as a bootstrap-statistic alias. These two predate that
     # concept and name something else entirely.
     - {path: "nltools/algorithms/corrections.py", function: "threshold", kwarg: "stat", reason: "names the statistic map being thresholded, not a bootstrap statistic"}
     - {path: "nltools/data/braindata/__init__.py", function: "BrainData.plot", kwarg: "stat", reason: "names the timeseries plot's central tendency, not a bootstrap statistic"}
-    - {path: "nltools/data/braindata/plotting.py", function: "plot_brain", kwarg: "stat", reason: "delegation target of BrainData.plot"}
     # BrainData.predict defaults n_jobs=1 to limit searchlight worker memory.
     - {path: "nltools/data/braindata/__init__.py", function: "BrainData.predict", kwarg: "n_jobs", reason: "searchlight worker memory; documented in the docstring"}
-    - {path: "nltools/data/braindata/prediction.py", function: "predict", kwarg: "n_jobs", reason: "delegation target of BrainData.predict"}
     # MVPA's estimator= names an sklearn object, not an algorithm variant, so it
     # is canonical there while the alias stays banned everywhere else.
     - {path: "nltools/data/braindata/__init__.py", function: "BrainData.predict", kwarg: "estimator", reason: "names an sklearn estimator object, not an algorithm variant"}
-    - {path: "nltools/data/braindata/prediction.py", function: "predict", kwarg: "estimator", reason: "delegation target of BrainData.predict"}
-    - {path: "nltools/data/braindata/prediction.py", function: "predict_mvpa", kwarg: "estimator", reason: "delegation target of BrainData.predict"}
-    - {path: "nltools/data/braindata/prediction.py", function: "resolve_estimator", kwarg: "estimator", reason: "resolves the estimator= argument of BrainData.predict"}
-    - {path: "nltools/data/braindata/prediction.py", function: "build_pipeline", kwarg: "estimator", reason: "builds the pipeline for the estimator= argument of BrainData.predict"}
     # Only autoregressive fits reach nilearn's parallel path, so the default
     # OLS fit never spawns workers.
-    - {path: "nltools/models/glm.py", function: "Glm.__init__", kwarg: "n_jobs", reason: "nilearn's run_glm parallelizes AR groups only; documented in the docstring"}
-    # Single-argument shared validators: the one positional parameter names the
-    # keyword being checked. The keyword-only contract governs entry-point
-    # signatures, which is where a caller can pass it by name.
-    - {path: "nltools/algorithms/inference/validation.py", function: "validate_confidence_level", kwarg: "confidence_level", reason: "the validator's only argument is the value it checks"}
-    - {path: "nltools/algorithms/inference/validation.py", function: "validate_memory_budget", kwarg: "memory_budget_gb", reason: "the validator's only argument is the value it checks"}
+    - {path: "nltools/models/glm.py", function: "_Glm.__init__", kwarg: "n_jobs", reason: "nilearn's run_glm parallelizes AR groups only; documented in the docstring"}
   # Keyword-only `*`-marker carve-outs (scripts/check_kwonly.py). These
   # functions deliberately mirror numpy signatures so they are drop-in
   # substitutes inside backend-generic code (numpy accepts

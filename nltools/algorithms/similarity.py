@@ -162,7 +162,7 @@ def compute_similarity(data1, data2, metric="correlation"):
     return out
 
 
-def compute_multivariate_similarity(y, X, tail=2):
+def _compute_multivariate_similarity(y, X, tail=2):
     """Compute multivariate similarity by regressing one pattern on several.
 
     The array engine behind `BrainData.multivariate_similarity`: predicts the
@@ -186,7 +186,7 @@ def compute_multivariate_similarity(y, X, tail=2):
         ```python
         y = np.random.randn(100)
         X = np.random.randn(100, 5)
-        result = compute_multivariate_similarity(y, X)
+        result = _compute_multivariate_similarity(y, X)
         result["beta"].shape  # → (6,)  5 predictors + intercept
         ```
     """

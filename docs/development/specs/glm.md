@@ -3,21 +3,21 @@
 > Release scope: BrainCollection and collection-only requirements in this specification
 > are deferred to 0.6.1. Retained BrainData and estimator contracts remain targets for 0.6.0.
 
-This file specifies `nltools.models.Glm` and its functional numerical core.
+This file specifies `nltools.models._Glm` and its functional numerical core.
 Code, tests, and docstrings must implement this contract. Compatibility notes
 and migration history belong elsewhere.
 
 ## Purpose and ownership
 
-`Glm` is a numerical estimator that calls Nilearn's `run_glm` to fit ordinary
+`_Glm` is a numerical estimator that calls Nilearn's `run_glm` to fit ordinary
 least squares and autoregressive models and `compute_contrast` for inference.
-It shares the `fit` and `predict` method names with `Ridge` and adds
+It shares the `fit` and `predict` method names with `_Ridge` and adds
 `compute_contrasts`.
 
 Callers supply a precomputed `DesignMatrix` and preprocessed `y` and add any
 required intercept column to the design.
 
-`Glm` fits one run represented by a `(DesignMatrix, y)` pair, with one- or
+`_Glm` fits one run represented by a `(DesignMatrix, y)` pair, with one- or
 two-dimensional `y`. It has no knowledge of `BrainData`, masks, NIfTI images,
 events, or multi-run orchestration. It must not construct or retain a Nilearn
 `FirstLevelModel`.
@@ -25,7 +25,7 @@ events, or multi-run orchestration. It must not construct or retain a Nilearn
 ## Public API
 
 ```python
-Glm(
+_Glm(
     *,
     noise_model: str = "ols",
     bins: int = 100,
@@ -34,10 +34,10 @@ Glm(
 )
 ```
 
-`Glm` provides these methods:
+`_Glm` provides these methods:
 
 ```python
-fit(X: DesignMatrix, y) -> Glm
+fit(X: DesignMatrix, y) -> _Glm
 predict(X: DesignMatrix) -> np.ndarray
 compute_contrasts(
     contrasts,
@@ -53,10 +53,10 @@ verbosity is joblib logging for some autoregressive fits, not a progress bar.
 There is no `score` method. `r2_` exposes training fit quality; unlike Ridge,
 GLM has no nltools consumer that evaluates it as a predictive estimator.
 
-There is no public `BaseModel`. `Glm` and `Ridge` are independent estimators
+There is no public `BaseModel`. `_Glm` and `_Ridge` are independent estimators
 with different capabilities and input contracts. Small validation operations
 may be shared as private functions, but neither class inherits an artificial
-common interface. `Ridge` retains its own predictive `score(X, y)` method.
+common interface. `_Ridge` retains its own predictive `score(X, y)` method.
 
 ## Inputs and model modes
 
@@ -96,7 +96,7 @@ The model is:
 y = X @ beta + error
 ```
 
-`Glm` never adds or estimates a separate intercept. Callers include an
+`_Glm` never adds or estimates a separate intercept. Callers include an
 intercept column in `X` when the model requires one.
 
 Predictions are always defined in observation space:
@@ -134,7 +134,7 @@ wraps the same values, but their docstrings must state these semantics. nltools
 must not independently recompute this quantity from predictions or residuals.
 
 `predict` requires a `DesignMatrix` with exactly the fitted column names.
-Columns may appear in a different order; `Glm` reorders them to
+Columns may appear in a different order; `_Glm` reorders them to
 `feature_names_in_` before multiplying. Missing, additional, or duplicate
 columns raise `ValueError`. Raw arrays and other DataFrame types are invalid
 because they cannot preserve the fitted coefficient-to-regressor relationship.
@@ -156,16 +156,16 @@ After `fit`, the model exposes:
   target.
 - `is_fitted_`: `True` after a successful fit.
 
-The model privately retains a compact `GlmFitState` for subsequent contrasts.
+The model privately retains a compact `_GlmFitState` for subsequent contrasts.
 This immutable structural record contains fitted feature names, voxel model
 labels, coefficients, covariance for each fitted label, dispersion, and
 residual degrees of freedom. Its numerical arrays preserve the dtype returned
-by Nilearn. After extracting this state and the public fitted arrays, `Glm`
+by Nilearn. After extracting this state and the public fitted arrays, `_Glm`
 must discard the full `RegressionResults` objects returned by `run_glm`; those
 objects also retain the response, whitened response, regression model, and
 residual arrays.
 
-`GlmFitState` is private but is the authoritative fitted representation for
+`_GlmFitState` is private but is the authoritative fitted representation for
 contrast computation and serialization. A single internal contrast function
 accepts this state and computes the contrast effect and variance with the same
 matrix operations as Nilearn's functional `compute_contrast`. It then uses
@@ -177,7 +177,7 @@ implements a second contrast path.
 
 ## Contrasts
 
-`Glm.compute_contrasts` accepts one contrast or a mapping of named contrasts.
+`_Glm.compute_contrasts` accepts one contrast or a mapping of named contrasts.
 A single contrast is either a string expression or one real-valued array-like
 vector. A string names a fitted design column or combines columns
 arithmetically, for example `"condition_a - condition_b"` or
@@ -194,10 +194,10 @@ A numeric input is converted to a float64 array and must have shape
 the resolved vector must contain only finite values and at least one nonzero
 value.
 
-`Glm`, not `BrainData`, calls `expression_to_contrast_vector`. It must validate
+`_Glm`, not `BrainData`, calls `expression_to_contrast_vector`. It must validate
 the resolved contrast before calling Nilearn's `compute_contrast` and must not
 pad a short vector with zeros. An input with the wrong length or rank, including
-a nested sequence that becomes a matrix, is invalid; `Glm` does not compute
+a nested sequence that becomes a matrix, is invalid; `_Glm` does not compute
 F-contrasts.
 
 With `inference=False`, the method returns only the effect:
@@ -228,7 +228,7 @@ class ContrastResult(Generic[Payload]):
     degrees_of_freedom: float | np.ndarray
 ```
 
-`ContrastResult` is one public generic result type shared by `Glm`, `BrainData`,
+`ContrastResult` is one public generic result type shared by `_Glm`, `BrainData`,
 and `BrainCollection`. It lives in `nltools.models.results` and is re-exported
 from `nltools.models`, preserving the dependency direction from data facades to
 models. Its fields cannot be rebound. Array payloads remain mutable, but each
@@ -260,13 +260,13 @@ The effect-only return follows the same scalar and target-axis rules.
 `ContrastResult.effect` must equal a separate effect-only call for the same
 contrast.
 
-Inferential contrast computation uses the private `GlmFitState` and shared
+Inferential contrast computation uses the private `_GlmFitState` and shared
 contrast function. Its effect and variance must match Nilearn's functional
 `compute_contrast`, and its statistic, z-score, p-value, and degrees of freedom
 must match the resulting Nilearn `Contrast`, after applying the specified
 scalar or array shape conversion.
 
-Contrast statistics must preserve Nilearn's numerical behavior. `Glm` must not
+Contrast statistics must preserve Nilearn's numerical behavior. `_Glm` must not
 apply `abs`, clip a negative estimated effect variance, or introduce an
 nltools-specific exception. `standard_error` follows raw
 `np.sqrt(variance)` semantics and may therefore be non-finite. The
@@ -283,9 +283,9 @@ mapping, or an unnamed sequence of contrast definitions is invalid.
 
 ## BrainData boundary
 
-`BrainData.fit(model="glm", ...)` constructs and retains a fitted `Glm` in
+`BrainData.fit(model="glm", ...)` constructs and retains a fitted `_Glm` in
 `model_`. The facade requires a precomputed `DesignMatrix`, delegates numerical
-fitting to `Glm`, and stores `glm_betas`, `glm_residual`, `glm_predicted`, and
+fitting to `_Glm`, and stores `glm_betas`, `glm_residual`, `glm_predicted`, and
 `glm_r2` as `BrainData` results. Fitting does not compute or store eager
 `glm_t`, `glm_p`, or `glm_se` maps.
 Every attached or returned `BrainData` follows the ownership contract in
@@ -311,12 +311,12 @@ contrast syntax unavailable through arithmetic. With `inference=True`, it
 returns `ContrastResult[BrainData]` for one contrast or a keyed dictionary of
 those results for a mapping. `BrainData` forwards each original contrast
 definition unchanged; both modes delegate parsing and calculation to the
-fitted `Glm`.
+fitted `_Glm`.
 
 `BrainData.predict()` returns an independently owned copy of the stored
 training predictions. `BrainData.predict(X=...)` requires a `DesignMatrix` for
 a fitted GLM and delegates its named-column validation and alignment to
-`Glm.predict`. Ridge prediction retains its numerical feature-matrix contract.
+`_Glm.predict`. Ridge prediction retains its numerical feature-matrix contract.
 
 `BrainCollection.compute_contrasts` exposes the same contrast forms and return
 shape. Its payload is `BrainCollection`, so inferential calls return
@@ -332,12 +332,12 @@ coefficients are reordered to the canonical order before applying the vector.
 Missing or additional features raise `ValueError` rather than allowing one
 numeric vector to represent different estimands across members.
 
-The internal collection cache stores `GlmFitState` losslessly and stores every
+The internal collection cache stores `_GlmFitState` losslessly and stores every
 other fitted numerical value exactly once. Hydration reconstructs the fitted
 estimator and the facade's independently owned effect, prediction, residual,
 and R-squared maps. The cache must not downcast Nilearn's state to float32. Both
 OLS and autoregressive fits are supported. Loading cached state and computing a
-contrast uses the same internal Nilearn-backed function as an in-memory `Glm`;
+contrast uses the same internal Nilearn-backed function as an in-memory `_Glm`;
 the collection layer must not store the training design or reconstruct OLS
 statistics from `X`, residuals, or a pseudoinverse.
 
@@ -346,7 +346,7 @@ intercept-only group test without retaining a fitted model. Its default p-value
 is two-sided, unlike the directional p-value returned by GLM contrast
 inference.
 
-A multi-regressor second-level analysis fits `Glm(noise_model="ols")` with a
+A multi-regressor second-level analysis fits `_Glm(noise_model="ols")` with a
 second-level `DesignMatrix`. The design has one row per subject in the same
 order as the stacked effect maps. The fitted `BrainData` then computes a
 contrast on the second-level design coefficients. As in Nilearn's parametric
@@ -357,9 +357,9 @@ observations; autoregressive noise has no valid interpretation for subjects.
 
 Model-specific facade arguments use the `glm_` prefix:
 
-- `glm_noise_model` maps to `Glm.noise_model`.
-- `glm_bins` maps to `Glm.bins`.
-- `glm_n_jobs` maps to `Glm.n_jobs` and defaults to one.
+- `glm_noise_model` maps to `_Glm.noise_model`.
+- `glm_bins` maps to `_Glm.bins`.
+- `glm_n_jobs` maps to `_Glm.n_jobs` and defaults to one.
 
 `random_state` retains its shared name because both Ridge and GLM use it.
 `BrainCollection.fit` uses `n_jobs` for subject-level orchestration and

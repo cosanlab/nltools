@@ -1,11 +1,11 @@
-"""Tests for BrainData.cluster_report facade + ClusterReport.plot."""
+"""Tests for BrainData.cluster_report facade + _ClusterReport.plot."""
 
 import nibabel as nb
 import numpy as np
 import pytest
 
 from nltools.data import BrainData
-from nltools.data.atlases import ClusterReport
+from nltools.data.atlases import _ClusterReport
 
 
 def _gaussian_blob(shape, center_ijk, peak_amp, sigma=2.0):
@@ -45,7 +45,7 @@ def test_braindata_cluster_report_returns_ClusterReport(stat_brain):
     report = stat_brain.cluster_report(
         stat_threshold=3.0, cluster_threshold=5, atlas="aal"
     )
-    assert isinstance(report, ClusterReport)
+    assert isinstance(report, _ClusterReport)
 
 
 def test_braindata_cluster_report_uses_default_atlases(stat_brain):

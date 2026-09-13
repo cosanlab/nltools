@@ -11,7 +11,7 @@ import numpy as np
 import polars as pl
 
 
-def validate_frame(frame, data_shape=None, frame_type="DataFrame"):
+def _validate_frame(frame, data_shape=None, frame_type="DataFrame"):
     """Validate and process an X or Y frame for a data class.
 
     Accepts pandas DataFrames for user convenience but always returns a

@@ -9,7 +9,7 @@ Based on research documented in claude-guidelines/srm-hyperalignment-testing-str
 
 import pytest
 import numpy as np
-from nltools.algorithms.alignment import SRM, DetSRM
+from nltools.algorithms.alignment import _SRM, _DetSRM
 from sklearn.exceptions import NotFittedError
 
 pytestmark = pytest.mark.slow
@@ -66,7 +66,7 @@ def fitted_srm(multi_subject_data):
     Module-scoped: expensive fit() runs once, shared across tests.
     Uses n_iter=10 for good convergence.
     """
-    srm = SRM(n_features=10, n_iter=10, random_state=42)
+    srm = _SRM(n_features=10, n_iter=10, random_state=42)
     srm.fit(multi_subject_data["data"])
     return srm
 
@@ -77,7 +77,7 @@ def fitted_detsrm(multi_subject_data):
 
     Module-scoped: expensive fit() runs once, shared across tests.
     """
-    detsrm = DetSRM(n_features=10, n_iter=10, random_state=42)
+    detsrm = _DetSRM(n_features=10, n_iter=10, random_state=42)
     detsrm.fit(multi_subject_data["data"])
     return detsrm
 
@@ -97,28 +97,28 @@ class TestSRMInitialization:
 
     def test_srm_init_defaults(self):
         """Test SRM initializes with correct defaults."""
-        srm = SRM()
+        srm = _SRM()
         assert srm.n_iter == 10
         assert srm.n_features == 50
         assert srm.random_state == 0
 
     def test_srm_init_custom_params(self):
         """Test SRM accepts custom parameters."""
-        srm = SRM(n_iter=20, n_features=30, random_state=123)
+        srm = _SRM(n_iter=20, n_features=30, random_state=123)
         assert srm.n_iter == 20
         assert srm.n_features == 30
         assert srm.random_state == 123
 
     def test_detsrm_init_defaults(self):
         """Test DetSRM initializes with correct defaults."""
-        detsrm = DetSRM()
+        detsrm = _DetSRM()
         assert detsrm.n_iter == 10
         assert detsrm.n_features == 50
         assert detsrm.random_state == 0
 
     def test_detsrm_init_custom_params(self):
         """Test DetSRM accepts custom parameters."""
-        detsrm = DetSRM(n_iter=15, n_features=25, random_state=999)
+        detsrm = _DetSRM(n_iter=15, n_features=25, random_state=999)
         assert detsrm.n_iter == 15
         assert detsrm.n_features == 25
         assert detsrm.random_state == 999
@@ -132,19 +132,19 @@ class TestSRMContract:
 
     def test_fit_before_transform_error(self, multi_subject_data):
         """Test that transform raises error before fit."""
-        srm = SRM()
+        srm = _SRM()
         with pytest.raises(NotFittedError, match="model fit has not been run"):
             srm.transform(multi_subject_data["data"])
 
     def test_fit_before_transform_subject_error(self, multi_subject_data):
         """Test that transform_subject raises error before fit."""
-        srm = SRM()
+        srm = _SRM()
         with pytest.raises(NotFittedError, match="model fit has not been run"):
             srm.transform_subject(multi_subject_data["data"][0])
 
     def test_fit_single_subject_error(self, single_subject):
         """Test error with only 1 subject (need multiple)."""
-        srm = SRM()
+        srm = _SRM()
         with pytest.raises(ValueError, match="not enough subjects"):
             srm.fit(single_subject)
 
@@ -155,7 +155,7 @@ class TestSRMContract:
             np.random.randn(100, 50),  # 50 timepoints
             np.random.randn(100, 60),  # 60 timepoints
         ]
-        srm = SRM()
+        srm = _SRM()
         with pytest.raises(ValueError, match="Different number of samples"):
             srm.fit(data)
 
@@ -166,13 +166,13 @@ class TestSRMContract:
             np.random.randn(100, 40),  # 40 samples
             np.random.randn(100, 40),
         ]
-        srm = SRM(n_features=50)  # More features than samples
+        srm = _SRM(n_features=50)  # More features than samples
         with pytest.raises(ValueError, match="not enough samples"):
             srm.fit(data)
 
     def test_fit_sets_attributes(self, multi_subject_data):
         """Test that fit() creates required attributes."""
-        srm = SRM(n_features=10, n_iter=2)
+        srm = _SRM(n_features=10, n_iter=2)
         srm.fit(multi_subject_data["data"])
 
         # Check fitted attributes exist
@@ -189,7 +189,7 @@ class TestSRMContract:
 
     def test_transform_wrong_subject_count(self, multi_subject_data):
         """Test error when transforming different number of subjects."""
-        srm = SRM(n_features=10, n_iter=2)
+        srm = _SRM(n_features=10, n_iter=2)
         srm.fit(multi_subject_data["data"])
 
         # Try to transform different number of subjects
@@ -199,7 +199,7 @@ class TestSRMContract:
 
     def test_transform_subject_wrong_timepoints(self, multi_subject_data):
         """Test error when new subject has different timepoints."""
-        srm = SRM(n_features=10, n_iter=2)
+        srm = _SRM(n_features=10, n_iter=2)
         srm.fit(multi_subject_data["data"])
 
         # New subject with wrong timepoint count
@@ -282,10 +282,10 @@ class TestSRMEdgeCases:
 
     def test_deterministic_with_seed(self, multi_subject_data):
         """Test reproducibility with same random seed."""
-        srm1 = SRM(n_features=10, n_iter=5, random_state=42)
+        srm1 = _SRM(n_features=10, n_iter=5, random_state=42)
         srm1.fit(multi_subject_data["data"])
 
-        srm2 = SRM(n_features=10, n_iter=5, random_state=42)
+        srm2 = _SRM(n_features=10, n_iter=5, random_state=42)
         srm2.fit(multi_subject_data["data"])
 
         # Should produce identical results
@@ -296,10 +296,10 @@ class TestSRMEdgeCases:
 
     def test_different_seed_different_results(self, multi_subject_data):
         """Test that different seeds produce different initializations."""
-        srm1 = SRM(n_features=10, n_iter=1, random_state=42)
+        srm1 = _SRM(n_features=10, n_iter=1, random_state=42)
         srm1.fit(multi_subject_data["data"])
 
-        srm2 = SRM(n_features=10, n_iter=1, random_state=123)
+        srm2 = _SRM(n_features=10, n_iter=1, random_state=123)
         srm2.fit(multi_subject_data["data"])
 
         # Should produce different results (due to random init)
@@ -308,7 +308,7 @@ class TestSRMEdgeCases:
 
     def test_transform_subject_new_data(self, multi_subject_data):
         """Test transform_subject() with new subject data."""
-        srm = SRM(n_features=10, n_iter=5)
+        srm = _SRM(n_features=10, n_iter=5)
         srm.fit(multi_subject_data["data"])
 
         # Create new subject with same shared response but different projection
@@ -363,10 +363,10 @@ class TestDetSRMMathematicalProperties:
 
         Note: Requires two fits to compare - cannot use fixture.
         """
-        detsrm1 = DetSRM(n_features=10, n_iter=5, random_state=42)
+        detsrm1 = _DetSRM(n_features=10, n_iter=5, random_state=42)
         detsrm1.fit(multi_subject_data["data"])
 
-        detsrm2 = DetSRM(n_features=10, n_iter=5, random_state=42)
+        detsrm2 = _DetSRM(n_features=10, n_iter=5, random_state=42)
         detsrm2.fit(multi_subject_data["data"])
 
         np.testing.assert_array_almost_equal(detsrm1.s_, detsrm2.s_, decimal=10)
@@ -399,19 +399,19 @@ class TestDetSRMContract:
 
     def test_detsrm_fit_before_transform_error(self, multi_subject_data):
         """Test that transform raises error before fit."""
-        detsrm = DetSRM()
+        detsrm = _DetSRM()
         with pytest.raises(NotFittedError, match="model fit has not been run"):
             detsrm.transform(multi_subject_data["data"])
 
     def test_detsrm_fit_before_transform_subject_error(self, multi_subject_data):
         """Test that transform_subject raises error before fit."""
-        detsrm = DetSRM()
+        detsrm = _DetSRM()
         with pytest.raises(NotFittedError, match="model fit has not been run"):
             detsrm.transform_subject(multi_subject_data["data"][0])
 
     def test_detsrm_single_subject_error(self, single_subject):
         """Test error with only 1 subject."""
-        detsrm = DetSRM()
+        detsrm = _DetSRM()
         with pytest.raises(ValueError, match="not enough subjects"):
             detsrm.fit(single_subject)
 
@@ -420,11 +420,11 @@ class TestDetSRMContract:
         np.random.seed(111)
         data = [np.random.randn(100, 50), np.random.randn(100, 60)]
         with pytest.raises(ValueError, match="Different number of samples"):
-            DetSRM().fit(data)
+            _DetSRM().fit(data)
 
     def test_detsrm_fit_sets_attributes(self, multi_subject_data):
         """Test that DetSRM fit() creates required attributes."""
-        detsrm = DetSRM(n_features=10, n_iter=2)
+        detsrm = _DetSRM(n_features=10, n_iter=2)
         detsrm.fit(multi_subject_data["data"])
 
         # Check fitted attributes exist

@@ -10,9 +10,9 @@ import numpy as np
 import pytest
 
 from nltools.data.braindata.viewer import (
-    compute_display_window,
-    qualitative_colors,
-    resolve_background,
+    _compute_display_window,
+    _qualitative_colors,
+    _resolve_background,
 )
 
 
@@ -25,24 +25,24 @@ class _FakeBD:
 
 class TestQualitativeColors:
     def test_n_tuples_in_range(self):
-        cs = qualitative_colors(10)
+        cs = _qualitative_colors(10)
         assert len(cs) == 10
         assert all(len(c) == 3 for c in cs)
         assert all(0 <= v <= 255 for c in cs for v in c)
 
     def test_deterministic(self):
-        assert qualitative_colors(5) == qualitative_colors(5)
-        assert qualitative_colors(5, seed=1) != qualitative_colors(5, seed=0)
+        assert _qualitative_colors(5) == _qualitative_colors(5)
+        assert _qualitative_colors(5, seed=1) != _qualitative_colors(5, seed=0)
 
     def test_distinct(self):
-        assert len(set(qualitative_colors(8))) == 8
+        assert len(set(_qualitative_colors(8))) == 8
 
     def test_zero(self):
-        assert qualitative_colors(0) == []
+        assert _qualitative_colors(0) == []
 
     def test_negative_raises(self):
         with pytest.raises(ValueError):
-            qualitative_colors(-1)
+            _qualitative_colors(-1)
 
 
 class TestComputeDisplayWindow:
@@ -63,10 +63,10 @@ class TestComputeDisplayWindow:
         finite = data[np.isfinite(data)]
         magnitudes = np.abs(finite[finite != 0])
 
-        window = compute_display_window(data, threshold="60%")
+        window = _compute_display_window(data, threshold="60%")
         assert window.cal_min == pytest.approx(float(np.percentile(magnitudes, 60)))
 
-        window = compute_display_window(data, lower="10%", upper="90%")
+        window = _compute_display_window(data, lower="10%", upper="90%")
         assert window.cal_min == pytest.approx(float(np.percentile(magnitudes, 10)))
         assert window.cal_max == pytest.approx(float(np.percentile(magnitudes, 90)))
 
@@ -76,7 +76,7 @@ class TestComputeDisplayWindow:
         `lower=-1.0` means |v| >= 1 — never "everything above -1", which would
         admit every zero voxel outside the mask and paint the whole volume.
         """
-        window = compute_display_window(
+        window = _compute_display_window(
             np.array([-3.0, 0.0, 1.0, 4.0]), lower=-1.0, upper=2.0
         )
         assert (window.cal_min, window.cal_max) == (1.0, 2.0)
@@ -94,7 +94,7 @@ class TestComputeDisplayWindow:
         # of magnitude above the smallest real voxel.
         data = np.concatenate([np.full(500, 1.0), np.array([1e-9])])
 
-        window = compute_display_window(data)
+        window = _compute_display_window(data)
 
         smallest_nonzero = np.abs(data[data != 0]).min()
         assert 0.0 < window.cal_min <= smallest_nonzero
@@ -104,7 +104,7 @@ class TestComputeDisplayWindow:
         data = np.array([-3.0, 0.0, 1.0, 4.0])
         for bad in [(60, 98), None, "98%", 98]:
             with pytest.raises(TypeError, match="autoscale"):
-                compute_display_window(data, autoscale=bad)
+                _compute_display_window(data, autoscale=bad)
 
     def test_the_slider_bound_never_exceeds_the_resolved_floor(self):
         """``viewer.js`` clamps the applied floor to this bound.
@@ -117,7 +117,7 @@ class TestComputeDisplayWindow:
         data = rng.standard_normal(2000)
         data[::7] = 0.0
 
-        window = compute_display_window(data)
+        window = _compute_display_window(data)
 
         assert 0.0 < window.slider_min <= window.cal_min
 
@@ -125,7 +125,7 @@ class TestComputeDisplayWindow:
         """A per-limb percentile ceiling must not land below an explicit floor."""
         data = np.concatenate([np.linspace(0.1, 7.0, 200), np.array([9.0])])
 
-        window = compute_display_window(data, threshold=8.5, symmetric=False)
+        window = _compute_display_window(data, threshold=8.5, symmetric=False)
 
         assert window.cal_max >= window.cal_min
         assert window.slider_value_high >= window.slider_value_low
@@ -137,14 +137,14 @@ class TestComputeDisplayWindow:
         data = rng.standard_normal(500)
         data[::7] = 0.0
 
-        window = compute_display_window(data)
+        window = _compute_display_window(data)
 
         assert window.cal_min > 0.0
         assert window.cal_min < window.cal_max
 
 
 class TestBuildViewerRequiresWindow:
-    """``build_viewer`` cannot be constructed without an explicit window.
+    """``_build_viewer`` cannot be constructed without an explicit window.
 
     An optional window is how the renderer and the slider handles drifted
     apart in the first place: niivue autoscaled from ``NaN`` while the
@@ -153,17 +153,17 @@ class TestBuildViewerRequiresWindow:
     """
 
     def test_missing_window_raises(self):
-        from nltools.data.braindata.viewer import build_viewer
+        from nltools.data.braindata.viewer import _build_viewer
 
         with pytest.raises(TypeError, match="window"):
-            build_viewer(_FakeBD([-3.0, 0.0, 4.0]))
+            _build_viewer(_FakeBD([-3.0, 0.0, 4.0]))
 
 
 class TestDisplayWindowSliderBounds:
-    """The slider fields of `DisplayWindow` span the data and the window."""
+    """The slider fields of `_DisplayWindow` span the data and the window."""
 
     def test_bounds_are_a_magnitude_window_with_a_positive_floor(self):
-        window = compute_display_window([-3.0, 0.0, 4.0], lower=1.0, upper=4.0)
+        window = _compute_display_window([-3.0, 0.0, 4.0], lower=1.0, upper=4.0)
         assert window.slider_max == pytest.approx(4.0)  # max |v|
         assert window.slider_step == pytest.approx(4.0 / 200.0)
         assert window.slider_min > 0.0  # never zero
@@ -171,66 +171,66 @@ class TestDisplayWindowSliderBounds:
         assert window.slider_value_high == pytest.approx(4.0)
 
     def test_negative_dominated_data_sets_the_ceiling_by_magnitude(self):
-        window = compute_display_window([-9.0, 0.0, 4.0])
+        window = _compute_display_window([-9.0, 0.0, 4.0])
         assert window.slider_max == pytest.approx(9.0)
         assert window.slider_min > 0.0
 
     def test_a_zero_floor_is_raised_above_zero(self):
         """A floor of zero painted the whole volume box in the negative colormap."""
-        window = compute_display_window([-3.0, 4.0], lower=0.0)
+        window = _compute_display_window([-3.0, 4.0], lower=0.0)
         assert window.slider_value_low == pytest.approx(window.slider_min)
         assert window.slider_value_low > 0.0
 
     def test_ignores_nonfinite(self):
-        window = compute_display_window(
+        window = _compute_display_window(
             [np.nan, -2.0, np.inf, 5.0], lower=0.0, upper=1.0
         )
         assert window.slider_min > 0.0
         assert window.slider_max == pytest.approx(5.0)
 
     def test_requested_window_sets_handles(self):
-        window = compute_display_window([-3.0, 4.0], lower=1.0, upper=3.0)
+        window = _compute_display_window([-3.0, 4.0], lower=1.0, upper=3.0)
         assert window.slider_value_low == pytest.approx(1.0)
         assert window.slider_value_high == pytest.approx(3.0)
 
     def test_requested_window_widens_bounds(self):
         # A ceiling beyond the data range widens the bounds so the handles land
         # exactly where requested rather than being clamped to the extremes.
-        window = compute_display_window([-3.0, 4.0], lower=1.0, upper=99.0)
+        window = _compute_display_window([-3.0, 4.0], lower=1.0, upper=99.0)
         assert window.slider_max == pytest.approx(99.0)
         assert window.slider_value_low == pytest.approx(1.0)
         assert window.slider_value_high == pytest.approx(99.0)
         assert 0.0 < window.slider_min < window.slider_value_low
 
     def test_empty_data_falls_back(self):
-        window = compute_display_window([])
+        window = _compute_display_window([])
         assert window.slider_max == pytest.approx(1.0)
         assert window.slider_min > 0.0
         assert window.slider_step > 0
 
     def test_all_zero_data_falls_back(self):
-        window = compute_display_window([0.0, 0.0, 0.0])
+        window = _compute_display_window([0.0, 0.0, 0.0])
         assert window.slider_max == pytest.approx(1.0)
         assert window.slider_min > 0.0
 
     def test_constant_data(self):
-        window = compute_display_window([2.0, 2.0, 2.0], lower=2.0, upper=2.0)
+        window = _compute_display_window([2.0, 2.0, 2.0], lower=2.0, upper=2.0)
         assert window.slider_max == pytest.approx(2.0)
         assert 0.0 < window.slider_min < window.slider_max
 
 
 class TestResolveBackground:
     def test_false_disables_background(self):
-        assert resolve_background(np.eye(4), False) is None
+        assert _resolve_background(np.eye(4), False) is None
 
     def test_string_path_passthrough(self):
-        assert resolve_background(np.eye(4), "/tmp/bg.nii.gz") == "/tmp/bg.nii.gz"
+        assert _resolve_background(np.eye(4), "/tmp/bg.nii.gz") == "/tmp/bg.nii.gz"
 
     def test_none_with_nonstandard_affine_is_none(self):
         # Non-isotropic affine is not standard space, so auto resolves to no
         # background without any network fetch.
         affine = np.diag([2.0, 3.0, 4.0, 1.0])
-        assert resolve_background(affine, None) is None
+        assert _resolve_background(affine, None) is None
 
 
 def test_gzip_nifti_is_deterministic_across_calls():
@@ -239,12 +239,12 @@ def test_gzip_nifti_is_deterministic_across_calls():
     import gzip
     import time
 
-    from nltools.data.braindata.viewer import gzip_nifti
+    from nltools.data.braindata.viewer import _gzip_nifti
 
     raw = b"\x5c\x01\x00\x00" + bytes(range(256)) * 16
-    a = gzip_nifti(raw)
+    a = _gzip_nifti(raw)
     time.sleep(1.1)
-    b = gzip_nifti(raw)
+    b = _gzip_nifti(raw)
     assert a == b
     assert gzip.decompress(a) == raw
-    assert gzip_nifti(a) == a  # already-gzipped input passes through
+    assert _gzip_nifti(a) == a  # already-gzipped input passes through

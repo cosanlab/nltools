@@ -19,7 +19,7 @@ Four kwargs carry most of the meaning.
   earns you a warning.
 - **`n_jobs`.** The joblib worker count (`-1` = all cores). It is a speed knob only: a seeded run
   gives the same numbers at every worker count. `device='gpu'` exists on the ridge paths
-  (`Ridge`, `BrainData.fit(ridge_device=)`, `BrainData.bootstrap`) and nowhere else; there it runs
+  (`_Ridge`, `BrainData.fit(ridge_device=)`, `BrainData.bootstrap`) and nowhere else; there it runs
   on the GPU or raises.
 - **`random_state`.** Set it and results reproduce exactly.
 
@@ -28,7 +28,7 @@ Goal | Use | Notes
 One-sample voxelwise test | [`ttest`](../api/data/brain_data.md#nltools.data.braindata.BrainData.ttest)`(popmean=0.0)` | Returns `{'mean', 't', 'z', 'p'}`
 Non-parametric one-sample | `ttest(permutation=True, n_permute=)` | Sign flipping; add `return_null=True` for the `'null_dist'` array. Also [`one_sample_permutation_test`](../api/tasks/inference.md#nltools.algorithms.one_sample_permutation_test)
 Non-parametric two-sample | [`two_sample_permutation_test`](../api/tasks/inference.md#nltools.algorithms.two_sample_permutation_test) | Group-label shuffling
-Correlated time series | `timeseries_correlation_permutation_test` (from `nltools.algorithms.inference`) | `method='circle_shift'` or `'phase_randomize'` preserves autocorrelation
+Correlated time series | `_timeseries_correlation_permutation_test` (from `nltools.algorithms.inference`) | `method='circle_shift'` or `'phase_randomize'` preserves autocorrelation
 Build a timeseries null | [`circle_shift`](../api/tasks/inference.md#nltools.algorithms.circle_shift), [`phase_randomize`](../api/tasks/inference.md#nltools.algorithms.phase_randomize) | The surrogate generators used above
 Confidence intervals | [`BrainData.bootstrap`](../api/data/brain_data.md#nltools.data.braindata.BrainData.bootstrap), [`Adjacency.bootstrap`](../api/data/adjacency.md#nltools.data.adjacency.Adjacency.bootstrap) | Returns a `BootstrapResult`: `.estimate`, `.standard_error`, `.ci_lower`, `.ci_upper`
 Matrix comparison | [`matrix_permutation_test`](../api/tasks/similarity.md#nltools.algorithms.matrix_permutation_test), [`Adjacency.ttest`](../api/data/adjacency.md#nltools.data.adjacency.Adjacency.ttest) | `Adjacency.ttest` takes the same kwargs and returns the same keys, one edgewise `Adjacency` each. See [Similarity & RSA](similarity-and-rsa.md)
@@ -77,7 +77,7 @@ data — not the average of the draws), `standard_error` (the `ddof=1` deviation
 with `Adjacency` payloads.
 
 The six basic statistics — `'mean'`, `'median'`, `'std'`, `'sum'`, `'min'`, `'max'` — reduce the
-data itself. `'weights'` and `'predict'` bootstrap a fitted `Ridge`, taking the training features
+data itself. `'weights'` and `'predict'` bootstrap a fitted `_Ridge`, taking the training features
 back explicitly. `confidence_level=` sets one level (default `0.95`), not a percentile pair, and
 the bounds are elementwise marginal: the nominal level applies per voxel, with no
 multiple-comparison control across the map.
@@ -103,11 +103,11 @@ from nltools.algorithms import (
     one_sample_permutation_test,
     two_sample_permutation_test,
 )
-from nltools.algorithms.inference import timeseries_correlation_permutation_test
+from nltools.algorithms.inference import _timeseries_correlation_permutation_test
 
 one_sample_permutation_test(a, n_permute=1000, random_state=0)["p"]
 two_sample_permutation_test(a, b, n_permute=1000, random_state=0)["p"]
-timeseries_correlation_permutation_test(
+_timeseries_correlation_permutation_test(
     a, b, method="circle_shift", n_permute=1000, metric="pearson", random_state=0
 )["p"]
 ```

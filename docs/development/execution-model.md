@@ -152,7 +152,7 @@ process's stderr — invisible to `warnings.catch_warnings`, `pytest.warns`, and
 notebook front-ends. `_wrap_worker` captures them (as pickle-safe
 `_WorkerWarning` records — the category travels as import-path strings, never a
 class object), and `_apply` relays them through the parent's warning machinery
-via `warnings.warn(..., stacklevel=find_stack_level())`:
+via `warnings.warn(..., stacklevel=_find_stack_level())`:
 
 - **Attributed to the caller** — a worker's own stack bottoms out in
   joblib/loky or nltools, never in user code, so the worker-side location is
@@ -163,7 +163,7 @@ via `warnings.warn(..., stacklevel=find_stack_level())`:
   (sub-0005)]`). The serial `n_jobs=1` fast path goes through the same
   capture/relay, so warning behavior is identical at any `n_jobs`.
 - **Categories preserved** — parent-side filters (`ignore`, `error`,
-  `pytest.warns(RankDeficientDesignWarning)`) work on relayed warnings. A
+  `pytest.warns(DesignMatrixWarning)`) work on relayed warnings. A
   category that can't be re-imported parent-side falls back to `UserWarning`
   with the original class name kept in the message text.
 - **Timing caveat** — `filterwarnings("error")` promotes at relay time, after
@@ -332,7 +332,7 @@ doesn't accept a single string — that pattern silently drops the original trac
 ## Nested parallelism
 
 Risk: `bc.fit(n_jobs=-1)` over 30 subjects × `BrainData.fit` internally calling
-`Ridge(n_jobs=-1)` = N² processes. When `_apply` runs with `n_jobs > 1` it sets
+`_Ridge(n_jobs=-1)` = N² processes. When `_apply` runs with `n_jobs > 1` it sets
 `joblib.parallel_backend("loky", inner_max_num_threads=1)` for the inner scope, capping
 thread oversubscription inside each worker.
 

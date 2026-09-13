@@ -1,6 +1,6 @@
 """Concatenate DesignMatrix objects horizontally or across runs.
 
-`append` dispatches to `append_horizontal` (add columns) or `append_vertical`
+`append` dispatches to `_append_horizontal` (add columns) or `_append_vertical`
 (stack runs). Vertical appends can keep confound columns separate per run by
 renaming them into the reserved ``.nl_r{run}_`` namespace, so each run gets
 its own intercept and drift terms.
@@ -15,9 +15,9 @@ import polars as pl
 
 from .utils import (
     RESERVED_PREFIX,
-    copy_with,
-    is_reserved_name,
-    run_separated_name,
+    _copy_with,
+    _is_reserved_name,
+    _run_separated_name,
 )
 
 if TYPE_CHECKING:
@@ -80,7 +80,7 @@ def _coerce_horizontal_input(x, sampling_freq):
         # Columns arriving as a raw frame are user-authored by definition, so
         # the reserved namespace is off limits: letting them in would make a
         # user column indistinguishable from one nltools generated.
-        reserved = sorted(c for c in x.columns if is_reserved_name(c))
+        reserved = sorted(c for c in x.columns if _is_reserved_name(c))
         if reserved:
             raise ValueError(
                 f"Column names starting with {RESERVED_PREFIX!r} are reserved for "
@@ -98,7 +98,7 @@ def _coerce_horizontal_input(x, sampling_freq):
     )
 
 
-def append(
+def _append(
     dm: DesignMatrix,
     other,
     *,
@@ -180,7 +180,7 @@ def append(
         raise ValueError("All Design Matrices must have the same sampling frequency!")
 
     if axis == 1:
-        return append_horizontal(dm, to_append, fill_na, as_confounds=as_confounds)
+        return _append_horizontal(dm, to_append, fill_na, as_confounds=as_confounds)
     if axis == 0:
         # Refuse the silent-collision case: a non-multi base with any multi
         # DM in to_append would re-index the base as run 0 and collide with
@@ -194,7 +194,7 @@ def append(
                 "rebuild the multi-run DM from its constituent single-run DMs "
                 "in the desired order."
             )
-        return append_vertical(
+        return _append_vertical(
             dm,
             to_append,
             keep_separate,
@@ -205,7 +205,7 @@ def append(
     raise ValueError("axis must be 0 (vertical) or 1 (horizontal)")
 
 
-def append_horizontal(
+def _append_horizontal(
     dm: DesignMatrix,
     to_append: list[DesignMatrix],
     fill_na: int | float | None,
@@ -271,7 +271,7 @@ def append_horizontal(
     all_confounds = _merge_ordered(confound_lists)
     all_convolved = _merge_ordered([dm.convolved, *(e.convolved for e in to_append)])
 
-    return copy_with(dm, new_df, confounds=all_confounds, convolved=all_convolved)
+    return _copy_with(dm, new_df, confounds=all_confounds, convolved=all_convolved)
 
 
 def _check_duplicate_values(frame: pl.DataFrame, base_columns: list[str]) -> None:
@@ -333,7 +333,7 @@ def _merge_ordered(lists: list[list[str]]) -> list[str]:
     return out
 
 
-def append_vertical(
+def _append_vertical(
     dm: DesignMatrix,
     to_append: list[DesignMatrix],
     keep_separate: bool,
@@ -373,7 +373,7 @@ def append_vertical(
         all_confounds = _merge_ordered([d.confounds for d in all_dms])
         all_convolved = _merge_ordered([d.convolved for d in all_dms])
 
-        return copy_with(
+        return _copy_with(
             dm,
             new_df,
             confounds=all_confounds,
@@ -382,12 +382,12 @@ def append_vertical(
         )
 
     # Complex case: keep_separate=True - separate confound columns across runs
-    return append_vertical_with_separation(
+    return _append_vertical_with_separation(
         dm, to_append, unique_cols, fill_na, progress_bar=progress_bar
     )
 
 
-def match_column_pattern(columns: list[str], pattern: str) -> list[str]:
+def _match_column_pattern(columns: list[str], pattern: str) -> list[str]:
     """Match columns against a pattern with wildcard support.
 
     Args:
@@ -409,7 +409,7 @@ def match_column_pattern(columns: list[str], pattern: str) -> list[str]:
     return [c for c in columns if c == pattern]
 
 
-def identify_columns_to_separate(
+def _identify_columns_to_separate(
     dm: DesignMatrix,
     all_dms: list[DesignMatrix],
     unique_cols: list[str] | None,
@@ -442,13 +442,13 @@ def identify_columns_to_separate(
 
         # Match each pattern
         for pattern in unique_cols:
-            matched = match_column_pattern(list(all_column_names), pattern)
+            matched = _match_column_pattern(list(all_column_names), pattern)
             cols_to_sep.update(matched)
 
     return cols_to_sep
 
 
-def append_vertical_with_separation(
+def _append_vertical_with_separation(
     dm: DesignMatrix,
     to_append: list[DesignMatrix],
     unique_cols: list[str] | None,
@@ -475,7 +475,7 @@ def append_vertical_with_separation(
             and multi=True.
     """
     all_dms = [dm, *to_append]
-    cols_to_sep = identify_columns_to_separate(dm, all_dms, unique_cols)
+    cols_to_sep = _identify_columns_to_separate(dm, all_dms, unique_cols)
     if progress_bar and cols_to_sep:
         print(f"Separating columns across runs: {sorted(cols_to_sep)}")
 
@@ -491,7 +491,7 @@ def append_vertical_with_separation(
                 next_run = max(next_run, d._run_count)
             else:
                 rename_map = {
-                    col: run_separated_name(next_run, col)
+                    col: _run_separated_name(next_run, col)
                     for col in d.columns
                     if col in cols_to_sep
                 }
@@ -505,7 +505,7 @@ def append_vertical_with_separation(
     result_df = _stack_frames(processed_dfs, [d.shape[0] for d in all_dms])
     if fill_na is not None:
         result_df = result_df.fill_null(fill_na).fill_nan(fill_na)
-    return copy_with(
+    return _copy_with(
         dm,
         result_df,
         confounds=_merge_ordered([all_new_confounds]),

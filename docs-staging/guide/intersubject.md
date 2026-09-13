@@ -49,7 +49,7 @@ phase = isps(data, sampling_freq=0.5, low_cut=0.04, high_cut=0.07)
 
 ## Gotchas
 
-- `isc_permutation_test` spreads its resamples across `n_jobs` joblib workers; a seeded run
+- `_isc_permutation_test` spreads its resamples across `n_jobs` joblib workers; a seeded run
   gives the same numbers at every worker count. See the `n_jobs` guidance in
   [Statistics & inference](statistics-and-inference.md).
 - `exclude_self_corr=True` (the default) sets a subject's correlation with itself to NaN when the

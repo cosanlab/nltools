@@ -12,13 +12,13 @@ from typing import TYPE_CHECKING
 import numpy as np
 import polars as pl
 
-from .utils import copy_with, get_data_columns
+from .utils import _copy_with, _get_data_columns
 
 if TYPE_CHECKING:
     from nltools.data.designmatrix import DesignMatrix
 
 
-def standardize(
+def _standardize(
     dm: DesignMatrix,
     *,
     method: str = "center",
@@ -50,7 +50,7 @@ def standardize(
         raise ValueError(f"method must be 'center' or 'zscore', got {method!r}")
 
     if columns is None:
-        columns = get_data_columns(dm, exclude_confounds=True)
+        columns = _get_data_columns(dm, exclude_confounds=True)
 
     def standardized(col: str) -> pl.Expr:
         expr = pl.col(col) - pl.col(col).mean()
@@ -58,10 +58,10 @@ def standardize(
             expr = expr / pl.col(col).std()
         return expr.alias(col)
 
-    return copy_with(dm, dm.data.with_columns(standardized(col) for col in columns))
+    return _copy_with(dm, dm.data.with_columns(standardized(col) for col in columns))
 
 
-def downsample(dm: DesignMatrix, target: float, method: str = "mean") -> DesignMatrix:
+def _downsample(dm: DesignMatrix, target: float, method: str = "mean") -> DesignMatrix:
     """Reduce temporal resolution by aggregating consecutive samples.
 
     Args:
@@ -113,7 +113,7 @@ def downsample(dm: DesignMatrix, target: float, method: str = "mean") -> DesignM
     df_with_idx = dm.data.with_columns(idx.alias("_group_idx"))
 
     # Get all data columns
-    data_cols = get_data_columns(dm, exclude_confounds=False)
+    data_cols = _get_data_columns(dm, exclude_confounds=False)
 
     # Group by index and aggregate
     if method == "mean":
@@ -129,10 +129,10 @@ def downsample(dm: DesignMatrix, target: float, method: str = "mean") -> DesignM
             .drop("_group_idx")
         )
 
-    return copy_with(dm, downsampled_df, sampling_freq=target)
+    return _copy_with(dm, downsampled_df, sampling_freq=target)
 
 
-def upsample(dm: DesignMatrix, target: float, method: str = "linear") -> DesignMatrix:
+def _upsample(dm: DesignMatrix, target: float, method: str = "linear") -> DesignMatrix:
     """Increase temporal resolution by interpolating between samples.
 
     Args:
@@ -181,7 +181,7 @@ def upsample(dm: DesignMatrix, target: float, method: str = "linear") -> DesignM
     new_indices = np.arange(0, dm.shape[0] - 1, step_size)
 
     # Get all data columns (including confounds - upsample everything)
-    data_cols = get_data_columns(dm, exclude_confounds=False)
+    data_cols = _get_data_columns(dm, exclude_confounds=False)
 
     # Interpolate each column using scipy (matches stats.upsample)
     upsampled_data = {}
@@ -197,4 +197,4 @@ def upsample(dm: DesignMatrix, target: float, method: str = "linear") -> DesignM
     # Create new Polars DataFrame
     upsampled_df = pl.DataFrame(upsampled_data)
 
-    return copy_with(dm, upsampled_df, sampling_freq=target)
+    return _copy_with(dm, upsampled_df, sampling_freq=target)

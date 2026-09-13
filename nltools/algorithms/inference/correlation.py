@@ -3,7 +3,7 @@
 `correlation_permutation_test` asks whether the Pearson, Spearman, or Kendall
 correlation between two arrays differs from zero, building the null distribution
 by shuffling one array's observations. It assumes observations are independent;
-for autocorrelated time series use `timeseries_correlation_permutation_test`.
+for autocorrelated time series use `_timeseries_correlation_permutation_test`.
 Multi-feature inputs (2D arrays) test each column pair independently.
 Permutations run on joblib workers; `n_jobs` sets how many, and a given
 `random_state` gives the same result at any worker count.
@@ -14,8 +14,8 @@ from collections.abc import Callable
 from scipy.stats import rankdata, kendalltau
 from sklearn.utils import check_random_state
 
-from .utils import EPSILON, maybe_tqdm
-from ..validation import _compute_pvalue, validate_tail_parameter
+from .utils import EPSILON, _maybe_tqdm
+from ..validation import _compute_pvalue, _validate_tail_parameter
 
 
 def _pearson_correlation(x: np.ndarray, y: np.ndarray) -> np.ndarray | float:
@@ -230,7 +230,7 @@ def _correlation_permutation_cpu_parallel(
     # Execute in parallel with progress bar
     null_dist = Parallel(n_jobs=n_jobs)(
         delayed(_compute_one_perm)(seeds[i])
-        for i in maybe_tqdm(
+        for i in _maybe_tqdm(
             range(n_permute),
             progress_bar=progress_bar,
             desc="CPU parallel perms",
@@ -277,7 +277,7 @@ def correlation_permutation_test(
 
     Builds the null distribution by randomly permuting the observations of `data1`
     and re-correlating with `data2`. Assumes observations are independent (i.i.d.);
-    for autocorrelated time series use `timeseries_correlation_permutation_test`,
+    for autocorrelated time series use `_timeseries_correlation_permutation_test`,
     whose `'circle_shift'` and `'phase_randomize'` methods preserve temporal
     structure. With 2D inputs each column of `data1` is tested against the
     matching column of `data2`, independently.
@@ -340,7 +340,7 @@ def correlation_permutation_test(
         raise ValueError(f"data1 must be 1D or 2D, got shape {data1.shape}")
     if data2.ndim not in [1, 2]:
         raise ValueError(f"data2 must be 1D or 2D, got shape {data2.shape}")
-    tail = validate_tail_parameter(tail)
+    tail = _validate_tail_parameter(tail)
     if metric not in ["pearson", "spearman", "kendall"]:
         raise ValueError(
             f"metric must be 'pearson', 'spearman', or 'kendall', got '{metric}'"

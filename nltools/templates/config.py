@@ -4,7 +4,7 @@ from contextlib import contextmanager
 from dataclasses import dataclass, replace
 from collections.abc import Iterator
 
-from .paths import resolve_paths
+from .paths import _resolve_paths
 from .registry import SUPPORTED_RESOLUTIONS, TemplateName, Resolution
 
 
@@ -39,17 +39,17 @@ class BrainSpaceConfig:
     @property
     def mask(self) -> str:
         """Path to the brain mask file."""
-        return resolve_paths(self.template, self.resolution)["mask"]
+        return _resolve_paths(self.template, self.resolution)["mask"]
 
     @property
     def brain(self) -> str:
         """Path to the brain-extracted image."""
-        return resolve_paths(self.template, self.resolution)["brain"]
+        return _resolve_paths(self.template, self.resolution)["brain"]
 
     @property
     def plot(self) -> str:
         """Path to the full T1 image used for plotting."""
-        return resolve_paths(self.template, self.resolution)["plot"]
+        return _resolve_paths(self.template, self.resolution)["plot"]
 
     def __repr__(self) -> str:
         import os

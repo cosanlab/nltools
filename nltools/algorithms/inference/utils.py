@@ -1,8 +1,8 @@
 """Shared helpers for the permutation tests: sign flips, z-from-p, the stability epsilon and progress bars."""
 
 import numpy as np
-from ...utils import _NullProgressBar, make_progress_bar, maybe_tqdm  # noqa: F401
-from .random import generate_sign_flips as _generate_sign_flips  # noqa: F401
+from ...utils import _NullProgressBar, _make_progress_bar, _maybe_tqdm  # noqa: F401
+from .random import _generate_sign_flips as _generate_sign_flips  # noqa: F401
 
 
 # ============================================================================

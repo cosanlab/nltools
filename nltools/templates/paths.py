@@ -31,7 +31,7 @@ def _split_template_name(template_name: str) -> tuple[int, str] | None:
     return int(resolution), version_code
 
 
-def resolve_paths(template: str, resolution: int) -> dict[str, str]:
+def _resolve_paths(template: str, resolution: int) -> dict[str, str]:
     """Build mask/brain/plot paths for a template + resolution.
 
     Args:
@@ -65,7 +65,7 @@ def resolve_paths(template: str, resolution: int) -> dict[str, str]:
     }
 
 
-def resolve_template_name(template_name: str, file_type: str = "mask") -> str:
+def _resolve_template_name(template_name: str, file_type: str = "mask") -> str:
     """Resolve a template name string to a file path.
 
     Supports names of the form `'{res}mm-MNI152-2009{version}'`.
@@ -103,4 +103,4 @@ def resolve_template_name(template_name: str, file_type: str = "mask") -> str:
 
     template = VERSION_TO_TEMPLATE[version_code]
     key = "plot" if file_type == "T1" else file_type
-    return resolve_paths(template, resolution)[key]
+    return _resolve_paths(template, resolution)[key]

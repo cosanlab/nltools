@@ -11,7 +11,7 @@ import pytest
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 from nltools.data import BrainData
-from nltools.plotting import plot_surf, plot_flatmap
+from nltools.plotting import _plot_surf, _plot_flatmap
 
 
 class TestStatMapDefaults:
@@ -47,21 +47,21 @@ class TestPlotSurf:
     def test_plot_surf_empty_brain_raises(self):
         """Empty BrainData should raise ValueError before any surface work."""
         with pytest.raises(ValueError, match="empty|Empty"):
-            plot_surf(BrainData())
+            _plot_surf(BrainData())
 
     def test_plot_surf_invalid_hemi_raises(self, minimal_brain_data):
         """Unknown hemi string should raise ValueError up front."""
         with pytest.raises(ValueError, match="hemi"):
-            plot_surf(minimal_brain_data[0], hemi="middle")
+            _plot_surf(minimal_brain_data[0], hemi="middle")
 
     def test_plot_surf_invalid_view_raises(self, minimal_brain_data):
         """Unknown view should raise ValueError up front."""
         with pytest.raises(ValueError, match="view"):
-            plot_surf(minimal_brain_data[0], view="above")
+            _plot_surf(minimal_brain_data[0], view="above")
 
     def test_plot_surf_is_exposed_from_plotting(self):
         """plot_surf must be importable from nltools.plotting."""
-        from nltools.plotting import plot_surf as _ps
+        from nltools.plotting import _plot_surf as _ps
 
         assert callable(_ps)
 
@@ -74,7 +74,7 @@ class TestPlotSurf:
     @pytest.mark.slow
     def test_plot_surf_default_is_2x2_grid(self, sim_brain_data):
         """Default produces a 2×2 montage (2 views × 2 hemis)."""
-        fig = plot_surf(sim_brain_data[0])
+        fig = _plot_surf(sim_brain_data[0])
         axes_3d = [ax for ax in fig.axes if isinstance(ax, Axes3D)]
         assert len(axes_3d) == 4
         plt.close(fig)
@@ -82,7 +82,7 @@ class TestPlotSurf:
     @pytest.mark.slow
     def test_plot_surf_view_subsets_grid(self, sim_brain_data):
         """view=["lateral"] → 1 row × 2 hemi cols."""
-        fig = plot_surf(sim_brain_data[0], view=["lateral"])
+        fig = _plot_surf(sim_brain_data[0], view=["lateral"])
         axes_3d = [ax for ax in fig.axes if isinstance(ax, Axes3D)]
         assert len(axes_3d) == 2
         plt.close(fig)
@@ -90,7 +90,7 @@ class TestPlotSurf:
     @pytest.mark.slow
     def test_plot_surf_hemi_subsets_grid(self, sim_brain_data):
         """hemi='left' → 2 view rows × 1 hemi col."""
-        fig = plot_surf(sim_brain_data[0], hemi="left")
+        fig = _plot_surf(sim_brain_data[0], hemi="left")
         axes_3d = [ax for ax in fig.axes if isinstance(ax, Axes3D)]
         assert len(axes_3d) == 2
         plt.close(fig)
@@ -98,7 +98,7 @@ class TestPlotSurf:
     @pytest.mark.slow
     def test_plot_surf_single_view_single_hemi(self, sim_brain_data):
         """view='lateral', hemi='left' → single axis."""
-        fig = plot_surf(sim_brain_data[0], view="lateral", hemi="left")
+        fig = _plot_surf(sim_brain_data[0], view="lateral", hemi="left")
         axes_3d = [ax for ax in fig.axes if isinstance(ax, Axes3D)]
         assert len(axes_3d) == 1
         plt.close(fig)
@@ -106,7 +106,7 @@ class TestPlotSurf:
     @pytest.mark.slow
     def test_plot_surf_turns_axes_off(self, sim_brain_data):
         """Every 3D axis has its frame/grid hidden."""
-        fig = plot_surf(sim_brain_data[0])
+        fig = _plot_surf(sim_brain_data[0])
         axes_3d = [ax for ax in fig.axes if isinstance(ax, Axes3D)]
         assert axes_3d  # sanity
         for ax in axes_3d:
@@ -116,7 +116,7 @@ class TestPlotSurf:
     @pytest.mark.slow
     def test_plot_surf_colorbar_is_shared(self, sim_brain_data):
         """colorbar=True produces exactly one shared colorbar, not one-per-subplot."""
-        fig = plot_surf(sim_brain_data[0], colorbar=True)
+        fig = _plot_surf(sim_brain_data[0], colorbar=True)
         cbar_axes = [ax for ax in fig.axes if not isinstance(ax, Axes3D)]
         assert len(cbar_axes) == 1
         plt.close(fig)
@@ -124,7 +124,7 @@ class TestPlotSurf:
     @pytest.mark.slow
     def test_plot_surf_colorbar_false(self, sim_brain_data):
         """colorbar=False produces no colorbar axis."""
-        fig = plot_surf(sim_brain_data[0], colorbar=False)
+        fig = _plot_surf(sim_brain_data[0], colorbar=False)
         cbar_axes = [ax for ax in fig.axes if not isinstance(ax, Axes3D)]
         assert len(cbar_axes) == 0
         plt.close(fig)
@@ -143,7 +143,7 @@ class TestPlotSurf:
             return orig(t, b)
 
         monkeypatch.setattr(bmod, "_resolve_transparency", spy)
-        fig = plot_surf(sim_brain_data[0])
+        fig = _plot_surf(sim_brain_data[0])
         assert captured["t"] == "auto"
         plt.close(fig)
 
@@ -159,7 +159,7 @@ class TestPlotSurf:
     def test_plot_surf_save(self, sim_brain_data, tmpdir):
         """save= writes a file to disk."""
         save_path = str(tmpdir / "plot_surf.png")
-        fig = plot_surf(sim_brain_data[0], save=save_path)
+        fig = _plot_surf(sim_brain_data[0], save=save_path)
         assert os.path.exists(save_path)
         plt.close(fig)
 
@@ -172,7 +172,7 @@ class TestPlotFlatmap:
     def test_basic_flatmap(self, sim_brain_data):
         """Test basic flatmap rendering"""
         single_image = sim_brain_data[0]
-        fig = plot_flatmap(single_image)
+        fig = _plot_flatmap(single_image)
         assert fig is not None
         assert hasattr(fig, "axes")
         plt.close(fig)
@@ -185,13 +185,13 @@ class TestPlotFlatmap:
         single_image = sim_brain_data[0]
 
         if input_type == "brain_data":
-            fig = plot_flatmap(single_image)
+            fig = _plot_flatmap(single_image)
         elif input_type == "nibabel":
-            fig = plot_flatmap(single_image.to_nifti())
+            fig = _plot_flatmap(single_image.to_nifti())
         elif input_type == "file_path":
             test_file = str(tmpdir / "test.nii.gz")
             nib.save(single_image.to_nifti(), test_file)
-            fig = plot_flatmap(test_file)
+            fig = _plot_flatmap(test_file)
 
         assert fig is not None
         plt.close(fig)
@@ -203,7 +203,7 @@ class TestPlotFlatmap:
 
         single_image = sim_brain_data[0]
         save_path = str(tmpdir / "flatmap.png")
-        fig = plot_flatmap(single_image, save=save_path)
+        fig = _plot_flatmap(single_image, save=save_path)
         assert os.path.exists(save_path)
         plt.close(fig)
 
@@ -211,7 +211,7 @@ class TestPlotFlatmap:
         """Test error handling for empty BrainData"""
         empty_brain = BrainData()
         with pytest.raises(ValueError, match="empty|Empty"):
-            plot_flatmap(empty_brain)
+            _plot_flatmap(empty_brain)
 
     def test_flatmap_percentile_threshold_with_no_vertices(self, sim_brain_data):
         """A percentile matching no vertex renders unthresholded, as plot_surf does."""
@@ -223,14 +223,14 @@ class TestPlotFlatmap:
             np.zeros(sim_brain_data.mask.shape, dtype=np.float32),
             sim_brain_data.mask.affine,
         )
-        fig = plot_flatmap(sim_brain_data[0], threshold="95%", transparency=blank_mask)
+        fig = _plot_flatmap(sim_brain_data[0], threshold="95%", transparency=blank_mask)
         assert fig is not None
         plt.close(fig)
 
     def test_flatmap_multi_image_brain_data(self, sim_brain_data):
         """Test handling BrainData with multiple images"""
         # Should plot first image
-        fig = plot_flatmap(sim_brain_data)
+        fig = _plot_flatmap(sim_brain_data)
         assert fig is not None
         plt.close(fig)
 

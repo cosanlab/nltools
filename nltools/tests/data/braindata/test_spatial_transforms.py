@@ -77,7 +77,7 @@ class TestSignatures:
         assert not hasattr(io, "resample_to")
         assert (
             "resample_mask_to_brain"
-            not in inspect.signature(analysis.apply_mask).parameters
+            not in inspect.signature(analysis._apply_mask).parameters
         )
 
 
@@ -238,13 +238,13 @@ class TestApplyMask:
     def test_same_grid_means_what_the_loader_means_by_it(self, brain):
         """`apply_mask` and the loader share one tolerance for "same grid".
 
-        `check_space_match` accepts a translation drift up to
+        `_check_space_match` accepts a translation drift up to
         ``atol + rtol * |translation|`` with ``rtol=1e-3``. A mask inside that
         band is accepted (and adopts the source affine, so nilearn's stricter
         internal check never sees the drift); one outside it is refused with the
         message that names `resample()`.
         """
-        from nltools.data.braindata.io import check_space_match
+        from nltools.data.braindata.io import _check_space_match
 
         values = np.zeros((8, 8, 8), dtype=np.uint8)
         values[2:4, 2:6, 2:6] = 1
@@ -261,8 +261,8 @@ class TestApplyMask:
 
         inside_mask = nib.Nifti1Image(values, inside)
         outside_mask = nib.Nifti1Image(values, outside)
-        assert check_space_match(inside_mask, brain.mask)
-        assert not check_space_match(outside_mask, brain.mask)
+        assert _check_space_match(inside_mask, brain.mask)
+        assert not _check_space_match(outside_mask, brain.mask)
 
         result = brain.apply_mask(inside_mask)
         assert result.shape == (3, int(values.sum()))

@@ -1,4 +1,4 @@
-"""Tests for cluster_report_data + ClusterReport."""
+"""Tests for _cluster_report_data + _ClusterReport."""
 
 import nibabel as nb
 import numpy as np
@@ -7,8 +7,8 @@ import pytest
 
 from nltools.data import BrainData
 from nltools.data.atlases.reporting import (
-    ClusterReport,
-    cluster_report_data,
+    _ClusterReport,
+    _cluster_report_data,
 )
 
 
@@ -66,7 +66,7 @@ def synthetic_stat_brain():
 
 
 def test_peaks_dataframe_columns(synthetic_stat_brain):
-    peaks, _, _ = cluster_report_data(
+    peaks, _, _ = _cluster_report_data(
         synthetic_stat_brain,
         stat_threshold=3.0,
         cluster_threshold=5,
@@ -86,7 +86,7 @@ def test_peaks_dataframe_columns(synthetic_stat_brain):
 
 
 def test_clusters_dataframe_columns(synthetic_stat_brain):
-    _, clusters, _ = cluster_report_data(
+    _, clusters, _ = _cluster_report_data(
         synthetic_stat_brain,
         stat_threshold=3.0,
         cluster_threshold=5,
@@ -106,7 +106,7 @@ def test_clusters_dataframe_columns(synthetic_stat_brain):
 
 
 def test_two_sided_finds_both_signs(synthetic_stat_brain):
-    _, clusters, _ = cluster_report_data(
+    _, clusters, _ = _cluster_report_data(
         synthetic_stat_brain,
         stat_threshold=3.0,
         cluster_threshold=5,
@@ -122,7 +122,7 @@ def test_two_sided_finds_both_signs(synthetic_stat_brain):
 
 
 def test_one_sided_skips_negatives(synthetic_stat_brain):
-    _, clusters, _ = cluster_report_data(
+    _, clusters, _ = _cluster_report_data(
         synthetic_stat_brain,
         stat_threshold=3.0,
         cluster_threshold=5,
@@ -136,7 +136,7 @@ def test_one_sided_skips_negatives(synthetic_stat_brain):
 
 def test_cluster_threshold_filters_small_clusters(synthetic_stat_brain):
     # Huge cluster_threshold should drop everything
-    _, clusters, _ = cluster_report_data(
+    _, clusters, _ = _cluster_report_data(
         synthetic_stat_brain,
         stat_threshold=3.0,
         cluster_threshold=10000,
@@ -148,14 +148,14 @@ def test_cluster_threshold_filters_small_clusters(synthetic_stat_brain):
 def test_pre_thresholded_input(synthetic_stat_brain):
     """stat_threshold=None should treat input as already thresholded."""
     # First, threshold once via stat_threshold=3
-    _, clusters_a, thr_a = cluster_report_data(
+    _, clusters_a, thr_a = _cluster_report_data(
         synthetic_stat_brain,
         stat_threshold=3.0,
         cluster_threshold=5,
         atlas="aal",
     )
     # Then re-pass the thresholded BrainData with stat_threshold=None
-    _, clusters_b, _ = cluster_report_data(
+    _, clusters_b, _ = _cluster_report_data(
         thr_a,
         stat_threshold=None,
         cluster_threshold=5,
@@ -165,7 +165,7 @@ def test_pre_thresholded_input(synthetic_stat_brain):
 
 
 def test_atlas_columns_appear(synthetic_stat_brain):
-    peaks, clusters, _ = cluster_report_data(
+    peaks, clusters, _ = _cluster_report_data(
         synthetic_stat_brain,
         stat_threshold=3.0,
         cluster_threshold=5,
@@ -179,7 +179,7 @@ def test_atlas_columns_appear(synthetic_stat_brain):
 
 def test_cluster_label_format_is_mass_weighted(synthetic_stat_brain):
     """Cluster-level labels should be ``'XX.X% Region; ...'`` strings."""
-    _, clusters, _ = cluster_report_data(
+    _, clusters, _ = _cluster_report_data(
         synthetic_stat_brain,
         stat_threshold=3.0,
         cluster_threshold=5,
@@ -190,7 +190,7 @@ def test_cluster_label_format_is_mass_weighted(synthetic_stat_brain):
 
 
 def test_returned_thresholded_brain_is_BrainData(synthetic_stat_brain):
-    _, _, thr = cluster_report_data(
+    _, _, thr = _cluster_report_data(
         synthetic_stat_brain,
         stat_threshold=3.0,
         cluster_threshold=5,
@@ -200,31 +200,31 @@ def test_returned_thresholded_brain_is_BrainData(synthetic_stat_brain):
 
 
 # ---------------------------------------------------------------------------
-# ClusterReport dataclass
+# _ClusterReport dataclass
 # ---------------------------------------------------------------------------
 
 
 def test_cluster_report_dataclass(synthetic_stat_brain):
-    peaks, clusters, thr = cluster_report_data(
+    peaks, clusters, thr = _cluster_report_data(
         synthetic_stat_brain,
         stat_threshold=3.0,
         cluster_threshold=5,
         atlas="aal",
     )
-    report = ClusterReport(peaks=peaks, clusters=clusters, stat_img=thr)
+    report = _ClusterReport(peaks=peaks, clusters=clusters, stat_img=thr)
     assert report.peaks is peaks
     assert report.clusters is clusters
     assert report.stat_img is thr
 
 
 def test_cluster_report_to_csv(synthetic_stat_brain, tmp_path):
-    peaks, clusters, thr = cluster_report_data(
+    peaks, clusters, thr = _cluster_report_data(
         synthetic_stat_brain,
         stat_threshold=3.0,
         cluster_threshold=5,
         atlas="aal",
     )
-    report = ClusterReport(peaks=peaks, clusters=clusters, stat_img=thr)
+    report = _ClusterReport(peaks=peaks, clusters=clusters, stat_img=thr)
     report.to_csv(tmp_path)
     assert (tmp_path / "peaks.csv").exists()
     assert (tmp_path / "clusters.csv").exists()
@@ -271,13 +271,13 @@ def two_peak_brain():
 
 
 def test_cluster_report_survives_subpeaks(two_peak_brain):
-    """F042: sub-peak rows must not crash cluster_report_data.
+    """F042: sub-peak rows must not crash _cluster_report_data.
 
     `_build_peaks_dataframe` used to call `to_numpy(dtype=float)` on the size
     column, raising ValueError the moment any cluster had more than one local
     maximum — the common case for real fMRI stat maps.
     """
-    peaks, clusters, thr = cluster_report_data(
+    peaks, clusters, thr = _cluster_report_data(
         two_peak_brain, stat_threshold=3.0, cluster_threshold=5, atlas="aal"
     )
     # More than one peak row -> sub-peaks were present and handled.
@@ -299,7 +299,7 @@ def test_peaks_cluster_id_shares_integer_label_space(two_peak_brain):
     looked up in the renumbered label volume, so they share one integer space and
     sub-peaks inherit their parent cluster's id.
     """
-    peaks, clusters, thr = cluster_report_data(
+    peaks, clusters, thr = _cluster_report_data(
         two_peak_brain, stat_threshold=3.0, cluster_threshold=5, atlas="aal"
     )
     assert peaks["cluster_id"].dtype == pl.Int64

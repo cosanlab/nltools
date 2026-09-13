@@ -9,8 +9,8 @@ dependence (linear or not) between two arrays, with `_double_center` and
 workers; `n_jobs` sets how many, and a given `random_state` gives the same
 result at any worker count.
 
-`extract_triangle_elements` pulls the upper or lower triangle of a matrix into a
-vector; `permute_matrix_symmetric` reorders rows and columns together, the
+`_extract_triangle_elements` pulls the upper or lower triangle of a matrix into a
+vector; `_permute_matrix_symmetric` reorders rows and columns together, the
 operation at the heart of the matrix permutation tests.
 """
 
@@ -19,21 +19,21 @@ from scipy.stats import pearsonr, spearmanr, kendalltau
 from scipy.spatial.distance import squareform, pdist
 from scipy.stats import t as t_dist
 
-from .utils import maybe_tqdm
+from .utils import _maybe_tqdm
 from .validation import (
-    validate_how_parameter,
-    validate_metric_parameter,
-    validate_same_shape,
-    validate_square_matrix,
+    _validate_how_parameter,
+    _validate_metric_parameter,
+    _validate_same_shape,
+    _validate_square_matrix,
 )
-from ..validation import _compute_pvalue, validate_tail_parameter
+from ..validation import _compute_pvalue, _validate_tail_parameter
 
 
 # Maximum integer for random seed generation
 MAX_INT = np.iinfo(np.int32).max
 
 
-def extract_triangle_elements(
+def _extract_triangle_elements(
     matrix: np.ndarray,
     triangle: str = "upper",
     include_diag: bool = False,
@@ -52,7 +52,7 @@ def extract_triangle_elements(
     Examples:
         ```python
         matrix = np.arange(16).reshape(4, 4)
-        extract_triangle_elements(matrix, triangle="upper")
+        _extract_triangle_elements(matrix, triangle="upper")
         # → array([ 1,  2,  3,  6,  7, 11])
         ```
     """
@@ -70,7 +70,7 @@ def extract_triangle_elements(
     raise ValueError(f"triangle must be 'upper', 'lower', or 'full', got {triangle}")
 
 
-def permute_matrix_symmetric(
+def _permute_matrix_symmetric(
     matrix: np.ndarray,
     permutation: np.ndarray,
 ) -> np.ndarray:
@@ -91,7 +91,7 @@ def permute_matrix_symmetric(
         ```python
         matrix = np.arange(9).reshape(3, 3)
         perm = np.array([2, 0, 1])
-        permute_matrix_symmetric(matrix, perm)
+        _permute_matrix_symmetric(matrix, perm)
         # → array([[8, 6, 7],
         #          [2, 0, 1],
         #          [5, 3, 4]])
@@ -105,7 +105,7 @@ def _extract_matrix_elements(
     how: str = "upper",
     include_diag: bool = False,
 ) -> np.ndarray:
-    """Extract elements from a square matrix (wrapper for `extract_triangle_elements`).
+    """Extract elements from a square matrix (wrapper for `_extract_triangle_elements`).
 
     Args:
         matrix (np.ndarray): Square matrix (n×n).
@@ -115,10 +115,7 @@ def _extract_matrix_elements(
     Returns:
         np.ndarray: 1D array of extracted elements.
     """
-    return extract_triangle_elements(matrix, triangle=how, include_diag=include_diag)
-
-
-_permute_matrix_symmetric = permute_matrix_symmetric
+    return _extract_triangle_elements(matrix, triangle=how, include_diag=include_diag)
 
 
 def _compute_matrix_correlation(
@@ -152,7 +149,9 @@ def _compute_matrix_correlation(
     elements2 = _extract_matrix_elements(matrix2, how=how, include_diag=include_diag)
 
     # Compute correlation
-    validate_metric_parameter(metric, ["pearson", "spearman", "kendall"], name="metric")
+    _validate_metric_parameter(
+        metric, ["pearson", "spearman", "kendall"], name="metric"
+    )
     if metric == "pearson":
         r, _ = pearsonr(elements1, elements2)
     elif metric == "spearman":
@@ -249,9 +248,9 @@ def _matrix_permutation_cpu_parallel(
     from joblib import Parallel, delayed
 
     # Validate inputs
-    validate_same_shape(data1, data2, name1="data1", name2="data2")
-    validate_square_matrix(data1, name="data1")
-    validate_square_matrix(data2, name="data2")
+    _validate_same_shape(data1, data2, name1="data1", name2="data2")
+    _validate_square_matrix(data1, name="data1")
+    _validate_square_matrix(data2, name="data2")
 
     # Pre-generate seeds (deterministic)
     rng = np.random.RandomState(random_state)
@@ -267,7 +266,7 @@ def _matrix_permutation_cpu_parallel(
         """Compute correlation for one permutation."""
         perm_rng = np.random.RandomState(seed)
         perm = perm_rng.permutation(data1.shape[0])
-        permuted_matrix = permute_matrix_symmetric(data1, perm)
+        permuted_matrix = _permute_matrix_symmetric(data1, perm)
         return _compute_matrix_correlation(
             permuted_matrix, data2, how=how, include_diag=include_diag, metric=metric
         )
@@ -275,7 +274,7 @@ def _matrix_permutation_cpu_parallel(
     # Execute in parallel with progress bar
     null_dist = Parallel(n_jobs=n_jobs)(
         delayed(_compute_one_perm)(seeds[i])
-        for i in maybe_tqdm(
+        for i in _maybe_tqdm(
             range(n_permute),
             progress_bar=progress_bar,
             desc="Matrix permutation",
@@ -381,12 +380,14 @@ def matrix_permutation_test(
     data1 = np.asarray(data1)
     data2 = np.asarray(data2)
 
-    validate_same_shape(data1, data2, name1="data1", name2="data2")
-    validate_square_matrix(data1, name="data1")
-    validate_square_matrix(data2, name="data2")
-    validate_metric_parameter(metric, ["pearson", "spearman", "kendall"], name="metric")
-    validate_how_parameter(how)
-    validate_tail_parameter(tail)
+    _validate_same_shape(data1, data2, name1="data1", name2="data2")
+    _validate_square_matrix(data1, name="data1")
+    _validate_square_matrix(data2, name="data2")
+    _validate_metric_parameter(
+        metric, ["pearson", "spearman", "kendall"], name="metric"
+    )
+    _validate_how_parameter(how)
+    _validate_tail_parameter(tail)
 
     return _matrix_permutation_cpu_parallel(
         data1=data1,

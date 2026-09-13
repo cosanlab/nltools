@@ -13,7 +13,7 @@ from os.path import dirname, join, sep as pathsep
 
 _PACKAGE_DIR = dirname(__file__) + pathsep
 _TESTS_DIR = join(_PACKAGE_DIR, "tests") + pathsep
-# ``@coalesced_gc()`` (a contextmanager used as a decorator) wraps facade
+# ``@_coalesced_gc()`` (a contextmanager used as a decorator) wraps facade
 # methods in a stdlib contextlib frame; it is nltools plumbing, not user code.
 _PLUMBING_FILES = frozenset({contextlib.__file__})
 
@@ -24,23 +24,23 @@ def _is_library_frame(filename: str) -> bool:
     return filename.startswith(_PACKAGE_DIR) and not filename.startswith(_TESTS_DIR)
 
 
-def find_stack_level() -> int:
+def _find_stack_level() -> int:
     """Return the ``stacklevel`` that attributes a warning to the caller's code.
 
     Walks up from the caller until the first frame outside the nltools package
     (``nltools/tests/`` counts as outside: tests are the library's users; the
-    stdlib ``contextlib`` frame that ``@coalesced_gc()`` inserts counts as
+    stdlib ``contextlib`` frame that ``@_coalesced_gc()`` inserts counts as
     inside), so a ``warnings.warn`` deep inside a facade lands on the user's
     line rather than on nltools internals — the same pattern nilearn and pandas
     use. Every ``warnings.warn`` in the library passes
-    ``stacklevel=find_stack_level()``; a source-scan test enforces it.
+    ``stacklevel=_find_stack_level()``; a source-scan test enforces it.
 
     Returns:
         int: Value for the ``stacklevel`` argument of ``warnings.warn``.
 
     Examples:
         ```python
-        warnings.warn("message", UserWarning, stacklevel=find_stack_level())
+        warnings.warn("message", UserWarning, stacklevel=_find_stack_level())
         ```
     """
     frame = inspect.currentframe()
@@ -67,10 +67,11 @@ class ResamplingWarning(UserWarning):
 
 
 class DesignMatrixWarning(UserWarning):
-    """A ``DesignMatrix`` operation was a no-op or partially skipped.
+    """A ``DesignMatrix`` operation was skipped, or the design itself is suspect.
 
     Raised by regressor builders (``add_poly``, ``add_dct_basis``,
-    ``convolve``) when the requested columns already exist and are skipped.
+    ``convolve``) when the requested columns already exist and are skipped,
+    and by ``BrainData.fit()`` when the design it receives is rank deficient.
     Subclasses ``UserWarning`` so it participates in default filtering while
     staying individually silenceable:
     ``warnings.filterwarnings("ignore", category=DesignMatrixWarning)``.
@@ -82,7 +83,7 @@ class DesignMatrixWarning(UserWarning):
 # ---------------------------------------------------------------------------
 
 
-def attempt_to_import(dependency, fromlist=None):
+def _attempt_to_import(dependency, fromlist=None):
     """Attempt to import an optional dependency, returning None if unavailable.
 
     This function is used to handle optional dependencies gracefully. If the
@@ -99,7 +100,7 @@ def attempt_to_import(dependency, fromlist=None):
 
     Examples:
         ```python
-        torch = attempt_to_import("torch")
+        torch = _attempt_to_import("torch")
         if torch is not None:
             ...  # use torch
         ```
@@ -136,7 +137,7 @@ class _NullProgressBar:
         return False
 
 
-def maybe_tqdm(iterable, *, progress_bar: bool, **tqdm_kwargs):
+def _maybe_tqdm(iterable, *, progress_bar: bool, **tqdm_kwargs):
     """Wrap `iterable` in a tqdm progress bar only when `progress_bar` is True.
 
     tqdm writes to stderr, so an unconditional bar makes functions noisy when
@@ -154,7 +155,7 @@ def maybe_tqdm(iterable, *, progress_bar: bool, **tqdm_kwargs):
 
     Examples:
         ```python
-        for i in maybe_tqdm(range(n_permute), progress_bar=progress_bar,
+        for i in _maybe_tqdm(range(n_permute), progress_bar=progress_bar,
                             desc="CPU parallel perms", unit="perm"):
             ...
         ```
@@ -167,7 +168,7 @@ def maybe_tqdm(iterable, *, progress_bar: bool, **tqdm_kwargs):
     return tqdm(iterable, **tqdm_kwargs)
 
 
-def make_progress_bar(*, progress_bar: bool, **tqdm_kwargs):
+def _make_progress_bar(*, progress_bar: bool, **tqdm_kwargs):
     """Build a progress bar, or a no-op stand-in when `progress_bar` is False.
 
     Use this for call sites that drive the bar manually via `.update()` rather

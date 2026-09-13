@@ -42,10 +42,10 @@ from .config import (  # noqa: F401
 )
 from .fetch import fetch_resource, list_resources  # noqa: F401
 from .matching import (  # noqa: F401
-    TemplateMatch,
-    detect_resolution,
-    get_bg_image,
-    is_standard_space,
-    match_resolution,
+    _TemplateMatch,
+    _detect_resolution,
+    _get_bg_image,
+    _is_standard_space,
+    _match_resolution,
 )
-from .paths import resolve_paths, resolve_template_name  # noqa: F401
+from .paths import _resolve_paths, _resolve_template_name  # noqa: F401

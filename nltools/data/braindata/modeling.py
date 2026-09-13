@@ -11,7 +11,7 @@ from collections.abc import Mapping
 
 import numpy as np
 
-from nltools.utils import find_stack_level
+from nltools.utils import DesignMatrixWarning, _find_stack_level
 from .utils import _clear_fit_state, _copy_for_fit, _is_default, _result_from_array
 
 
@@ -35,7 +35,7 @@ _ESTIMATOR_OPTION_OWNERS = {
 }
 
 
-def check_unselected_estimator_options(model, supplied):
+def _check_unselected_estimator_options(model, supplied):
     """Reject `fit` options belonging to the estimator `model` did not select.
 
     Args:
@@ -54,15 +54,6 @@ def check_unselected_estimator_options(model, supplied):
             f"model={model!r} does not accept {wrong}: those options belong to "
             f"the unselected estimator."
         )
-
-
-class RankDeficientDesignWarning(UserWarning):
-    """The design matrix supplied to ``fit()`` is rank deficient.
-
-    Subclasses ``UserWarning`` so it participates in default filtering, while
-    remaining individually silenceable:
-    ``warnings.filterwarnings("ignore", category=RankDeficientDesignWarning)``.
-    """
 
 
 def _warn_if_rank_deficient(X_array):
@@ -122,12 +113,12 @@ def _warn_if_rank_deficient(X_array):
         "order the design was built in); (3) try regularization — "
         "`fit(model='ridge')` keeps every regressor and has a unique, "
         "order-invariant solution.",
-        RankDeficientDesignWarning,
-        stacklevel=find_stack_level(),
+        DesignMatrixWarning,
+        stacklevel=_find_stack_level(),
     )
 
 
-def fit(
+def _fit(
     bd,
     model="glm",
     *,
@@ -155,7 +146,7 @@ def fit(
 
     For `model='glm'` the design is diagnosed before estimation, as a warning
     only — nothing is ever dropped, modified, or raised on. A rank-deficient
-    design fires `RankDeficientDesignWarning`, which has its own category so
+    design fires `DesignMatrixWarning`, which has its own category so
     it can be silenced surgically with `warnings.filterwarnings`.
 
     The facade does not preprocess the response. Compose `scale()` and
@@ -170,9 +161,9 @@ def fit(
 
     **Results stored on the returned `BrainData`:**
 
-    - `model_` — the fitted `Ridge` or `Glm`.
+    - `model_` — the fitted `_Ridge` or `_Glm`.
     - GLM: `glm_betas`, `glm_residual`, `glm_predicted`, `glm_r2`.
-    - Ridge: `ridge_weights`, `ridge_fitted_values`, `ridge_r2`.
+    - _Ridge: `ridge_weights`, `ridge_fitted_values`, `ridge_r2`.
 
     Args:
         bd (BrainData): Data whose `.data` is the regression target.
@@ -238,14 +229,14 @@ def fit(
         ```
     """
     from nltools.data.designmatrix import DesignMatrix
-    from nltools.models import Glm, Ridge
+    from nltools.models import _Glm, _Ridge
 
     if model not in ("glm", "ridge"):
         raise TypeError("supported models are 'glm' (default) and 'ridge'")
     if X is None:
         raise TypeError("X must be provided")
 
-    check_unselected_estimator_options(
+    _check_unselected_estimator_options(
         model,
         [
             name
@@ -312,10 +303,10 @@ def fit(
         _clear_fit_state(target)
 
     if model == "glm":
-        fit_glm(
+        _fit_glm(
             target,
             X_model,
-            Glm(
+            _Glm(
                 noise_model=glm_noise_model,
                 bins=glm_bins,
                 n_jobs=glm_n_jobs,
@@ -325,8 +316,8 @@ def fit(
         return target
 
     # Prefix translation is the whole job here: every `ridge_*` facade keyword
-    # maps onto the identically-named `Ridge` constructor argument.
-    estimator = Ridge(
+    # maps onto the identically-named `_Ridge` constructor argument.
+    estimator = _Ridge(
         alpha=ridge_alpha,
         cv=ridge_cv,
         search_iterations=ridge_search_iterations,
@@ -338,14 +329,14 @@ def fit(
         random_state=random_state,
         progress_bar=ridge_progress_bar,
     )
-    fit_ridge(target, X_model, estimator)
+    _fit_ridge(target, X_model, estimator)
     return target
 
 
-def fit_ridge(bd, X, model):
+def _fit_ridge(bd, X, model):
     """Fit `model` on `X` and attach it and the ridge results the facade owns.
 
-    Alpha selection and the banded search belong to `Ridge`; this layer only
+    Alpha selection and the banded search belong to `_Ridge`; this layer only
     stores the results the facade owns. `model_` is attached only once the fit
     succeeds, so a failed fit never leaves an unfitted estimator on `bd`.
 
@@ -365,7 +356,7 @@ def fit_ridge(bd, X, model):
 
 def _populate_ridge_attributes(bd, X):
     """Set ridge_weights / ridge_fitted_values / ridge_r2 from bd.model_."""
-    # Ridge.coef_ is (n_features, n_voxels); no transpose.
+    # _Ridge.coef_ is (n_features, n_voxels); no transpose.
     bd.ridge_weights = _result_from_array(
         bd, np.array(bd.model_.coef_, copy=True), rows="clear"
     )
@@ -381,18 +372,18 @@ def _populate_ridge_attributes(bd, X):
     )
 
 
-def fit_glm(bd, X, model):
+def _fit_glm(bd, X, model):
     """Fit `model` on `X` and attach it and the GLM results the facade owns.
 
     Numerical fitting, coefficients, predictions, residuals, and R-squared all
-    come from `Glm`; this layer only wraps them as independently owned
+    come from `_Glm`; this layer only wraps them as independently owned
     `BrainData` results. `model_` is attached only once the fit succeeds, so a
     failed fit never leaves an unfitted estimator on `bd`.
 
     Args:
         bd (BrainData): Data whose `.data` is the response.
         X (DesignMatrix): The training design.
-        model (Glm): An unfitted estimator.
+        model (_Glm): An unfitted estimator.
 
     Note:
         Sets `model_`, `glm_betas` (one map per design column), `glm_predicted`
@@ -418,7 +409,7 @@ def fit_glm(bd, X, model):
     )
 
 
-def ttest(
+def _ttest(
     bd,
     *,
     popmean=0.0,
@@ -509,10 +500,10 @@ def ttest(
     return results
 
 
-def compute_contrasts(bd, contrasts, *, inference=False):
+def _compute_contrasts(bd, contrasts, *, inference=False):
     """Compute contrasts on a fitted GLM.
 
-    Pure forwarding: the fitted `Glm` parses every contrast definition and
+    Pure forwarding: the fitted `_Glm` parses every contrast definition and
     computes every number. This layer wraps each per-voxel array as an
     independently owned `BrainData` map with cleared row metadata, because a
     contrast map's leading axis no longer represents training observations.
@@ -532,7 +523,7 @@ def compute_contrasts(bd, contrasts, *, inference=False):
 
     Raises:
         RuntimeError: If no model has been fitted.
-        ValueError: If the fitted model is not a `Glm`.
+        ValueError: If the fitted model is not a `_Glm`.
 
     Examples:
         ```python
@@ -552,7 +543,7 @@ def compute_contrasts(bd, contrasts, *, inference=False):
         direction. This is the documented exception to the library's two-tailed
         default.
     """
-    from nltools.models import Glm
+    from nltools.models import _Glm
 
     model = getattr(bd, "model_", None)
     if model is None:
@@ -560,9 +551,9 @@ def compute_contrasts(bd, contrasts, *, inference=False):
             "compute_contrasts requires a fitted GLM. Run "
             ".fit(model='glm', X=design_matrix) first."
         )
-    if not isinstance(model, Glm):
+    if not isinstance(model, _Glm):
         raise ValueError(
-            f"compute_contrasts requires a fitted Glm, but this BrainData holds "
+            f"compute_contrasts requires a fitted _Glm, but this BrainData holds "
             f"a fitted {type(model).__name__}. Refit with model='glm'."
         )
 
@@ -573,7 +564,7 @@ def compute_contrasts(bd, contrasts, *, inference=False):
 
 
 def _contrast_maps(bd, computed):
-    """Wrap one `Glm` contrast return as independently owned `BrainData` maps.
+    """Wrap one `_Glm` contrast return as independently owned `BrainData` maps.
 
     Every per-target statistic becomes its own map; `degrees_of_freedom` stays a
     scalar or an array because it describes the fit, not the voxel axis. The

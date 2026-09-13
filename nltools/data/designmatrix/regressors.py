@@ -24,13 +24,13 @@ from nilearn.glm.first_level import (
     spm_time_derivative,
 )
 
-from nltools.utils import DesignMatrixWarning, find_stack_level
+from nltools.utils import DesignMatrixWarning, _find_stack_level
 
 from .utils import (
-    copy_with,
-    get_data_columns,
-    has_run_separated_drift,
-    reserved_name,
+    _copy_with,
+    _get_data_columns,
+    _has_run_separated_drift,
+    _reserved_name,
 )
 
 if TYPE_CHECKING:
@@ -104,7 +104,7 @@ def _hrf_regressor(column: np.ndarray, sampling_freq: float, kernel) -> np.ndarr
     return regressor[:, 0]
 
 
-def convolve(
+def _convolve(
     dm: DesignMatrix,
     kernel: str | np.ndarray = "glover",
     columns: list[str] | None = None,
@@ -167,7 +167,7 @@ def convolve(
         # produce ``<col>_c0_c0``, which has no biological meaning.
         columns_to_convolve = [
             c
-            for c in get_data_columns(dm, exclude_confounds=True)
+            for c in _get_data_columns(dm, exclude_confounds=True)
             if c not in already_convolved
         ]
         if not columns_to_convolve:
@@ -175,7 +175,7 @@ def convolve(
                 "All experimental regressors are already convolved; "
                 ".convolve() is a no-op.",
                 DesignMatrixWarning,
-                stacklevel=find_stack_level(),
+                stacklevel=_find_stack_level(),
             )
             return dm
     else:
@@ -249,10 +249,10 @@ def convolve(
     # Re-convolution of already-convolved columns is refused above, so any
     # entries in ``dm.convolved`` survived in ``new_df`` untouched; just
     # append the freshly convolved names.
-    return copy_with(dm, new_df, convolved=list(dm.convolved) + new_convolved)
+    return _copy_with(dm, new_df, convolved=list(dm.convolved) + new_convolved)
 
 
-def add_poly(
+def _add_poly(
     dm: DesignMatrix,
     order: int = 0,
     include_lower: bool = True,
@@ -283,7 +283,7 @@ def add_poly(
         )
 
     # Adding a global drift term on top of per-run ones is ambiguous.
-    if has_run_separated_drift(dm):
+    if _has_run_separated_drift(dm):
         raise ValueError(
             "This Design Matrix contains run-separated drift terms (polynomial "
             "or cosine) from a previous append operation, which makes adding "
@@ -309,18 +309,18 @@ def add_poly(
     # Check if we already have these polynomials (idempotent)
     new_poly_cols = {}
     for i in orders_to_add:
-        poly_name = reserved_name(f"poly_{i}")
+        poly_name = _reserved_name(f"poly_{i}")
         if poly_name in dm.confounds:
             warnings.warn(
                 f"Design Matrix already has {i}th order polynomial...skipping",
                 DesignMatrixWarning,
-                stacklevel=find_stack_level(),
+                stacklevel=_find_stack_level(),
             )
         elif i == 0 and _has_intercept:
             warnings.warn(
                 f"Design Matrix already has an intercept column...skipping {poly_name}",
                 DesignMatrixWarning,
-                stacklevel=find_stack_level(),
+                stacklevel=_find_stack_level(),
             )
         else:
             # Create normalized Legendre polynomial over [-1, 1]
@@ -342,10 +342,10 @@ def add_poly(
     new_confounds.extend(new_poly_cols.keys())
 
     # Return new DesignMatrix with updated data and metadata
-    return copy_with(dm, new_df, confounds=new_confounds)
+    return _copy_with(dm, new_df, confounds=new_confounds)
 
 
-def add_dct_basis(
+def _add_dct_basis(
     dm: DesignMatrix,
     *,
     duration: float = 180,
@@ -380,7 +380,7 @@ def add_dct_basis(
         )
 
     # Adding a global drift term on top of per-run ones is ambiguous.
-    if has_run_separated_drift(dm):
+    if _has_run_separated_drift(dm):
         raise ValueError(
             "This Design Matrix contains run-separated drift terms (polynomial "
             "or cosine) from a previous append operation, which makes adding "
@@ -397,14 +397,14 @@ def add_dct_basis(
     # Note: If drop > 0, numbering starts from drop+1 to reflect original indices
     # e.g., drop=2 -> .nl_cosine_3, .nl_cosine_4, ... (skipped 1 and 2)
     basis_col_names = [
-        reserved_name(f"cosine_{drop + i + 1}") for i in range(basis_mat.shape[1])
+        _reserved_name(f"cosine_{drop + i + 1}") for i in range(basis_mat.shape[1])
     ]
 
     # Optionally prepend the constant/intercept — mirrors .nl_poly_0 in add_poly.
     # make_cosine_basis drops the constant per SPM; we re-add it here when asked,
     # and skip if an intercept-like confounds column already exists.
     if include_constant:
-        constant_name = reserved_name("cosine_0")
+        constant_name = _reserved_name("cosine_0")
         _has_intercept = False
         if dm.confounds:
             for p in dm.confounds:
@@ -416,7 +416,7 @@ def add_dct_basis(
             warnings.warn(
                 f"Design Matrix already has an intercept column...skipping {constant_name}",
                 DesignMatrixWarning,
-                stacklevel=find_stack_level(),
+                stacklevel=_find_stack_level(),
             )
         else:
             basis_col_names.insert(0, constant_name)
@@ -433,7 +433,7 @@ def add_dct_basis(
         warnings.warn(
             "All basis functions already exist...skipping",
             DesignMatrixWarning,
-            stacklevel=find_stack_level(),
+            stacklevel=_find_stack_level(),
         )
         return dm
 
@@ -441,7 +441,7 @@ def add_dct_basis(
         warnings.warn(
             "Some basis functions already exist...skipping",
             DesignMatrixWarning,
-            stacklevel=find_stack_level(),
+            stacklevel=_find_stack_level(),
         )
 
     # Add new cosine basis columns
@@ -460,4 +460,4 @@ def add_dct_basis(
     new_confounds.extend(new_basis_cols.keys())
 
     # Return new DesignMatrix with updated data and metadata
-    return copy_with(dm, new_df, confounds=new_confounds)
+    return _copy_with(dm, new_df, confounds=new_confounds)

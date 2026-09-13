@@ -16,22 +16,22 @@ import pytest
 
 from nltools.algorithms.inference import (
     correlation_permutation_test,
-    isc_group_permutation_test,
-    isc_permutation_test,
+    _isc_group_permutation_test,
+    _isc_permutation_test,
     matrix_permutation_test,
     one_sample_permutation_test,
-    timeseries_correlation_permutation_test,
+    _timeseries_correlation_permutation_test,
     two_sample_permutation_test,
 )
 
 # Every algorithm-layer entry point that drives a tqdm loop.
 PROGRESS_BAR_FUNCTIONS = [
     correlation_permutation_test,
-    isc_group_permutation_test,
-    isc_permutation_test,
+    _isc_group_permutation_test,
+    _isc_permutation_test,
     matrix_permutation_test,
     one_sample_permutation_test,
-    timeseries_correlation_permutation_test,
+    _timeseries_correlation_permutation_test,
     two_sample_permutation_test,
 ]
 
@@ -58,13 +58,13 @@ def call_with(func, *, progress_bar):
         np.fill_diagonal(a, 0)
         np.fill_diagonal(b, 0)
         return func(a, b, n_permute=20, **kwargs)
-    if func is timeseries_correlation_permutation_test:
+    if func is _timeseries_correlation_permutation_test:
         return func(
             rng.standard_normal(60), rng.standard_normal(60), n_permute=20, **kwargs
         )
-    if func is isc_permutation_test:
+    if func is _isc_permutation_test:
         return func(rng.standard_normal((20, 20)), n_permute=20, **kwargs)
-    if func is isc_group_permutation_test:
+    if func is _isc_group_permutation_test:
         # Two groups of (n_observations, n_subjects) data.
         return func(
             rng.standard_normal((20, 8)),

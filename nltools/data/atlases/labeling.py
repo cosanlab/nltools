@@ -17,7 +17,7 @@ import numpy as np
 import polars as pl
 from numpy.typing import ArrayLike
 
-from .loading import Atlas, load_atlas
+from .loading import _Atlas, load_atlas
 
 CoordsLike = ArrayLike | Sequence[Sequence[float]]
 
@@ -51,7 +51,7 @@ def _clip_to_box(ijk: np.ndarray, shape: tuple[int, ...]) -> np.ndarray:
     return ijk
 
 
-def _label_lookup(atlas: Atlas) -> dict[int, str]:
+def _label_lookup(atlas: _Atlas) -> dict[int, str]:
     """Build an ``{integer index → region name}`` dict from atlas labels."""
     return dict(
         zip(
@@ -62,7 +62,7 @@ def _label_lookup(atlas: Atlas) -> dict[int, str]:
     )
 
 
-def _label_deterministic(atlas: Atlas, ijk: np.ndarray) -> list[str]:
+def _label_deterministic(atlas: _Atlas, ijk: np.ndarray) -> list[str]:
     """Look up region names for voxels in a deterministic atlas."""
     data = atlas.image.get_fdata()
     lut = _label_lookup(atlas)
@@ -79,7 +79,7 @@ def _format_prob_entry(pct: float, name: str) -> str:
 
 
 def _label_probabilistic(
-    atlas: Atlas, ijk: np.ndarray, prob_threshold: float
+    atlas: _Atlas, ijk: np.ndarray, prob_threshold: float
 ) -> list[str]:
     """Format ``"X% Foo; Y% Bar"`` strings per voxel for a probabilistic atlas.
 
@@ -106,7 +106,7 @@ def _label_probabilistic(
 
 
 def _labels_for_atlas(
-    atlas: Atlas, ijk: np.ndarray, prob_threshold: float
+    atlas: _Atlas, ijk: np.ndarray, prob_threshold: float
 ) -> list[str]:
     """Dispatch to the deterministic or probabilistic labeling path."""
     if atlas.kind == "probabilistic":

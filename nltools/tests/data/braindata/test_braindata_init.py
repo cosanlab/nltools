@@ -289,29 +289,29 @@ class TestBrainDataInit:
 
     def test_init_mask_template_name_string_unsupported_resolution(self):
         """Test that unsupported resolution for template raises error."""
-        from nltools.templates import resolve_template_name
+        from nltools.templates import _resolve_template_name
 
         # Try to use 3mm with fmriprep (not supported - only 1mm and 2mm)
         with pytest.raises(ValueError, match="Resolution 3mm not supported"):
-            resolve_template_name("3mm-MNI152-2009c", file_type="mask")
+            _resolve_template_name("3mm-MNI152-2009c", file_type="mask")
 
     def test_init_mask_template_name_string_file_type_brain(self):
-        """Test resolve_template_name with file_type='brain'."""
-        from nltools.templates import resolve_template_name
+        """Test _resolve_template_name with file_type='brain'."""
+        from nltools.templates import _resolve_template_name
 
-        mask_path = resolve_template_name("2mm-MNI152-2009c", file_type="mask")
-        brain_path = resolve_template_name("2mm-MNI152-2009c", file_type="brain")
+        mask_path = _resolve_template_name("2mm-MNI152-2009c", file_type="mask")
+        brain_path = _resolve_template_name("2mm-MNI152-2009c", file_type="brain")
 
         assert "mask" in mask_path
         assert "brain" in brain_path
         assert mask_path != brain_path
 
     def test_init_mask_template_name_string_file_type_t1(self):
-        """Test resolve_template_name with file_type='T1'."""
-        from nltools.templates import resolve_template_name
+        """Test _resolve_template_name with file_type='T1'."""
+        from nltools.templates import _resolve_template_name
 
-        mask_path = resolve_template_name("2mm-MNI152-2009c", file_type="mask")
-        t1_path = resolve_template_name("2mm-MNI152-2009c", file_type="T1")
+        mask_path = _resolve_template_name("2mm-MNI152-2009c", file_type="mask")
+        t1_path = _resolve_template_name("2mm-MNI152-2009c", file_type="T1")
 
         assert "mask" in mask_path
         assert "T1" in t1_path
@@ -319,10 +319,10 @@ class TestBrainDataInit:
 
     def test_init_mask_template_name_string_invalid_file_type(self):
         """Test that invalid file_type raises error."""
-        from nltools.templates import resolve_template_name
+        from nltools.templates import _resolve_template_name
 
         with pytest.raises(ValueError, match="file_type must be"):
-            resolve_template_name("2mm-MNI152-2009c", file_type="invalid")
+            _resolve_template_name("2mm-MNI152-2009c", file_type="invalid")
 
     @pytest.mark.slow
     def test_all_template_voxel_counts(self):

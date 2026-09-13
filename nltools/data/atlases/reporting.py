@@ -17,7 +17,7 @@ import polars as pl
 from scipy import ndimage
 
 from .labeling import _clip_to_box, _label_lookup, _xyz_to_ijk, label_coords
-from .loading import Atlas, load_atlas
+from .loading import _Atlas, load_atlas
 from .registry import DEFAULT_ATLASES
 
 if TYPE_CHECKING:
@@ -27,7 +27,7 @@ if TYPE_CHECKING:
 
 
 @dataclass(frozen=True)
-class ClusterReport:
+class _ClusterReport:
     """Result of `BrainData.cluster_report`.
 
     Attributes:
@@ -184,7 +184,7 @@ def _renumber_labels(
 
 
 def _cluster_label_string(
-    atlas: Atlas, ijk: np.ndarray, prob_threshold: float, top_k: int = 5
+    atlas: _Atlas, ijk: np.ndarray, prob_threshold: float, top_k: int = 5
 ) -> str:
     """Tally regions across all voxels in a cluster, return a formatted string.
 
@@ -236,7 +236,7 @@ def _build_clusters_dataframe(
     labels: np.ndarray,
     affine: np.ndarray,
     *,
-    atlas_objs: list[Atlas],
+    atlas_objs: list[_Atlas],
     prob_threshold: float,
     two_sided: bool,
     voxel_volume_mm3: float,
@@ -372,7 +372,7 @@ def _build_peaks_dataframe(
 # ---------------------------------------------------------------------------
 
 
-def cluster_report_data(
+def _cluster_report_data(
     bd: "BrainData",
     *,
     stat_threshold: float | None = 3.0,
@@ -385,7 +385,7 @@ def cluster_report_data(
     """Compute cluster report DataFrames + thresholded BrainData.
 
     Pure function — the BrainData facade `BrainData.cluster_report`
-    wraps the result in a `ClusterReport`.
+    wraps the result in a `_ClusterReport`.
 
     Args:
         bd (BrainData): A single 3-D stat map.
@@ -404,7 +404,7 @@ def cluster_report_data(
 
     Returns:
         tuple[pl.DataFrame, pl.DataFrame, BrainData]: `(peaks, clusters,
-            thresholded_bd)` — see `ClusterReport` for the frame layouts.
+            thresholded_bd)` — see `_ClusterReport` for the frame layouts.
     """
     from nltools.data import BrainData
 

@@ -5,7 +5,7 @@ analyses on the output of machine-learning models applied to imaging data.
 """
 
 import numpy as np
-from nltools.plotting import plot_roc
+from nltools.plotting import _plot_roc
 from scipy.stats import norm, binomtest
 from sklearn.metrics import auc
 from copy import deepcopy
@@ -146,10 +146,10 @@ class Roc:
             tail (int | str): `2`/`'two'` for two-tailed (default); `1`/`'one'` for
                 one-tailed (accuracy > chance) in the binomial test for `accuracy_p`.
         """
-        from nltools.algorithms.validation import validate_tail_parameter
+        from nltools.algorithms.validation import _validate_tail_parameter
 
         binom_alternative = (
-            "two-sided" if validate_tail_parameter(tail) == "two" else "greater"
+            "two-sided" if _validate_tail_parameter(tail) == "two" else "greater"
         )
 
         if input_values is not None:
@@ -374,10 +374,10 @@ class Roc:
                 self.fpr_smooth = 1 - (norm.cdf(x, z_false, 1))
 
             self.aucn = auc(self.fpr_smooth, self.tpr_smooth)
-            fig = plot_roc(self.fpr_smooth, self.tpr_smooth)
+            fig = _plot_roc(self.fpr_smooth, self.tpr_smooth)
 
         elif method == "observed":
-            fig = plot_roc(self.fpr, self.tpr)
+            fig = _plot_roc(self.fpr, self.tpr)
         else:
             raise ValueError("method must be 'gaussian' or 'observed'")
         return fig

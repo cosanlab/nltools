@@ -36,7 +36,7 @@ from .correlation import correlation_permutation_test  # noqa: F401
 from .timeseries import (  # noqa: F401
     circle_shift,
     phase_randomize,
-    timeseries_correlation_permutation_test,
+    _timeseries_correlation_permutation_test,
 )
 from .matrix import (  # noqa: F401
     matrix_permutation_test,
@@ -47,4 +47,4 @@ from .matrix import (  # noqa: F401
 # `.intersubject` and are exported flat from `nltools.algorithms` —
 # re-exporting the `isc` *function* here would shadow the `.isc` engine
 # *module* on this package.
-from .isc import isc_permutation_test, isc_group_permutation_test  # noqa: F401
+from .isc import _isc_permutation_test, _isc_group_permutation_test  # noqa: F401

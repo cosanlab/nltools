@@ -6,14 +6,14 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 
-from .utils import copy_with, get_data_columns, is_generated_intercept
+from .utils import _copy_with, _get_data_columns, _is_generated_intercept
 
 if TYPE_CHECKING:
     from nltools.data import Adjacency
     from nltools.data.designmatrix import DesignMatrix
 
 
-def corr(
+def _corr(
     dm: DesignMatrix,
     *,
     metric: str = "pearson",
@@ -78,7 +78,7 @@ def corr(
     )
 
 
-def vif(dm: DesignMatrix, exclude_confounds: bool = True) -> np.ndarray | None:
+def _vif(dm: DesignMatrix, exclude_confounds: bool = True) -> np.ndarray | None:
     """Compute the variance inflation factor for each column.
 
     Uses diagonal elements of inverted correlation matrix
@@ -115,7 +115,7 @@ def vif(dm: DesignMatrix, exclude_confounds: bool = True) -> np.ndarray | None:
         # Always exclude generated intercepts even when exclude_confounds=False:
         # an all-ones column has zero variance, so it makes the correlation
         # matrix singular and VIF undefined.
-        cols_to_use = [c for c in dm.columns if not is_generated_intercept(c)]
+        cols_to_use = [c for c in dm.columns if not _is_generated_intercept(c)]
         subset_df = dm.data.select(cols_to_use)
 
     # Edge case: single column has VIF = 1 (no multicollinearity)
@@ -143,7 +143,7 @@ def vif(dm: DesignMatrix, exclude_confounds: bool = True) -> np.ndarray | None:
         return None
 
 
-def clean(
+def _clean(
     dm: DesignMatrix,
     *,
     fill_na: int | float | None = 0,
@@ -185,7 +185,7 @@ def clean(
 
     # Determine which columns to check for correlation
     if exclude_confounds:
-        cols_to_check = get_data_columns(result, exclude_confounds=True)
+        cols_to_check = _get_data_columns(result, exclude_confounds=True)
     else:
         cols_to_check = list(result.columns)
 
@@ -242,7 +242,7 @@ def clean(
         new_confounds = [p for p in result.confounds if p not in remove]
 
         # Return cleaned matrix
-        return copy_with(result, new_df, confounds=new_confounds)
+        return _copy_with(result, new_df, confounds=new_confounds)
     if progress_bar:
         print("Dropping columns not needed...skipping")
     return result

@@ -17,12 +17,12 @@ from typing import TYPE_CHECKING
 import numpy as np
 import polars as pl
 
-from ..ownership import copy_frame
+from ..ownership import _copy_frame
 from .utils import (
-    copy_with,
-    df_passthrough,
-    effective_frame,
-    replacement_names,
+    _copy_with,
+    _df_passthrough,
+    _effective_frame,
+    _replacement_names,
 )
 
 if TYPE_CHECKING:
@@ -195,7 +195,7 @@ class DesignMatrix:
         # Create internal Polars DataFrame based on input type
         if isinstance(data, DesignMatrix):
             # Copy-constructor: inherit data + metadata; explicit kwargs override.
-            self.data = copy_frame(data.data, {id(data): self})
+            self.data = _copy_frame(data.data, {id(data): self})
             if sampling_freq is None:
                 sampling_freq = data.sampling_freq
             if convolved is None:
@@ -212,17 +212,17 @@ class DesignMatrix:
             self.data = pl.DataFrame()
 
         elif isinstance(data, (str, Path)):
-            from nltools.io.h5 import is_h5_path
+            from nltools.io.h5 import _is_h5_path
 
-            if is_h5_path(data):
+            if _is_h5_path(data):
                 # A .h5 is a serialized DesignMatrix rather than a table
                 # awaiting interpretation: it carries its own sampling_freq
                 # and row count, so neither has to be supplied (and
                 # `run_length` has nothing to describe). Explicit kwargs
                 # still win over what the file recorded.
-                from .io import read_h5
+                from .io import _read_h5
 
-                self.data, stored = read_h5(data)
+                self.data, stored = _read_h5(data)
                 if sampling_freq is None:
                     sampling_freq = stored.get("sampling_freq")
                 if convolved is None:
@@ -243,11 +243,11 @@ class DesignMatrix:
                     raise ValueError(
                         "Loading DesignMatrix from a file requires `TR` or `sampling_freq`."
                     )
-                from .io import load_from_file
+                from .io import _load_from_file
 
                 # _is_events mirrors to the outer scope so the post-dispatch
                 # auto-convolve block (below) can pick it up.
-                self.data, _is_events = load_from_file(
+                self.data, _is_events = _load_from_file(
                     data,
                     run_length=run_length,
                     sampling_freq=sampling_freq,
@@ -299,7 +299,7 @@ class DesignMatrix:
             )
 
         if not isinstance(data, DesignMatrix):
-            self.data = copy_frame(self.data)
+            self.data = _copy_frame(self.data)
         for annotation in (convolved, confounds):
             if annotation is not None and any(
                 c not in self.data.columns for c in annotation
@@ -334,16 +334,16 @@ class DesignMatrix:
             self._run_count = 1 if self.shape[0] > 0 else 0
             if self.multi:
                 # Files predating explicit run counts encode identities in names.
-                from .utils import parse_run_separated
+                from .utils import _parse_run_separated
 
-                runs = [parse_run_separated(c) for c in self.columns]
+                runs = [_parse_run_separated(c) for c in self.columns]
                 self._run_count = max(
                     (run[0] + 1 for run in runs if run is not None),
                     default=self._run_count,
                 )
 
         # An events file loaded with an `hrf_model` came back already convolved
-        # by nilearn (`load_from_file` → `_events_to_convolved_dm`), suffixed
+        # by nilearn (`_load_from_file` → `_events_to_convolved_dm`), suffixed
         # `_c0`. Record that rather than convolving a second time; with
         # ``hrf_model=None`` the frame is raw boxcars and stays unannotated.
         if _is_events and hrf_model is not None:
@@ -399,7 +399,7 @@ class DesignMatrix:
         if name.startswith("_") or "data" not in self.__dict__:
             raise AttributeError(name)
         try:
-            return df_passthrough(self, name)
+            return _df_passthrough(self, name)
         except AttributeError:
             raise AttributeError(
                 f"'DesignMatrix' object has no attribute {name!r}"
@@ -417,11 +417,11 @@ class DesignMatrix:
         """
         if isinstance(key, str):
             # Single column - return Series
-            return copy_frame(self.data.select(key)).to_series()
+            return _copy_frame(self.data.select(key)).to_series()
         if isinstance(key, list) and all(isinstance(c, str) for c in key):
             # Multiple columns - return DesignMatrix with metadata
             subset_df = self.data.select(key)
-            return copy_with(self, subset_df)
+            return _copy_with(self, subset_df)
         raise TypeError(f"Column key must be str or list of str, got {type(key)}")
 
     def __len__(self) -> int:
@@ -556,9 +556,9 @@ class DesignMatrix:
         Returns:
             DesignMatrix: New DesignMatrix with DCT basis columns appended.
         """
-        from .regressors import add_dct_basis
+        from .regressors import _add_dct_basis
 
-        return add_dct_basis(
+        return _add_dct_basis(
             self, duration=duration, drop=drop, include_constant=include_constant
         )
 
@@ -574,9 +574,9 @@ class DesignMatrix:
         Returns:
             DesignMatrix: New DesignMatrix with polynomial columns appended.
         """
-        from .regressors import add_poly
+        from .regressors import _add_poly
 
-        return add_poly(self, order, include_lower)
+        return _add_poly(self, order, include_lower)
 
     def append(
         self,
@@ -610,9 +610,9 @@ class DesignMatrix:
         Returns:
             DesignMatrix: Concatenated design matrix.
         """
-        from .append import append
+        from .append import _append
 
-        return append(
+        return _append(
             self,
             data,
             axis=axis,
@@ -642,9 +642,9 @@ class DesignMatrix:
         Returns:
             DesignMatrix: Cleaned matrix with highly correlated columns removed
         """
-        from .diagnostics import clean
+        from .diagnostics import _clean
 
-        return clean(
+        return _clean(
             self,
             fill_na=fill_na,
             exclude_confounds=exclude_confounds,
@@ -682,9 +682,9 @@ class DesignMatrix:
         Returns:
             DesignMatrix: New DesignMatrix with convolved columns renamed.
         """
-        from .regressors import convolve
+        from .regressors import _convolve
 
-        return convolve(self, kernel, columns)
+        return _convolve(self, kernel, columns)
 
     def copy(self) -> DesignMatrix:
         """Create a deep copy of the DesignMatrix.
@@ -704,7 +704,7 @@ class DesignMatrix:
             return memo[id(self)]
         result = type(self).__new__(type(self))
         memo[id(self)] = result
-        result.data = copy_frame(self.data, memo)
+        result.data = _copy_frame(self.data, memo)
         for key, value in self.__dict__.items():
             if key != "data":
                 setattr(result, key, deepcopy(value, memo))
@@ -720,9 +720,9 @@ class DesignMatrix:
         Returns:
             DesignMatrix: Downsampled DesignMatrix with updated sampling_freq
         """
-        from .transforms import downsample
+        from .transforms import _downsample
 
-        return downsample(self, target, method=method)
+        return _downsample(self, target, method=method)
 
     def drop(self, columns: list[str]) -> DesignMatrix:
         """Drop specified columns.
@@ -734,7 +734,7 @@ class DesignMatrix:
             DesignMatrix: New DesignMatrix without the specified columns.
         """
         dropped_df = self.data.drop(columns)
-        return copy_with(self, dropped_df)
+        return _copy_with(self, dropped_df)
 
     def fillna(self, value: int | float) -> DesignMatrix:
         """Fill NaN/null values with specified value.
@@ -746,9 +746,9 @@ class DesignMatrix:
             DesignMatrix: New DesignMatrix with NaN/null values replaced.
         """
         filled_df = self.data.fill_null(value).fill_nan(value)
-        return copy_with(self, filled_df)
+        return _copy_with(self, filled_df)
 
-    def plot(  # nosemgrep: kwargs-internal-forwarding  # forwards to matplotlib via plot_designmatrix
+    def plot(  # nosemgrep: kwargs-internal-forwarding  # forwards to matplotlib via _plot_designmatrix
         self,
         method: str = "matrix",
         *,
@@ -797,9 +797,9 @@ class DesignMatrix:
         Returns:
             matplotlib.figure.Figure: The figure containing the plot.
         """
-        from .plotting import plot_designmatrix
+        from .plotting import _plot_designmatrix
 
-        return plot_designmatrix(
+        return _plot_designmatrix(
             self,
             method,
             columns=columns,
@@ -853,7 +853,7 @@ class DesignMatrix:
         else:
             combined_df = new_data_df
 
-        return copy_with(self, combined_df, operation="replace", replaced=column_names)
+        return _copy_with(self, combined_df, operation="replace", replaced=column_names)
 
     def standardize(
         self, *, method: str = "center", columns: list[str] | None = None
@@ -873,9 +873,9 @@ class DesignMatrix:
         Raises:
             ValueError: If `method` is neither ``'center'`` nor ``'zscore'``.
         """
-        from .transforms import standardize
+        from .transforms import _standardize
 
-        return standardize(self, method=method, columns=columns)
+        return _standardize(self, method=method, columns=columns)
 
     def sum(self, axis: int = 0) -> pl.Series:
         """Compute the sum along an axis.
@@ -900,9 +900,9 @@ class DesignMatrix:
         Returns:
             np.ndarray: 2D array with shape (n_samples, n_columns)
         """
-        from .io import to_numpy
+        from .io import _to_numpy
 
-        return to_numpy(self)
+        return _to_numpy(self)
 
     def upsample(self, target: float, method: str = "linear") -> DesignMatrix:
         """Increase temporal resolution to a target frequency.
@@ -914,9 +914,9 @@ class DesignMatrix:
         Returns:
             DesignMatrix: Upsampled DesignMatrix with updated sampling_freq
         """
-        from .transforms import upsample
+        from .transforms import _upsample
 
-        return upsample(self, target, method)
+        return _upsample(self, target, method)
 
     def corr(
         self,
@@ -937,9 +937,9 @@ class DesignMatrix:
                 use ``.plot(method='corr')`` for a heatmap with the diagonal
                 restored.
         """
-        from .diagnostics import corr
+        from .diagnostics import _corr
 
-        return corr(self, metric=metric, columns=columns)
+        return _corr(self, metric=metric, columns=columns)
 
     def vif(self, exclude_confounds: bool = True) -> np.ndarray | None:
         """Compute the variance inflation factor for each column.
@@ -951,9 +951,9 @@ class DesignMatrix:
             np.ndarray: VIF values for each included column. Returns None if the
                 correlation matrix is singular.
         """
-        from .diagnostics import vif
+        from .diagnostics import _vif
 
-        return vif(self, exclude_confounds)
+        return _vif(self, exclude_confounds)
 
     def with_columns(self, *exprs, **named_exprs) -> DesignMatrix:
         """Add or replace columns via Polars expressions.
@@ -987,7 +987,7 @@ class DesignMatrix:
             )
             ```
         """
-        from .utils import copy_with
+        from .utils import _copy_with
 
         coerced = {}
         for name, value in named_exprs.items():
@@ -1003,12 +1003,12 @@ class DesignMatrix:
                     f"{type(value).__name__}. Pass a polars Expr/Series, "
                     "numpy array, list, or scalar."
                 )
-        frame = effective_frame(self)
-        replaced = replacement_names(frame, exprs, coerced)
+        frame = _effective_frame(self)
+        replaced = _replacement_names(frame, exprs, coerced)
         new_data = frame.with_columns(*exprs, **coerced)
         if self.data.width == 0 and self._n_rows is not None and "" not in replaced:
             new_data = new_data.drop("")
-        return copy_with(self, new_data, operation="replace", replaced=replaced)
+        return _copy_with(self, new_data, operation="replace", replaced=replaced)
 
     def write(self, file_name: str, sep: str | None = None) -> None:
         """Write DesignMatrix to file.
@@ -1025,6 +1025,6 @@ class DesignMatrix:
                 delimiter the extension implies (comma for `.csv`, tab
                 otherwise); pass a value to override.
         """
-        from .io import write
+        from .io import _write
 
-        return write(self, file_name, sep)
+        return _write(self, file_name, sep)

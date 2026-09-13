@@ -12,7 +12,7 @@ Algorithms for aligning functional data across subjects:
 
 # Internal package: these imports are re-exports for the rest of nltools, not
 # an advertised surface, so there is no `__all__` to mark them as used.
-from .srm import SRM, DetSRM  # noqa: F401
+from .srm import _SRM, _DetSRM  # noqa: F401
 from .procrustes import (  # noqa: F401
     align,
     align_states,

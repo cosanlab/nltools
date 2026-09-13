@@ -73,10 +73,10 @@ def _events_to_convolved_dm(
     )
 
 
-def separator_for_path(path: str | Path) -> str:
+def _separator_for_path(path: str | Path) -> str:
     """Return the delimiter a text DesignMatrix file uses, from its extension.
 
-    The single source of truth for both `write` and `load_from_file`, so a
+    The single source of truth for both `write` and `_load_from_file`, so a
     file nltools writes is always a file nltools can read back. ``.csv`` means
     comma; every other extension means tab, matching the BIDS convention for
     ``.tsv`` and keeping the historical default for ``.txt`` and friends.
@@ -126,7 +126,7 @@ def _read_delimited(path: Path, sep: str) -> pl.DataFrame:
     return raw
 
 
-def load_from_file(
+def _load_from_file(
     path: str | Path,
     *,
     run_length: int | str,
@@ -160,7 +160,7 @@ def load_from_file(
     from nltools.io.events import events_to_dm
 
     p = Path(path)
-    raw = _read_delimited(p, separator_for_path(p))
+    raw = _read_delimited(p, _separator_for_path(p))
 
     is_events = "onset" in raw.columns and "duration" in raw.columns
 
@@ -204,7 +204,7 @@ def _to_pandas(dm: DesignMatrix):
     return pd.DataFrame(dm.data.to_dict(as_series=False), index=range(dm.shape[0]))
 
 
-def to_numpy(dm: DesignMatrix) -> np.ndarray:
+def _to_numpy(dm: DesignMatrix) -> np.ndarray:
     """Convert a DesignMatrix to a NumPy array.
 
     Returns the data columns as a 2D array (rows x columns), preserving the
@@ -229,7 +229,7 @@ def to_numpy(dm: DesignMatrix) -> np.ndarray:
     return np.asarray(dm)
 
 
-def write(dm: DesignMatrix, file_name: str, sep: str | None = None) -> None:
+def _write(dm: DesignMatrix, file_name: str, sep: str | None = None) -> None:
     """Write DesignMatrix to file.
 
     Supports TSV, CSV, and HDF5 formats. The format is automatically
@@ -260,13 +260,13 @@ def write(dm: DesignMatrix, file_name: str, sep: str | None = None) -> None:
     """
     from pathlib import Path
 
-    from nltools.io.h5 import is_h5_path
+    from nltools.io.h5 import _is_h5_path
 
     if isinstance(file_name, Path):
         file_name = str(file_name)
 
-    if is_h5_path(file_name):
-        write_h5(dm, file_name)
+    if _is_h5_path(file_name):
+        _write_h5(dm, file_name)
     else:
         if dm.shape[1] == 0:
             raise ValueError(
@@ -275,11 +275,11 @@ def write(dm: DesignMatrix, file_name: str, sep: str | None = None) -> None:
         # Write as delimited text file. The separator follows the extension by
         # default so `write` and the file constructor cannot disagree.
         dm.data.write_csv(
-            file_name, separator=separator_for_path(file_name) if sep is None else sep
+            file_name, separator=_separator_for_path(file_name) if sep is None else sep
         )
 
 
-def write_h5(dm: DesignMatrix, file_name: str) -> None:
+def _write_h5(dm: DesignMatrix, file_name: str) -> None:
     """Write DesignMatrix to HDF5 file with metadata.
 
     The frame is stored as Arrow IPC bytes (via the shared
@@ -316,8 +316,8 @@ def write_h5(dm: DesignMatrix, file_name: str) -> None:
         meta.attrs["obj_type"] = "design_matrix"
 
 
-def read_h5(file_name: str | Path) -> tuple[pl.DataFrame, dict]:
-    """Read a DesignMatrix HDF5 file written by `write_h5`.
+def _read_h5(file_name: str | Path) -> tuple[pl.DataFrame, dict]:
+    """Read a DesignMatrix HDF5 file written by `_write_h5`.
 
     Args:
         file_name (str | Path): Path to the HDF5 file.

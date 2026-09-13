@@ -7,17 +7,17 @@ live here rather than inside any one family.
 
 Examples:
     ```python
-    from nltools.algorithms.validation import validate_tail_parameter
+    from nltools.algorithms.validation import _validate_tail_parameter
 
-    validate_tail_parameter(2)  # → 'two'
-    validate_tail_parameter("invalid")  # raises ValueError
+    _validate_tail_parameter(2)  # → 'two'
+    _validate_tail_parameter("invalid")  # raises ValueError
     ```
 """
 
 import numpy as np
 
 
-def validate_tail_parameter(tail: int | str) -> str:
+def _validate_tail_parameter(tail: int | str) -> str:
     """Validate the public tail vocabulary and normalize to the internal form.
 
     The public vocabulary is deliberately two-valued: the *direction* of a
@@ -62,7 +62,7 @@ def _normalize_tail_internal(tail: int | str) -> str:
     Accepts BOTH the public v0.6.0 vocabulary (2 or 'two', 1 or 'one') and the
     internal directional forms ('upper', 'lower', -1) that forced-tail call
     sites use directly. Public entry points must validate with the strict
-    `validate_tail_parameter` first — this permissive form exists only so
+    `_validate_tail_parameter` first — this permissive form exists only so
     `_compute_pvalue` can serve both layers.
     """
     if tail == 2 or tail == "two":

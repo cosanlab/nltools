@@ -1,7 +1,7 @@
 """Bootstrap resampling for simple statistics and fitted-model outputs.
 
 Resamples observations with replacement `n_samples` times and summarizes the
-resulting distribution with `BootstrapAccumulator`, a streaming aggregator that
+resulting distribution with `_BootstrapAccumulator`, a streaming aggregator that
 keeps a running Welford variance plus a bounded per-element tail — enough order
 statistics to reproduce the exact percentile interval without retaining every
 replicate. The CPU engines dispatch in bounded windows and fold each one in
@@ -24,18 +24,18 @@ import numpy as np
 import warnings
 
 from .validation import (
-    validate_bootstrap_method,
-    validate_bootstrap_data,
-    validate_array_shape,
-    validate_array_shape_range,
-    validate_confidence_level,
-    validate_memory_budget,
-    validate_n_samples,
-    validate_shape_compatibility,
+    _validate_bootstrap_method,
+    _validate_bootstrap_data,
+    _validate_array_shape,
+    _validate_array_shape_range,
+    _validate_confidence_level,
+    _validate_memory_budget,
+    _validate_n_samples,
+    _validate_shape_compatibility,
 )
-from .random import generate_bootstrap_indices
-from .utils import make_progress_bar
-from nltools.utils import find_stack_level
+from .random import _generate_bootstrap_indices
+from .utils import _make_progress_bar
+from nltools.utils import _find_stack_level
 
 
 # Constants for supported methods
@@ -58,7 +58,7 @@ def _advise_on_n_samples(n_samples: int) -> None:
             f"n_samples={n_samples} is low. For reliable confidence intervals, "
             f"use n_samples >= 1000. For hypothesis testing, use n_samples >= 5000.",
             UserWarning,
-            stacklevel=find_stack_level(),
+            stacklevel=_find_stack_level(),
         )
 
 
@@ -74,11 +74,11 @@ def _advise_on_sample_size(data: np.ndarray) -> None:
             f"Only {n_samples} samples available. Bootstrap works best with n >= 30. "
             f"Results may be unreliable with very small sample sizes.",
             UserWarning,
-            stacklevel=find_stack_level(),
+            stacklevel=_find_stack_level(),
         )
 
 
-class BootstrapAccumulator:
+class _BootstrapAccumulator:
     """Streaming bootstrap aggregator with a bounded, exact percentile tail.
 
     Holds a running Welford mean and variance plus, per output element, the `k`
@@ -107,7 +107,7 @@ class BootstrapAccumulator:
 
     Examples:
         ```python
-        accumulator = BootstrapAccumulator((100,), n_replicates=1000)
+        accumulator = _BootstrapAccumulator((100,), n_replicates=1000)
         for sample in replicates:
             accumulator.update(sample)
         summary = accumulator.results()
@@ -125,14 +125,14 @@ class BootstrapAccumulator:
     ):
         from nltools.algorithms.backends import (
             BOOTSTRAP_TAIL_FLUSH_BLOCK,
-            bootstrap_retained_tail_size,
+            _bootstrap_retained_tail_size,
         )
 
         self.shape = tuple(shape)
         self.confidence_level = float(confidence_level)
         self.retain_samples = bool(retain_samples)
         self.n_replicates = int(n_replicates)
-        self.tail_size = bootstrap_retained_tail_size(
+        self.tail_size = _bootstrap_retained_tail_size(
             n_replicates, confidence_level=self.confidence_level
         )
         self._flush_block = BOOTSTRAP_TAIL_FLUSH_BLOCK
@@ -223,7 +223,7 @@ class BootstrapAccumulator:
         return np.partition(values, cut, axis=0)[cut:].copy()
 
     @classmethod
-    def _empty_like(cls, reference: "BootstrapAccumulator") -> "BootstrapAccumulator":
+    def _empty_like(cls, reference: "_BootstrapAccumulator") -> "_BootstrapAccumulator":
         """An empty accumulator with `reference`'s run shape and retention policy.
 
         `merge` needs a target sized for the *whole* run, which the public
@@ -241,8 +241,8 @@ class BootstrapAccumulator:
 
     @staticmethod
     def merge(
-        first: "BootstrapAccumulator", second: "BootstrapAccumulator"
-    ) -> "BootstrapAccumulator":
+        first: "_BootstrapAccumulator", second: "_BootstrapAccumulator"
+    ) -> "_BootstrapAccumulator":
         """Combine two accumulators over disjoint replicate blocks.
 
         Uses the Chan-Golub-LeVeque parallel variance update and merges the
@@ -251,12 +251,12 @@ class BootstrapAccumulator:
         samples are concatenated in `first`-then-`second` order.
 
         Args:
-            first (BootstrapAccumulator): Accumulator over the earlier block.
-            second (BootstrapAccumulator): Accumulator over the later block.
+            first (_BootstrapAccumulator): Accumulator over the earlier block.
+            second (_BootstrapAccumulator): Accumulator over the later block.
                 Both must have been sized with the run's total replicate count.
 
         Returns:
-            BootstrapAccumulator: A new accumulator holding both blocks.
+            _BootstrapAccumulator: A new accumulator holding both blocks.
 
         Raises:
             ValueError: If the two accumulators describe different runs.
@@ -287,7 +287,7 @@ class BootstrapAccumulator:
                 "retain_samples."
             )
 
-        merged = BootstrapAccumulator._empty_like(first)
+        merged = _BootstrapAccumulator._empty_like(first)
 
         first._flush()
         second._flush()
@@ -385,7 +385,7 @@ def _interpolate_order_statistic(
 def _run_replicates(
     compute_one,
     n_samples: int,
-    accumulator: BootstrapAccumulator,
+    accumulator: _BootstrapAccumulator,
     *,
     n_jobs: int,
     window: int,
@@ -398,7 +398,7 @@ def _run_replicates(
     eagerly and queues finished results, so neither `pre_dispatch` nor
     `return_as="generator"` limits how many replicate arrays are alive at once —
     collecting the whole run, the obvious spelling, makes peak memory `O(B)` and
-    turns `bootstrap_memory_preflight` into a budget the run ignores. Instead
+    turns `_bootstrap_memory_preflight` into a budget the run ignores. Instead
     each window of `window` replicates is folded into the accumulator and
     released before the next window is dispatched, so peak memory is the
     accumulator's retained tail plus one window.
@@ -410,7 +410,7 @@ def _run_replicates(
     Args:
         compute_one (Callable): `(index) -> np.ndarray` for one replicate.
         n_samples (int): Number of replicates.
-        accumulator (BootstrapAccumulator): Aggregator to fold results into.
+        accumulator (_BootstrapAccumulator): Aggregator to fold results into.
         n_jobs (int): Worker count, already planned against the budget.
         window (int): Replicates dispatched before the next aggregation, from
             `backends.bootstrap_replicate_window`.
@@ -430,7 +430,7 @@ def _run_replicates(
                 f"bootstrap replicate {index} failed: {error}"
             ) from error
 
-    pbar = make_progress_bar(
+    pbar = _make_progress_bar(
         progress_bar=progress_bar, total=n_samples, desc=desc, unit="iter"
     )
     # One pool for the whole run; the context manager keeps workers alive
@@ -447,11 +447,11 @@ def _run_replicates(
     pbar.close()
 
 
-def _summarize(accumulator: BootstrapAccumulator, estimate: np.ndarray) -> dict:
+def _summarize(accumulator: _BootstrapAccumulator, estimate: np.ndarray) -> dict:
     """Assemble the engine result from an accumulator and the full-sample estimate.
 
     Args:
-        accumulator (BootstrapAccumulator): Aggregator over every replicate.
+        accumulator (_BootstrapAccumulator): Aggregator over every replicate.
         estimate (np.ndarray): The statistic on the unresampled full sample.
 
     Returns:
@@ -525,7 +525,7 @@ def _bootstrap_simple_cpu_parallel(
     """Bootstrap a simple aggregation across CPU workers.
 
     Bootstrap indices are pre-generated from `random_state`, replicates run in
-    parallel with joblib, and results stream into `BootstrapAccumulator`.
+    parallel with joblib, and results stream into `_BootstrapAccumulator`.
 
     Args:
         data (np.ndarray): Data to bootstrap, shape (n_obs, n_features) or
@@ -554,19 +554,19 @@ def _bootstrap_simple_cpu_parallel(
         ```
     """
     from nltools.algorithms.backends import (
-        bootstrap_memory_preflight,
-        bootstrap_n_jobs_cpu,
-        bootstrap_replicate_window,
+        _bootstrap_memory_preflight,
+        _bootstrap_n_jobs_cpu,
+        _bootstrap_replicate_window,
         _estimate_data_size_mb,
     )
 
-    validate_bootstrap_method(method, SIMPLE_METHODS, FITTED_METHODS)
-    validate_n_samples(n_samples)
-    validate_confidence_level(confidence_level)
-    validate_memory_budget(memory_budget_gb)
+    _validate_bootstrap_method(method, SIMPLE_METHODS, FITTED_METHODS)
+    _validate_n_samples(n_samples)
+    _validate_confidence_level(confidence_level)
+    _validate_memory_budget(memory_budget_gb)
 
     data = np.asarray(data, dtype=np.float64)
-    validate_bootstrap_data(data, method)
+    _validate_bootstrap_data(data, method)
 
     _advise_on_n_samples(n_samples)
     _advise_on_sample_size(data)
@@ -578,13 +578,13 @@ def _bootstrap_simple_cpu_parallel(
     n_obs, n_features = data.shape
     output_shape = (1,) if single_feature else (n_features,)
 
-    workers = bootstrap_n_jobs_cpu(
+    workers = _bootstrap_n_jobs_cpu(
         _estimate_data_size_mb(data),
         n_samples,
         memory_budget_gb=memory_budget_gb,
         n_jobs=n_jobs,
     )
-    bootstrap_memory_preflight(
+    _bootstrap_memory_preflight(
         output_shape,
         n_samples,
         confidence_level=confidence_level,
@@ -592,14 +592,14 @@ def _bootstrap_simple_cpu_parallel(
         n_workers=workers,
         memory_budget_gb=memory_budget_gb,
     )
-    window = bootstrap_replicate_window(n_samples, n_workers=workers)
+    window = _bootstrap_replicate_window(n_samples, n_workers=workers)
 
-    all_indices = generate_bootstrap_indices(
+    all_indices = _generate_bootstrap_indices(
         n_obs, n_samples, random_state=random_state
     )
     estimate = _bootstrap_simple_method_worker(data, method, np.arange(n_obs))
 
-    accumulator = BootstrapAccumulator(
+    accumulator = _BootstrapAccumulator(
         output_shape,
         n_replicates=n_samples,
         confidence_level=confidence_level,
@@ -628,7 +628,7 @@ def _as_feature_spaces(X) -> list[np.ndarray]:
     """Normalize training features to a list of 2-D arrays in coefficient order.
 
     Ordinary ridge supplies one matrix; banded ridge supplies one matrix per
-    fitted feature space, already ordered by `Ridge.feature_space_names_`.
+    fitted feature space, already ordered by `_Ridge.feature_space_names_`.
 
     Args:
         X (np.ndarray | Sequence[np.ndarray]): One matrix, or one per space.
@@ -771,22 +771,22 @@ def _bootstrap_ridge_weights_cpu_parallel(
         ```
     """
     from nltools.algorithms.backends import (
-        bootstrap_memory_preflight,
-        bootstrap_n_jobs_cpu,
-        bootstrap_replicate_window,
+        _bootstrap_memory_preflight,
+        _bootstrap_n_jobs_cpu,
+        _bootstrap_replicate_window,
         _estimate_data_size_mb,
     )
 
     spaces = _as_feature_spaces(X)
     y = np.asarray(y, dtype=np.float64)
 
-    validate_array_shape_range(y, 1, 2, name="y")
+    _validate_array_shape_range(y, 1, 2, name="y")
     for space in spaces:
-        validate_array_shape(space, 2, name="X")
-        validate_shape_compatibility(space, y, X_name="X", y_name="y")
-    validate_n_samples(n_samples)
-    validate_confidence_level(confidence_level)
-    validate_memory_budget(memory_budget_gb)
+        _validate_array_shape(space, 2, name="X")
+        _validate_shape_compatibility(space, y, X_name="X", y_name="y")
+    _validate_n_samples(n_samples)
+    _validate_confidence_level(confidence_level)
+    _validate_memory_budget(memory_budget_gb)
     _advise_on_n_samples(n_samples)
 
     if y.ndim == 1:
@@ -796,13 +796,13 @@ def _bootstrap_ridge_weights_cpu_parallel(
     n_features = sum(space.shape[1] for space in spaces)
     output_shape = (n_features, y.shape[1])
 
-    workers = bootstrap_n_jobs_cpu(
+    workers = _bootstrap_n_jobs_cpu(
         _estimate_data_size_mb(y),
         n_samples,
         memory_budget_gb=memory_budget_gb,
         n_jobs=n_jobs,
     )
-    bootstrap_memory_preflight(
+    _bootstrap_memory_preflight(
         output_shape,
         n_samples,
         confidence_level=confidence_level,
@@ -810,12 +810,12 @@ def _bootstrap_ridge_weights_cpu_parallel(
         n_workers=workers,
         memory_budget_gb=memory_budget_gb,
     )
-    window = bootstrap_replicate_window(n_samples, n_workers=workers)
+    window = _bootstrap_replicate_window(n_samples, n_workers=workers)
 
-    all_indices = generate_bootstrap_indices(
+    all_indices = _generate_bootstrap_indices(
         n_obs, n_samples, random_state=random_state
     )
-    accumulator = BootstrapAccumulator(
+    accumulator = _BootstrapAccumulator(
         output_shape,
         n_replicates=n_samples,
         confidence_level=confidence_level,
@@ -909,9 +909,9 @@ def _bootstrap_ridge_predict_cpu_parallel(
         ```
     """
     from nltools.algorithms.backends import (
-        bootstrap_memory_preflight,
-        bootstrap_n_jobs_cpu,
-        bootstrap_replicate_window,
+        _bootstrap_memory_preflight,
+        _bootstrap_n_jobs_cpu,
+        _bootstrap_replicate_window,
         _estimate_data_size_mb,
     )
 
@@ -919,19 +919,19 @@ def _bootstrap_ridge_predict_cpu_parallel(
     y = np.asarray(y, dtype=np.float64)
     X_pred = _stack_feature_spaces(X_pred)
 
-    validate_array_shape_range(y, 1, 2, name="y")
+    _validate_array_shape_range(y, 1, 2, name="y")
     for space in spaces:
-        validate_array_shape(space, 2, name="X")
-        validate_shape_compatibility(space, y, X_name="X", y_name="y")
-    validate_array_shape(X_pred, 2, name="X_pred")
+        _validate_array_shape(space, 2, name="X")
+        _validate_shape_compatibility(space, y, X_name="X", y_name="y")
+    _validate_array_shape(X_pred, 2, name="X_pred")
     n_features = sum(space.shape[1] for space in spaces)
     if n_features != X_pred.shape[1]:
         raise ValueError(
             f"X and X_pred must have same n_features: {n_features} != {X_pred.shape[1]}"
         )
-    validate_n_samples(n_samples)
-    validate_confidence_level(confidence_level)
-    validate_memory_budget(memory_budget_gb)
+    _validate_n_samples(n_samples)
+    _validate_confidence_level(confidence_level)
+    _validate_memory_budget(memory_budget_gb)
     _advise_on_n_samples(n_samples)
 
     if y.ndim == 1:
@@ -940,13 +940,13 @@ def _bootstrap_ridge_predict_cpu_parallel(
     n_obs = spaces[0].shape[0]
     output_shape = (X_pred.shape[0], y.shape[1])
 
-    workers = bootstrap_n_jobs_cpu(
+    workers = _bootstrap_n_jobs_cpu(
         _estimate_data_size_mb(y),
         n_samples,
         memory_budget_gb=memory_budget_gb,
         n_jobs=n_jobs,
     )
-    bootstrap_memory_preflight(
+    _bootstrap_memory_preflight(
         output_shape,
         n_samples,
         confidence_level=confidence_level,
@@ -954,12 +954,12 @@ def _bootstrap_ridge_predict_cpu_parallel(
         n_workers=workers,
         memory_budget_gb=memory_budget_gb,
     )
-    window = bootstrap_replicate_window(n_samples, n_workers=workers)
+    window = _bootstrap_replicate_window(n_samples, n_workers=workers)
 
-    all_indices = generate_bootstrap_indices(
+    all_indices = _generate_bootstrap_indices(
         n_obs, n_samples, random_state=random_state
     )
-    accumulator = BootstrapAccumulator(
+    accumulator = _BootstrapAccumulator(
         output_shape,
         n_replicates=n_samples,
         confidence_level=confidence_level,
@@ -1015,16 +1015,16 @@ def _auto_batch_size_ridge(
         n_voxels (int): Number of voxels/targets.
         output_shape (tuple[int, ...]): Shape of one retained replicate result.
         max_memory_gb (float | None): Explicit memory budget in GB. None
-            (default) measures the device via `device_memory_budget`.
+            (default) measures the device via `_device_memory_budget`.
         backend (Backend | None): Resolved backend the work runs on.
 
     Returns:
         tuple[int, int]: `(batch_size, n_batches)`.
     """
-    from nltools.algorithms.backends import ridge_bootstrap_batch_size
+    from nltools.algorithms.backends import _ridge_bootstrap_batch_size
 
     device = getattr(backend, "device", None)
-    return ridge_bootstrap_batch_size(
+    return _ridge_bootstrap_batch_size(
         n_bootstrap,
         n_samples=n_samples,
         n_features=n_features,
@@ -1076,7 +1076,7 @@ def _bootstrap_ridge_gpu_batched(
 
     Owns everything the weights and predict bootstraps have in common — pre-drawn
     resample indices, batch sizing via `_auto_batch_size_ridge`, the per-replicate
-    refit inside an OOM-safe batch loop, `BootstrapAccumulator` aggregation on
+    refit inside an OOM-safe batch loop, `_BootstrapAccumulator` aggregation on
     the CPU, the progress bar, and result formatting. The per-replicate statistic
     is injected via `compute_sample`.
 
@@ -1118,10 +1118,10 @@ def _bootstrap_ridge_gpu_batched(
         RuntimeError: If a replicate fails, naming its index.
     """
     from nltools.algorithms.backends import (
-        auto_select_backend,
-        bootstrap_memory_preflight,
-        compute_oom_safe,
-        is_oom_error,
+        _auto_select_backend,
+        _bootstrap_memory_preflight,
+        _compute_oom_safe,
+        _is_oom_error,
     )
 
     n_obs = feature_spaces[0].shape[0]
@@ -1129,15 +1129,15 @@ def _bootstrap_ridge_gpu_batched(
     n_voxels = y.shape[1]
 
     if backend is None:
-        backend = auto_select_backend(n_obs, n_features)
+        backend = _auto_select_backend(n_obs, n_features)
     _validate_gpu_backend(backend)
 
-    validate_n_samples(n_samples)
-    validate_confidence_level(confidence_level)
-    validate_memory_budget(memory_budget_gb)
+    _validate_n_samples(n_samples)
+    _validate_confidence_level(confidence_level)
+    _validate_memory_budget(memory_budget_gb)
     _advise_on_n_samples(n_samples)
 
-    bootstrap_memory_preflight(
+    _bootstrap_memory_preflight(
         output_shape,
         n_samples,
         confidence_level=confidence_level,
@@ -1146,7 +1146,7 @@ def _bootstrap_ridge_gpu_batched(
         backend=backend,
     )
 
-    all_indices = generate_bootstrap_indices(
+    all_indices = _generate_bootstrap_indices(
         n_obs, n_samples, random_state=random_state
     )
 
@@ -1169,7 +1169,7 @@ def _bootstrap_ridge_gpu_batched(
 
         `replicates` carries each row's global replicate index so a terminal
         failure names it even after OOM recovery has split the batch. An OOM
-        itself is re-raised untouched, because `compute_oom_safe` recovers from
+        itself is re-raised untouched, because `_compute_oom_safe` recovers from
         it by retrying the same rows in smaller pieces.
         """
         batch_results = []
@@ -1183,7 +1183,7 @@ def _bootstrap_ridge_gpu_batched(
                     memory_budget_gb=memory_budget_gb,
                 )
             except Exception as error:
-                if is_oom_error(error):
+                if _is_oom_error(error):
                     raise
                 raise RuntimeError(
                     f"bootstrap replicate {int(replicate)} failed: {error}"
@@ -1191,14 +1191,14 @@ def _bootstrap_ridge_gpu_batched(
             batch_results.append(compute_sample(coef))
         return np.array(batch_results)
 
-    accumulator = BootstrapAccumulator(
+    accumulator = _BootstrapAccumulator(
         output_shape,
         n_replicates=n_samples,
         confidence_level=confidence_level,
         retain_samples=return_samples,
     )
 
-    pbar = make_progress_bar(
+    pbar = _make_progress_bar(
         progress_bar=progress_bar,
         total=n_samples,
         desc=desc,
@@ -1213,7 +1213,7 @@ def _bootstrap_ridge_gpu_batched(
 
         # Bootstrap indices for this batch were all pre-drawn (all_indices),
         # so OOM recovery reuses them exactly; the replicate ids split with them.
-        batch_results = compute_oom_safe(
+        batch_results = _compute_oom_safe(
             _compute_batch, all_indices[start:end], replicate_ids[start:end]
         )
         for sample in batch_results:
@@ -1273,10 +1273,10 @@ def _bootstrap_ridge_weights_gpu_batched(
     spaces = _as_feature_spaces(X)
     y = np.asarray(y, dtype=np.float64)
 
-    validate_array_shape_range(y, 1, 2, name="y")
+    _validate_array_shape_range(y, 1, 2, name="y")
     for space in spaces:
-        validate_array_shape(space, 2, name="X")
-        validate_shape_compatibility(space, y, X_name="X", y_name="y")
+        _validate_array_shape(space, 2, name="X")
+        _validate_shape_compatibility(space, y, X_name="X", y_name="y")
 
     if y.ndim == 1:
         y = y[:, np.newaxis]
@@ -1353,11 +1353,11 @@ def _bootstrap_ridge_predict_gpu_batched(
     y = np.asarray(y, dtype=np.float64)
     X_pred = _stack_feature_spaces(X_pred)
 
-    validate_array_shape_range(y, 1, 2, name="y")
+    _validate_array_shape_range(y, 1, 2, name="y")
     for space in spaces:
-        validate_array_shape(space, 2, name="X")
-        validate_shape_compatibility(space, y, X_name="X", y_name="y")
-    validate_array_shape(X_pred, 2, name="X_pred")
+        _validate_array_shape(space, 2, name="X")
+        _validate_shape_compatibility(space, y, X_name="X", y_name="y")
+    _validate_array_shape(X_pred, 2, name="X_pred")
     n_features = sum(space.shape[1] for space in spaces)
     if n_features != X_pred.shape[1]:
         raise ValueError(

@@ -6,7 +6,7 @@ import pytest
 from scipy import sparse
 
 from nltools.algorithms.neighborhoods import (
-    SphereNeighborhoods,
+    _SphereNeighborhoods,
     compute_searchlight_neighborhoods,
 )
 
@@ -51,12 +51,12 @@ def tiny_mask():
 
 
 # =============================================================================
-# Test SphereNeighborhoods
+# Test _SphereNeighborhoods
 # =============================================================================
 
 
 class TestSphereNeighborhoods:
-    """Tests for SphereNeighborhoods dataclass."""
+    """Tests for _SphereNeighborhoods dataclass."""
 
     def test_get_neighbors(self):
         """Test getting neighbors for a voxel."""
@@ -66,7 +66,7 @@ class TestSphereNeighborhoods:
         data = [1, 1, 1, 1, 1, 1, 1]
         adj = sparse.csr_matrix((data, (row, col)), shape=(3, 3))
 
-        sn = SphereNeighborhoods(
+        sn = _SphereNeighborhoods(
             adjacency=adj,
             radius=5.0,
             n_voxels=3,
@@ -86,7 +86,7 @@ class TestSphereNeighborhoods:
         data = [1, 1, 1, 1, 1, 1, 1]
         adj = sparse.csr_matrix((data, (row, col)), shape=(3, 3))
 
-        sn = SphereNeighborhoods(
+        sn = _SphereNeighborhoods(
             adjacency=adj,
             radius=5.0,
             n_voxels=3,
@@ -103,7 +103,7 @@ class TestSphereNeighborhoods:
         data = [1, 1, 1, 1, 1, 1, 1]
         adj = sparse.csr_matrix((data, (row, col)), shape=(3, 3))
 
-        sn = SphereNeighborhoods(
+        sn = _SphereNeighborhoods(
             adjacency=adj,
             radius=5.0,
             n_voxels=3,
@@ -122,7 +122,7 @@ class TestSphereNeighborhoods:
         data = [1, 1, 1, 1, 1, 1, 1]
         adj = sparse.csr_matrix((data, (row, col)), shape=(3, 3))
 
-        sn = SphereNeighborhoods(
+        sn = _SphereNeighborhoods(
             adjacency=adj,
             radius=5.0,
             n_voxels=3,
@@ -140,7 +140,7 @@ class TestSphereNeighborhoods:
         data = [1, 1]
         adj = sparse.csr_matrix((data, (row, col)), shape=(2, 2))
 
-        sn = SphereNeighborhoods(
+        sn = _SphereNeighborhoods(
             adjacency=adj,
             radius=5.0,
             n_voxels=2,

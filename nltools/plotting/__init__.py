@@ -12,20 +12,20 @@ submodules:
 """
 
 from .brain import (  # noqa: F401
-    plot_surf,
-    plot_flatmap,
+    _plot_surf,
+    _plot_flatmap,
 )
 from .adjacency import (  # noqa: F401
-    plot_stacked_adjacency,
-    plot_mean_label_distance,
-    plot_between_label_distance,
-    plot_silhouette,
+    _plot_stacked_adjacency,
+    _plot_mean_label_distance,
+    _plot_between_label_distance,
+    _plot_silhouette,
 )
 from .prediction import (  # noqa: F401
-    plot_predicted_versus_actual,
-    plot_decision_margin,
-    plot_class_probability,
-    plot_roc,
+    _plot_predicted_versus_actual,
+    _plot_decision_margin,
+    _plot_class_probability,
+    _plot_roc,
 )
 from .decomposition import component_viewer
 
