@@ -65,12 +65,12 @@ def test_malformed_or_ambiguous_input_is_rejected(data, kind):
         Adjacency(data, matrix_type=kind)
 
 
-def test_nan_symmetry_and_zero_diagonal_policy():
+def test_nan_symmetry_and_diagonal_policy():
     matrix = np.array([[1.0, np.nan, 2.0], [np.nan, 1.0, 3.0], [2.0, 3.0, 1.0]])
     adj = Adjacency(matrix)
     assert adj.matrix_type == "similarity"
     assert np.isnan(adj.data[0])
-    np.testing.assert_array_equal(np.diag(adj.squareform()), 0)
+    np.testing.assert_array_equal(np.diag(adj.squareform()), 1)
     matrix[1, 0] = 0
     with pytest.raises(ValueError):
         Adjacency(matrix, matrix_type="similarity")

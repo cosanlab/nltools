@@ -19,8 +19,9 @@ class Adjacency:
     """Represent adjacency matrices in vectorized form.
 
     Store distance/similarity matrices as strict upper triangles and directed
-    matrices as full row-major vectors. Symmetric reconstruction always has a
-    zero diagonal; input diagonals are discarded. Flat rectangular stacks require
+    matrices as full row-major vectors. Symmetric reconstruction fills the
+    diagonal from the matrix type — 0 for a distance, 1 for a similarity — and
+    input diagonals are discarded. Flat rectangular stacks require
     an explicit `*_flat` matrix type. A list or 2-D flat array retains stack rank,
     including one matrix. A zero-length symmetric vector represents one node.
     Construction and result methods return independently owned mutable state.
@@ -683,7 +684,8 @@ class Adjacency:
 
         Returns:
             np.ndarray | list[np.ndarray]: Detached square matrix, or a list of
-                detached matrices for a stack. Symmetric diagonals are zero.
+                detached matrices for a stack. A symmetric diagonal is filled
+                from the matrix type: 0 for a distance, 1 for a similarity.
         """
         from .state import _to_square
 

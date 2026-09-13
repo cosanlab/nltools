@@ -108,6 +108,25 @@ class TestAdjacencyCore:
         assert with_diag.squareform()[0, 1] == pytest.approx(expected)
         assert without_diag.squareform()[0, 1] == pytest.approx(0.0, abs=1e-12)
 
+    def test_square_export_carries_the_matrix_type_diagonal(self, sim_adjacency_single):
+        """#527: a similarity square has a unit diagonal and round-trips."""
+        distance = sim_adjacency_single
+        np.testing.assert_array_equal(np.diag(distance.squareform()), 0)
+
+        similarity = distance.distance_to_similarity()
+        square = similarity.squareform()
+        np.testing.assert_array_equal(np.diag(square), 1)
+        np.testing.assert_array_equal(similarity.to_square(), square)
+
+        round_trip = Adjacency(square)
+        assert round_trip.matrix_type == "similarity"
+        np.testing.assert_allclose(round_trip.data, similarity.data)
+
+    def test_arithmetic_keeps_matrix_type(self, sim_adjacency_single):
+        """`1 - d` stays a distance: only `distance_to_similarity()` retypes."""
+        assert (1 - sim_adjacency_single).matrix_type == "distance"
+        assert sim_adjacency_single.distance_to_similarity().matrix_type == "similarity"
+
     def test_similarity_conversion(self, sim_adjacency_single):
         """Test conversion between distance and similarity."""
         np.testing.assert_approx_equal(

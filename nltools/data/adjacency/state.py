@@ -317,16 +317,26 @@ def _append(left, right):
 
 
 def _to_square(adj):
-    """Export detached square matrices with a zero symmetric diagonal."""
+    """Export detached square matrices with the diagonal the matrix type implies.
+
+    Symmetric matrices are stored without their diagonal, and scipy's
+    `squareform` writes zeros there. Zero is the right value for a distance but
+    not for a similarity, where every node is maximally similar to itself: a
+    zero diagonal distorts plots and colour limits, and re-reading the square
+    infers the wrong matrix type. Directed matrices are stored whole and keep
+    the diagonal they were given.
+    """
     if adj.matrix_type == "empty":
         return np.empty((0, 0))
 
+    diagonal = 1 if adj.matrix_type == "similarity" else 0
+
     def expand(row):
-        return (
-            squareform(row)
-            if adj.issymmetric
-            else row.reshape(adj.n_nodes, adj.n_nodes).copy()
-        )
+        if not adj.issymmetric:
+            return row.reshape(adj.n_nodes, adj.n_nodes).copy()
+        square = squareform(row)
+        np.fill_diagonal(square, diagonal)
+        return square
 
     return (
         expand(adj.data) if adj.is_single_matrix else [expand(row) for row in adj.data]
