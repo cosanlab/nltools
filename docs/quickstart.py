@@ -29,18 +29,16 @@ def _(mo):
     flexibly combined to perform a wide variety of analyses.
 
     Everything on this page runs in your browser — a real Python interpreter,
-    nothing installed on your machine. Press Run on a cell to recompute it: the
-    first Run downloads Python and nltools, and every cell needs the ones above it
-    to have run first.
+    nothing installed. Press Run to recompute a cell; the first Run downloads
+    Python and nltools, and each cell needs the ones above it to have run first.
 
     ## Basics
 
     ### Working with neuroimaging data
 
-    Start by choosing the grid every image will live on. `set_brainspace` sets it
-    for the session, and 3 mm is what keeps this page inside a browser tab: the
-    mask holds 71,020 voxels, against the 238,955 every image would carry at the
-    2 mm default.
+    Start by choosing the grid every image lives on. `set_brainspace` sets it for
+    the session, and 3 mm is what keeps this page inside a browser tab: 71,020
+    voxels in the mask, against 238,955 at the 2 mm default.
     """)
     return
 
@@ -59,10 +57,10 @@ def _():
 def _(mo):
     mo.md(r"""
     `BrainData` is the object almost every analysis starts from: images by voxels,
-    one row per image and one column per voxel inside the mask. `Simulator` makes
-    synthetic images to fill it — a sphere of signal at the intensity of each level
-    you ask for, plus Gaussian noise. `reps=2` repeats the three levels, so this is
-    six images, and `.Y` holds the level each one was drawn at:
+    one row per image and one column per voxel inside the mask. `Simulator` fills it
+    with synthetic images — a sphere of signal scaled to each level, plus Gaussian
+    noise. `reps=2` repeats the three levels, and `.Y` holds the level each image
+    was drawn at:
     """)
     return
 
@@ -83,7 +81,7 @@ def _():
 def _(mo):
     mo.md(r"""
     `mean()` averages across images, one value per voxel, and `plot()` draws the
-    result. The signal sphere should be the only thing left standing:
+    result — the signal sphere should be the only thing left standing:
     """)
     return
 
@@ -97,6 +95,9 @@ def _(data):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
+    More in [Working with BrainData](tutorials/data-operations/01_brain_data.md),
+    which covers loading, indexing, masks and ROIs, plotting and saving images.
+
     ### Working with an experimental design
 
     A `DesignMatrix` is a dataframe that knows it describes a timeseries: it carries
@@ -135,20 +136,17 @@ def _(convolved):
 def _(mo):
     mo.md(r"""
     More in [Working with DesignMatrix](tutorials/data-operations/02_design_matrix.md),
-    which covers confounds, polynomial terms, multi-run designs and building a design
-    from an events file.
+    which covers confounds, polynomial terms, multi-run designs and events files.
 
     ### Working with similarities & distances
 
     `Adjacency` holds a square matrix over a set of nodes — a correlation matrix, a
-    distance matrix, a network. `BrainData.distance` makes one out of images.
-
-    Distances are worth computing inside a region rather than over the whole brain:
-    across 71,020 voxels, two noisy images mostly differ by noise. `create_sphere`
-    draws a region in MNI millimetres and `apply_mask` keeps the voxels inside it —
-    here, the sphere the simulator put the signal in. These images differ in how
-    strongly that sphere responds rather than in the shape of the pattern across it,
-    so euclidean distance is the metric that sees the difference:
+    distance matrix, a network. `BrainData.distance` makes one out of images, and it
+    is worth doing inside a region: over 71,020 voxels, two noisy images mostly
+    differ by noise. `create_sphere` draws a region in MNI millimetres and
+    `apply_mask` keeps the voxels inside it — here, the sphere the simulator put the
+    signal in. These images differ in how strongly that sphere responds, not in the
+    shape of the pattern across it — the difference euclidean distance sees:
     """)
     return
 
@@ -175,10 +173,10 @@ def _(neural):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    Six images make 6 × 6 = 36 cells, but only 15 of them are distinct pairs, and
-    that is all an `Adjacency` stores — hence the empty diagonal in the heatmap.
-    The palest cells are the 1-versus-3 pairs, furthest apart; the deepest red are
-    the pairs drawn at the same level.
+    Six images make 36 cells, but only 15 distinct pairs, and that is all an
+    `Adjacency` stores; the plot fills the diagonal back in with the zero every image
+    has with itself. The palest cells are the 1-versus-3 pairs, furthest apart; the
+    darkest off the diagonal are the pairs drawn at the same level.
 
     More in [Working with Adjacency](tutorials/data-operations/03_adjacency.md),
     which covers thresholds, Fisher z, stacking subjects, regression and graphs.
@@ -187,16 +185,16 @@ def _(mo):
 
     Those three objects are all you need. A design fits to data and answers a
     question about conditions; features fit to data and answer a question about
-    prediction; data become distances and answer a question about geometry. The
-    rest of this page is one short example of each, all on simulated data so that
-    every cell runs in a second.
+    prediction; data become distances and answer a question about geometry. Each
+    workflow below is one short example on simulated data, with the permutation and
+    bootstrap tests cut to 200 resamples from their default 5,000 so that every cell
+    finishes in about a second.
 
     ### Mapping neural responses
 
     Fitting a GLM is `fit(model="glm", X=design)`, and `compute_contrasts` asks it a
-    question. Here one subject's run is simulated so that the sphere follows the
-    `faces` regressor, with noise a fifth of its amplitude, and the contrast should
-    recover it:
+    question. Here one run is simulated so that the sphere follows the `faces`
+    regressor, and the contrast should recover it:
     """)
     return
 
@@ -216,11 +214,11 @@ def _(Simulator, convolved):
 def _(mo):
     mo.md(r"""
     A beta map is the model's answer at every voxel and the contrast is the question
-    asked of it: how much more of this voxel's timecourse is explained by faces than
-    by houses. One subject's answer is not a result, though — the map a paper reports
-    is a test across subjects. Simulate five of them, stack their contrast maps with
-    `concatenate`, and `ttest` gives the voxelwise one-sample test. `threshold` then
-    keeps the voxels whose p-value clears a cutoff:
+    asked of it: how much more this voxel responds to faces than to houses. One
+    subject is not a result, though — the map a paper reports is a test across
+    subjects. Simulate five, stack their contrast maps with `concatenate`, and
+    `ttest` gives the voxelwise one-sample test; `threshold` zeroes every voxel whose
+    p-value misses a cutoff:
     """)
     return
 
@@ -250,22 +248,16 @@ def _(Simulator, convolved):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    `ttest` returns the `mean`, `t`, `z` and `p` maps as separate images, so anything
-    else you want to do with them is ordinary indexing and arithmetic.
-
-    See [Working with BrainData](tutorials/data-operations/01_brain_data.md) for
-    loading, masking and transforming images, and
-    [Working with DesignMatrix](tutorials/data-operations/02_design_matrix.md) for
-    building the design the GLM fits.
+    `ttest` returns the `mean`, `t`, `z` and `p` maps as separate images.
 
     ### Predicting neural responses
 
     An encoding model turns the same equation around: instead of a handful of task
     regressors, a feature matrix with more columns than timepoints, and ridge
-    regression to keep the fit from blowing up. Here 100 random features, of which
-    the first ten drive the sphere, and two runs of the same experiment so the model
+    regression to keep the fit from blowing up. Here 100 random features, the first
+    ten of which drive the sphere, and two runs of the same experiment so the model
     can be scored on data it never saw. `ridge_cv` picks the penalty by
-    cross-validation, separately for each voxel:
+    cross-validation, one per voxel:
     """)
     return
 
@@ -302,9 +294,8 @@ def _(mo):
     mo.md(r"""
     The fit leaves `ridge_weights` on the object, one map per feature, so predicting
     the second run is a matrix product. Correlating that prediction with what the
-    second run actually did, voxel by voxel, gives a performance map — the same
-    picture as a beta map, answering a different question: not how much this voxel
-    responds, but how well the model accounts for it:
+    second run actually did, voxel by voxel, gives a performance map: not how much
+    this voxel responds, but how well the model accounts for it:
     """)
     return
 
@@ -332,8 +323,8 @@ def _(mo):
     mo.md(r"""
     A performance map is what you compare across models, the way a beta map is what
     you compare across conditions. Scoring the same weights against features whose
-    timing has been shuffled is the simplest comparison there is, and it says how
-    much of the map above is the model rather than the noise floor:
+    timing has been shuffled says how much of the map above is the model rather than
+    the noise floor:
     """)
     return
 
@@ -356,9 +347,9 @@ def _(mo):
     Representational similarity analysis compares geometries instead of voxels: how
     far apart the conditions are in the brain, against how far apart a model says
     they should be. Both sides are an `Adjacency`, and `similarity` correlates them
-    with a permutation test over the rows and columns. The neural side is the
-    distance matrix from the basics section; the model side says two images should
-    be far apart when their levels are:
+    — Spearman by default — with a permutation test that shuffles rows and columns
+    together. The neural side is the distance matrix from the basics section; the
+    model side says two images are far apart when their levels are:
     """)
     return
 
@@ -407,18 +398,17 @@ def _(decoded):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    The weight map is the pattern the classifier leaned on, back in image space. See
-    [Working with BrainData](tutorials/data-operations/01_brain_data.md) for building
-    the masks and regions these analyses run in.
+    The weight map is the pattern the classifier leaned on, refit on all twenty
+    images.
 
     ### Analyzing intersubject similarity
 
     Intersubject correlation asks how much of a response is shared: with everyone
     watching the same thing, the part of one subject's timecourse that another
-    subject also shows is the part the stimulus drove. `isc` takes an
-    observations-by-subjects array and bootstraps subjects for its p-value. These
-    five subjects each respond to the same two events, in a mix that differs from
-    subject to subject:
+    subject also shows is the part the stimulus drove. `isc` correlates every pair of
+    columns in an observations-by-subjects array and bootstraps subjects for the
+    p-value of the median. These five carry the same two signals, mixed differently
+    in each:
     """)
     return
 
@@ -450,8 +440,8 @@ def _(mo):
     mo.md(r"""
     Intersubject RSA is the previous section's analysis with people as the items: a
     matrix of how similar each pair of subjects' timecourses are, against a matrix of
-    how similar their behaviour is. Subjects whose responses mix the two events
-    alike should also score alike:
+    how far apart their behavioural scores are. Subjects whose responses mix the two
+    signals alike should also score alike:
     """)
     return
 
@@ -481,9 +471,9 @@ def _(mo):
     ### Aligning neural responses
 
     Two people watching the same film share the response, not the anatomy it sits in:
-    the same information can live in different voxels. Functional alignment finds the
-    transformation between them. Here the second subject is the first one's data with
-    its voxels shuffled — nothing lost, only moved:
+    the same information can live in different voxels, and functional alignment finds
+    the transformation between them. Here the second subject is the first one's data
+    with its voxels shuffled — nothing lost, only moved:
     """)
     return
 
@@ -514,17 +504,18 @@ def _(BrainData, np, patterns, region, voxel_correlation):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    A shuffle is a rotation, so `procrustes` undoes it exactly — the idealized
-    version of what alignment does when two real brains carry the same response in
-    different places. It works one pair at a time; `deterministic_srm` and
-    `probabilistic_srm` instead learn one shared space that many subjects map into,
-    which is what you want for a whole dataset.
+    Shuffling voxels is an orthogonal transformation and that is exactly what
+    `procrustes` solves for, so it recovers the data exactly — the idealized version
+    of what alignment does when two brains carry the same response in different
+    places. `BrainData.align` works one pair at a time; `nltools.algorithms.align`
+    takes a list of subjects and, with `deterministic_srm` or `probabilistic_srm`,
+    learns the shared space they all map into.
 
     ## Keep learning
 
-    The [Reference](api/nltools.md) documents every namespace, and the tutorials work
-    through the same objects on real data rather than simulations. For the
-    neuroimaging itself, two courses are taught with nltools end to end.
+    The [Reference](api/nltools.md) documents every namespace and the tutorials work
+    through the same objects on real data. Two courses teach the neuroimaging itself
+    with nltools end to end.
 
     - [DartBrains](https://dartbrains.org) — the fundamentals of fMRI analysis,
       from preprocessing to group statistics.
