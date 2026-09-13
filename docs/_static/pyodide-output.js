@@ -1,4 +1,10 @@
-// Figures and HTML in the output of zensical's ```pyodide fences.
+// Baked output, figures and HTML in zensical's ```pyodide fences.
+//
+// Two jobs. On page load, every fence is filled with the output its build-time
+// twin produced, so the page reads as finished before anything runs; the first
+// Run on a fence clears that and the live output takes over. While a fence runs,
+// its value is rendered as HTML rather than text, so figures and rich reprs
+// survive.
 //
 // The seam, and how to re-check it when zensical updates
 // -----------------------------------------------------
@@ -25,6 +31,13 @@
 // Symptoms if a zensical upgrade breaks this: text-only output again (fact 1 no
 // longer holds), or a figure that flashes and disappears, or `Figure(400x600)`
 // printed under one (facts 2 and 3).
+//
+// The baked output rides on facts 2 and 3 as well. `scripts/marimo_to_zensical.py`
+// emits each twin's output in a `<div class="cell-baked" data-for="N">` before the
+// Nth fence on the page; this file moves that div's children into the fence's own
+// output element, and zensical's `textContent = ""` on the next run clears them
+// with everything else. Symptom if the pairing breaks: baked output under the
+// wrong cell, or a page of empty editors.
 
 (() => {
   "use strict";
@@ -134,4 +147,25 @@ def _nltools_docs_html(value):
 
     return pyodide;
   };
+
+  // Fill each fence with its build-time output. The Nth `.pyodide` block on the
+  // page takes the baked div marked `data-for="N"`, which the converter numbered
+  // in the same order. Moving the nodes (rather than copying the HTML) keeps the
+  // inline SVG figures intact, and emptying the div leaves nothing behind to
+  // render twice.
+  const showBakedOutput = () => {
+    document.querySelectorAll(".pyodide").forEach((block, index) => {
+      const baked = document.querySelector(`.cell-baked[data-for="${index + 1}"]`);
+      const output = block.querySelector("[id$='--output']");
+      if (!baked || !output) return;
+      while (baked.firstChild) output.appendChild(baked.firstChild);
+      baked.remove();
+    });
+  };
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", showBakedOutput);
+  } else {
+    showBakedOutput();
+  }
 })();

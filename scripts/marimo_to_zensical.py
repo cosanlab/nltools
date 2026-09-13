@@ -11,6 +11,13 @@ fences ``markdown-exec`` executes while the site builds.
 It runs from the ``docs-generate`` poe task, so building the docs regenerates
 every page from its notebook first.
 
+A notebook named in ``LIVE_NOTEBOOKS`` renders in *live mode* instead: every code
+cell becomes a ```` ```pyodide ```` editor the reader runs in their own browser,
+preceded by a hidden build-time twin of the same cell that ``docs_show`` executes
+while the site builds. ``docs/_static/pyodide-output.js`` moves each twin's
+output into the editor it belongs to on page load and clears it on the first Run,
+so the page reads as finished and turns into an editor when clicked.
+
 Transforms:
 
 * the marimo frontmatter (``marimo-version``/``header``/``width``…) is replaced
@@ -36,7 +43,7 @@ Transforms:
 Usage::
 
     python scripts/marimo_to_zensical.py docs/tutorials/workflows/01_glm.py
-    python scripts/marimo_to_zensical.py --all   # every notebook in TUTORIAL_GLOBS
+    python scripts/marimo_to_zensical.py --all   # every notebook in NOTEBOOK_GLOBS
 """
 
 from __future__ import annotations
@@ -55,11 +62,21 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 # the site nav holds. The remaining notebooks under `docs/tutorials/` are parked
 # and are added back here as each returns to the nav — a parked notebook must not
 # be converted, because zensical builds and executes every `.md` under `docs/`.
-TUTORIAL_GLOBS = [
+NOTEBOOK_GLOBS = [
+    "docs/quickstart.py",
     "docs/tutorials/data-operations/01_brain_data.py",
     "docs/tutorials/data-operations/02_design_matrix.py",
     "docs/tutorials/data-operations/03_adjacency.py",
 ]
+
+# Notebooks rendered in live mode: `pyodide` editors with their build-time output
+# baked in. The reader runs these cells in their own browser, so the page installs
+# the package from PyPI on the first Run.
+LIVE_NOTEBOOKS = {"docs/quickstart.py"}
+
+# What the first `pyodide` cell of a live page installs. Pinned, because the page
+# documents the version of the library it was built from, not the latest release.
+LIVE_INSTALL = "nltools==0.6.0.dev0"
 
 # Where the source notebooks live on GitHub. The docs site deploys from `master`,
 # so links (and molab, which fetches the notebook from GitHub) target that branch.
@@ -246,9 +263,16 @@ def install_cell(rel: str, slug: str, digest: str, cells: int) -> str:
 
     The stamp (`digest` of the page's cells and their count) is what lets the
     formatter replay the page's recorded outputs when nothing in it changed.
+
+    It also resets the global brain space. Zensical builds every page in one
+    process, so a page that calls `set_brainspace` (the quickstart does, to keep
+    the browser's memory down) would otherwise hand its grid to the next page.
     """
     code = (
-        f"import {FORMATTER_MODULE}\n\n"
+        f"import {FORMATTER_MODULE}\n"
+        "import nltools\n"
+        "\n"
+        "nltools.set_brainspace(template=\"default\", resolution=2)\n"
         f'{FORMATTER_MODULE}.install("{rel}", digest="{digest}", cells={cells})'
     )
     return f"```python {SETUP_OPTIONS.format(slug=slug)}\n{code}\n```"
@@ -297,6 +321,60 @@ def transform_cell(attrs: str, body: str, slug: str) -> str | None:
     return f"{fence}python {options}\n{code}\n{fence}"
 
 
+def live_code(body: str, rel: str) -> str | None:
+    """The code of one cell as a live page shows it, or None when the cell is empty.
+
+    Args:
+        body: The cell's source as marimo exported it.
+        rel: Repo-relative path of the notebook, named in the error below.
+
+    Raises:
+        ValueError: If the cell is marked ``# docs: hide``. A hidden cell runs at
+            build time only, which on a live page would leave the reader's session
+            missing names the cells after it use.
+    """
+    lines = body.split("\n")
+    if lines and HIDE_DIRECTIVE_RE.match(lines[0]):
+        raise ValueError(f"{rel}: `# docs: hide` is not supported on a live page")
+    code = MARIMO_IMPORT_RE.sub("", body).strip("\n")
+    return code if code.strip() else None
+
+
+def live_cell(code: str, slug: str, session: str, index: int, install: str) -> str:
+    """Render one cell as a `pyodide` editor preceded by its hidden build-time twin.
+
+    The twin is an ordinary `markdown-exec` cell, so `docs_show` executes it while
+    the site builds, the strict build still fails on a cell that raises or warns,
+    and the output lands inside a `cell-baked` div that `pyodide-output.js` empties
+    into the editor's own output element on page load. The editor holds the same
+    source and runs it again in the reader's browser, in `session`.
+
+    Args:
+        code: The cell's source, shown in the editor and run by the twin.
+        slug: markdown-exec session for the twin, shared by the page's cells.
+        session: Pyodide session for the editor, shared by the page's editors.
+        index: 1-based position of the cell on the page; the twin's `data-for`.
+        install: Requirement the editor installs before running, or `""`. Only
+            the page's first editor carries one: Pyodide is a page-wide
+            singleton, so one install serves every cell.
+    """
+    fence = code_fence(code)
+    twin = (
+        f'<div class="cell-baked" data-for="{index}" markdown="1">\n'
+        "\n"
+        f'{fence}python exec="on" session="{slug}"\n'
+        f"{code}\n"
+        f"{fence}\n"
+        "\n"
+        "</div>"
+    )
+    options = f'session="{session}"'
+    if install:
+        options += f' install="{install}"'
+    editor = f"{fence}pyodide {options}\n{code}\n{fence}"
+    return f"{twin}\n\n{editor}"
+
+
 def source_banner(rel: str) -> str:
     """The molab badge plus a tip on running the notebook at `rel` yourself."""
     name = Path(rel).name
@@ -332,15 +410,31 @@ def insert_after_heading(body: str, block: str) -> str:
     return f"{block}\n{body}"
 
 
-def render_page(exported: str, rel: str, slug: str) -> str:
-    """The zensical page for the marimo-exported markdown of the notebook at `rel`."""
+def render_page(exported: str, rel: str, slug: str, live: bool = False) -> str:
+    """The zensical page for the marimo-exported markdown of the notebook at `rel`.
+
+    In live mode every cell renders twice: once as the `pyodide` editor the reader
+    runs, and once as the hidden twin the build executes. The twins are the page's
+    executable fences, so they are what the digest and the replay record count.
+    """
     body = strip_frontmatter(exported).lstrip("\n")
     body = convert_admonitions(body)
     title = page_title(body)
     fences: list[str] = []
+    session = Path(rel).stem
 
     def _replace(match: re.Match) -> str:
-        out = transform_cell(match.group("attrs"), match.group("body"), slug)
+        attrs, cell = match.group("attrs"), match.group("body")
+        if live:
+            code = live_code(cell, rel)
+            if code is None:
+                # Sentinel marks empty cells for cleanup of their surrounding blank lines.
+                return "\x00DROP\x00"
+            index = len(fences) + 1
+            install = LIVE_INSTALL if index == 1 else ""
+            fences.append(f'python exec="on" session="{slug}"\n{code}')
+            return live_cell(code, slug, session, index, install)
+        out = transform_cell(attrs, cell, slug)
         if out is None:
             # Sentinel marks empty cells for cleanup of their surrounding blank lines.
             return "\x00DROP\x00"
@@ -355,18 +449,27 @@ def render_page(exported: str, rel: str, slug: str) -> str:
     return frontmatter(rel, title) + "\n" + body + "\n"
 
 
-def convert(notebook: Path) -> Path:
-    """Convert one marimo notebook to a sibling ``.md`` page and return its path."""
+def convert(notebook: Path, live: bool | None = None) -> Path:
+    """Convert one marimo notebook to a sibling ``.md`` page and return its path.
+
+    Args:
+        notebook: The marimo ``.py`` notebook to convert.
+        live: Render the page's cells as live `pyodide` editors. None (the
+            default) asks `LIVE_NOTEBOOKS`.
+    """
     rel = rel_to_repo(notebook).as_posix()
+    if live is None:
+        live = rel in LIVE_NOTEBOOKS
     out_path = notebook.with_suffix(".md")
-    out_path.write_text(render_page(export_marimo_md(notebook), rel, page_slug(rel)))
+    page = render_page(export_marimo_md(notebook), rel, page_slug(rel), live=live)
+    out_path.write_text(page)
     return out_path
 
 
 def resolve_targets(args: argparse.Namespace) -> list[Path]:
     if args.all:
         targets: list[Path] = []
-        for pattern in TUTORIAL_GLOBS:
+        for pattern in NOTEBOOK_GLOBS:
             targets.extend(sorted(REPO_ROOT.glob(pattern)))
         return targets
     return [Path(p).resolve() for p in args.notebooks]
@@ -378,7 +481,13 @@ def main() -> int:
     )
     parser.add_argument("notebooks", nargs="*", help="marimo .py notebooks to convert")
     parser.add_argument(
-        "--all", action="store_true", help="convert every notebook in TUTORIAL_GLOBS"
+        "--all", action="store_true", help="convert every notebook in NOTEBOOK_GLOBS"
+    )
+    parser.add_argument(
+        "--live",
+        action=argparse.BooleanOptionalAction,
+        default=None,
+        help="render cells as live pyodide editors (default: ask LIVE_NOTEBOOKS)",
     )
     args = parser.parse_args()
 
@@ -390,7 +499,7 @@ def main() -> int:
         if not nb.exists():
             print(f"  skip (missing): {nb}", file=sys.stderr)
             continue
-        out = convert(nb)
+        out = convert(nb, live=args.live)
         print(f"  {rel_to_repo(nb)} -> {rel_to_repo(out)}")
     return 0
 
