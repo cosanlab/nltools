@@ -26,6 +26,12 @@ function orNaN(x) {
   return x === null || x === undefined ? NaN : x;
 }
 
+// A trait or slider value that is really a number (a null/undefined trait or a
+// NaN parse means "leave this edge alone").
+function isNumber(x) {
+  return x !== null && x !== undefined && !Number.isNaN(x);
+}
+
 function formatValue(value) {
   const number = Number(value);
   if (!Number.isFinite(number)) return "—";
@@ -41,8 +47,20 @@ export default {
     let ceilInput = null;
     let floorValue = null;
     let ceilValue = null;
+    const bounds = model.get("slider_bounds") || {};
+    // The window is a magnitude window mirrored onto the negative limb, and a
+    // floor of zero (or below) admits every zero-valued voxel — the whole
+    // volume box outside the mask paints in the negative colormap. Never let
+    // the applied floor reach zero, whatever the slider or the model says.
+    //
+    // The epsilon is the slider's own lower bound, which Python guarantees is
+    // strictly positive and at or below the resolved `cal_min`. Deriving it
+    // here instead (from the step, say) would let the two drift apart and
+    // raise the rendered floor above the window Python resolved.
+    const floorEps = Number(bounds.min) > 0 ? Number(bounds.min) : 1e-9;
+    const clampFloor = (v) => Math.max(Math.abs(v), floorEps);
+
     if (model.get("controls")) {
-      const bounds = model.get("slider_bounds") || {};
       const controls = document.createElement("div");
       controls.style.cssText =
         "display:flex;gap:0.75rem;align-items:center;font:12px/1.4 system-ui," +
@@ -127,6 +145,7 @@ export default {
           orNaN(model.get("cal_min")),
           orNaN(model.get("cal_max")),
         );
+        if (Number.isFinite(vol.cal_min)) vol.cal_min = clampFloor(vol.cal_min);
         if (p.colormap_negative) vol.colormapNegative = p.colormap_negative;
         vol.cal_minNeg = orNaN(model.get("cal_min_neg"));
         vol.cal_maxNeg = orNaN(model.get("cal_max_neg"));
@@ -158,35 +177,51 @@ export default {
     nv.setSliceType(SLICE_TYPE[model.get("slice_type")] ?? SLICE_TYPE.MULTIPLANAR);
 
     // --- threshold controls -> niivue + Python ---------------------------- //
+    // Applies the clamped window to niivue and returns it, so the callers that
+    // write back to Python send what was rendered rather than what was dragged.
     function applyWindow() {
-      if (statmapIdx < 0) return;
+      if (statmapIdx < 0) return null;
       const vol = nv.volumes[statmapIdx];
-      const lo = floorInput ? parseFloat(floorInput.value) : model.get("cal_min");
-      const hi = ceilInput ? parseFloat(ceilInput.value) : model.get("cal_max");
-      if (lo !== null && lo !== undefined && !Number.isNaN(lo)) vol.cal_min = lo;
-      if (hi !== null && hi !== undefined && !Number.isNaN(hi)) vol.cal_max = hi;
+      const loRaw = floorInput ? parseFloat(floorInput.value) : model.get("cal_min");
+      const hiRaw = ceilInput ? parseFloat(ceilInput.value) : model.get("cal_max");
+      // Both edges are magnitudes: the floor stays above zero and the ceiling
+      // stays above the floor.
+      const lo = isNumber(loRaw) ? clampFloor(loRaw) : null;
+      const floor = lo === null ? vol.cal_min : lo;
+      const hi = isNumber(hiRaw)
+        ? Math.max(Math.abs(hiRaw), floor + floorEps)
+        : null;
+      if (lo !== null) vol.cal_min = lo;
+      if (hi !== null) vol.cal_max = hi;
       if (model.get("mirror_negative")) {
-        if (hi !== null && hi !== undefined && !Number.isNaN(hi)) vol.cal_minNeg = -hi;
-        if (lo !== null && lo !== undefined && !Number.isNaN(lo)) vol.cal_maxNeg = -lo;
-      } else if (lo !== null && lo !== undefined && !Number.isNaN(lo)) {
+        if (hi !== null) vol.cal_minNeg = -hi;
+        if (lo !== null) vol.cal_maxNeg = -lo;
+      } else if (lo !== null) {
         vol.cal_maxNeg = -lo;
       }
       nv.updateGLVolume();
+      return { lo, hi };
     }
 
     if (floorInput) {
       floorInput.addEventListener("input", () => {
-        floorValue.textContent = formatValue(floorInput.value);
-        applyWindow();
-        model.set("cal_min", parseFloat(floorInput.value));
+        const applied = applyWindow();
+        const lo = applied && applied.lo !== null
+          ? applied.lo
+          : parseFloat(floorInput.value);
+        floorValue.textContent = formatValue(lo);
+        model.set("cal_min", lo);
         model.save_changes();
       });
     }
     if (ceilInput) {
       ceilInput.addEventListener("input", () => {
-        ceilValue.textContent = formatValue(ceilInput.value);
-        applyWindow();
-        model.set("cal_max", parseFloat(ceilInput.value));
+        const applied = applyWindow();
+        const hi = applied && applied.hi !== null
+          ? applied.hi
+          : parseFloat(ceilInput.value);
+        ceilValue.textContent = formatValue(hi);
+        model.set("cal_max", hi);
         model.save_changes();
       });
     }

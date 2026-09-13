@@ -402,13 +402,15 @@ class DisplayWindow:
     the rendered window can never disagree.
 
     Attributes:
-        cal_min (float): Positive-limb threshold (window floor).
+        cal_min (float): Positive-limb threshold (window floor). Always
+            strictly positive, so exact zeros stay transparent.
         cal_max (float): Positive-limb saturation endpoint (window ceiling).
         cal_min_neg (float): Negative-limb saturation endpoint.
         cal_max_neg (float): Negative-limb threshold endpoint.
         mirror_negative (bool): Keep the negative endpoints mirrored when the
             controls move.
-        slider_min (float): Slider lower bound.
+        slider_min (float): Slider lower bound; strictly positive and at or
+            below ``cal_min``.
         slider_max (float): Slider upper bound.
         slider_value_low (float): Initial position of the low handle.
         slider_value_high (float): Initial position of the high handle.
@@ -447,7 +449,8 @@ def compute_display_window(
       magnitudes (robust to outliers), floor = an epsilon just above zero,
       never above the smallest nonzero magnitude (zeros render transparent,
       every real voxel shows — threshold up from there).
-    - ``False``: the raw magnitude range from zero to the largest absolute value.
+    - ``False``: the raw magnitude range, from one slider step above zero to
+      the largest absolute value.
 
     For a custom percentile window, pass ``lower``/``upper`` as percentile
     strings (``lower="60%", upper="98%"``) rather than a second spelling of
@@ -462,17 +465,25 @@ def compute_display_window(
     mixed-signed data. ``False`` scales each present sign independently;
     ``True`` always mirrors.
 
-    The slider spans the data's finite value range, widened as needed to
-    include the resolved window so it is always representable (never silently
-    clamped), with its handles at the window edges.
+    Every window edge is a **magnitude**, so an explicit ``threshold`` /
+    ``lower`` / ``upper`` is taken as ``abs()`` of what was passed, and a
+    resolved floor at or below zero is raised to the slider's lower bound. A
+    floor of zero would admit every zero-valued voxel — the whole volume box
+    outside the mask — and paint it in the negative colormap.
+
+    The slider spans ``(0, max|v|]``, widened as needed to include the
+    resolved window so it is always representable (never silently clamped),
+    with its handles at the window edges. Its lower bound is strictly
+    positive: one step above zero, or the resolved floor when autoscale put
+    one below that.
 
     Args:
         data (np.ndarray): The BrainData's data array.
         autoscale (bool): See above.
         threshold (float | str | None): Symmetric magnitude floor (ignored when
             ``lower``/``upper`` are given).
-        lower (float | str | None): Explicit window floor.
-        upper (float | str | None): Explicit window ceiling.
+        lower (float | str | None): Explicit window floor, as a magnitude.
+        upper (float | str | None): Explicit window ceiling, as a magnitude.
         symmetric (bool | str): ``True``, ``False``, or ``'auto'``. See above.
 
     Returns:
@@ -523,12 +534,18 @@ def compute_display_window(
     else:
         floor, ceiling = None, None
 
+    # Every edge is a magnitude: niivue mirrors [cal_min, cal_max] onto the
+    # negative limb, so an explicit edge's sign carries no information.
+    # `lower=-1.0` means |v| >= 1, never "everything above -1".
+    floor = None if floor is None else abs(float(floor))
+    ceiling = None if ceiling is None else abs(float(ceiling))
+
     if autoscale is False:
         ceiling = (
             float(magnitudes.max()) if ceiling is None and magnitudes.size else ceiling
         )
         ceiling = 1.0 if ceiling is None else float(ceiling)
-        floor = 0.0 if floor is None else float(floor)
+        floor = 0.0 if floor is None else float(floor)  # raised above zero below
     else:
         if ceiling is None:
             ceiling = _mag_pct(_AUTOSCALE_CEILING_PCT)
@@ -544,6 +561,20 @@ def compute_display_window(
                 min(epsilon, float(magnitudes.min())) if magnitudes.size else epsilon
             )
         floor, ceiling = float(floor), float(ceiling)
+
+    # The slider spans (0, max|v|], widened to include the resolved window so
+    # its handles land exactly where asked rather than being clamped. Its
+    # lower bound is one slider step above zero — or the resolved floor when
+    # autoscale put one below that — but never zero: at a floor of zero every
+    # zero-valued voxel, meaning the whole volume box outside the mask,
+    # satisfies the magnitude window and paints in the negative colormap.
+    span = max(float(magnitudes.max()) if magnitudes.size else 0.0, ceiling, floor)
+    if span <= 0.0:
+        span = 1.0
+    smallest_floor = span / 200.0  # one slider step above zero
+    if floor <= 0.0:
+        floor = smallest_floor
+    ceiling = max(ceiling, floor)
 
     cal_min = floor
     use_symmetric = symmetric is True or (
@@ -565,18 +596,14 @@ def compute_display_window(
         cal_max = _ceiling(positive, ceiling)
         cal_min_neg = -_ceiling(negative_magnitudes, ceiling)
         cal_max_neg = -cal_min
+        # A per-limb percentile ceiling can land below an explicit floor, which
+        # would invert the window and the slider handles.
+        cal_max = max(cal_max, cal_min)
+        cal_min_neg = min(cal_min_neg, cal_max_neg)
 
-    if finite.size == 0:
-        slider_min, slider_max = 0.0, 1.0
-    else:
-        slider_min, slider_max = float(finite.min()), float(finite.max())
-
-    # Widen the range to include the resolved window so its handles land
-    # exactly where asked rather than being clamped to the data extremes.
-    slider_min = min(slider_min, cal_min, cal_max)
-    slider_max = max(slider_max, cal_min, cal_max)
-    if slider_min == slider_max:
-        slider_max = slider_min + 1.0
+    slider_min = min(smallest_floor, cal_min)
+    slider_max = max(span, cal_min, cal_max)
+    slider_step = slider_max / 200.0
 
     return DisplayWindow(
         cal_min=cal_min,
@@ -588,7 +615,7 @@ def compute_display_window(
         slider_max=slider_max,
         slider_value_low=cal_min,
         slider_value_high=cal_max,
-        slider_step=(slider_max - slider_min) / 200.0 or 0.01,
+        slider_step=slider_step,
     )
 
 
