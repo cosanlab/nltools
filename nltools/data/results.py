@@ -1,10 +1,10 @@
-"""Structural result records returned by decoding and resampling operations."""
+"""Structural result records returned by fitting, decoding and resampling."""
 
 from __future__ import annotations
 
 from copy import deepcopy
 from dataclasses import asdict as dataclass_asdict
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, Generic
 
 import numpy as np
@@ -286,6 +286,66 @@ class BootstrapResult(Generic[Payload]):
     def __post_init__(self):
         """Take independent ownership of every payload the record stores."""
         for name in self.__dataclass_fields__:
+            value = getattr(self, name)
+            if value is not None:
+                object.__setattr__(self, name, deepcopy(value))
+
+
+@dataclass(frozen=True)
+class FitResult:
+    """Frozen record of one `BrainData.fit`, held on `BrainData.model`.
+
+    `fit` still returns the `BrainData` it fitted, so chaining survives; this
+    record is the one declared attribute it sets. Every map is a `BrainData` on
+    the fitted object's mask, so `result.betas.plot()` works directly and
+    `.data` gives the array.
+
+    Field bindings cannot be rebound and the record takes independent ownership
+    of every map and design it stores. The fitted estimator is the exception:
+    it is internal state the facade methods drive, not a payload to read, so it
+    is neither copied nor shown in the repr, and it is `None` on a record
+    restored from HDF5.
+
+    Attributes:
+        kind (str): Which estimator produced the fit, `'glm'` or `'ridge'`.
+        betas (BrainData): One coefficient map per column of `design`, in
+            column order. Ridge users know these as the model's weights.
+        predicted (BrainData): The fitted response, one row per training
+            observation, with the training row metadata retained.
+        residual (BrainData): Response minus `predicted`, in the same shape.
+        r2 (BrainData): One in-sample fit-quality map. A GLM's carries
+            Nilearn's whitened variance-ratio semantics: conventional
+            R-squared for an OLS fit with an intercept, a pseudo-R-squared in
+            the whitened space for an autoregressive one.
+        design (DesignMatrix | np.ndarray | dict[str, np.ndarray]): What the
+            model was fit on — the `DesignMatrix` for a GLM, the feature matrix
+            for ridge, or the named feature spaces for banded ridge.
+        alpha (BrainData | None): Ridge only: the penalty the fit used, one
+            value per voxel, broadcast when a single alpha was shared. `None`
+            for a GLM.
+        cv (BaseCrossValidator | None): Ridge only: the cross-validator alpha
+            selection resolved to. `None` for a GLM and for a fixed-alpha fit.
+    """
+
+    kind: str
+    betas: BrainData
+    predicted: BrainData
+    residual: BrainData
+    r2: BrainData
+    design: Any
+    alpha: BrainData | None = None
+    cv: Any = None
+    #: The fitted `_Glm` or `_Ridge` that `compute_contrasts`, `predict` and
+    #: `bootstrap` drive. Excluded from the ownership copy because it is not a
+    #: payload the user reads, and copying a device-backed ridge fit would
+    #: duplicate its solver state for nothing.
+    _estimator: Any = field(default=None, repr=False)
+
+    def __post_init__(self):
+        """Take independent ownership of every payload the record stores."""
+        for name in self.__dataclass_fields__:
+            if name == "_estimator":
+                continue
             value = getattr(self, name)
             if value is not None:
                 object.__setattr__(self, name, deepcopy(value))
