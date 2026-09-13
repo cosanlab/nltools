@@ -161,6 +161,54 @@ class TestFitResultWrite:
         assert (tmp_path / "design-a.csv").exists()
         assert (tmp_path / "design-b.csv").exists()
 
+    def test_the_sidecar_names_the_columns_the_design_csv_carries(
+        self, minimal_brain_data, tmp_path
+    ):
+        """A plain feature matrix gets a CSV header, so the sidecar reports it."""
+        import csv
+        import json
+
+        X = np.random.default_rng(7).normal(size=(len(minimal_brain_data), 3))
+        minimal_brain_data.fit(model="ridge", X=X, ridge_alpha=1.0)
+
+        minimal_brain_data.model.write(tmp_path)
+
+        sidecar = json.loads((tmp_path / "fit.json").read_text())
+        with (tmp_path / "design.csv").open() as handle:
+            header = next(csv.reader(handle))
+        assert sidecar["columns"] == header
+
+    def test_a_banded_sidecar_names_spaces_not_columns(
+        self, minimal_brain_data, tmp_path
+    ):
+        """Feature-space names are a different thing from a design's columns."""
+        import json
+
+        rng = np.random.default_rng(8)
+        spaces = {
+            "a": rng.normal(size=(len(minimal_brain_data), 3)),
+            "b": rng.normal(size=(len(minimal_brain_data), 2)),
+        }
+        minimal_brain_data.fit(
+            model="ridge",
+            X=spaces,
+            ridge_alpha=[1.0, 10.0],
+            ridge_cv=3,
+            ridge_search_iterations=4,
+            random_state=0,
+        )
+
+        minimal_brain_data.model.write(tmp_path)
+
+        sidecar = json.loads((tmp_path / "fit.json").read_text())
+        assert sidecar["spaces"] == ["a", "b"]
+        assert "columns" not in sidecar
+
+    def test_a_prefix_naming_a_path_is_refused(self, fitted_glm, tmp_path):
+        """`prefix` names files, so a separator in it is a mistake, not a folder."""
+        with pytest.raises(ValueError, match="names a path"):
+            fitted_glm.model.write(tmp_path, prefix="sub-01/run-1")
+
     def test_the_written_map_reloads_as_the_same_numbers(self, fitted_glm, tmp_path):
         from nltools.data import BrainData
 

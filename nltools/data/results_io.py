@@ -15,12 +15,31 @@ is called from the facade side.
 from __future__ import annotations
 
 import json
+import os
 from pathlib import Path
 
 
 def _output_path(directory: Path, prefix: str | None, name: str) -> Path:
     """Join `directory` and `name`, prefixed with `<prefix>_` when there is one."""
     return directory / (f"{prefix}_{name}" if prefix else name)
+
+
+def _prepared_directory(directory, prefix: str | None) -> Path:
+    """Validate the prefix and make the destination, returning it as a `Path`.
+
+    A prefix naming a subdirectory would need that subdirectory to exist, and
+    the failure surfaces from nibabel as a bare `FileNotFoundError`, so it is
+    refused here instead.
+    """
+    if prefix is not None and (os.sep in prefix or "/" in prefix):
+        raise ValueError(
+            f"prefix={prefix!r} names a path, but it is a filename prefix: it "
+            f"is prepended to each file's name inside `directory`. Put the "
+            f"subdirectory in `directory` instead."
+        )
+    directory = Path(directory)
+    directory.mkdir(parents=True, exist_ok=True)
+    return directory
 
 
 def _write_maps(directory: Path, prefix: str | None, maps: dict) -> list[Path]:
@@ -70,15 +89,23 @@ def _write_sidecar(
     return path
 
 
-def _design_columns(design) -> list[str] | None:
-    """Name the design's columns for the sidecar, or None when it has no names."""
+def _design_sidecar(design) -> dict:
+    """Describe the design's shape for the sidecar, in the CSVs' own terms.
+
+    A banded design's spaces are named under `spaces`, one per CSV, because
+    they are a different kind of thing from a single design's columns. Every
+    other design reports `columns` holding exactly the header its CSV carries,
+    auto-generated names for a plain feature matrix included.
+    """
     from nltools.data.designmatrix import DesignMatrix
 
-    if isinstance(design, DesignMatrix):
-        return list(design.columns)
+    if design is None:
+        return {"columns": None}
     if isinstance(design, dict):
-        return [str(space) for space in design]
-    return None
+        return {"spaces": [str(space) for space in design]}
+    if isinstance(design, DesignMatrix):
+        return {"columns": list(design.columns)}
+    return {"columns": list(DesignMatrix(design).columns)}
 
 
 def _write_fit(fit, directory, prefix: str | None) -> list[Path]:
@@ -92,8 +119,7 @@ def _write_fit(fit, directory, prefix: str | None) -> list[Path]:
     Returns:
         list[Path]: Every file written, in the order it was written.
     """
-    directory = Path(directory)
-    directory.mkdir(parents=True, exist_ok=True)
+    directory = _prepared_directory(directory, prefix)
 
     written = _write_maps(
         directory,
@@ -114,7 +140,7 @@ def _write_fit(fit, directory, prefix: str | None) -> list[Path]:
             "fit",
             {
                 "kind": fit.kind,
-                "columns": _design_columns(fit.design),
+                **_design_sidecar(fit.design),
                 "files": [path.name for path in written],
             },
         )
@@ -161,8 +187,7 @@ def _write_contrast(result, directory, prefix: str | None) -> list[Path]:
             f"through BrainData.compute_contrasts carry brain maps."
         )
 
-    directory = Path(directory)
-    directory.mkdir(parents=True, exist_ok=True)
+    directory = _prepared_directory(directory, prefix)
 
     written = _write_maps(
         directory,
