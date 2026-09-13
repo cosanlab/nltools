@@ -1201,6 +1201,7 @@ class BrainData:
             lower (str/float, optional): Lower threshold.
             threshold (float | str, optional): Absolute transparency cutoff.
                 Percentile strings resolve over finite, nonzero magnitudes.
+                Omitted, ``method="glass"`` draws every voxel.
             view (str): For ``method="slices"``, any non-empty combination of
                 ``"x"``, ``"y"``, ``"z"`` (e.g. ``"xyz"``, ``"xz"``, ``"y"``).
                 Default: ``"z"``.

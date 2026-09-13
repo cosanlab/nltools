@@ -115,6 +115,47 @@ class TestBrainDataPlotting:
         assert captured["cmap"] == "Reds"
         plt.close(fig)
 
+    def test_glass_brain_is_unthresholded_by_default(
+        self, minimal_brain_data, monkeypatch
+    ):
+        """#527: glass brains forward ``threshold=0`` when the caller gave none.
+
+        nilearn's own ``threshold="auto"`` hides a data percentile of voxels and
+        drops the 0 tick from the colorbar. ``method="slices"`` keeps nilearn's
+        default, which already shows 0.
+        """
+        import matplotlib.pyplot as plt
+        import nilearn.plotting
+
+        fig = plt.figure()
+
+        class Display:
+            frame_axes = type("FrameAxes", (), {"figure": fig})()
+
+        glass_kwargs = {}
+        slice_kwargs = {}
+
+        def fake_plot_glass_brain(*args, **kwargs):
+            glass_kwargs.update(kwargs)
+            return Display()
+
+        def fake_plot_stat_map(*args, **kwargs):
+            slice_kwargs.update(kwargs)
+            return Display()
+
+        monkeypatch.setattr(nilearn.plotting, "plot_glass_brain", fake_plot_glass_brain)
+        monkeypatch.setattr(nilearn.plotting, "plot_stat_map", fake_plot_stat_map)
+
+        minimal_brain_data[0].plot(method="glass")
+        assert glass_kwargs["threshold"] == 0
+
+        minimal_brain_data[0].plot(method="glass", threshold=1.5)
+        assert glass_kwargs["threshold"] == pytest.approx(1.5)
+
+        minimal_brain_data[0].plot(method="slices")
+        assert "threshold" not in slice_kwargs
+        plt.close(fig)
+
 
 class TestDefaultStatColormap:
     @pytest.mark.parametrize(
