@@ -96,7 +96,7 @@ def _color_scale(heatmap_kwargs):
 
 def _plot_stacked(
     adj,
-    other,
+    data,
     *,
     labels=None,
     upper_title=None,
@@ -110,7 +110,7 @@ def _plot_stacked(
 ):
     """Draw two matrices as the complementary triangles of one square.
 
-    `adj` fills the upper-right triangle and `other` the lower-left, with the
+    `adj` fills the upper-right triangle and `data` the lower-left, with the
     diagonal hidden in both so a one-cell white gap separates them. Each
     triangle carries its own colormap and limits, resolved from
     `_divergent_heatmap_defaults` unless the caller names them, so the two
@@ -118,7 +118,7 @@ def _plot_stacked(
 
     Args:
         adj (Adjacency): Single matrix drawn in the upper triangle.
-        other (Adjacency): Single matrix over the same nodes, drawn in the lower
+        data (Adjacency): Single matrix over the same nodes, drawn in the lower
             triangle.
         labels (list, optional): Node tick labels. Defaults to `adj.labels`, or
             no ticks when it has none; `False` suppresses them.
@@ -144,20 +144,20 @@ def _plot_stacked(
 
     from nltools.data import Adjacency
 
-    if not isinstance(other, Adjacency):
-        raise ValueError("other must be an Adjacency instance.")
-    if not adj.is_single_matrix or not other.is_single_matrix:
+    if not isinstance(data, Adjacency):
+        raise ValueError("data must be an Adjacency instance.")
+    if not adj.is_single_matrix or not data.is_single_matrix:
         raise ValueError(
             "plot_stacked draws one matrix per triangle; index a stack first."
         )
-    if adj.n_nodes != other.n_nodes:
+    if adj.n_nodes != data.n_nodes:
         raise ValueError(
             "Both matrices must describe the same nodes; got "
-            f"{adj.n_nodes} and {other.n_nodes}."
+            f"{adj.n_nodes} and {data.n_nodes}."
         )
 
     upper_square = adj.squareform()
-    lower_square = other.squareform()
+    lower_square = data.squareform()
     ones = np.ones((adj.n_nodes, adj.n_nodes), dtype=bool)
     upper_mask = np.tril(ones)
     lower_mask = np.triu(ones)

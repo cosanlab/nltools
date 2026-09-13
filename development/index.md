@@ -95,7 +95,7 @@ public signature against in CI. The table below is rendered from it:
 <!-- AUTOGEN:api-vocabulary:index-table — generated from docs/_data/api-vocabulary.yml by scripts/build_api_vocabulary.py; run `uv run poe docs-generate` to update, do not edit by hand -->
 | Concept | Canonical kwarg |
 |---|---|
-| Second operand of a data-class method | `data` — the object a data class is combined with or compared against: `BrainData.append`, `Adjacency.append`, `DesignMatrix.append`, `BrainData.similarity` and `Adjacency.similarity` all name it `data` and take it as their only positional parameter, with everything after it keyword-only |
+| Second operand of a data-class method | `data` — the object a data class is combined with or compared against: `BrainData.append`, `Adjacency.append`, `DesignMatrix.append`, `BrainData.similarity`, `Adjacency.similarity` and `Adjacency.plot_stacked` all name it `data` and take it as their only positional parameter, with everything after it keyword-only |
 | Algorithm / variant choice | `method` — on `BrainData.standardize` and `DesignMatrix.standardize` it is one closed set: `*, method: str = 'center'` (<code>'center' &#124; 'zscore'</code>) |
 | Decoding estimator (MVPA) | <code>estimator: str &#124; BaseEstimator = 'linear_svc'</code> on `BrainData.predict` — a built-in shortcut name or any sklearn estimator / `Pipeline`. It names an sklearn object, so it is distinct from `method=`, which selects an algorithm variant |
 | Shortcut estimator options | <code>estimator_kwargs: dict &#124; None = None</code> on `BrainData.predict` — forwarded to the shortcut's sklearn constructor, merged over the shortcut's own defaults so a supplied key wins; a `ValueError` when `estimator` is an object, which is used exactly as supplied |
@@ -123,8 +123,7 @@ public signature against in CI. The table below is rendered from it:
 | Display symmetry | <code>symmetric: bool &#124; 'auto' = 'auto'</code> (viewer positive/negative limbs) |
 | Plot axis | <code>ax: matplotlib.axes.Axes &#124; None = None</code> on the data-class plotters (`BrainData.plot`, `Adjacency.plot`, `DesignMatrix.plot`) and the Adjacency helper plots, following matplotlib and seaborn |
 | Plotted panel cap | `limit: int = 3` on `BrainData.plot` and `Adjacency.plot` — how many images or matrices of a stack are rendered; keyword-only on both |
-| Stacked-triangle companion matrix | `other` — the second `Adjacency` on `Adjacency.plot_stacked`, its only positional parameter. It is `other`, not the `data` second-operand spelling, because nothing is computed against it: both matrices are drawn, `self` in the upper triangle and `other` in the lower |
-| Stacked-triangle titles | `upper_title`, `lower_title` on `Adjacency.plot_stacked` — the caption above the square names the upper triangle (`self`), the one below names the lower (`other`) |
+| Stacked-triangle titles | `upper_title`, `lower_title` on `Adjacency.plot_stacked` — the caption above the square names the upper triangle (`self`), the one below names the lower (`data`) |
 | Per-triangle color scale | `cmap`, `vmin`, `vmax` on `Adjacency.plot_stacked` keep their matplotlib names and each take either one value for both triangles or an `(upper, lower)` tuple; unset, every triangle falls back to the divergent-or-sequential default `Adjacency.plot` uses |
 | Colorbar toggle | `colorbar: bool = True` on `Adjacency.plot_stacked` — matplotlib's name for the bar, not seaborn's `cbar` flag. One bar when both triangles share a colormap and limits, two when they do not |
 | Diagonal flag | `include_diag: bool` |

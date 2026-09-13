@@ -542,7 +542,7 @@ class Adjacency:
 
     def plot_stacked(  # nosemgrep: kwargs-internal-forwarding  # forwards to seaborn via plotting._plot_stacked
         self,
-        other,
+        data,
         *,
         labels=None,
         upper_title=None,
@@ -556,7 +556,7 @@ class Adjacency:
     ):
         """Draw this matrix and another as complementary triangles of one square.
 
-        This matrix fills the upper-right triangle and `other` the lower-left,
+        This matrix fills the upper-right triangle and `data` the lower-left,
         with the diagonal hidden in both so a one-cell white gap runs between
         them — the intersubject RSA figure that compares a neural similarity
         structure against a behavioural one. Each triangle keeps its own
@@ -565,7 +565,7 @@ class Adjacency:
         keep seaborn's sequential default.
 
         Args:
-            other (Adjacency): Single matrix over the same nodes, drawn in the
+            data (Adjacency): Single matrix over the same nodes, drawn in the
                 lower triangle.
             labels (list, optional): Node tick labels. Defaults to the stored
                 labels, or no ticks when there are none; `False` suppresses them.
@@ -586,7 +586,7 @@ class Adjacency:
             matplotlib.axes.Axes: The axis holding both triangles.
 
         Raises:
-            ValueError: If `other` is not an `Adjacency`, either object holds
+            ValueError: If `data` is not an `Adjacency`, either object holds
                 more than one matrix, or the two cover different numbers of nodes.
 
         Examples:
@@ -602,7 +602,7 @@ class Adjacency:
 
         return _plot_stacked(
             self,
-            other,
+            data,
             labels=labels,
             upper_title=upper_title,
             lower_title=lower_title,
