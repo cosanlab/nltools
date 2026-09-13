@@ -33,12 +33,14 @@ from .utils import _is_default
 #: silently ignored keyword.
 MVPA_ONLY_DEFAULTS = {
     "estimator": "linear_svc",
+    "estimator_kwargs": None,
     "cv": None,
     "groups": None,
     "scoring": None,
     "spatial_scale": "whole_brain",
     "roi_mask": None,
     "radius": 10.0,
+    "plot": False,
     "n_jobs": 1,
     "progress_bar": False,
 }
@@ -50,12 +52,14 @@ def predict(
     X=None,
     y=None,
     estimator: Any = "linear_svc",
+    estimator_kwargs: dict | None = None,
     cv=None,
     groups=None,
     scoring=None,
     spatial_scale: str = "whole_brain",
     roi_mask=None,
     radius: float = 10.0,
+    plot: bool = False,
     n_jobs: int = 1,
     progress_bar: bool = False,
 ):
@@ -72,12 +76,14 @@ def predict(
 
     decoding_arguments = {
         "estimator": estimator,
+        "estimator_kwargs": estimator_kwargs,
         "cv": cv,
         "groups": groups,
         "scoring": scoring,
         "spatial_scale": spatial_scale,
         "roi_mask": roi_mask,
         "radius": radius,
+        "plot": plot,
         "n_jobs": n_jobs,
         "progress_bar": progress_bar,
     }
@@ -97,12 +103,14 @@ def predict(
         bd,
         y=resolved_y,
         estimator=estimator,
+        estimator_kwargs=estimator_kwargs,
         cv=cv,
         groups=_resolve_stored_groups(bd, groups),
         scoring=scoring,
         spatial_scale=spatial_scale,
         roi_mask=roi_mask,
         radius=radius,
+        plot=plot,
         n_jobs=n_jobs,
         progress_bar=progress_bar,
     )
@@ -269,12 +277,14 @@ def predict_mvpa(
     *,
     y,
     estimator: Any,
+    estimator_kwargs: dict | None,
     cv,
     groups,
     scoring,
     spatial_scale: str,
     roi_mask,
     radius: float,
+    plot: bool,
     n_jobs: int,
     progress_bar: bool,
 ) -> Predict:
@@ -290,16 +300,17 @@ def predict_mvpa(
     groups = _validate_groups(groups, n_rows=bd.shape[0])
     validate_scoring(scoring)
 
-    pipe = build_pipeline(estimator, y=y)
+    pipe = build_pipeline(estimator, y=y, estimator_kwargs=estimator_kwargs)
     validate_decoding_pipeline(pipe)
     classifier = is_classifier(pipe)
     splits = resolve_splits(cv, X=bd.data, y=y, groups=groups, classifier=classifier)
     classes = np.unique(y) if classifier else None
+    _validate_plot(plot, spatial_scale=spatial_scale, pipe=pipe, classes=classes)
 
     X_data = bd.data  # (n_samples, n_voxels)
 
     if spatial_scale == "whole_brain":
-        return _run_whole_brain(
+        record, out_of_fold_values = _run_whole_brain(
             bd,
             X_data,
             y,
@@ -309,6 +320,14 @@ def predict_mvpa(
             classes=classes,
             n_jobs=n_jobs,
         )
+        if plot:
+            _plot_whole_brain_result(
+                record,
+                y=y,
+                out_of_fold_values=out_of_fold_values,
+                classifier=classifier,
+            )
+        return record
     if spatial_scale == "searchlight":
         return _run_searchlight(
             bd,
@@ -358,6 +377,41 @@ def _validate_spatial_scale(spatial_scale: str, *, roi_mask, radius: float) -> N
         raise ValueError(
             f"radius only applies to spatial_scale='searchlight', not "
             f"{spatial_scale!r}."
+        )
+
+
+def _validate_plot(plot: bool, *, spatial_scale: str, pipe, classes) -> None:
+    """Check that `plot=True` names a decode whose figures exist, before fitting.
+
+    Only whole-brain decoding produces the per-observation predictions the
+    figures are drawn from: ROI and searchlight results carry score maps, not
+    predictions. Multiclass classification has no single ROC or margin figure —
+    v0.5.1 printed a line and carried on, which is easy to miss in a notebook,
+    so it raises here instead.
+    """
+    if not plot:
+        return
+    if spatial_scale != "whole_brain":
+        raise ValueError(
+            f"plot=True draws the cross-validated prediction figures, which "
+            f"only spatial_scale='whole_brain' produces; "
+            f"spatial_scale={spatial_scale!r} returns score maps instead. "
+            f"Plot those with result.score_map.plot()."
+        )
+    if classes is None:
+        return
+    if len(classes) > 2:
+        raise ValueError(
+            f"plot=True is not supported for multiclass decoding: the ROC and "
+            f"margin figures describe one decision boundary, and this target "
+            f"has {len(classes)} classes. Drop plot= and read result.scores, "
+            f"or plot result.weight_map yourself."
+        )
+    if not (hasattr(pipe, "decision_function") or hasattr(pipe, "predict_proba")):
+        raise ValueError(
+            "plot=True needs continuous decision values for the ROC figure, "
+            "and this classifier exposes neither decision_function nor "
+            "predict_proba. Drop plot=, or pass an estimator that exposes one."
         )
 
 
@@ -425,6 +479,13 @@ ESTIMATOR_SHORTCUTS = (
     "linear_svr",
 )
 
+#: Penalty grid the two ridge shortcuts search by an inner cross-validation
+#: inside each outer training fold. It spans ten orders of magnitude because the
+#: working penalty scales with the feature count: against a kernel built from a
+#: quarter of a million standardized voxels, scikit-learn's default ``alpha=1``
+#: is effectively no penalty at all and the solve is ill-conditioned.
+RIDGE_ALPHA_GRID = np.logspace(-3, 6, 10)
+
 #: Abbreviations that used to name a shortcut. They are ambiguous — 'svm' and
 #: 'svr' say nothing about the kernel, 'ridge' already means the regressor —
 #: so they are rejected with the canonical spelling.
@@ -436,20 +497,43 @@ REJECTED_ABBREVIATIONS = {
 }
 
 
-def resolve_estimator(estimator: Any):
-    """Resolve a shortcut name to an estimator, or pass an sklearn object through."""
+def resolve_estimator(estimator: Any, *, estimator_kwargs: dict | None = None):
+    """Resolve a shortcut name to an estimator, or pass an sklearn object through.
+
+    Each shortcut names a class and the constructor options that make it work at
+    whole-brain scale. `estimator_kwargs` is merged over those options, so a
+    caller's key overrides a shortcut default instead of colliding with it.
+
+    Args:
+        estimator: A shortcut name or an sklearn estimator/`Pipeline`.
+        estimator_kwargs: Options for the shortcut's constructor, or `None`.
+
+    Returns:
+        The constructed shortcut estimator, or `estimator` itself.
+
+    Raises:
+        ValueError: On an unknown or ambiguous shortcut name, or on
+            `estimator_kwargs` with a caller-supplied estimator.
+        TypeError: On an `estimator` that is neither a shortcut name nor an
+            object with `fit`/`predict`.
+    """
     from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
-    from sklearn.linear_model import Lasso, LogisticRegression, Ridge, RidgeClassifier
+    from sklearn.linear_model import (
+        Lasso,
+        LogisticRegression,
+        RidgeClassifierCV,
+        RidgeCV,
+    )
     from sklearn.svm import LinearSVC, LinearSVR
 
     builders = {
-        "linear_svc": lambda: LinearSVC(dual="auto", max_iter=10000),
-        "logistic_regression": lambda: LogisticRegression(max_iter=1000),
-        "linear_discriminant_analysis": lambda: LinearDiscriminantAnalysis(),
-        "ridge_classifier": lambda: RidgeClassifier(),
-        "ridge": lambda: Ridge(),
-        "lasso": lambda: Lasso(),
-        "linear_svr": lambda: LinearSVR(),
+        "linear_svc": (LinearSVC, {"dual": "auto", "max_iter": 10000}),
+        "logistic_regression": (LogisticRegression, {"max_iter": 1000}),
+        "linear_discriminant_analysis": (LinearDiscriminantAnalysis, {}),
+        "ridge_classifier": (RidgeClassifierCV, {"alphas": RIDGE_ALPHA_GRID}),
+        "ridge": (RidgeCV, {"alphas": RIDGE_ALPHA_GRID}),
+        "lasso": (Lasso, {}),
+        "linear_svr": (LinearSVR, {"max_iter": 10000}),
     }
 
     if isinstance(estimator, str):
@@ -464,7 +548,15 @@ def resolve_estimator(estimator: Any):
                 f"Unknown estimator shortcut: {estimator!r}. Valid shortcuts: "
                 f"{list(ESTIMATOR_SHORTCUTS)}, or pass any sklearn estimator."
             )
-        return builders[estimator]()
+        cls, defaults = builders[estimator]
+        return cls(**{**defaults, **(estimator_kwargs or {})})
+
+    if estimator_kwargs is not None:
+        raise ValueError(
+            "estimator_kwargs configures a built-in shortcut's constructor, and "
+            "estimator is not a shortcut name. A caller-supplied estimator is "
+            "used exactly as given, so construct it with the options you want."
+        )
 
     if not (hasattr(estimator, "fit") and hasattr(estimator, "predict")):
         raise TypeError(
@@ -474,11 +566,15 @@ def resolve_estimator(estimator: Any):
     return estimator
 
 
-def build_pipeline(estimator: Any, *, y: np.ndarray) -> Any:
+def build_pipeline(
+    estimator: Any, *, y: np.ndarray, estimator_kwargs: dict | None = None
+) -> Any:
     """Build the per-fold pipeline for `estimator`.
 
     A built-in shortcut selects a predefined pipeline: `StandardScaler` inside
-    each fold, then the linear estimator the shortcut names. A classification
+    each fold, then the linear estimator the shortcut names — for the two ridge
+    shortcuts, one that selects its own penalty from `RIDGE_ALPHA_GRID` by an
+    inner cross-validation of that fold's training set. A classification
     shortcut on a multiclass target is wrapped in `OneVsRestClassifier`, which
     gives one signed coefficient row per class instead of whatever multiclass
     strategy the estimator happens to default to.
@@ -491,6 +587,8 @@ def build_pipeline(estimator: Any, *, y: np.ndarray) -> Any:
         estimator: A shortcut name or an sklearn estimator/`Pipeline`.
         y: The validated target vector, used only to decide whether a
             classification shortcut faces a multiclass problem.
+        estimator_kwargs: Constructor options for a shortcut; rejected with a
+            caller-supplied estimator, which is used exactly as given.
 
     Returns:
         The estimator to clone and fit in every fold.
@@ -500,7 +598,7 @@ def build_pipeline(estimator: Any, *, y: np.ndarray) -> Any:
     from sklearn.pipeline import make_pipeline
     from sklearn.preprocessing import StandardScaler
 
-    resolved = resolve_estimator(estimator)
+    resolved = resolve_estimator(estimator, estimator_kwargs=estimator_kwargs)
     if not isinstance(estimator, str):
         return resolved
     if is_classifier(resolved) and len(np.unique(y)) > 2:
@@ -710,12 +808,19 @@ def _validate_partition(splits: list, *, n_rows: int) -> None:
 
 
 def _fit_and_score_fold(X, y, pipe, scoring, train_idx, test_idx):
-    """Fit one cross-validation fold and return its score and test predictions.
+    """Fit one fold and return its score, test predictions, and decision values.
 
     A module-level function so `joblib` can ship it to a worker process
     directly. The scorer is rebuilt inside the worker because a scorer bound to
     an unfitted estimator does not survive the trip any more cheaply than the
     two arguments it is built from.
+
+    The third element is the fold's continuous decision values, which
+    `predict(plot=True)` needs for the ROC and margin figures and which the
+    class labels in the second element cannot supply. It is `None` whenever the
+    fitted pipeline has no single continuous value per observation — every
+    regressor, and any classifier exposing neither `decision_function` nor a
+    two-column `predict_proba`.
     """
     from sklearn.base import clone
     from sklearn.metrics import check_scoring
@@ -723,10 +828,30 @@ def _fit_and_score_fold(X, y, pipe, scoring, train_idx, test_idx):
     fitted = clone(pipe).fit(X[train_idx], y[train_idx])
     scorer = check_scoring(fitted, scoring=scoring)
     score = float(scorer(fitted, X[test_idx], y[test_idx]))
-    return score, np.asarray(fitted.predict(X[test_idx]))
+    return (
+        score,
+        np.asarray(fitted.predict(X[test_idx])),
+        _fold_decision_values(fitted, X[test_idx]),
+    )
 
 
-def _run_whole_brain(bd, X, y, pipe, *, splits, scoring, classes, n_jobs) -> Predict:
+def _fold_decision_values(fitted, X_test):
+    """Return one continuous decision value per test row, or None if there is none.
+
+    `decision_function` is preferred over `predict_proba`: it is the signed
+    distance from the boundary that v0.5.1's margin figure drew, and an
+    estimator exposing both reports the same ordering either way.
+    """
+    if hasattr(fitted, "decision_function"):
+        values = np.asarray(fitted.decision_function(X_test), dtype=float)
+        return values if values.ndim == 1 else None
+    if hasattr(fitted, "predict_proba"):
+        proba = np.asarray(fitted.predict_proba(X_test), dtype=float)
+        return proba[:, 1] if proba.ndim == 2 and proba.shape[1] == 2 else None
+    return None
+
+
+def _run_whole_brain(bd, X, y, pipe, *, splits, scoring, classes, n_jobs):
     """A fit on all data for the map, then cross-validation for the scores.
 
     The canonical ``weight_map`` comes from a single fit on the full
@@ -740,6 +865,13 @@ def _run_whole_brain(bd, X, y, pipe, *, splits, scoring, classes, n_jobs) -> Pre
     out-of-fold predictions. ``n_jobs`` parallelizes that loop — folds are the
     outer independent work at this spatial scale — at the cost of one copy of
     the brain per worker.
+
+    Returns:
+        tuple: The `Predict` record, and the row-aligned out-of-fold decision
+            values (`None` when the pipeline produces none). The values ride
+            alongside the record rather than inside it because `Predict` is a
+            plain record whose fields are fixed per spatial scale; only
+            `predict(plot=True)` consumes them.
     """
     from joblib import Parallel, delayed
     from sklearn.base import clone
@@ -760,8 +892,9 @@ def _run_whole_brain(bd, X, y, pipe, *, splits, scoring, classes, n_jobs) -> Pre
             for train_idx, test_idx in splits
         )
 
-    fold_scores = [score for score, _ in fold_results]
-    fold_preds = [preds for _, preds in fold_results]
+    fold_scores = [score for score, _, _ in fold_results]
+    fold_preds = [preds for _, preds, _ in fold_results]
+    fold_values = [values for _, _, values in fold_results]
     fold_test_idx = [test_idx for _, test_idx in splits]
 
     fold_idx_array = np.empty(n_samples, dtype=int)
@@ -781,7 +914,13 @@ def _run_whole_brain(bd, X, y, pipe, *, splits, scoring, classes, n_jobs) -> Pre
     for test_idx, preds in zip(fold_test_idx, fold_preds):
         fold_predictions[test_idx] = preds
 
-    return Predict(
+    out_of_fold_values = None
+    if fold_values and all(values is not None for values in fold_values):
+        out_of_fold_values = np.empty(n_samples, dtype=float)
+        for test_idx, values in zip(fold_test_idx, fold_values):
+            out_of_fold_values[test_idx] = values
+
+    record = Predict(
         spatial_scale="whole_brain",
         scoring=scoring,
         classes=getattr(estimator, "classes_", classes),
@@ -791,6 +930,60 @@ def _run_whole_brain(bd, X, y, pipe, *, splits, scoring, classes, n_jobs) -> Pre
         estimator=estimator,
         weight_map=_to_braindata(bd, weight_map_arr),
     )
+    return record, out_of_fold_values
+
+
+def _plot_whole_brain_result(record, *, y, out_of_fold_values, classifier) -> None:
+    """Draw the v0.5.1 `predict` figures from a whole-brain result.
+
+    Regression gets the predicted-versus-actual scatter titled with the
+    cross-validated Pearson *r* — the correlation between the target and the
+    out-of-fold predictions, not the R2 that `mean_score` reports. Binary
+    classification gets the ROC of the out-of-fold decision values, then the
+    margin figure when the estimator scores by distance from the boundary and
+    the probability figure when it scores by probability. Both get the weight
+    map, as v0.5.1 did.
+
+    The positive class is ``classes[1]``, matching the sign convention of both
+    the decision values and `weight_map`; that is a label comparison rather than
+    v0.5.1's ``astype(bool)``, so string class labels work.
+    """
+    from nltools.data.roc import Roc
+    from nltools.plotting.prediction import (
+        plot_class_probability,
+        plot_decision_margin,
+        plot_predicted_versus_actual,
+    )
+
+    y = np.asarray(y)
+    if not classifier:
+        predictions = np.asarray(record.predictions, dtype=float)
+        # A constant target or a constant prediction has no correlation, and
+        # np.corrcoef says so with a RuntimeWarning that would fail docs-build.
+        # The helper renders its title without an r.
+        degenerate = y.std() == 0 or predictions.std() == 0
+        r = (
+            None
+            if degenerate
+            else float(np.corrcoef(y.astype(float), predictions)[0, 1])
+        )
+        plot_predicted_versus_actual(y, predictions, r=r)
+    else:
+        if out_of_fold_values is None:
+            raise ValueError(
+                "plot=True needs one continuous decision value per observation "
+                "for the ROC figure, and this estimator produced none — a "
+                "multi-column decision_function or predict_proba gives no "
+                "single margin. Drop plot=, or pass an estimator whose "
+                "decision_function returns one value per row."
+            )
+        outcome = y == record.classes[1]
+        Roc(input_values=out_of_fold_values, binary_outcome=outcome).plot()
+        if hasattr(record.estimator, "decision_function"):
+            plot_decision_margin(out_of_fold_values, y)
+        else:
+            plot_class_probability(out_of_fold_values, y)
+    record.weight_map.plot()
 
 
 def _to_braindata(bd, arr):

@@ -25,8 +25,9 @@ Object | Plot | Notes
 `BrainData` interactive | [`iplot`](../api/data/brain_data.md#nltools.data.braindata.BrainData.iplot) | Needs a live kernel (Jupyter, marimo); static pages show a placeholder
 `DesignMatrix` | [`plot`](../api/data/design_matrix.md#nltools.data.designmatrix.DesignMatrix.plot)<code>(method='matrix'&#124;'timeseries'&#124;'corr')</code> | `'matrix'` is the SPM-style heatmap; `'corr'` shows regressor collinearity
 `Adjacency` matrix | [`plot`](../api/data/adjacency.md#nltools.data.adjacency.Adjacency.plot) | `limit=` caps how many matrices from a stack are drawn
-`Adjacency` structure | [`plot_mds`](../api/data/adjacency.md#nltools.data.adjacency.Adjacency.plot_mds), [`plot_silhouette`](../api/data/adjacency.md#nltools.data.adjacency.Adjacency.plot_silhouette), [`plot_label_distance`](../api/data/adjacency.md#nltools.data.adjacency.Adjacency.plot_label_distance) | All take `labels=`, one per node
+`Adjacency` structure | [`plot_mds`](../api/data/adjacency.md#nltools.data.adjacency.Adjacency.plot_mds), [`plot_silhouette`](../api/data/adjacency.md#nltools.data.adjacency.Adjacency.plot_silhouette), [`plot_label_distance`](../api/data/adjacency.md#nltools.data.adjacency.Adjacency.plot_label_distance), [`plot_between_label_distance`](../api/data/adjacency.md#nltools.data.adjacency.Adjacency.plot_between_label_distance) | All take `labels=`, one per node
 Two matrices at once | [`similarity`](../api/data/adjacency.md#nltools.data.adjacency.Adjacency.similarity)`(plot=True)` | See [Similarity & RSA](similarity-and-rsa.md)
+Decoding figures | [`predict`](../api/data/brain_data.md#nltools.data.braindata.BrainData.predict)`(plot=True)` | The cross-validated scatter, or the ROC plus margin/probability figures, plus the weight map
 `Predict` result | [`Roc`](../api/tasks/prediction.md#nltools.data.roc.Roc)`.plot()` / `.summary()` | Build it from the decision values of a binary decode
 `decompose` output | [`component_viewer`](../api/tasks/plotting.md#nltools.plotting.component_viewer) | ipywidgets; live kernel only
 
@@ -59,12 +60,13 @@ dm.plot(method="corr", metric="pearson")
 rdm.plot()
 rdm.plot_mds(labels=labels, n_jobs=1)
 rdm.plot_silhouette(labels=labels, n_permute=1000)
-rdm.plot_label_distance(labels=labels)
+rdm.plot_label_distance(labels=labels, permutation_test=True, n_permute=1000)
+rdm.plot_between_label_distance(labels=labels, n_permute=1000)
 ```
 
-`plot_silhouette` and `plot_label_distance` run a permutation test as they draw
-(`permutation_test=True` by default), so they cost more than a plain heatmap. Turn it off while
-iterating on a figure.
+`plot_silhouette` and `plot_between_label_distance` run a permutation test as they draw
+(`permutation_test=True` by default), so they cost more than a plain heatmap; `plot_label_distance`
+only runs one when asked. Turn the test off while iterating on a figure.
 
 ## Gotchas
 

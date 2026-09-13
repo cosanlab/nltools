@@ -225,12 +225,14 @@ BrainData.predict(
     X: DesignMatrix | ArrayLike | Mapping[str, ArrayLike] | None = None,
     y: ArrayLike | str | None = None,
     estimator: str | BaseEstimator = "linear_svc",
+    estimator_kwargs: dict | None = None,
     cv: int | BaseCrossValidator | None = None,
     groups: ArrayLike | str | None = None,
     scoring: str | Callable | None = None,
     spatial_scale: Literal["whole_brain", "roi", "searchlight"] = "whole_brain",
     roi_mask: NiimgLike | None = None,
     radius: float = 10.0,
+    plot: bool = False,
     n_jobs: int = 1,
     progress_bar: bool = False,
 ) -> BrainData | Predict
@@ -271,6 +273,22 @@ estimator shortcuts are `"linear_svc"`, `"logistic_regression"`,
 and `"linear_svr"`. All built-in pipelines use linear estimators. The default
 is `"linear_svc"`; ambiguous abbreviations such as `"svm"`, `"logistic"`,
 `"lda"`, and `"svr"` are not accepted.
+
+The two ridge shortcuts select their penalty inside each training fold, by an
+inner cross-validation over `RIDGE_ALPHA_GRID` — ten log-spaced values from
+`1e-3` to `1e6` — rather than fitting at scikit-learn's default `alpha=1`, which
+is effectively no penalty at whole-brain scale. `estimator_kwargs` is merged
+over a shortcut's own constructor options, so a caller's key wins; passing it
+alongside a caller-supplied estimator raises `ValueError`, because that
+estimator is used exactly as given.
+
+`plot=False` by default. With `plot=True`, whole-brain decoding draws its
+cross-validated figures as a side effect and returns the same `Predict`:
+the predicted-versus-actual scatter for a regression, the ROC of the out-of-fold
+decision values plus the margin or probability figure for a binary
+classification, and the weight map in both cases. A multiclass target and any
+spatial scale other than `"whole_brain"` raise before fitting, because neither
+produces the per-observation values those figures are drawn from.
 
 Built-in classification shortcuts use one-vs-rest for multiclass targets.
 MVPA does not wrap a caller-supplied classifier or override its multiclass

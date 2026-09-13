@@ -386,17 +386,71 @@ class Adjacency:
 
         return plot_adjacency(self, limit=limit, ax=ax, **kwargs)
 
-    def plot_label_distance(self, labels=None, ax=None):
+    def plot_between_label_distance(  # nosemgrep: kwargs-internal-forwarding  # forwards to seaborn via stats.plot_between_label_distance
+        self, *, labels=None, ax=None, permutation_test=True, n_permute=5000, **kwargs
+    ):
+        """Create a heatmap of the average distance between every pair of labels.
+
+        Args:
+            labels (np.ndarray, optional): Group label per node; defaults to the
+                stored labels.
+            ax (matplotlib.axes.Axes, optional): Axis to draw on.
+            permutation_test (bool): Also compute the mean-difference and p-value
+                matrices from a two-sample permutation test comparing each
+                group's within-label distances against its distances to each
+                other group. Default True.
+            n_permute (int): Number of permutations for the test. Default 5000.
+            **kwargs (dict): Forwarded to `seaborn.heatmap`.
+
+        Returns:
+            tuple[pl.DataFrame, ...]: `(long_df, within_mean_df)` without the
+                permutation test, or `(long_df, within_mean_df, mean_diff_df,
+                p_df)` with it. `long_df` holds every pairwise distance with its
+                `Group` and `Comparison` labels; the others are long-format
+                label-pair frames.
+        """
+        from .stats import plot_between_label_distance
+
+        return plot_between_label_distance(
+            self,
+            labels=labels,
+            ax=ax,
+            permutation_test=permutation_test,
+            n_permute=n_permute,
+            **kwargs,
+        )
+
+    def plot_label_distance(  # nosemgrep: kwargs-internal-forwarding  # forwards to seaborn via stats.plot_label_distance
+        self, labels=None, ax=None, *, permutation_test=False, n_permute=5000, **kwargs
+    ):
         """Create a violin plot of within- and between-label distances.
 
         Args:
             labels (np.ndarray, optional): Group label per node; defaults to the
                 stored labels.
             ax (matplotlib.axes.Axes, optional): Axis to draw on.
+            permutation_test (bool): Run a two-sample permutation test of within
+                against between distance for each group. Default False.
+            n_permute (int): Number of permutations for the test. Default 5000.
+            **kwargs (dict): Forwarded to `seaborn.violinplot`, plus `fontsize`
+                for the axis label and title (default 18).
+
+        Returns:
+            pl.DataFrame | tuple[pl.DataFrame, dict]: The long-format frame with
+                columns `Distance`, `Type`, `Group`, or `(long_df, stats)` when
+                `permutation_test=True`, where `stats` maps each group label to
+                its permutation-test result.
         """
         from .stats import plot_label_distance
 
-        return plot_label_distance(self, labels, ax)
+        return plot_label_distance(
+            self,
+            labels,
+            ax,
+            permutation_test=permutation_test,
+            n_permute=n_permute,
+            **kwargs,
+        )
 
     def plot_mds(  # nosemgrep: kwargs-internal-forwarding  # forwards to matplotlib via plotting.plot_mds
         self,
@@ -487,7 +541,7 @@ class Adjacency:
 
         return r_to_z(self)
 
-    def regress(self, X, method="ols", tail=2):
+    def regress(self, X, *, tail=2):
         """Run a regression on an adjacency instance.
 
         Pass an `Adjacency` as `X` to decompose this matrix with other matrices, or a
@@ -495,7 +549,6 @@ class Adjacency:
 
         Args:
             X (Adjacency | DesignMatrix): Design matrix.
-            method (str): Type of regression; only `'ols'` is currently supported.
             tail (int | str): `2`/`'two'` (two-tailed, default) or `1`/`'one'`
                 (one-tailed: beta > 0; negate a regressor for the other direction).
 
@@ -509,7 +562,7 @@ class Adjacency:
         """
         from .modeling import regress
 
-        return regress(self, X, method, tail=tail)
+        return regress(self, X, tail=tail)
 
     def similarity(
         self,

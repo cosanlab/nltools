@@ -14,6 +14,7 @@ Version 0.6.0 is a **breaking release** that refactors nltools to better leverag
 | **GLM regression** | `BrainData.regress()` | `.fit(model='glm', X=…)` | **Removed** |
 | **Ridge regression** | Manual | `.fit(model='ridge')` | New |
 | **ML prediction** | `.predict(algorithm='svm', cv_dict=…)` returning dict | `.predict(y=…, spatial_scale=…, estimator=…, cv=…)` returning `Predict` dataclass with `.weight_map`, `.scores`, etc. | Unified API |
+| **MVPA ridge shortcut** | `predict(algorithm='ridge')` fitted a scikit-learn `Ridge` at its default penalty | `estimator='ridge'` (and `'ridge_classifier'`) fits `RidgeCV`/`RidgeClassifierCV` over a 1e-3 … 1e6 log grid inside the per-fold scaler pipeline; pass `estimator_kwargs={'alphas': …}` or your own sklearn object for a fixed penalty | **Default changed** |
 | **Spatial scale kwarg** | N/A (or `method=` overloaded for both algorithm and spatial scale) | `spatial_scale=` (<code>'whole_brain' &#124; 'roi' &#124; 'searchlight'</code>) — distinct from `method=` (algorithm); follows the spatial-scale framing of [Jolly & Chang, 2021, *SCAN*](https://doi.org/10.1093/scan/nsab010) | **New canonical kwarg** |
 | **RSA workflow** | Manual: per-ROI loop, build Adjacency stack, reduce, paint via `roi_to_brain` | `bd.distance(..., spatial_scale='roi', roi_mask=atlas).similarity(model_rdm)` followed by explicit atlas mapping with `roi_to_brain_from_atlas` | **New** |
 | **One-sample t-test** | `BrainData.ttest(threshold_dict=…)` | `BrainData.ttest(popmean=0.0, permutation=False, …)` | **Signature changed** |
@@ -25,6 +26,7 @@ Version 0.6.0 is a **breaking release** that refactors nltools to better leverag
 | **SRM** | N/A | <code>BrainData.align(method='probabilistic_srm'&#124;'deterministic_srm')</code> and the standalone `align()` | **New** |
 | **Procrustes `transformation_matrix`** (`BrainData.align`, `align` on numpy input) | Back-project with `transformed @ T` | Back-project with `transformed @ T.T` | **Transposed** |
 | **Algorithm kwarg** | `algorithm=`, `scheme=`, `kind=`, `noise_model=`, `extract_type=`, `mode=`, `perm_type=` | `method=` (or `spatial_scale=` for spatial scale; `Adjacency.similarity` keeps the correlation type in the separate `metric=` slot) | **Renamed** |
+| **`Adjacency.regress` algorithm kwarg** | `Adjacency.regress(X, mode='ols')` | `Adjacency.regress(X, *, tail=2)` — the keyword is gone; OLS was always its only value, and `tail` is keyword-only so a second positional argument cannot land on it | **Removed** |
 | **Progress flag** | `show_progress=True` | `progress_bar=False` | **Renamed + default flipped** |
 | **Simulator geometry** | `Simulator` radii in voxels, centers as voxel indices | Radii in millimeters, centers as world (MNI) coordinates, converted through the mask affine (`radius=` keeps its name everywhere, in millimeters, as in nilearn); defaults were rescaled so the simulated region keeps its v0.5.1 physical size, and `create_sphere` now raises `ValueError` for a center whose sphere holds no in-mask voxel instead of returning an empty image | **Units changed** |
 | **`SimulateGrid` correction option** | `correction='permutation'` accepted but never applied (its permutation branch was never wired into `fit()`) | Raises `ValueError` listing the supported values (`None`, `'fdr'`), as any other unsupported value now does instead of being silently ignored; run a permutation test directly with `nltools.algorithms.inference.one_sample_permutation_test` | **Removed** |
@@ -631,7 +633,11 @@ regress(X, Y)
 brain.multivariate_similarity(images)
 ```
 
-`Adjacency.regress(method=)` is unaffected and keeps its keyword.
+`Adjacency.regress` loses the keyword for the same reason: v0.5.1 spelled it
+`mode='ols'`, 0.6.0 renamed it `method='ols'`, and `'ols'` is still the only
+regression it runs. Drop it — `adj.regress(X)` — and note that `tail` is now
+keyword-only, so a stray second positional argument raises instead of silently
+becoming the tail.
 
 **Rank-deficient predictors in `multivariate_similarity`.** The standard errors
 now come from `np.linalg.pinv(X.T @ X)` instead of `np.linalg.inv`, matching
@@ -1901,11 +1907,12 @@ This is a **position-only** break — callers passing these as keywords are unaf
 
 | Old name | New name |
 |---|---|
-| `surface_plot` | `plot_surf` |
-| `dist_from_hyperplane_plot` | `plot_dist_from_hyperplane` |
-| `scatterplot` | `plot_scatter` |
-| `probability_plot` | `plot_probability` |
-| `roc_plot` | `plot_roc` |
+| `surface_plot` | `plot_surf`, reached through `BrainData.plot_surf` |
+| `dist_from_hyperplane_plot` | `BrainData.predict(plot=True)` — it draws the margin figure itself |
+| `scatterplot` | `BrainData.predict(plot=True)` — it draws the predicted-versus-actual figure itself |
+| `probability_plot` | `BrainData.predict(plot=True)` — it draws the probability figure itself |
+| `roc_plot` | `plot_roc`, reached through `Roc.plot` |
+| `plot_interactive_brain` | [`BrainData.iplot()`](#interactive-viewing) — an interactive 3-D *volume* render. There is no interactive surface view in 0.6.0: v0.5.1's `plot_interactive_brain(surface=True)` wrapped nilearn's `view_img_on_surf`, and `iplot(view='surface')` raises. Use `plot_surf` or `plot_flatmap` for a static cortical projection |
 | `nltools.data.adjacency.plotting.plot` (module-level fn) | `plot_adjacency` |
 | `nltools.data.designmatrix.io.heatmap` | `plot_designmatrix` |
 | `DesignMatrix.heatmap()` (method) | `DesignMatrix.plot()` |
@@ -1914,10 +1921,13 @@ This is a **position-only** break — callers passing these as keywords are unaf
 ```python
 # OLD
 from nltools.plotting import surface_plot, scatterplot, roc_plot
+surface_plot(brain)
+scatterplot(stats_output)
 dm.heatmap()
 
 # NEW
-from nltools.plotting import plot_surf, plot_scatter, plot_roc
+brain.plot_surf()
+brain.predict(y=labels, plot=True)   # draws the cross-validated figures
 dm.plot()
 ```
 
@@ -2329,7 +2339,7 @@ is_empty = brain_data.is_empty
 - [ ] Replace `download_collection` / `get_collection_image_metadata` → `fetch_neurovault_collection`
 - [ ] Rename any kwargs still using legacy spellings: `algorithm=` → `method=`/`model=`, `show_progress=` → `progress_bar=`, `n_perm=` → `n_permute=`, `ignore_diagonal=True` → `include_diag=False`, `thr_upper=`/`thr_lower=` → `upper=`/`lower=`, `kind=` → `method=` (see "v0.6.0 Kwarg Standardization" below)
 - [ ] Rename any positional-kwarg calls to `__init__`: implemented `BrainData`/`Adjacency`/`DesignMatrix` constructors now require keyword arguments after the first positional data arg
-- [ ] Rename module-level plotting callers: `surface_plot` → `plot_surf`, `scatterplot` → `plot_scatter`, `roc_plot` → `plot_roc`, `probability_plot` → `plot_probability`, `dist_from_hyperplane_plot` → `plot_dist_from_hyperplane`, `adjacency.plot(...)` (module fn) → `plot_adjacency`, `DesignMatrix.heatmap()` → `DesignMatrix.plot()`
+- [ ] Replace module-level plotting callers with the data-class methods: `surface_plot` → `BrainData.plot_surf()`, `roc_plot` → `Roc.plot()`, `scatterplot`/`probability_plot`/`dist_from_hyperplane_plot` → `BrainData.predict(..., plot=True)`, `plot_interactive_brain` → `BrainData.iplot()` (volume only — no interactive surface view survives), `adjacency.plot(...)` (module fn) → `Adjacency.plot()`, `DesignMatrix.heatmap()` → `DesignMatrix.plot()`
 
 ### Should fix (deprecated or changed behavior)
 

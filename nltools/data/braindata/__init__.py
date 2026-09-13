@@ -1450,12 +1450,14 @@ class BrainData:
         X: "DesignMatrix | np.ndarray | Mapping[str, np.ndarray]",
         y: None = None,
         estimator: "str | BaseEstimator" = "linear_svc",
+        estimator_kwargs: "dict | None" = None,
         cv: "int | BaseCrossValidator | None" = None,
         groups: "np.ndarray | str | None" = None,
         scoring: "str | Callable | None" = None,
         spatial_scale: Literal["whole_brain", "roi", "searchlight"] = "whole_brain",
         roi_mask: "Nifti1Image | str | Path | None" = None,
         radius: float = 10.0,
+        plot: bool = False,
         n_jobs: int = 1,
         progress_bar: bool = False,
     ) -> "BrainData": ...
@@ -1467,12 +1469,14 @@ class BrainData:
         X: None = None,
         y: "np.ndarray | str | None" = None,
         estimator: "str | BaseEstimator" = "linear_svc",
+        estimator_kwargs: "dict | None" = None,
         cv: "int | BaseCrossValidator | None" = None,
         groups: "np.ndarray | str | None" = None,
         scoring: "str | Callable | None" = None,
         spatial_scale: Literal["whole_brain", "roi", "searchlight"] = "whole_brain",
         roi_mask: "Nifti1Image | str | Path | None" = None,
         radius: float = 10.0,
+        plot: bool = False,
         n_jobs: int = 1,
         progress_bar: bool = False,
     ) -> "Predict": ...
@@ -1484,12 +1488,14 @@ class BrainData:
         X: "DesignMatrix | np.ndarray | Mapping[str, np.ndarray] | None" = None,
         y: "np.ndarray | str | None" = None,
         estimator: "str | BaseEstimator" = "linear_svc",
+        estimator_kwargs: "dict | None" = None,
         cv: "int | BaseCrossValidator | None" = None,
         groups: "np.ndarray | str | None" = None,
         scoring: "str | Callable | None" = None,
         spatial_scale: Literal["whole_brain", "roi", "searchlight"] = "whole_brain",
         roi_mask: "Nifti1Image | str | Path | None" = None,
         radius: float = 10.0,
+        plot: bool = False,
         n_jobs: int = 1,
         progress_bar: bool = False,
     ):
@@ -1532,8 +1538,13 @@ class BrainData:
                 ``'ridge'``, ``'lasso'``, ``'linear_svr'`` — or any sklearn
                 estimator or `Pipeline`, which is used exactly as supplied.
                 Default ``'linear_svc'``. Every shortcut standardizes voxels
-                inside each fold and then fits a linear estimator; a
-                classification shortcut on a multiclass target is wrapped in
+                inside each fold and then fits a linear estimator; the two ridge
+                shortcuts select their penalty inside that fold too, by an inner
+                cross-validation over a ten-point log grid from ``1e-3`` to
+                ``1e6`` (`RidgeCV` and `RidgeClassifierCV`), because the working
+                penalty at whole-brain scale is nowhere near scikit-learn's
+                default ``alpha=1``. A classification shortcut on a multiclass
+                target is wrapped in
                 `OneVsRestClassifier`, so every class gets its own signed map.
                 A caller-supplied estimator is never wrapped and never has its
                 multiclass strategy overridden — pass a `OneVsRestClassifier`
@@ -1547,6 +1558,12 @@ class BrainData:
                 in an estimator exposing ``coef_``, since those two scales
                 extract a weight map; searchlight builds none and does not
                 require it.
+            estimator_kwargs (dict, optional): Constructor options for a
+                shortcut, merged over the shortcut's own defaults so a supplied
+                key wins — ``estimator='ridge', estimator_kwargs={'alphas': [1e4]}``
+                fixes the penalty grid. Passing it alongside a caller-supplied
+                estimator raises `ValueError`: that estimator is used exactly as
+                given, so configure it at construction.
             cv (int | sklearn splitter, optional): ``None`` (the default, five
                 folds) or an int fold count both mean a deterministic,
                 unshuffled *stratified* K-fold: class-balanced folds for a
@@ -1573,6 +1590,15 @@ class BrainData:
                 by, and only valid for, ``spatial_scale='roi'``.
             radius (float): Searchlight sphere radius in millimeters; only
                 valid for ``spatial_scale='searchlight'``. Default ``10.0``.
+            plot (bool): Draw the cross-validated figures as a side effect.
+                Default ``False``; the returned `Predict` is the same either
+                way. Regression draws predicted values against observed ones,
+                titled with the cross-validated Pearson *r*. Binary
+                classification draws the ROC of the out-of-fold decision values,
+                then the margin figure (`decision_function`) or the probability
+                figure (`predict_proba`), whichever the estimator exposes. Both
+                also draw ``weight_map``. Multiclass decoding, and any spatial
+                scale other than ``'whole_brain'``, raise instead of drawing.
             n_jobs (int): Parallel workers for the outer independent work of
                 the selected spatial scale — cross-validation folds for
                 whole-brain, parcels for ROI, spheres for searchlight. Default
@@ -1606,9 +1632,11 @@ class BrainData:
                 scale, a target or group vector that is not one value per row,
                 a continuous target with fewer than two rows per fold under an
                 integer ``cv``, cross-validation folds that do not partition
-                the rows, a preprocessing step outside the supported set, or — for
-                whole-brain and ROI decoding — a pipeline whose coefficients
-                cannot be projected back onto the voxel axis.
+                the rows, a preprocessing step outside the supported set, a
+                pipeline whose coefficients cannot be projected back onto the
+                voxel axis (whole-brain and ROI decoding only),
+                ``estimator_kwargs`` alongside a caller-supplied estimator, or
+                ``plot=True`` on a multiclass target or a non-whole-brain scale.
             TypeError: On a removed keyword, an `estimator` that is neither a
                 shortcut name nor an object with `fit`/`predict`, or a `cv`
                 that is neither `None`, an int, nor a splitter.
@@ -1650,12 +1678,14 @@ class BrainData:
             X=X,
             y=y,
             estimator=estimator,
+            estimator_kwargs=estimator_kwargs,
             cv=cv,
             groups=groups,
             scoring=scoring,
             spatial_scale=spatial_scale,
             roi_mask=roi_mask,
             radius=radius,
+            plot=plot,
             n_jobs=n_jobs,
             progress_bar=progress_bar,
         )

@@ -1,84 +1,93 @@
-"""Model output visualization — ROC, SVM margin, regression, and logistic plots."""
+"""Model output visualization — ROC curves and the cross-validated decoding figures.
+
+Every function here takes arrays, not a result table: `BrainData.predict` returns a
+`Predict` record plus the row-aligned out-of-fold decision values that go with it,
+and these draw from those directly.
+"""
 
 import matplotlib.pyplot as plt
+import numpy as np
 import seaborn as sns
 
 
-def plot_dist_from_hyperplane(stats_output):
-    """Plot SVM Classification Distance from Hyperplane.
+def plot_predicted_versus_actual(y_true, y_pred, *, r=None, ax=None):
+    """Scatter cross-validated predictions against the observed target.
 
     Args:
-        stats_output (pd.DataFrame): Prediction output table (e.g. from
-            `BrainData.predict`).
+        y_true (array-like): Observed target, one value per observation.
+        y_pred (array-like): Out-of-fold prediction for the same observations.
+        r (float, optional): Cross-validated Pearson correlation to name in the
+            title; omitted from the title when `None`.
+        ax (matplotlib.axes.Axes, optional): Axis to draw on; a new figure is
+            created when omitted.
 
     Returns:
-        seaborn.FacetGrid: Distance from the hyperplane per sample.
-
+        matplotlib.axes.Axes: The axis holding the scatter and its fit line.
     """
-
-    if "dist_from_hyperplane_xval" in stats_output.columns:
-        g = sns.catplot(
-            data=stats_output,
-            x="subject_id",
-            y="dist_from_hyperplane_xval",
-            hue="Y",
-            kind="point",
-        )
-    else:
-        g = sns.catplot(
-            data=stats_output,
-            x="subject_id",
-            y="dist_from_hyperplane_all",
-            hue="Y",
-            kind="point",
-        )
-    plt.xlabel("Subject", fontsize=16)
-    plt.ylabel("Distance from Hyperplane", fontsize=16)
-    plt.title("Classification", fontsize=18)
-    return g
+    if ax is None:
+        _, ax = plt.subplots(1)
+    axis = sns.regplot(
+        x=np.asarray(y_true, dtype=float), y=np.asarray(y_pred, dtype=float), ax=ax
+    )
+    axis.set_xlabel("Observed", fontsize=16)
+    axis.set_ylabel("Predicted", fontsize=16)
+    title = "Predicted vs actual" if r is None else f"Predicted vs actual (r = {r:.2f})"
+    axis.set_title(title, fontsize=18)
+    return axis
 
 
-def plot_scatter(stats_output):
-    """Plot Prediction Scatterplot.
+def plot_decision_margin(margins, y_true, *, ax=None):
+    """Plot each observation's signed distance from the decision boundary by class.
 
     Args:
-        stats_output (pd.DataFrame): Prediction output table (e.g. from
-            `BrainData.predict`).
+        margins (array-like): Out-of-fold `decision_function` values, one per
+            observation.
+        y_true (array-like): Class label for the same observations.
+        ax (matplotlib.axes.Axes, optional): Axis to draw on; a new figure is
+            created when omitted.
 
     Returns:
-        seaborn.FacetGrid: Scatterplot.
-
+        matplotlib.axes.Axes: The axis holding the margin figure.
     """
+    if ax is None:
+        _, ax = plt.subplots(1)
+    axis = sns.stripplot(
+        x=np.asarray(y_true).astype(str),
+        y=np.asarray(margins, dtype=float),
+        ax=ax,
+    )
+    axis.axhline(0, color="gray", linestyle="--", linewidth=1)
+    axis.set_xlabel("Class", fontsize=16)
+    axis.set_ylabel("Distance from Hyperplane", fontsize=16)
+    axis.set_title("Classification margin", fontsize=18)
+    return axis
 
-    if "yfit_xval" in stats_output.columns:
-        g = sns.lmplot(data=stats_output, x="Y", y="yfit_xval")
-    else:
-        g = sns.lmplot(data=stats_output, x="Y", y="yfit_all")
-    plt.xlabel("Y", fontsize=16)
-    plt.ylabel("Predicted Value", fontsize=16)
-    plt.title("Prediction", fontsize=18)
-    return g
 
-
-def plot_probability(stats_output):
-    """Plot Classification Probability.
+def plot_class_probability(probabilities, y_true, *, ax=None):
+    """Plot the predicted positive-class probability of each observation by class.
 
     Args:
-        stats_output (pd.DataFrame): Prediction output table (e.g. from
-            `BrainData.predict`).
+        probabilities (array-like): Out-of-fold `predict_proba` values for the
+            positive class, one per observation.
+        y_true (array-like): Class label for the same observations.
+        ax (matplotlib.axes.Axes, optional): Axis to draw on; a new figure is
+            created when omitted.
 
     Returns:
-        seaborn.FacetGrid: Scatterplot.
-
+        matplotlib.axes.Axes: The axis holding the probability figure.
     """
-    if "Probability_xval" in stats_output.columns:
-        g = sns.lmplot(data=stats_output, x="Y", y="Probability_xval", logistic=True)
-    else:
-        g = sns.lmplot(data=stats_output, x="Y", y="Probability_all", logistic=True)
-    plt.xlabel("Y", fontsize=16)
-    plt.ylabel("Predicted Probability", fontsize=16)
-    plt.title("Prediction", fontsize=18)
-    return g
+    if ax is None:
+        _, ax = plt.subplots(1)
+    axis = sns.stripplot(
+        x=np.asarray(y_true).astype(str),
+        y=np.asarray(probabilities, dtype=float),
+        ax=ax,
+    )
+    axis.axhline(0.5, color="gray", linestyle="--", linewidth=1)
+    axis.set_xlabel("Class", fontsize=16)
+    axis.set_ylabel("Predicted Probability", fontsize=16)
+    axis.set_title("Classification probability", fontsize=18)
+    return axis
 
 
 def plot_roc(fpr, tpr):

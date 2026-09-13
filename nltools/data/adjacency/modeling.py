@@ -118,7 +118,7 @@ def convert_bootstrap_results_to_adjacency(adj, result):
     )
 
 
-def regress(adj, X, method="ols", tail=2):
+def regress(adj, X, *, tail=2):
     """Run a regression on an adjacency instance.
 
     Pass an `Adjacency` as `X` to decompose `adj` with other matrices, or a
@@ -127,7 +127,6 @@ def regress(adj, X, method="ols", tail=2):
     Args:
         adj (Adjacency): Adjacency instance.
         X (Adjacency | DesignMatrix): Design matrix.
-        method (str): Type of regression; only `'ols'` is currently supported.
         tail (int | str): `2`/`'two'` for two-tailed (default); `1`/`'one'` for
             one-tailed (beta > 0; negate a regressor for the other direction).
 
@@ -145,10 +144,6 @@ def regress(adj, X, method="ols", tail=2):
     from .state import common_labels, result, validate_compatible
 
     validate_tail_parameter(tail)
-    if method != "ols":
-        raise ValueError(
-            "Only 'ols' method is currently supported for Adjacency.regress()"
-        )
     if isinstance(X, Adjacency):
         if not adj.is_single_matrix:
             raise ValueError("Adjacency predictors require a single response matrix.")

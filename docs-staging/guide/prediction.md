@@ -52,7 +52,8 @@ Every successful whole-brain or ROI result carries a `weight_map`; there is no "
 Goal | Use | Notes
 --- | --- | ---
 Decode a label or value | `predict(y=, estimator=, cv=)` | `y` is an array, or a string naming a column of `.Y`
-Pick an estimator | `estimator='linear_svc'`, `'logistic_regression'`, `'linear_discriminant_analysis'`, `'ridge_classifier'`, `'ridge'`, `'lasso'`, `'linear_svr'`, or any sklearn estimator | Every shortcut is linear; a non-linear estimator raises
+Pick an estimator | `estimator='linear_svc'`, `'logistic_regression'`, `'linear_discriminant_analysis'`, `'ridge_classifier'`, `'ridge'`, `'lasso'`, `'linear_svr'`, or any sklearn estimator | Every shortcut is linear; a non-linear estimator raises. The two ridge shortcuts pick their penalty by an inner cross-validation; `estimator_kwargs=` reconfigures any shortcut
+Draw the result | `predict(..., plot=True)` | The cross-validated scatter for regression, the ROC and margin/probability figures for a binary decode, plus the weight map
 Cross-validation | `cv=None` (a deterministic five folds), `cv=5`, or an sklearn splitter such as `LeaveOneGroupOut()` + `groups=` | An int (or `None`) is an unshuffled stratified K-fold: class labels for a classifier, quantile bins of `y` for a regressor. Test folds must partition the rows, so shuffle-split and repeated splitters raise
 Keep a subject or run whole | `cv=5` + `groups=` | The int becomes `StratifiedGroupKFold`, so no group is split across the train/test boundary
 Stratify a continuous target by rank | [`KFoldStratified`](../api/tasks/prediction.md#nltools.cross_validation.KFoldStratified) | Deals `y`-ordered samples round-robin into folds; an int `cv` already balances quantile bins

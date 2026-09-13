@@ -70,16 +70,14 @@ def _(mo):
     mo.md(r"""
     ## One cross-validated prediction
 
-    The estimator is a scikit-learn pipeline: standardize every voxel, then fit
-    ridge regression. `GroupKFold` with `groups="SubjectID"` puts all three of a
-    subject's images in the same fold, so the model is always scored on people it
-    has never seen.
+    The `"ridge"` shortcut standardizes every voxel inside each fold and then
+    fits ridge regression. `GroupKFold` with `groups="SubjectID"` puts all three
+    of a subject's images in the same fold, so the model is always scored on
+    people it has never seen.
 
-    Ridge's penalty has to match the size of the problem. With 240,000
-    standardized voxels and 84 images, scikit-learn's default `alpha=1` is
-    effectively no penalty at all, and the solve becomes ill-conditioned; a
-    penalty five orders of magnitude larger is the working range here. Picking it
-    by nested cross-validation instead of by hand is shown further down.
+    Ridge's penalty has to match the size of the problem, so the `"ridge"`
+    shortcut picks it by an inner cross-validation of each training fold rather
+    than leaving it at scikit-learn's default of 1.
     """)
     return
 
@@ -105,9 +103,7 @@ def _(data, memory):
         """
         return data.predict(y="PainLevel", estimator=estimator, cv=cv, groups=groups)
 
-    ridge = cross_validate(
-        make_pipeline(StandardScaler(), Ridge(alpha=1e5)), subject_folds
-    )
+    ridge = cross_validate("ridge", subject_folds)
     ridge.available()
     return Ridge, StandardScaler, cross_validate, make_pipeline, ridge, subject_folds
 
