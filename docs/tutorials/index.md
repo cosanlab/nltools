@@ -7,6 +7,7 @@ Each tutorial is a worked analysis you read start to finish. They are [marimo](h
 ## Data operations
 
 - [Working with BrainData](data-operations/01_brain_data.md) — load, index, transform, save and plot imaging data; build masks and regions of interest; set the template grid the data lives on; read from and write to NeuroVault.
+- [Working with DesignMatrix](data-operations/02_design_matrix.md) — build a design by hand or from events and confound files; convolve it with an HRF; add drift regressors; stack runs; check it is estimable and fit it.
 
 ## Learning nltools
 
