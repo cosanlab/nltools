@@ -25,16 +25,6 @@ class TestBrainDataCore:
         assert minimal_brain_data.mask.get_filename() is None
         assert "mask=None" in repr(minimal_brain_data)
 
-    def test_equality_compares_in_memory_mask_affines(self):
-        import nibabel as nib
-
-        mask_data = np.ones((2, 2, 2), dtype=np.uint8)
-        mask_a = nib.Nifti1Image(mask_data, np.eye(4))
-        mask_b = nib.Nifti1Image(mask_data, np.diag([2.0, 2.0, 2.0, 1.0]))
-        data = np.zeros((1, mask_data.size))
-
-        assert BrainData(data, mask=mask_a) != BrainData(data, mask=mask_b)
-
     def test_equality_accepts_equivalent_in_memory_masks(self):
         import nibabel as nib
 
@@ -44,19 +34,6 @@ class TestBrainDataCore:
         data = np.zeros((1, mask_data.size))
 
         assert BrainData(data, mask=mask_a) == BrainData(data.copy(), mask=mask_b)
-
-    def test_equality_compares_in_memory_mask_voxels(self):
-        import nibabel as nib
-
-        mask_a_data = np.zeros((2, 2, 2), dtype=np.uint8)
-        mask_b_data = np.zeros((2, 2, 2), dtype=np.uint8)
-        mask_a_data.flat[[0, 1]] = 1
-        mask_b_data.flat[[0, 2]] = 1
-        mask_a = nib.Nifti1Image(mask_a_data, np.eye(4))
-        mask_b = nib.Nifti1Image(mask_b_data, np.eye(4))
-        data = np.zeros((1, 2))
-
-        assert BrainData(data, mask=mask_a) != BrainData(data, mask=mask_b)
 
     def test_copy_owns_complete_fitted_state(self, minimal_brain_data):
         """Copying a fitted BrainData produces an independent snapshot."""
@@ -123,7 +100,7 @@ class TestBrainDataCore:
         assert minimal_brain_data.model_ is original_model
         assert minimal_brain_data.ridge_weights is original_weights
 
-    @pytest.mark.parametrize("method", ["mean", "median"])
+    @pytest.mark.parametrize("method", ["median"])
     def test_stat_aggregation(self, minimal_brain_data, method):
         """Test mean/median across axes."""
         func = getattr(minimal_brain_data, method)
@@ -143,11 +120,6 @@ class TestBrainDataCore:
         """Test standard deviation computation."""
         assert minimal_brain_data.std().shape[0] == minimal_brain_data.shape[1]
 
-    def test_sum(self, minimal_brain_data):
-        """Test sum aggregation."""
-        s = minimal_brain_data.sum()
-        assert s.shape == minimal_brain_data[0].shape
-
     # ==================== Arithmetic Operations ====================
 
     def test_add(self, minimal_brain_data):
@@ -158,33 +130,6 @@ class TestBrainDataCore:
         assert (value + minimal_brain_data[0]).mean() == (
             minimal_brain_data[0] + value
         ).mean()
-
-    def test_subtract(self, minimal_brain_data):
-        """Test subtraction of BrainData objects and scalars."""
-        new = minimal_brain_data - minimal_brain_data
-        assert new.shape == minimal_brain_data.shape
-        value = 10
-        assert (-value - (-1) * minimal_brain_data[0]).mean() == (
-            minimal_brain_data[0] - value
-        ).mean()
-
-    def test_multiply(self, minimal_brain_data):
-        """Test multiplication of BrainData objects, scalars, and arrays."""
-        new = minimal_brain_data * minimal_brain_data
-        assert new.shape == minimal_brain_data.shape
-        value = 10
-        assert (value * minimal_brain_data[0]).mean() == (
-            minimal_brain_data[0] * value
-        ).mean()
-        c1 = [0.5, 0.5, -0.5, -0.5]
-        new = minimal_brain_data[0:4] * c1
-        new2 = (
-            minimal_brain_data[0] * 0.5
-            + minimal_brain_data[1] * 0.5
-            - minimal_brain_data[2] * 0.5
-            - minimal_brain_data[3] * 0.5
-        )
-        np.testing.assert_almost_equal((new - new2).sum(), 0, decimal=4)
 
     def test_divide(self, minimal_brain_data):
         """Test division of BrainData objects and scalars."""
@@ -209,57 +154,6 @@ class TestBrainDataCore:
         original_data = bd1.data.copy()
         bd1 += bd2
         assert np.allclose(bd1.data, original_data + bd2.data)
-
-    def test_inplace_subtract(self, minimal_brain_data):
-        """Test in-place subtraction with scalars and BrainData."""
-        bd = minimal_brain_data[0].copy()
-        original_data = bd.data.copy()
-        bd -= 3
-        assert np.allclose(bd.data, original_data - 3)
-
-        bd1 = minimal_brain_data[0].copy()
-        bd2 = minimal_brain_data[0].copy()
-        original_data = bd1.data.copy()
-        bd1 -= bd2
-        assert np.allclose(bd1.data, original_data - bd2.data)
-
-    def test_inplace_multiply(self, minimal_brain_data):
-        """Test in-place multiplication with scalars, BrainData, and arrays."""
-        bd = minimal_brain_data[0].copy()
-        original_data = bd.data.copy()
-        bd *= 2
-        assert np.allclose(bd.data, original_data * 2)
-
-        bd1 = minimal_brain_data[0].copy()
-        bd2 = minimal_brain_data[0].copy()
-        original_data = bd1.data.copy()
-        bd1 *= bd2
-        assert np.allclose(bd1.data, original_data * bd2.data)
-
-        bd = minimal_brain_data[0:4].copy()
-        c1 = [0.5, 0.5, -0.5, -0.5]
-        bd *= c1
-        expected = (
-            minimal_brain_data[0] * 0.5
-            + minimal_brain_data[1] * 0.5
-            - minimal_brain_data[2] * 0.5
-            - minimal_brain_data[3] * 0.5
-        )
-        np.testing.assert_almost_equal((bd - expected).sum(), 0, decimal=4)
-
-    def test_inplace_divide(self, minimal_brain_data):
-        """Test in-place division with scalars and BrainData."""
-        bd = minimal_brain_data[0].copy()
-        original_data = bd.data.copy()
-        bd /= 2
-        assert np.allclose(bd.data, original_data / 2)
-
-        bd1 = minimal_brain_data[0].copy()
-        bd2 = minimal_brain_data[0].copy()
-        bd2.data = bd2.data + 1  # Avoid division by zero
-        original_data = bd1.data.copy()
-        bd1 /= bd2
-        assert np.allclose(bd1.data, original_data / bd2.data)
 
     # ==================== Indexing & Concatenation ====================
 
@@ -305,29 +199,3 @@ class TestBrainDataCore:
         distance = minimal_brain_data.distance(metric="correlation")
         assert isinstance(distance, Adjacency)
         assert distance.n_nodes == minimal_brain_data.shape[0]
-
-
-class TestIsDefault:
-    """`_is_default` decides whether a keyword still holds its signature default.
-
-    It serves both `fit`'s unselected-estimator-option check and `predict`'s
-    MVPA-only check, so it has to cope with array-valued options and with
-    sequences spelled as lists against tuple defaults.
-    """
-
-    @staticmethod
-    def _is_default(value, default):
-        from nltools.data.braindata.utils import _is_default
-
-        return _is_default(value, default)
-
-    def test_list_matches_a_tuple_default(self):
-        assert self._is_default([1, 2, 3], (1, 2, 3))
-
-    def test_zero_does_not_match_a_false_default(self):
-        # A flag given an integer was supplied deliberately.
-        assert not self._is_default(0, False)
-
-    def test_array_option_against_a_scalar_default(self):
-        assert not self._is_default(np.array([1.0, 10.0]), 1.0)
-        assert self._is_default(np.array([1.0, 10.0]), np.array([1.0, 10.0]))

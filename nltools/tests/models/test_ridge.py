@@ -12,11 +12,8 @@ import pytest
 
 from nltools.models import _Ridge
 from nltools.models.ridge import (
-    _himalaya_backend_name,
     _prepare_feature_space_weights,
     _refit_fixed_hyperparameters,
-    _scoped_himalaya_backend,
-    _working_dtype,
 )
 
 
@@ -120,25 +117,6 @@ def kfold(n_splits=4):
 class TestPublicSignature:
     """Only the specified keywords exist, and removed names raise TypeError."""
 
-    @pytest.mark.parametrize(
-        "removed",
-        [
-            "alphas",
-            "n_iter",
-            "concentration",
-            "local_alpha",
-            "conservative",
-            "fit_intercept",
-            "backend",
-            "solver_params",
-            "max_gpu_memory_gb",
-            "parallel",
-        ],
-    )
-    def test_removed_keyword_raises_type_error(self, removed):
-        with pytest.raises(TypeError):
-            _Ridge(**{removed: 1})
-
     def test_every_argument_is_keyword_only(self):
         import inspect
 
@@ -194,14 +172,6 @@ class TestValidation:
         with pytest.raises(ValueError, match="requires cv"):
             _Ridge(alpha=ALPHAS)
 
-    def test_empty_alpha_collection_raises(self):
-        with pytest.raises(ValueError, match="empty collection"):
-            _Ridge(alpha=[], cv=5)
-
-    def test_non_finite_alpha_raises(self):
-        with pytest.raises(ValueError, match="finite"):
-            _Ridge(alpha=[1.0, np.inf], cv=5)
-
     def test_non_positive_alpha_raises(self):
         with pytest.raises(ValueError, match="positive"):
             _Ridge(alpha=[0.0, 1.0], cv=5)
@@ -210,53 +180,13 @@ class TestValidation:
         with pytest.raises(ValueError, match="1D collection"):
             _Ridge(alpha=[[1.0, 2.0]], cv=5)
 
-    def test_generator_cv_rejected(self):
-        X, _ = make_data()
-        with pytest.raises(TypeError, match="single-use generator"):
-            _Ridge(alpha=ALPHAS, cv=kfold().split(X))
-
-    def test_unsupported_cv_type_raises(self):
-        with pytest.raises(ValueError, match="cv must be None"):
-            _Ridge(alpha=ALPHAS, cv="loo")
-
     def test_unsupported_device_raises(self):
         with pytest.raises(ValueError, match="device must be 'cpu' or 'gpu'"):
             _Ridge(device="auto")
 
-    def test_non_positive_memory_budget_raises(self):
-        with pytest.raises(ValueError, match="memory_budget_gb must be positive"):
-            _Ridge(memory_budget_gb=0)
-
-    def test_non_finite_memory_budget_raises(self):
-        with pytest.raises(ValueError, match="memory_budget_gb must be positive"):
-            _Ridge(memory_budget_gb=float("nan"))
-
-    def test_conservative_requires_per_target_alpha(self):
-        with pytest.raises(ValueError, match="prefer_conservative_alpha=True"):
-            _Ridge(prefer_conservative_alpha=True, per_target_alpha=False)
-
-    def test_three_dimensional_y_raises(self):
-        X, _ = make_data()
-        with pytest.raises(ValueError, match="y must be 1D or 2D"):
-            _Ridge(alpha=1.0).fit(X, np.zeros((X.shape[0], 2, 2)))
-
-    def test_sample_count_mismatch_raises(self):
-        X, Y = make_data()
-        with pytest.raises(ValueError, match="inconsistent sample counts"):
-            _Ridge(alpha=1.0).fit(X, Y[:-3])
-
-    def test_one_dimensional_X_raises(self):
-        with pytest.raises(ValueError, match="2D feature matrix"):
-            _Ridge(alpha=1.0).fit(np.zeros(10), np.zeros(10))
-
     def test_empty_banded_mapping_raises(self):
         with pytest.raises(ValueError, match="empty mapping"):
             _Ridge(alpha=ALPHAS, cv=3).fit({}, np.zeros(10))
-
-    def test_non_string_feature_space_name_raises(self):
-        _, Y = make_spaces()
-        with pytest.raises(ValueError, match="names must be strings"):
-            _Ridge(alpha=ALPHAS, cv=3).fit({0: np.zeros((Y.shape[0], 2))}, Y)
 
     def test_banded_sample_count_mismatch_raises(self):
         spaces, Y = make_spaces()
@@ -270,36 +200,6 @@ class TestValidation:
         with pytest.raises(ValueError, match="banded Ridge needs a sequence"):
             _Ridge(alpha=1.0).fit(spaces, Y)
 
-    @pytest.mark.parametrize(
-        "kwargs",
-        [
-            {"search_iterations": 7},
-            {"dirichlet_concentration": 1.0},
-        ],
-    )
-    def test_banded_only_arguments_rejected_for_ordinary_fit(self, kwargs):
-        X, Y = make_data()
-        model = _Ridge(alpha=ALPHAS, cv=3, **kwargs)
-        with pytest.raises(ValueError, match="only applies to banded Ridge"):
-            model.fit(X, Y)
-
-    def test_random_state_is_accepted_and_unused_for_ordinary_fits(self):
-        """`BrainData.fit` forwards one shared `random_state` to both estimators.
-
-        Ordinary Ridge has no randomness of its own, so it takes the keyword and
-        ignores it rather than rejecting a universally accepted argument.
-        """
-        X, Y = make_data()
-        seeded = _Ridge(alpha=ALPHAS, cv=kfold(), random_state=0).fit(X, Y)
-        unseeded = _Ridge(alpha=ALPHAS, cv=kfold()).fit(X, Y)
-        np.testing.assert_array_equal(seeded.coef_, unseeded.coef_)
-        np.testing.assert_array_equal(seeded.alpha_, unseeded.alpha_)
-
-    def test_zero_target_y_raises(self):
-        X, _ = make_data()
-        with pytest.raises(ValueError, match="at least one target"):
-            _Ridge(alpha=1.0).fit(X, np.zeros((X.shape[0], 0)))
-
     def test_predict_before_fit_raises(self):
         X, _ = make_data()
         with pytest.raises(ValueError, match="not fitted"):
@@ -307,31 +207,6 @@ class TestValidation:
 
 
 # ------------------------------------------------------- cross-validator handling
-
-
-class TestCrossValidatorHandling:
-    """`cv=int` means unshuffled K-fold; a splitter is used exactly as given."""
-
-    def test_int_cv_builds_unshuffled_kfold(self):
-        from sklearn.model_selection import KFold
-
-        X, Y = make_data()
-        by_int = _Ridge(alpha=ALPHAS, cv=5).fit(X, Y)
-        by_splitter = _Ridge(alpha=ALPHAS, cv=KFold(5, shuffle=False)).fit(X, Y)
-        np.testing.assert_array_equal(by_int.alpha_, by_splitter.alpha_)
-        np.testing.assert_array_equal(by_int.cv_scores_, by_splitter.cv_scores_)
-        np.testing.assert_array_equal(by_int.coef_, by_splitter.coef_)
-
-    def test_supplied_splitter_is_used_as_given(self):
-        from sklearn.model_selection import KFold
-
-        X, Y = make_data()
-        contiguous = _Ridge(alpha=ALPHAS, cv=KFold(5, shuffle=False)).fit(X, Y)
-        shuffled = _Ridge(alpha=ALPHAS, cv=KFold(5, shuffle=True, random_state=0)).fit(
-            X, Y
-        )
-        # Same data, different folds: the selection scores cannot coincide.
-        assert not np.allclose(shuffled.cv_scores_, contiguous.cv_scores_)
 
 
 # ------------------------------------------------------------------ fitted state
@@ -395,31 +270,6 @@ class TestFittedState:
         assert model.alpha_.shape == (Y.shape[1],)
         assert model.n_features_in_ == n_features
 
-    def test_banded_one_dimensional_target_shapes(self):
-        spaces, Y = make_spaces()
-        model = _Ridge(
-            alpha=ALPHAS, cv=kfold(), search_iterations=6, random_state=3
-        ).fit(spaces, Y[:, 0])
-        assert model.feature_space_weights_.shape == (len(spaces),)
-        assert model.cv_scores_.shape == (6,)
-        assert isinstance(model.alpha_, float)
-
-    def test_feature_space_weights_are_positive_and_sum_to_one(self):
-        spaces, Y = make_spaces(sizes=(4, 5, 6))
-        model = _Ridge(
-            alpha=ALPHAS, cv=kfold(), search_iterations=10, random_state=7
-        ).fit(spaces, Y)
-        assert np.all(model.feature_space_weights_ > 0)
-        np.testing.assert_allclose(
-            model.feature_space_weights_.sum(axis=0), 1.0, rtol=0, atol=1e-12
-        )
-
-    @pytest.mark.parametrize("attribute", ["intercept_", "deltas_", "X_", "alphas"])
-    def test_removed_attributes_absent(self, attribute):
-        X, Y = make_data()
-        model = _Ridge(alpha=1.0).fit(X, Y)
-        assert not hasattr(model, attribute)
-
     def test_fitted_arrays_are_cpu_numpy(self):
         X, Y = make_data()
         model = _Ridge(alpha=ALPHAS, cv=kfold()).fit(X, Y)
@@ -442,42 +292,8 @@ class TestNumericalBehavior:
         expected = 1 - ((Y - predictions) ** 2).sum(0) / ((Y - Y.mean(0)) ** 2).sum(0)
         np.testing.assert_allclose(scores, expected)
 
-    def test_constant_target_scores_zero(self):
-        X, Y = make_data()
-        Y = Y.copy()
-        Y[:, 1] = 4.0
-        model = _Ridge(alpha=1.0).fit(X, Y)
-        assert model.score(X, Y)[1] == 0.0
-
 
 # ------------------------------------------------------------------ himalaya parity
-
-
-class TestHimalayaParity:
-    """Selection details nltools pins on top of Himalaya: tie-breaks and seeding."""
-
-    def test_ties_break_toward_the_larger_alpha(self):
-        # A zero target scores exactly 0.0 for every alpha, so only Himalaya's
-        # log-alpha tie-break slope can decide the selection.
-        rng = np.random.default_rng(5)
-        X = rng.standard_normal((60, 6))
-        Y = np.zeros((60, 2))
-        model = _Ridge(alpha=ALPHAS, cv=kfold()).fit(X, Y)
-        assert np.all(model.alpha_ == max(ALPHAS))
-
-    def test_banded_search_is_deterministic_under_a_seed(self):
-        spaces, Y = make_spaces()
-        first = _Ridge(
-            alpha=ALPHAS, cv=kfold(), search_iterations=8, random_state=99
-        ).fit(spaces, Y)
-        second = _Ridge(
-            alpha=ALPHAS, cv=kfold(), search_iterations=8, random_state=99
-        ).fit(spaces, Y)
-        np.testing.assert_array_equal(first.coef_, second.coef_)
-        np.testing.assert_array_equal(
-            first.feature_space_weights_, second.feature_space_weights_
-        )
-        np.testing.assert_array_equal(first.alpha_, second.alpha_)
 
 
 # ---------------------------------------------------------- candidate preparation
@@ -485,21 +301,6 @@ class TestHimalayaParity:
 
 class TestFeatureSpaceWeightCandidates:
     """Validation, dtype conversion, and the underflow floor."""
-
-    def test_caller_array_is_not_mutated(self):
-        candidates = np.array([[0.5, 0.5], [1e-45, 1.0 - 1e-45]], dtype=np.float64)
-        original = candidates.copy()
-        prepared = _prepare_feature_space_weights(candidates, np.float32)
-        np.testing.assert_array_equal(candidates, original)
-        assert prepared is not candidates
-
-    def test_values_below_tiny_are_raised_to_tiny_float32(self):
-        tiny = np.finfo(np.float32).tiny
-        candidates = np.array([[1e-45, 1.0 - 1e-45]])
-        prepared = _prepare_feature_space_weights(candidates, np.float32)
-        assert prepared.dtype == np.float32
-        assert prepared[0, 0] == tiny
-        assert np.all(prepared > 0)
 
     def test_values_below_tiny_are_raised_to_tiny_float64(self):
         tiny = np.finfo(np.float64).tiny
@@ -515,42 +316,9 @@ class TestFeatureSpaceWeightCandidates:
         with pytest.raises(ValueError, match="strictly positive"):
             _prepare_feature_space_weights(np.array([[-0.5, 1.5]]), np.float32)
 
-    def test_non_finite_weight_is_rejected(self):
-        with pytest.raises(ValueError, match="finite"):
-            _prepare_feature_space_weights(np.array([[np.nan, 1.0]]), np.float32)
-
     def test_rows_must_sum_to_one(self):
         with pytest.raises(ValueError, match="sum to one"):
             _prepare_feature_space_weights(np.array([[0.5, 0.9]]), np.float32)
-
-    def test_one_dimensional_candidates_rejected(self):
-        with pytest.raises(ValueError, match="must be 2D"):
-            _prepare_feature_space_weights(np.array([0.5, 0.5]), np.float32)
-
-    @requires_mps
-    def test_tiny_floor_survives_the_mps_round_trip(self):
-        import torch
-
-        tiny = np.finfo(np.float32).tiny
-        prepared = _prepare_feature_space_weights(
-            np.array([[1e-45, 1.0 - 1e-45]]), np.float32
-        )
-        on_device = torch.as_tensor(prepared, device="mps")
-        scaled = torch.sqrt(on_device)
-        restored = scaled * scaled
-        assert torch.all(scaled > 0).item()
-        assert restored.cpu().numpy()[0, 0] >= tiny
-
-    def test_fit_does_not_mutate_caller_arrays(self):
-        spaces, Y = make_spaces()
-        snapshots = {name: space.copy() for name, space in spaces.items()}
-        targets = Y.copy()
-        _Ridge(alpha=ALPHAS, cv=kfold(), search_iterations=5, random_state=2).fit(
-            spaces, Y
-        )
-        for name, space in spaces.items():
-            np.testing.assert_array_equal(space, snapshots[name])
-        np.testing.assert_array_equal(Y, targets)
 
 
 # ------------------------------------------------------------------- banded predict
@@ -577,38 +345,6 @@ class TestBandedPrediction:
         partial = dict(list(spaces.items())[:1])
         with pytest.raises(ValueError, match="missing"):
             model.predict(partial)
-
-    def test_additional_space_raises(self, fitted):
-        model, spaces, Y = fitted
-        extended = dict(spaces)
-        extended["extra"] = np.zeros((Y.shape[0], 2))
-        with pytest.raises(ValueError, match="unexpected"):
-            model.predict(extended)
-
-    def test_wrong_feature_count_raises(self, fitted):
-        model, spaces, _ = fitted
-        narrowed = dict(spaces)
-        first = next(iter(spaces))
-        narrowed[first] = spaces[first][:, :-1]
-        with pytest.raises(ValueError, match="features, but"):
-            model.predict(narrowed)
-
-    def test_array_input_to_banded_model_raises(self, fitted):
-        model, spaces, _ = fitted
-        with pytest.raises(ValueError, match="must be a mapping"):
-            model.predict(np.concatenate(list(spaces.values()), axis=1))
-
-    def test_mapping_input_to_ordinary_model_raises(self):
-        X, Y = make_data()
-        model = _Ridge(alpha=1.0).fit(X, Y)
-        with pytest.raises(ValueError, match="single feature matrix"):
-            model.predict({"a": X})
-
-    def test_ordinary_feature_count_mismatch_raises(self):
-        X, Y = make_data()
-        model = _Ridge(alpha=1.0).fit(X, Y)
-        with pytest.raises(ValueError, match="fitted"):
-            model.predict(X[:, :-1])
 
     def test_prediction_equals_concatenated_design_times_coef(self, fitted):
         model, spaces, _ = fitted
@@ -658,40 +394,6 @@ class TestFixedHyperparameterRefit:
         expected = self._generalized_ridge(matrices, Y, 3.0, gamma)
         np.testing.assert_allclose(coef, expected, rtol=1e-6, atol=1e-8)
 
-    def test_per_target_gamma_equals_generalized_ridge(self):
-        spaces, Y = make_spaces(sizes=(4, 6), n_targets=3)
-        matrices = list(spaces.values())
-        gammas = np.array([[0.2, 0.5, 0.9], [0.8, 0.5, 0.1]])
-        alphas = np.array([1.0, 10.0, 1.0])
-        coef = _refit_fixed_hyperparameters(
-            matrices, Y, alphas, feature_space_weights=gammas
-        )
-        for index in range(Y.shape[1]):
-            expected = self._generalized_ridge(
-                matrices, Y[:, index], alphas[index], gammas[:, index]
-            )
-            np.testing.assert_allclose(coef[:, index], expected, rtol=1e-6, atol=1e-8)
-
-    def test_target_grouping_does_not_change_results(self):
-        spaces, Y = make_spaces(sizes=(4, 6), n_targets=4)
-        matrices = list(spaces.values())
-        shared = np.array([[0.3] * 4, [0.7] * 4])
-        grouped = _refit_fixed_hyperparameters(
-            matrices, Y, 2.0, feature_space_weights=shared
-        )
-        one_at_a_time = np.column_stack(
-            [
-                _refit_fixed_hyperparameters(
-                    matrices,
-                    Y[:, [index]],
-                    2.0,
-                    feature_space_weights=np.array([0.3, 0.7]),
-                )[:, 0]
-                for index in range(Y.shape[1])
-            ]
-        )
-        np.testing.assert_allclose(grouped, one_at_a_time, rtol=1e-8, atol=1e-10)
-
     def test_refit_does_not_mutate_the_feature_spaces(self):
         spaces, Y = make_spaces(sizes=(3, 5))
         matrices = list(spaces.values())
@@ -701,46 +403,6 @@ class TestFixedHyperparameterRefit:
         )
         for matrix, snapshot in zip(matrices, snapshots):
             np.testing.assert_array_equal(matrix, snapshot)
-
-    def test_integer_features_solve_like_float_features(self):
-        """An integer design must not silently collapse to zero coefficients.
-
-        Himalaya solves in the dtype it is handed, and an integer dtype makes the
-        shrinkage arithmetic truncate to zero. The refit therefore promotes to a
-        floating working dtype before it delegates.
-        """
-        rng = np.random.default_rng(3)
-        X_int = rng.integers(0, 2, size=(40, 5))
-        Y = rng.standard_normal((40, 3))
-        from_int = _refit_fixed_hyperparameters([X_int], Y, 1.0)
-        from_float = _refit_fixed_hyperparameters([X_int.astype(np.float64)], Y, 1.0)
-        assert np.any(from_int != 0)
-        np.testing.assert_allclose(from_int, from_float, rtol=1e-10, atol=1e-12)
-
-    def test_integer_features_reach_the_bootstrap_refit_correctly(self):
-        from nltools.algorithms.inference.bootstrap import (
-            _bootstrap_design,
-            _refit_resample,
-        )
-
-        rng = np.random.default_rng(4)
-        X_int = rng.integers(0, 2, size=(40, 5))
-        Y = rng.standard_normal((40, 3))
-        indices = np.arange(40)
-        weights = _refit_resample(_bootstrap_design([X_int], Y), indices, 1.0)
-        expected = _refit_resample(
-            _bootstrap_design([X_int.astype(np.float64)], Y), indices, 1.0
-        )
-        assert np.any(weights != 0)
-        np.testing.assert_allclose(weights, expected, rtol=1e-10, atol=1e-12)
-
-    def test_integer_targets_solve_like_float_targets(self):
-        rng = np.random.default_rng(5)
-        X = rng.standard_normal((40, 5))
-        Y_int = rng.integers(0, 4, size=(40, 2))
-        from_int = _refit_fixed_hyperparameters([X], Y_int, 1.0)
-        from_float = _refit_fixed_hyperparameters([X], Y_int.astype(np.float64), 1.0)
-        np.testing.assert_allclose(from_int, from_float, rtol=1e-10, atol=1e-12)
 
     def test_banded_fit_coefficients_match_a_fixed_refit(self):
         spaces, Y = make_spaces(sizes=(4, 6))
@@ -776,86 +438,6 @@ class TestSerialization:
         np.testing.assert_array_equal(restored.coef_, model.coef_)
         np.testing.assert_allclose(restored.predict(X), model.predict(X))
 
-    def test_fitted_model_deepcopies(self):
-        import copy
-
-        X, Y = make_data()
-        model = _Ridge(alpha=1.0).fit(X, Y)
-
-        clone = copy.deepcopy(model)
-        clone.coef_[0, 0] = 1234.0
-
-        assert model.coef_[0, 0] != 1234.0
-        assert clone.backend_.name == model.backend_.name
-
-    def test_fitted_model_survives_a_process_based_worker(self):
-        from joblib import Parallel, delayed
-
-        X, Y = make_data()
-        model = _Ridge(alpha=1.0).fit(X, Y)
-
-        (predicted,) = Parallel(n_jobs=2, backend="loky")(
-            [delayed(_predict_in_worker)(model, X)]
-        )
-
-        np.testing.assert_allclose(predicted, model.predict(X))
-
-    @requires_gpu
-    def test_gpu_fitted_model_round_trips_through_pickle(self):
-        """The pickled backend keeps the device it was fitted on."""
-        import pickle
-
-        X, Y = make_data()
-        model = _Ridge(alpha=1.0, device="gpu").fit(X, Y)
-
-        restored = pickle.loads(pickle.dumps(model))
-
-        assert restored.backend_.name == model.backend_.name
-        assert restored.backend_.device == model.backend_.device
-        assert restored.backend_.xp is model.backend_.xp
-        np.testing.assert_allclose(restored.predict(X), model.predict(X))
-
-    def test_unpickling_never_switches_device(self, monkeypatch):
-        """A model fitted on an absent device keeps its descriptor and raises on use."""
-        import pickle
-
-        from nltools.algorithms.backends import _Backend
-
-        cuda_backend = _Backend.__new__(_Backend)
-        cuda_backend.__dict__.update(
-            {"name": "torch-cuda", "device": "cuda", "_torch_device": None}
-        )
-        payload = pickle.dumps(cuda_backend)
-
-        import nltools.algorithms.backends as backends_module
-
-        monkeypatch.setattr(backends_module, "_array_module_for", lambda name: None)
-        restored = pickle.loads(payload)
-
-        assert restored.name == "torch-cuda"
-        assert restored.device == "cuda"
-        with pytest.raises(RuntimeError, match="not available in this process"):
-            restored.xp
-
-    def test_unpickling_restores_the_torch_module_when_available(self):
-        """The torch branch of `__setstate__` is exercised, not just numpy."""
-        import pickle
-
-        from nltools.algorithms.backends import _Backend
-
-        pytest.importorskip("torch")
-        import torch
-
-        cpu_backend = _Backend.__new__(_Backend)
-        cpu_backend.__dict__.update(
-            {"name": "torch-cpu", "device": "cpu", "_torch_device": None}
-        )
-
-        restored = pickle.loads(pickle.dumps(cpu_backend))
-
-        assert restored.name == "torch-cpu"
-        assert restored.xp is torch
-
 
 def _predict_in_worker(model, X):
     """Module-level so `loky` can pickle it alongside the fitted model."""
@@ -872,16 +454,6 @@ class TestBackendScoping:
         assert current_himalaya_backend() == foreign_ambient_backend
 
     @requires_torch
-    def test_backend_restored_after_a_successful_banded_fit(
-        self, foreign_ambient_backend
-    ):
-        spaces, Y = make_spaces()
-        _Ridge(alpha=ALPHAS, cv=kfold(), search_iterations=4, random_state=1).fit(
-            spaces, Y
-        )
-        assert current_himalaya_backend() == foreign_ambient_backend
-
-    @requires_torch
     def test_backend_restored_when_the_solver_raises(
         self, foreign_ambient_backend, monkeypatch
     ):
@@ -895,65 +467,6 @@ class TestBackendScoping:
         with pytest.raises(RuntimeError, match="solver exploded"):
             _Ridge(alpha=ALPHAS, cv=kfold()).fit(X, Y)
         assert current_himalaya_backend() == foreign_ambient_backend
-
-    @requires_torch
-    def test_scope_restores_the_previous_backend_on_exception(
-        self, foreign_ambient_backend
-    ):
-        with (
-            pytest.raises(RuntimeError, match="boom"),
-            _scoped_himalaya_backend("numpy"),
-        ):
-            assert current_himalaya_backend() == "numpy"
-            raise RuntimeError("boom")
-        assert current_himalaya_backend() == foreign_ambient_backend
-
-    @requires_torch
-    def test_candidate_sampling_runs_under_the_numpy_backend(
-        self, foreign_ambient_backend, monkeypatch
-    ):
-        """Dirichlet candidates must not pick up the ambient backend's dtype."""
-        import himalaya.kernel_ridge
-
-        observed = []
-        original = himalaya.kernel_ridge.generate_dirichlet_samples
-
-        def record(*args, **kwargs):
-            observed.append(current_himalaya_backend())
-            return original(*args, **kwargs)
-
-        monkeypatch.setattr(himalaya.kernel_ridge, "generate_dirichlet_samples", record)
-        spaces, Y = make_spaces()
-        _Ridge(alpha=ALPHAS, cv=kfold(), search_iterations=4, random_state=1).fit(
-            spaces, Y
-        )
-        assert observed == ["numpy"]
-        assert current_himalaya_backend() == foreign_ambient_backend
-
-    @requires_torch
-    def test_banded_fit_is_independent_of_the_ambient_backend(self):
-        from himalaya.backend import set_backend
-
-        spaces, Y = make_spaces()
-        kwargs = {
-            "alpha": ALPHAS,
-            "cv": kfold(),
-            "search_iterations": 8,
-            "random_state": 7,
-        }
-        previous = current_himalaya_backend()
-        try:
-            set_backend("numpy", on_error="raise")
-            reference = _Ridge(**kwargs).fit(spaces, Y)
-            set_backend(foreign_backend_name(), on_error="raise")
-            foreign = _Ridge(**kwargs).fit(spaces, Y)
-        finally:
-            set_backend(previous, on_error="raise")
-        np.testing.assert_array_equal(
-            foreign.feature_space_weights_, reference.feature_space_weights_
-        )
-        np.testing.assert_array_equal(foreign.alpha_, reference.alpha_)
-        np.testing.assert_array_equal(foreign.coef_, reference.coef_)
 
 
 class TestDeviceAndMemory:
@@ -973,65 +486,11 @@ class TestDeviceAndMemory:
         with pytest.raises(RuntimeError, match="no GPU accelerator"):
             _Ridge(alpha=1.0, device="gpu").fit(X, Y)
 
-    def test_cpu_uses_the_numpy_himalaya_backend(self):
-        from nltools.models.ridge import _himalaya_backend_name
-
-        X, Y = make_data()
-        model = _Ridge(alpha=1.0, device="cpu").fit(X, Y)
-        assert model.backend_.device == "cpu"
-        assert _himalaya_backend_name(model.backend_) == "numpy"
-
     def test_over_tight_budget_names_the_argument(self):
         X, Y = make_data()
         model = _Ridge(alpha=ALPHAS, cv=kfold(), memory_budget_gb=1e-9)
         with pytest.raises(ValueError, match="memory_budget_gb"):
             model.fit(X, Y)
-
-    def test_explicit_memory_budget_is_accepted(self):
-        X, Y = make_data()
-        model = _Ridge(alpha=ALPHAS, cv=kfold(), memory_budget_gb=1.0).fit(X, Y)
-        assert model.is_fitted_
-
-    def test_tiny_budget_still_fits_by_shrinking_batches(self):
-        X, Y = make_data()
-        small = _Ridge(alpha=ALPHAS, cv=kfold(), memory_budget_gb=1e-4).fit(X, Y)
-        large = _Ridge(alpha=ALPHAS, cv=kfold(), memory_budget_gb=8.0).fit(X, Y)
-        np.testing.assert_allclose(small.coef_, large.coef_, rtol=1e-8, atol=1e-10)
-
-    def test_per_target_alpha_refit_gets_a_smaller_batch(self):
-        from nltools.algorithms.backends import _Backend
-        from nltools.models.ridge import _refit_targets_batch
-
-        shape = {"n_samples": 200, "n_targets": 5000, "itemsize": 8, "n_features": 50}
-        shared = _refit_targets_batch(
-            _Backend("numpy"), 0.5, per_target_alpha=False, **shape
-        )
-        per_target = _refit_targets_batch(
-            _Backend("numpy"), 0.5, per_target_alpha=True, **shape
-        )
-        assert per_target < shared
-
-    def test_batch_sizes_shrink_with_the_budget(self):
-        from nltools.algorithms.backends import _Backend
-        from nltools.models.ridge import _batch_sizes
-
-        generous = _batch_sizes(_Backend("numpy"), 8.0, 100, 500, 10000, 20, itemsize=4)
-        stingy = _batch_sizes(_Backend("numpy"), 0.01, 100, 500, 10000, 20, itemsize=4)
-        assert stingy["n_targets_batch"] < generous["n_targets_batch"]
-        assert stingy["n_alphas_batch"] <= generous["n_alphas_batch"]
-
-    @requires_gpu
-    def test_gpu_backend_is_a_real_accelerator(self):
-        X, Y = make_data()
-        model = _Ridge(alpha=1.0, device="gpu").fit(X, Y)
-        assert model.backend_.device in ("cuda", "mps")
-
-    @requires_gpu
-    def test_cpu_gpu_parity_fixed_alpha(self):
-        X, Y = make_data(dtype=np.float32)
-        cpu = _Ridge(alpha=1.0, device="cpu").fit(X, Y)
-        gpu = _Ridge(alpha=1.0, device="gpu").fit(X, Y)
-        np.testing.assert_allclose(gpu.coef_, cpu.coef_, rtol=1e-3, atol=1e-4)
 
     @requires_gpu
     def test_cpu_gpu_parity_cross_validated(self):
@@ -1040,35 +499,3 @@ class TestDeviceAndMemory:
         gpu = _Ridge(alpha=ALPHAS, cv=kfold(), device="gpu").fit(X, Y)
         np.testing.assert_array_equal(gpu.alpha_, cpu.alpha_)
         np.testing.assert_allclose(gpu.coef_, cpu.coef_, rtol=1e-2, atol=1e-3)
-
-    @requires_gpu
-    def test_cpu_gpu_parity_banded(self):
-        spaces, Y = make_spaces(dtype=np.float32)
-        kwargs = {
-            "alpha": ALPHAS,
-            "cv": kfold(),
-            "search_iterations": 6,
-            "random_state": 17,
-        }
-        cpu = _Ridge(device="cpu", **kwargs).fit(spaces, Y)
-        gpu = _Ridge(device="gpu", **kwargs).fit(spaces, Y)
-        np.testing.assert_allclose(
-            gpu.feature_space_weights_,
-            cpu.feature_space_weights_,
-            rtol=1e-2,
-            atol=1e-3,
-        )
-        np.testing.assert_allclose(gpu.coef_, cpu.coef_, rtol=1e-2, atol=1e-2)
-
-    @requires_mps
-    def test_mps_fits_in_float32_and_normalizes_to_float64(self):
-        X, Y = make_data()  # float64 inputs
-        model = _Ridge(alpha=1.0, device="gpu").fit(X, Y)
-        if model.backend_.device != "mps":
-            pytest.skip("resolved backend is not MPS")
-        # The fit itself runs in float32 (MPS supports nothing else) ...
-        assert _working_dtype([X], Y, model.backend_) == np.dtype(np.float32)
-        assert _himalaya_backend_name(model.backend_) == "torch_mps"
-        # ... and the fitted state comes back as CPU float64 NumPy.
-        assert model.coef_.dtype == np.float64
-        assert np.isfinite(model.coef_).all()

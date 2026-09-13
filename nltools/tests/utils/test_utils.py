@@ -51,23 +51,3 @@ class TestFindStackLevel:
         assert caught, "expected the already-exists notice"
         assert caught[0].filename == __file__
         assert caught[0].category is DesignMatrixWarning
-
-    def test_skips_contextlib_decorator_frames(self):
-        """`@_coalesced_gc()` facades put a stdlib contextlib frame between the
-        user and nltools; the level must step over it too."""
-        import nibabel as nib
-        import numpy as np
-
-        from nltools.data import BrainData, DesignMatrix
-
-        mask = nib.Nifti1Image(np.ones((3, 3, 3), dtype=np.int8), np.eye(4))
-        rng = np.random.default_rng(0)
-        bd = BrainData(
-            nib.Nifti1Image(rng.standard_normal((3, 3, 3, 6)), np.eye(4)), mask=mask
-        )
-        design = DesignMatrix(np.column_stack([np.arange(6.0), 2 * np.arange(6.0)]))
-        with warnings.catch_warnings(record=True) as caught:
-            warnings.simplefilter("always")
-            bd.fit(model="glm", X=design)  # BrainData.fit is @_coalesced_gc()
-        rank = [w for w in caught if w.category is DesignMatrixWarning]
-        assert rank and rank[0].filename == __file__

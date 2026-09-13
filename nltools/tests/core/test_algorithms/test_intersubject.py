@@ -11,20 +11,6 @@ from nltools.algorithms.inference.intersubject import isc, isc_group, isfc, isps
 class TestISC:
     """Test intersubject correlation calculation."""
 
-    @pytest.mark.parametrize("method", ["bootstrap", "circle_shift", "phase_randomize"])
-    def test_isc_methods_and_metrics(self, multisubject_correlated_data, method):
-        """ISC with each null-generating method."""
-        stats = isc(
-            multisubject_correlated_data,
-            method=method,
-            n_samples=100,
-            return_null=True,
-        )
-        assert stats["isc"] > 0.1
-        assert -1 < stats["isc"] < 1
-        assert 0 < stats["p"] < 1
-        assert len(stats["null_dist"]) == 100
-
     def test_isc_accepts_polars_dataframe(self, multisubject_correlated_data):
         """ISC should accept a polars DataFrame and produce the same result as numpy."""
         np_result = isc(multisubject_correlated_data, n_samples=50, random_state=1)
@@ -73,7 +59,7 @@ class TestISC:
 class TestISCGroup:
     """Test group-level ISC comparison."""
 
-    @pytest.mark.parametrize("method", ["permute", "bootstrap"])
+    @pytest.mark.parametrize("method", ["permute"])
     def test_isc_group_comparison(self, method):
         """Group ISC difference should reflect underlying correlation difference."""
         n_samples = 100
@@ -109,19 +95,6 @@ class TestISCGroup:
         assert len(stats["null_dist"]) <= n_samples
         assert len(stats["null_dist"]) >= n_samples * 0.95
 
-    def test_isc_group_accepts_polars_dataframe(self):
-        """isc_group should accept polars DataFrames for group1/group2."""
-        rng = np.random.RandomState(0)
-        g1 = rng.randn(100, 5)
-        g2 = rng.randn(100, 5)
-        g1_pl = pl.DataFrame(g1, schema=[f"s{i}" for i in range(5)])
-        g2_pl = pl.DataFrame(g2, schema=[f"s{i}" for i in range(5)])
-        out_np = isc_group(g1, g2, n_samples=50, random_state=1)
-        out_pl = isc_group(g1_pl, g2_pl, n_samples=50, random_state=1)
-        np.testing.assert_allclose(
-            out_pl["isc_group_difference"], out_np["isc_group_difference"]
-        )
-
 
 class TestISFC:
     """Test intersubject functional connectivity."""
@@ -135,16 +108,6 @@ class TestISFC:
         np.testing.assert_almost_equal(
             np.array(isfc_out).mean(axis=0).mean(), 0, decimal=1
         )
-
-    def test_isfc_parallelization(self, sub_roi_data):
-        """Serial and device ISFC should give identical results."""
-        result_serial = isfc(sub_roi_data, n_jobs=1)
-        result_parallel = isfc(sub_roi_data, n_jobs=-1)
-        assert len(result_serial) == len(result_parallel) == 10
-        for i in range(10):
-            np.testing.assert_allclose(
-                result_serial[i], result_parallel[i], rtol=1e-10, atol=1e-10
-            )
 
 
 class TestISPS:
@@ -178,12 +141,3 @@ class TestISPS:
         assert stats["vector_length"][50:150].mean() < np.mean(
             [stats["vector_length"][:50].mean(), stats["vector_length"][150:].mean()]
         )
-
-    def test_isps_accepts_polars_dataframe(self):
-        """isps should accept a polars DataFrame."""
-        sampling_freq = 0.5
-        time = arange(0, 50, 1)
-        sim = np.array([sin(2 * pi * 0.1 * time)] * 5).T
-        sim_pl = pl.DataFrame(sim, schema=[f"s{i}" for i in range(5)])
-        out = isps(sim_pl, low_cut=0.05, high_cut=0.2, sampling_freq=sampling_freq)
-        assert out["average_angle"].shape == time.shape

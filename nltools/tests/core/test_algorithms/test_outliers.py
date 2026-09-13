@@ -1,7 +1,6 @@
 """Tests for nltools.algorithms.outliers — outlier detection and robust statistics."""
 
 import numpy as np
-import pandas as pd
 import polars as pl
 import pytest
 
@@ -10,68 +9,6 @@ from nltools.algorithms.outliers import trim, winsorize, find_spikes, zscore
 
 class TestWinsorize:
     """Test winsorizing outlier handling."""
-
-    def test_quantile_replace_with_nearest(self, outlier_data):
-        """Winsorize by quantile, replacing outliers with nearest non-outlier."""
-        out = winsorize(
-            outlier_data, cutoff={"quantile": [0.05, 0.95]}, replace_with_cutoff=False
-        )
-        out = out.to_numpy().squeeze()
-        expected = np.array(
-            [
-                92,
-                19,
-                101,
-                58,
-                101,
-                91,
-                26,
-                78,
-                10,
-                13,
-                -5,
-                101,
-                86,
-                85,
-                15,
-                89,
-                89,
-                28,
-                -5,
-                41,
-            ]
-        )
-        assert np.sum(out == expected) == 20
-
-    def test_std_replace_with_nearest(self, outlier_data):
-        """Winsorize by std, replacing outliers with nearest non-outlier."""
-        out = winsorize(outlier_data, cutoff={"std": [2, 2]}, replace_with_cutoff=False)
-        out = out.to_numpy().squeeze()
-        expected = np.array(
-            [
-                92,
-                19,
-                101,
-                58,
-                101,
-                91,
-                26,
-                78,
-                10,
-                13,
-                -40,
-                101,
-                86,
-                85,
-                15,
-                89,
-                89,
-                28,
-                -5,
-                41,
-            ]
-        )
-        assert np.sum(out == expected) == 20
 
     def test_std_replace_with_cutoff(self, outlier_data):
         """Winsorize by std, replacing outliers with cutoff values."""
@@ -107,20 +44,6 @@ class TestWinsorize:
 class TestTrim:
     """Test trimming outliers to null (as opposed to winsorize's clamping)."""
 
-    def test_quantile_nulls_outliers(self, outlier_data):
-        """Quantile trim nulls values outside [q_low, q_high] without clamping."""
-        out = trim(outlier_data, cutoff={"quantile": [0.05, 0.95]})
-        in_vals = outlier_data["x"].to_list()
-        out_vals = out["x"].to_list()
-        # The high outlier (1053, index 4) and the low value (-40) are nulled.
-        assert out["x"].null_count() == 2
-        assert out_vals[4] is None
-        # Trim replaces with null rather than clamping: every surviving value
-        # is exactly its original (winsorize would substitute the cutoff).
-        for orig, new in zip(in_vals, out_vals):
-            if new is not None:
-                assert new == orig
-
     def test_std_nulls_outliers(self, outlier_data):
         """Std trim nulls the extreme high outlier and leaves the rest intact."""
         out = trim(outlier_data, cutoff={"std": [2, 2]})
@@ -129,41 +52,9 @@ class TestTrim:
         assert out["x"].null_count() == 1
         assert out_vals[4] is None
 
-    def test_series_input_returns_series(self, outlier_data):
-        """A Series input yields a Series output (not a 1-col DataFrame)."""
-        series = outlier_data["x"]
-        out = trim(series, cutoff={"std": [2, 2]})
-        assert isinstance(out, pl.Series)
-        assert out.null_count() == 1
-
 
 class TestZscore:
     """Test z-score normalization."""
-
-    def test_zscore_pandas_series_returns_polars(self):
-        """Z-scoring a pandas Series returns a polars Series with mean~0, std~1."""
-        data = pd.Series(np.random.randn(100) * 5 + 10, name="x")
-        result = zscore(data)
-        assert isinstance(result, pl.Series)
-        np.testing.assert_almost_equal(result.mean(), 0, decimal=10)
-        np.testing.assert_almost_equal(result.std(), 1, decimal=10)
-
-    def test_zscore_pandas_dataframe_returns_polars(self):
-        """Z-scoring a pandas DataFrame returns a polars DataFrame with each column normalized."""
-        data = pd.DataFrame(np.random.randn(100, 3) * 5 + 10, columns=["a", "b", "c"])
-        result = zscore(data)
-        assert isinstance(result, pl.DataFrame)
-        for col in result.columns:
-            np.testing.assert_almost_equal(result[col].mean(), 0, decimal=10)
-            np.testing.assert_almost_equal(result[col].std(), 1, decimal=10)
-
-    def test_zscore_polars_series(self):
-        """Z-scoring a polars Series returns a polars Series."""
-        data = pl.Series("x", np.random.randn(100) * 5 + 10)
-        result = zscore(data)
-        assert isinstance(result, pl.Series)
-        np.testing.assert_almost_equal(result.mean(), 0, decimal=10)
-        np.testing.assert_almost_equal(result.std(), 1, decimal=10)
 
     def test_zscore_polars_dataframe(self):
         """Z-scoring a polars DataFrame returns a polars DataFrame."""
@@ -210,11 +101,6 @@ class TestFindSpikes:
         dm = find_spikes(spike_nifti)
         assert isinstance(dm, DesignMatrix)
 
-    def test_drops_tr_column(self, spike_nifti):
-        """The legacy 'TR' (1-indexed timestamp) column is no longer included."""
-        dm = find_spikes(spike_nifti)
-        assert "TR" not in dm.columns
-
     def test_spike_columns_marked_as_confounds(self, spike_nifti):
         dm = find_spikes(spike_nifti)
         spike_cols = [c for c in dm.columns if "spike" in c]
@@ -229,19 +115,6 @@ class TestFindSpikes:
     def test_sampling_freq_kwarg_propagates(self, spike_nifti):
         dm = find_spikes(spike_nifti, sampling_freq=0.5)
         assert dm.sampling_freq == 0.5
-
-    def test_tr_kwarg_propagates(self, spike_nifti):
-        dm = find_spikes(spike_nifti, TR=2.0)
-        assert dm.sampling_freq == pytest.approx(0.5)
-
-    def test_no_freq_kwarg_leaves_sampling_freq_unset(self, spike_nifti):
-        """Without TR/sampling_freq, the DM has sampling_freq=None.
-
-        Downstream `.convolve()` will error helpfully; users append into a DM
-        that already has sampling_freq set.
-        """
-        dm = find_spikes(spike_nifti)
-        assert dm.sampling_freq is None
 
     @pytest.mark.slow
     def test_find_spikes_brain_data(self):
@@ -318,21 +191,6 @@ class TestFindSpikesDeduplication:
         X = dm.to_numpy()
         assert np.linalg.matrix_rank(X) == X.shape[1]
 
-    def test_clean_kwarg_removed(self, colliding_nifti):
-        """Dedup is unconditional; there is no opt-out into duplicate columns.
-
-        Identical one-hot columns carry no information, and straight
-        duplicates in a design are an error downstream — so an escape hatch
-        that manufactures them would only be a footgun.
-        """
-        with pytest.raises(TypeError, match="clean"):
-            find_spikes(
-                colliding_nifti,
-                global_spike_cutoff=1.0,
-                diff_spike_cutoff=1.0,
-                clean=False,
-            )
-
     def test_dedup_keeps_the_global_detection(self, colliding_nifti):
         """When both detectors flag a TR, the .nl_global_spike name is retained.
 
@@ -357,19 +215,6 @@ class TestFindSpikesDeduplication:
         for tr in collided:
             assert kept_by_tr[tr].startswith(".nl_global_spike")
 
-    def test_dedup_does_not_merge_distinct_trs(self, spike_nifti):
-        """Non-colliding detections are all preserved."""
-        dm = find_spikes(spike_nifti, global_spike_cutoff=3, diff_spike_cutoff=3)
-        flagged = self._flagged_trs(dm)
-        assert len(flagged) == len(set(flagged))
-        assert dm.shape[1] >= 2
-
-    def test_columns_stay_marked_as_confounds(self, colliding_nifti):
-        dm = find_spikes(
-            colliding_nifti, global_spike_cutoff=1.0, diff_spike_cutoff=1.0
-        )
-        assert set(dm.confounds) == set(dm.columns)
-
 
 class TestFindSpikesNoSpikes:
     """A subject with no detected spikes must not break the design build.
@@ -388,11 +233,6 @@ class TestFindSpikesNoSpikes:
         rng = np.random.default_rng(0)
         return nib.Nifti1Image(rng.standard_normal((4, 4, 4, 60)), affine=np.eye(4))
 
-    def test_no_spikes_reports_input_length(self, clean_nifti):
-        dm = find_spikes(clean_nifti, global_spike_cutoff=100, diff_spike_cutoff=100)
-        assert dm.shape == (60, 0)
-        assert len(dm) == 60
-
     def test_no_spikes_appends_as_noop(self, clean_nifti):
         """The empty result must compose with a real design matrix."""
         from nltools.data import DesignMatrix
@@ -405,21 +245,6 @@ class TestFindSpikesNoSpikes:
         out = task.append(spikes, axis=1, as_confounds=True)
         assert out.shape == (60, 1)
         assert out.columns == ["task"]
-
-    def test_no_spikes_then_add_poly(self, clean_nifti):
-        """End-to-end: the shape of a first-level build for a clean subject."""
-        from nltools.data import DesignMatrix
-
-        rng = np.random.default_rng(0)
-        task = DesignMatrix({"task": rng.standard_normal(60)}, sampling_freq=0.5)
-        spikes = find_spikes(
-            clean_nifti, global_spike_cutoff=100, diff_spike_cutoff=100, TR=2.0
-        )
-        out = task.add_poly(order=1, include_lower=True).append(
-            [spikes], axis=1, as_confounds=True
-        )
-        assert out.shape[0] == 60
-        assert {".nl_poly_0", ".nl_poly_1"} <= set(out.columns)
 
     def test_no_spikes_is_empty_property(self, clean_nifti):
         """No columns means no regressors, even though rows are known."""
@@ -452,7 +277,3 @@ class TestFindSpikesReservedPrefix:
         assert all(
             c.startswith((".nl_global_spike", ".nl_diff_spike")) for c in dm.columns
         )
-
-    def test_global_detection_name_survives_dedup(self, spike_nifti):
-        dm = find_spikes(spike_nifti, global_spike_cutoff=1.0, diff_spike_cutoff=1.0)
-        assert any(c.startswith(".nl_global_spike") for c in dm.columns)

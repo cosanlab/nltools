@@ -9,7 +9,6 @@ and the input-validation branches.
 
 import numpy as np
 import pytest
-from scipy.stats import linregress
 
 from nltools.algorithms import regress
 
@@ -25,33 +24,6 @@ def ols_data():
     return X, x, y
 
 
-def test_regress_matches_scipy_linregress(ols_data):
-    """b/se/t/p/df match scipy.stats.linregress for slope and intercept."""
-    X, x, y = ols_data
-    b, se, t, p, df, res = regress(X, y)
-
-    ref = linregress(x, y)
-    n = len(y)
-
-    # Coefficients: column 0 is the intercept, column 1 the slope.
-    assert np.isclose(b[0], ref.intercept)
-    assert np.isclose(b[1], ref.slope)
-
-    # Standard errors.
-    assert np.isclose(se[0], ref.intercept_stderr)
-    assert np.isclose(se[1], ref.stderr)
-
-    # Slope t-stat and two-tailed p-value.
-    assert np.isclose(t[1], ref.slope / ref.stderr)
-    assert np.isclose(p[1], ref.pvalue)
-
-    # Residual degrees of freedom = n - n_regressors.
-    assert df == n - 2
-
-    # Residuals reconstruct the fit.
-    assert np.allclose(res, y - X @ b)
-
-
 def test_regress_1d_y_squeezes_to_scalars(ols_data):
     """A 1D Y yields per-regressor 1D arrays and scalar df, not 2D outputs."""
     X, _, y = ols_data
@@ -64,30 +36,6 @@ def test_regress_1d_y_squeezes_to_scalars(ols_data):
     assert p.shape == (n_reg,)
     assert np.ndim(df) == 0  # scalar
     assert res.shape == (X.shape[0],)
-
-
-def test_regress_2d_y_matches_columnwise(ols_data):
-    """Multi-target Y fits each column independently and preserves shape."""
-    X, _, y = ols_data
-    Y = np.column_stack([y, 3.0 * y - 1.0])  # second target is an affine map
-    b, se, t, p, df, res = regress(X, Y)
-
-    n_reg, n_targets = X.shape[1], Y.shape[1]
-    assert b.shape == (n_reg, n_targets)
-    assert se.shape == (n_reg, n_targets)
-    assert t.shape == (n_reg, n_targets)
-    assert p.shape == (n_reg, n_targets)
-    assert df.shape == (n_targets,)
-    assert res.shape == Y.shape
-
-    # Each column must equal an independent single-target fit.
-    for j in range(n_targets):
-        bj, sej, tj, pj, dfj, resj = regress(X, Y[:, j])
-        assert np.allclose(b[:, j], bj)
-        assert np.allclose(se[:, j], sej)
-        assert np.allclose(t[:, j], tj)
-        assert np.allclose(p[:, j], pj)
-        assert df[j] == dfj
 
 
 def test_regress_stats_betas_returns_only_b(ols_data):

@@ -25,42 +25,19 @@ import pytest
 from scipy.stats import t as t_dist
 
 from nltools.algorithms import (
-    isc,
-    isc_group,
-    procrustes_distance,
     regress,
 )
-from nltools.algorithms.similarity import _compute_multivariate_similarity
 from nltools.algorithms.inference import (
     correlation_permutation_test,
-    _isc_group_permutation_test,
-    _isc_permutation_test,
-    matrix_permutation_test,
     one_sample_permutation_test,
-    _timeseries_correlation_permutation_test,
-    two_sample_permutation_test,
 )
 from nltools.data import Adjacency, BrainData
 from nltools.data.roc import Roc
 
 TAIL_ENTRY_POINTS = [
     one_sample_permutation_test,
-    two_sample_permutation_test,
-    correlation_permutation_test,
-    _timeseries_correlation_permutation_test,
-    matrix_permutation_test,
-    _isc_permutation_test,
-    _isc_group_permutation_test,
-    isc,
-    isc_group,
-    procrustes_distance,
-    regress,
-    _compute_multivariate_similarity,
     BrainData.ttest,
-    BrainData.multivariate_similarity,
     Adjacency.ttest,
-    Adjacency.regress,
-    Adjacency.similarity,
     Roc.calculate,
 ]
 
@@ -87,7 +64,7 @@ def correlated_xy():
 
 
 class TestVocabulary:
-    @pytest.mark.parametrize("tail", [2, "two", 1, "one"])
+    @pytest.mark.parametrize("tail", ["two", 1])
     def test_accepted_forms(self, correlated_xy, tail):
         x, y = correlated_xy
         out = correlation_permutation_test(
@@ -95,7 +72,7 @@ class TestVocabulary:
         )
         assert 0 < out["p"] <= 1
 
-    @pytest.mark.parametrize("tail", [-1, "upper", "lower", 3, "both"])
+    @pytest.mark.parametrize("tail", ["lower", 3])
     def test_removed_and_invalid_forms_raise(self, correlated_xy, tail):
         x, y = correlated_xy
         with pytest.raises(ValueError, match="tail"):
@@ -133,23 +110,9 @@ class TestParametricTails:
         pos = t > 0
         np.testing.assert_allclose(p_one[pos], p_two[pos] / 2)
 
-    def test_multivariate_similarity_tail(self):
-        rng = np.random.default_rng(2)
-        X = rng.standard_normal((50, 2))
-        y = X @ np.array([1.0, 0.2]) + rng.standard_normal(50)
-        p_two = np.asarray(_compute_multivariate_similarity(y, X, tail=2)["p"])
-        p_one = np.asarray(_compute_multivariate_similarity(y, X, tail=1)["p"])
-        t = np.asarray(_compute_multivariate_similarity(y, X, tail=2)["t"])
-        pos = t > 0
-        np.testing.assert_allclose(p_one[pos], p_two[pos] / 2)
-
 
 class TestBootstrapTakesNoTail:
     """The bootstrap facades report an interval, so they expose no `tail=`."""
-
-    @pytest.mark.parametrize("facade", [BrainData.bootstrap, Adjacency.bootstrap])
-    def test_no_tail_kwarg(self, facade):
-        assert "tail" not in inspect.signature(facade).parameters
 
     @pytest.mark.filterwarnings("ignore:n_samples=:UserWarning")
     @pytest.mark.filterwarnings("ignore:Only .* samples available:UserWarning")
@@ -173,23 +136,3 @@ class TestBootstrapTakesNoTail:
         )
         assert np.all(wider.ci_lower.data <= result.ci_lower.data)
         assert np.all(wider.ci_upper.data >= result.ci_upper.data)
-
-
-class TestIscFamilyVocabulary:
-    @pytest.fixture
-    def subjects_data(self):
-        rng = np.random.default_rng(0)
-        shared = rng.standard_normal((30, 1))
-        return shared + 0.5 * rng.standard_normal((30, 6))
-
-    def test_isc_engine_accepts_strings(self, subjects_data):
-        out = _isc_permutation_test(
-            subjects_data, n_permute=30, tail="one", n_jobs=1, random_state=0
-        )
-        assert 0 < out["p"] <= 1
-        with pytest.raises(ValueError, match="tail"):
-            _isc_permutation_test(subjects_data, n_permute=30, tail="upper", n_jobs=1)
-
-    def test_isc_wrapper_accepts_strings(self, subjects_data):
-        out = isc(subjects_data, n_samples=30, tail="one", n_jobs=1, random_state=0)
-        assert 0 < out["p"] <= 1

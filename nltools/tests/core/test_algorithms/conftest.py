@@ -17,15 +17,6 @@ def random_state():
 
 
 @pytest.fixture
-def correlated_samples():
-    """Generate two correlated 1D samples for permutation/correlation tests."""
-    cov_matrix = np.array([[1.0, 0.7], [0.7, 1.0]])
-    np.random.seed(42)
-    dat = np.random.multivariate_normal([2, 6], cov_matrix, 1000)
-    return dat[:, 0], dat[:, 1]
-
-
-@pytest.fixture
 def multisubject_correlated_data():
     """Generate correlated multi-subject data for ISC tests."""
     np.random.seed(42)

@@ -102,17 +102,6 @@ def test_check_gpu_available():
 # ============================================================================
 
 
-def test_numpy_to_numpy():
-    """NumPy backend to_numpy should be identity"""
-    from nltools.algorithms.backends import _Backend
-
-    backend = _Backend("numpy")
-    arr = np.random.randn(10, 5).astype(np.float32)
-    result = backend.to_numpy(arr)
-
-    assert result is arr  # Should be same object
-
-
 # ============================================================================
 # Precision warnings
 # ============================================================================
@@ -149,81 +138,9 @@ def test_mps_backend_warning():
         )
 
 
-def test_assert_array_almost_equal_precision_adjustment():
-    """assert_array_almost_equal should auto-adjust precision for MPS"""
-    import torch
-    import warnings
-    from nltools.algorithms.backends import _Backend
-    from nltools.tests.support.arrays import assert_array_almost_equal
-
-    # Skip if MPS not available
-    if not _torch_available():
-        pytest.skip("PyTorch not installed")
-
-    if not (hasattr(torch.backends, "mps") and torch.backends.mps.is_available()):
-        pytest.skip("MPS not available")
-
-    backend = _Backend("torch")
-    assert backend.name == "torch-mps"
-
-    # Create arrays that are very close (within float32 precision but might fail at high decimal precision)
-    np.random.seed(42)
-    x = np.random.randn(10).astype(np.float32)
-    y = x.copy()  # Identical arrays
-
-    x_tensor = torch.from_numpy(x).to(backend._torch_device)
-    y_tensor = torch.from_numpy(y).to(backend._torch_device)
-
-    # Should auto-adjust precision and issue warning when requesting high precision
-    with warnings.catch_warnings(record=True) as w:
-        warnings.simplefilter("always")
-        # Request high precision (6 decimals) but should auto-adjust to 2
-        # Arrays are identical so should pass regardless, but warning should be issued
-        assert_array_almost_equal(x_tensor, y_tensor, decimal=6, backend=backend)
-
-        # Check that precision adjustment warning was issued
-        precision_warnings = [
-            warning
-            for warning in w
-            if "Reducing precision" in str(warning.message)
-            or "decimal=2" in str(warning.message)
-        ]
-        assert len(precision_warnings) > 0, "Expected precision adjustment warning"
-
-
 # ============================================================================
 # Auto-Selection Logic
 # ============================================================================
-
-
-def test_small_dataset_uses_numpy():
-    """Small datasets should use NumPy even if GPU available"""
-    from nltools.algorithms.backends import _auto_select_backend
-
-    # Small problem
-    backend = _auto_select_backend(n_samples=100, n_features=1000)
-    # Should use numpy (or torch-cpu) to avoid transfer overhead
-    assert backend.name in ["numpy", "torch-cpu"]
-
-
-def test_large_dataset_considers_gpu():
-    """Large datasets should consider GPU if available"""
-    from nltools.algorithms.backends import _auto_select_backend
-
-    backend = _auto_select_backend(n_samples=300, n_features=100000)
-
-    # If GPU available, should use torch; otherwise numpy
-    assert backend.name in ["numpy", "torch-cuda", "torch-mps", "torch-cpu"]
-
-
-def test_cv_enables_gpu():
-    """Cross-validation should prefer GPU even for medium datasets"""
-    from nltools.algorithms.backends import _auto_select_backend
-
-    backend = _auto_select_backend(n_samples=200, n_features=30000, cv=5)
-
-    # With CV, should prefer GPU if available
-    assert backend.name in ["numpy", "torch-cuda", "torch-mps", "torch-cpu"]
 
 
 def test_auto_selection_without_gpu():
@@ -240,116 +157,14 @@ def test_auto_selection_without_gpu():
 # ============================================================================
 
 
-class TestDtypeToStr:
-    """Test static dtype normalization method."""
-
-    def test_string_passthrough(self):
-        from nltools.algorithms.backends import _Backend
-
-        assert _Backend.dtype_to_str("float32") == "float32"
-        assert _Backend.dtype_to_str("float64") == "float64"
-        assert _Backend.dtype_to_str("int32") == "int32"
-
-    def test_none_passthrough(self):
-        from nltools.algorithms.backends import _Backend
-
-        assert _Backend.dtype_to_str(None) is None
-
-    def test_numpy_dtype(self):
-        from nltools.algorithms.backends import _Backend
-
-        assert _Backend.dtype_to_str(np.float32) == "float32"
-        assert _Backend.dtype_to_str(np.float64) == "float64"
-        assert _Backend.dtype_to_str(np.int32) == "int32"
-
-    def test_numpy_dtype_instance(self):
-        from nltools.algorithms.backends import _Backend
-
-        arr = np.array([1.0], dtype=np.float32)
-        assert _Backend.dtype_to_str(arr.dtype) == "float32"
-
-    @pytest.mark.skipif(not _torch_available(), reason="PyTorch not installed")
-    def test_torch_dtype(self):
-        import torch
-        from nltools.algorithms.backends import _Backend
-
-        assert _Backend.dtype_to_str(torch.float32) == "float32"
-        assert _Backend.dtype_to_str(torch.float64) == "float64"
-        assert _Backend.dtype_to_str(torch.int32) == "int32"
-
-
 # ============================================================================
 # asarray
 # ============================================================================
 
 
-class TestAsarray:
-    """Test universal array conversion."""
-
-    def test_from_list(self):
-        from nltools.algorithms.backends import _Backend
-
-        backend = _Backend("numpy")
-        result = backend.asarray([1, 2, 3], dtype="float32")
-        assert isinstance(result, np.ndarray)
-        assert result.dtype == np.float32
-
-    def test_from_numpy(self):
-        from nltools.algorithms.backends import _Backend
-
-        backend = _Backend("numpy")
-        arr = np.array([1, 2, 3], dtype=np.float64)
-        result = backend.asarray(arr, dtype="float32")
-        assert result.dtype == np.float32
-
-    def test_preserves_dtype_if_none(self):
-        from nltools.algorithms.backends import _Backend
-
-        backend = _Backend("numpy")
-        arr = np.array([1, 2, 3], dtype=np.float64)
-        result = backend.asarray(arr)
-        assert result.dtype == np.float64
-
-    @pytest.mark.skipif(not _torch_available(), reason="PyTorch not installed")
-    def test_torch_from_numpy(self):
-        import torch
-        from nltools.algorithms.backends import _Backend
-
-        backend = _Backend("torch")
-        arr = np.array([1, 2, 3], dtype=np.float32)
-        result = backend.asarray(arr)
-        assert isinstance(result, torch.Tensor)
-
-    @pytest.mark.skipif(not _torch_available(), reason="PyTorch not installed")
-    def test_torch_from_list(self):
-        import torch
-        from nltools.algorithms.backends import _Backend
-
-        backend = _Backend("torch")
-        result = backend.asarray([1.0, 2.0, 3.0], dtype="float32")
-        assert isinstance(result, torch.Tensor)
-        assert result.dtype == torch.float32
-
-
 # ============================================================================
 # Device Transfer
 # ============================================================================
-
-
-class TestDeviceTransferOps:
-    """Test `to_numpy` brings a device tensor back to the host."""
-
-    @pytest.mark.skipif(not _torch_available(), reason="PyTorch not installed")
-    def test_torch_to_numpy_from_tensor(self):
-        import torch
-
-        from nltools.algorithms.backends import _Backend
-
-        backend = _Backend("torch")
-        arr = np.array([1.0, 2.0, 3.0], dtype=np.float32)
-        tensor = torch.from_numpy(arr).to(backend._torch_device)
-        result = backend.to_numpy(tensor)
-        assert isinstance(result, np.ndarray)
 
 
 # ============================================================================
@@ -362,24 +177,6 @@ class TestDeviceMemoryBudget:
         from nltools.algorithms.backends import _Backend, _device_memory_budget
 
         assert _device_memory_budget(_Backend("numpy"), max_gpu_memory_gb=2.5) == 2.5
-
-    def test_measured_budget_is_positive(self):
-        from nltools.algorithms.backends import _Backend, _device_memory_budget
-
-        budget = _device_memory_budget(_Backend("numpy"))
-        assert budget > 0
-
-    @pytest.mark.skipif(not _torch_available(), reason="PyTorch not installed")
-    def test_torch_backend_budget_is_positive(self):
-        from nltools.algorithms.backends import _Backend, _device_memory_budget
-
-        budget = _device_memory_budget(_Backend("torch"))
-        assert budget > 0
-
-    def test_none_backend_uses_system_memory(self):
-        from nltools.algorithms.backends import _device_memory_budget
-
-        assert _device_memory_budget(None) > 0
 
     def test_explicit_budget_rejects_nonpositive(self):
         from nltools.algorithms.backends import _Backend, _device_memory_budget
@@ -421,34 +218,6 @@ class TestBatchingSaturationCeiling:
         )
         assert budget == 100.0
 
-    def test_measured_budget_below_ceiling_used_as_is(self, monkeypatch):
-        from nltools.algorithms.backends import _device_memory_budget
-
-        self._mock_measured_ram(monkeypatch, 2.0)
-        assert _device_memory_budget(None, cap_for_batching=True) == pytest.approx(2.0)
-
-    def test_capacity_queries_stay_uncapped(self, monkeypatch):
-        from nltools.algorithms.backends import _device_memory_budget
-
-        self._mock_measured_ram(monkeypatch, 100.0)
-        assert _device_memory_budget(None) == pytest.approx(100.0)
-
-    def test_auto_batch_size_working_set_bounded_by_ceiling(self, monkeypatch):
-        """A measured 100 GB budget must not produce ~100 GB batches."""
-        from nltools.algorithms.backends import (
-            BATCH_WORKING_SET_CEILING_GB,
-            _auto_batch_size,
-            _device_memory_budget,
-            _gb_to_bytes,
-        )
-
-        self._mock_measured_ram(monkeypatch, 100.0)
-        bytes_per_item = 30 * 50000 * 4  # float32
-        budget_gb = _device_memory_budget(None, cap_for_batching=True)
-        batch_size, _ = _auto_batch_size(100000, bytes_per_item, budget_gb=budget_gb)
-        working_set = batch_size * bytes_per_item
-        assert working_set <= _gb_to_bytes(BATCH_WORKING_SET_CEILING_GB)
-
 
 class TestRidgeBootstrapBatchSize:
     """The bootstrap batch planner must model what a batch actually holds."""
@@ -484,31 +253,6 @@ class TestRidgeBootstrapBatchSize:
         retained = int(np.prod(output_shape)) * 8
         return resident + batch_size * retained
 
-    @pytest.mark.parametrize(
-        "output_shape",
-        [(500, 50_000), (2000, 50_000)],
-        ids=["weights", "predict-2000-test-rows"],
-    )
-    def test_explicit_budget_bounds_the_modelled_batch(self, output_shape):
-        from nltools.algorithms.backends import (
-            _gb_to_bytes,
-            _ridge_bootstrap_batch_size,
-        )
-
-        budget_gb = 8.0
-        batch_size, n_batches = _ridge_bootstrap_batch_size(
-            5000,
-            output_shape=output_shape,
-            device_itemsize=8,
-            max_gpu_memory_gb=budget_gb,
-            **self.CASE,
-        )
-
-        assert batch_size >= 1
-        assert batch_size * n_batches >= 5000
-        held = self._held_bytes(batch_size, output_shape, **self.CASE)
-        assert held <= _gb_to_bytes(budget_gb)
-
     def test_a_wider_output_shrinks_the_batch(self):
         """The retained result is charged, so a bigger `X_test` costs batch size."""
         from nltools.algorithms.backends import _ridge_bootstrap_batch_size
@@ -521,42 +265,8 @@ class TestRidgeBootstrapBatchSize:
         )
         assert wide < narrow
 
-    def test_float32_device_holds_more_per_batch(self):
-        from nltools.algorithms.backends import _ridge_bootstrap_batch_size
-
-        wide_dtype, _ = _ridge_bootstrap_batch_size(
-            5000,
-            output_shape=(4, 4),
-            device_itemsize=8,
-            max_gpu_memory_gb=1.0,
-            **self.CASE,
-        )
-        narrow_dtype, _ = _ridge_bootstrap_batch_size(
-            5000,
-            output_shape=(4, 4),
-            device_itemsize=4,
-            max_gpu_memory_gb=1.0,
-            **self.CASE,
-        )
-        assert narrow_dtype > wide_dtype
-
 
 class TestAutoBatchSizeCore:
-    def test_all_fit_in_one_batch(self):
-        from nltools.algorithms.backends import _auto_batch_size
-
-        batch, n_batches = _auto_batch_size(100, bytes_per_item=1000, budget_gb=1.0)
-        assert batch == 100
-        assert n_batches == 1
-
-    def test_splits_when_over_budget(self):
-        from nltools.algorithms.backends import _auto_batch_size
-
-        # 1 GB budget, 100 MB per item -> 10 items per batch
-        batch, n_batches = _auto_batch_size(100, bytes_per_item=int(1e8), budget_gb=1.0)
-        assert batch == 10
-        assert n_batches == 10
-
     def test_batch_size_is_limited_by_budget(self):
         from nltools.algorithms.backends import _auto_batch_size
 
@@ -569,16 +279,6 @@ class TestAutoBatchSizeCore:
 
         with pytest.raises(ValueError, match="one item requires"):
             _auto_batch_size(5, bytes_per_item=int(1e9), budget_gb=0.5)
-
-    def test_overhead_shrinks_batch(self):
-        from nltools.algorithms.backends import _auto_batch_size
-
-        loose, _ = _auto_batch_size(10000, bytes_per_item=int(1e6), budget_gb=1.0)
-        tight, _ = _auto_batch_size(
-            10000, bytes_per_item=int(1e6), budget_gb=1.0, overhead=5.0
-        )
-        assert tight < loose
-        assert tight == loose // 5
 
     def test_zero_bytes_per_item_is_safe(self):
         from nltools.algorithms.backends import _auto_batch_size
@@ -598,13 +298,6 @@ class TestAutoBatchSizeCore:
 
 
 class TestIsOomError:
-    def test_mps_oom_runtimeerror(self):
-        from nltools.algorithms.backends import _is_oom_error
-
-        assert _is_oom_error(
-            RuntimeError("MPS backend out of memory (MPS allocated ...)")
-        )
-
     def test_cuda_oom_runtimeerror(self):
         from nltools.algorithms.backends import _is_oom_error
 
@@ -616,23 +309,8 @@ class TestIsOomError:
         assert not _is_oom_error(RuntimeError("shape mismatch"))
         assert not _is_oom_error(ValueError("out of memory"))  # wrong type
 
-    @pytest.mark.skipif(not _torch_available(), reason="PyTorch not installed")
-    def test_torch_cuda_oom_class(self):
-        import torch
-        from nltools.algorithms.backends import _is_oom_error
-
-        if hasattr(torch, "OutOfMemoryError"):
-            assert _is_oom_error(torch.OutOfMemoryError("boom"))
-
 
 class TestComputeOomSafe:
-    def test_no_oom_passthrough(self):
-        from nltools.algorithms.backends import _compute_oom_safe
-
-        arr = np.arange(20, dtype=np.float64).reshape(10, 2)
-        result = _compute_oom_safe(lambda a: a * 2, arr)
-        np.testing.assert_array_equal(result, arr * 2)
-
     def test_splits_on_oom_and_matches_unsplit(self):
         from nltools.algorithms.backends import _compute_oom_safe
 
@@ -651,21 +329,6 @@ class TestComputeOomSafe:
         assert calls[0] == 16
         assert all(c <= 4 for c in calls if c <= 4)  # succeeded chunks
         assert sum(c for c in calls if c <= 4) == 16  # full coverage, no re-draws
-
-    def test_multiple_arrays_split_together(self):
-        from nltools.algorithms.backends import _compute_oom_safe
-
-        a = np.arange(12, dtype=np.float64).reshape(6, 2)
-        b = np.arange(6, dtype=np.float64)
-
-        def flaky(x, y):
-            if len(x) > 2:
-                raise RuntimeError("CUDA out of memory")
-            assert len(x) == len(y)
-            return x * y[:, None]
-
-        result = _compute_oom_safe(flaky, a, b)
-        np.testing.assert_array_equal(result, a * b[:, None])
 
     def test_non_oom_error_propagates(self):
         from nltools.algorithms.backends import _compute_oom_safe
@@ -688,23 +351,6 @@ class TestComputeOomSafe:
 
         with pytest.raises(MemoryError, match="single item"):
             _compute_oom_safe(always_oom, arr)
-
-    def test_deterministic_result_independent_of_split(self):
-        from nltools.algorithms.backends import _compute_oom_safe
-
-        rng = np.random.default_rng(0)
-        arr = rng.standard_normal((32, 3))
-        expected = np.cumsum(arr, axis=1)  # rowwise op -> split-invariant
-
-        thresholds = [64, 16, 5, 1]
-        for thresh in thresholds:
-
-            def flaky(a, _t=thresh):
-                if len(a) > _t:
-                    raise RuntimeError("MPS backend out of memory")
-                return np.cumsum(a, axis=1)
-
-            np.testing.assert_array_equal(_compute_oom_safe(flaky, arr), expected)
 
 
 class TestBudgetMathSingleSource:

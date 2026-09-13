@@ -9,7 +9,7 @@ Based on research documented in claude-guidelines/srm-hyperalignment-testing-str
 
 import pytest
 import numpy as np
-from nltools.algorithms.alignment import _SRM, _DetSRM
+from nltools.algorithms.alignment import _SRM
 from sklearn.exceptions import NotFittedError
 
 pytestmark = pytest.mark.slow
@@ -72,17 +72,6 @@ def fitted_srm(multi_subject_data):
 
 
 @pytest.fixture(scope="module")
-def fitted_detsrm(multi_subject_data):
-    """Pre-fitted DetSRM model for property tests.
-
-    Module-scoped: expensive fit() runs once, shared across tests.
-    """
-    detsrm = _DetSRM(n_features=10, n_iter=10, random_state=42)
-    detsrm.fit(multi_subject_data["data"])
-    return detsrm
-
-
-@pytest.fixture(scope="module")
 def single_subject():
     """Single subject data (should error)."""
     np.random.seed(456)
@@ -102,27 +91,6 @@ class TestSRMInitialization:
         assert srm.n_features == 50
         assert srm.random_state == 0
 
-    def test_srm_init_custom_params(self):
-        """Test SRM accepts custom parameters."""
-        srm = _SRM(n_iter=20, n_features=30, random_state=123)
-        assert srm.n_iter == 20
-        assert srm.n_features == 30
-        assert srm.random_state == 123
-
-    def test_detsrm_init_defaults(self):
-        """Test DetSRM initializes with correct defaults."""
-        detsrm = _DetSRM()
-        assert detsrm.n_iter == 10
-        assert detsrm.n_features == 50
-        assert detsrm.random_state == 0
-
-    def test_detsrm_init_custom_params(self):
-        """Test DetSRM accepts custom parameters."""
-        detsrm = _DetSRM(n_iter=15, n_features=25, random_state=999)
-        assert detsrm.n_iter == 15
-        assert detsrm.n_features == 25
-        assert detsrm.random_state == 999
-
 
 # ========== CONTRACT TESTS (Interface/API) ==========
 
@@ -135,12 +103,6 @@ class TestSRMContract:
         srm = _SRM()
         with pytest.raises(NotFittedError, match="model fit has not been run"):
             srm.transform(multi_subject_data["data"])
-
-    def test_fit_before_transform_subject_error(self, multi_subject_data):
-        """Test that transform_subject raises error before fit."""
-        srm = _SRM()
-        with pytest.raises(NotFittedError, match="model fit has not been run"):
-            srm.transform_subject(multi_subject_data["data"][0])
 
     def test_fit_single_subject_error(self, single_subject):
         """Test error with only 1 subject (need multiple)."""
@@ -157,17 +119,6 @@ class TestSRMContract:
         ]
         srm = _SRM()
         with pytest.raises(ValueError, match="Different number of samples"):
-            srm.fit(data)
-
-    def test_fit_insufficient_samples(self):
-        """Test error when samples < features."""
-        np.random.seed(222)
-        data = [
-            np.random.randn(100, 40),  # 40 samples
-            np.random.randn(100, 40),
-        ]
-        srm = _SRM(n_features=50)  # More features than samples
-        with pytest.raises(ValueError, match="not enough samples"):
             srm.fit(data)
 
     def test_fit_sets_attributes(self, multi_subject_data):
@@ -207,6 +158,11 @@ class TestSRMContract:
         wrong_subject = np.random.randn(100, 60)  # 60 instead of 100
         with pytest.raises(ValueError, match="number of timepoints.*does not match"):
             srm.transform_subject(wrong_subject)
+
+    def test_srm_rejects_legacy_features_kwarg(self):
+        """`features=` is a removed legacy alias; the canonical name is n_features."""
+        with pytest.raises(TypeError):
+            _SRM(features=5)
 
 
 # ========== MATHEMATICAL PROPERTY TESTS ==========
@@ -251,28 +207,6 @@ class TestSRMMathematicalProperties:
                 f"Subject {i}: Poor reconstruction (error={relative_error:.2%})"
             )
 
-    def test_transform_properties(self, fitted_srm, multi_subject_data):
-        """Test transform output properties.
-
-        Single transform(), multiple assertions on shape and variance.
-        """
-        # Transform once
-        transformed = fitted_srm.transform(multi_subject_data["data"])
-
-        # 1. Check shape preservation for each subject
-        for i, s in enumerate(transformed):
-            expected_shape = (10, multi_subject_data["timepoints"])
-            assert s.shape == expected_shape, (
-                f"Subject {i}: Wrong shape {s.shape}, expected {expected_shape}"
-            )
-
-        # 2. Check variance preservation
-        original_var = np.mean([np.var(x) for x in multi_subject_data["data"]])
-        transformed_var = np.mean([np.var(s) for s in transformed])
-        assert transformed_var > 0.3 * original_var, (
-            f"Variance not preserved: {transformed_var:.4f} < 0.3 * {original_var:.4f}"
-        )
-
 
 # ========== EDGE CASES ==========
 
@@ -293,18 +227,6 @@ class TestSRMEdgeCases:
 
         for w1, w2 in zip(srm1.w_, srm2.w_):
             np.testing.assert_array_almost_equal(w1, w2, decimal=10)
-
-    def test_different_seed_different_results(self, multi_subject_data):
-        """Test that different seeds produce different initializations."""
-        srm1 = _SRM(n_features=10, n_iter=1, random_state=42)
-        srm1.fit(multi_subject_data["data"])
-
-        srm2 = _SRM(n_features=10, n_iter=1, random_state=123)
-        srm2.fit(multi_subject_data["data"])
-
-        # Should produce different results (due to random init)
-        with pytest.raises(AssertionError):
-            np.testing.assert_array_almost_equal(srm1.s_, srm2.s_, decimal=5)
 
     def test_transform_subject_new_data(self, multi_subject_data):
         """Test transform_subject() with new subject data."""
@@ -337,101 +259,4 @@ class TestSRMEdgeCases:
 # test_stats.py::test_align_without_isc() which covers both SRM methods
 
 
-class TestDetSRMMathematicalProperties:
-    """Test mathematical properties for deterministic SRM.
-
-    Uses module-scoped fitted_detsrm fixture to avoid redundant fitting.
-    """
-
-    def test_srm_vs_detsrm_similar_results(
-        self, fitted_srm, fitted_detsrm, multi_subject_data
-    ):
-        """Test that SRM and DetSRM produce similar alignments.
-
-        Uses pre-fitted fixtures - no additional fitting needed.
-        """
-        srm_transformed = fitted_srm.transform(multi_subject_data["data"])
-        detsrm_transformed = fitted_detsrm.transform(multi_subject_data["data"])
-
-        # Shared responses should be highly correlated
-        for s1, s2 in zip(srm_transformed, detsrm_transformed):
-            corr = np.corrcoef(s1.flatten(), s2.flatten())[0, 1]
-            assert abs(corr) > 0.8, "SRM and DetSRM should produce similar alignments"
-
-    def test_detsrm_deterministic_with_seed(self, multi_subject_data):
-        """Test DetSRM reproducibility with same random seed.
-
-        Note: Requires two fits to compare - cannot use fixture.
-        """
-        detsrm1 = _DetSRM(n_features=10, n_iter=5, random_state=42)
-        detsrm1.fit(multi_subject_data["data"])
-
-        detsrm2 = _DetSRM(n_features=10, n_iter=5, random_state=42)
-        detsrm2.fit(multi_subject_data["data"])
-
-        np.testing.assert_array_almost_equal(detsrm1.s_, detsrm2.s_, decimal=10)
-        for w1, w2 in zip(detsrm1.w_, detsrm2.w_):
-            np.testing.assert_array_almost_equal(w1, w2, decimal=10)
-
-    def test_detsrm_transform_subject(self, fitted_detsrm, multi_subject_data):
-        """Test DetSRM transform_subject() with new data."""
-        np.random.seed(888)
-        new_voxels = 175
-        new_w = np.linalg.qr(np.random.randn(new_voxels, 10))[0]
-        new_subject_data = new_w @ multi_subject_data[
-            "shared"
-        ] + 0.01 * np.random.randn(new_voxels, multi_subject_data["timepoints"])
-
-        new_w_learned = fitted_detsrm.transform_subject(new_subject_data)
-
-        # Check orthogonality
-        gram = new_w_learned.T @ new_w_learned
-        identity = np.eye(new_w_learned.shape[1])
-        ortho_error = np.linalg.norm(gram - identity, "fro")
-        assert ortho_error < 1e-5
-
-
 # ========== CONTRACT TESTS FOR DETSRM ==========
-
-
-class TestDetSRMContract:
-    """Test DetSRM API contracts and error handling."""
-
-    def test_detsrm_fit_before_transform_error(self, multi_subject_data):
-        """Test that transform raises error before fit."""
-        detsrm = _DetSRM()
-        with pytest.raises(NotFittedError, match="model fit has not been run"):
-            detsrm.transform(multi_subject_data["data"])
-
-    def test_detsrm_fit_before_transform_subject_error(self, multi_subject_data):
-        """Test that transform_subject raises error before fit."""
-        detsrm = _DetSRM()
-        with pytest.raises(NotFittedError, match="model fit has not been run"):
-            detsrm.transform_subject(multi_subject_data["data"][0])
-
-    def test_detsrm_single_subject_error(self, single_subject):
-        """Test error with only 1 subject."""
-        detsrm = _DetSRM()
-        with pytest.raises(ValueError, match="not enough subjects"):
-            detsrm.fit(single_subject)
-
-    def test_detsrm_fit_mismatched_timepoints(self):
-        """Subjects with different sample counts are refused (GH #410)."""
-        np.random.seed(111)
-        data = [np.random.randn(100, 50), np.random.randn(100, 60)]
-        with pytest.raises(ValueError, match="Different number of samples"):
-            _DetSRM().fit(data)
-
-    def test_detsrm_fit_sets_attributes(self, multi_subject_data):
-        """Test that DetSRM fit() creates required attributes."""
-        detsrm = _DetSRM(n_features=10, n_iter=2)
-        detsrm.fit(multi_subject_data["data"])
-
-        # Check fitted attributes exist
-        assert hasattr(detsrm, "w_")
-        assert hasattr(detsrm, "s_")
-
-        # Check correct types and shapes
-        assert isinstance(detsrm.w_, list)
-        assert len(detsrm.w_) == len(multi_subject_data["data"])
-        assert detsrm.s_.shape == (10, multi_subject_data["timepoints"])

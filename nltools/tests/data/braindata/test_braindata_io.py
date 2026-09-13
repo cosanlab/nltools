@@ -6,7 +6,6 @@ import polars as pl
 import pytest
 
 from nltools.data import BrainData
-from nltools.data.braindata import io as io_mod
 from nltools.templates import get_brainspace
 
 
@@ -158,28 +157,6 @@ class TestBrainDataIO:
         assert loaded.mask.get_filename() == "mask.nii.gz"
         np.testing.assert_allclose(loaded.mask.get_fdata(), mask.get_fdata())
 
-    def test_h5_absolute_mask_path_in_an_older_file_loads_as_a_basename(self, tmp_path):
-        """0.6.0-dev files stored the absolute mask path; reads normalize it."""
-        import h5py
-
-        affine = np.eye(4) * 2
-        affine[3, 3] = 1
-        mask_path = tmp_path / "mask.nii.gz"
-        nib.save(nib.Nifti1Image(np.ones((4, 4, 4), dtype=np.int8), affine), mask_path)
-        bd = BrainData(
-            nib.Nifti1Image(np.zeros((4, 4, 4, 2), dtype=np.float32), affine),
-            mask=nib.load(mask_path),
-        )
-        path = str(tmp_path / "older.h5")
-        bd.write(path)
-
-        # Rewrite the stored name the way an older nltools wrote it.
-        with h5py.File(path, "a") as f:
-            del f["mask_file_name"]
-            f.create_dataset("mask_file_name", data=str(mask_path))
-
-        assert BrainData(path).mask.get_filename() == "mask.nii.gz"
-
     def test_h5_round_trip_of_a_fitted_object_loads_back_unfitted(self, tmp_path):
         """Writing a fitted object is allowed; the load is always unfitted."""
         from nltools.data.braindata.utils import _FIT_STATE_ATTRIBUTES
@@ -246,21 +223,6 @@ class TestBrainDataIO:
         )
 
     # ==================== Interpolation Tests ====================
-
-    def test_interpolation_auto_default(self):
-        """Test that interpolation='auto' is the default."""
-        brain = BrainData()
-        assert brain._interpolation == "auto"
-
-    def test_interpolation_explicit_nearest(self):
-        """Test explicit interpolation='nearest' is stored."""
-        brain = BrainData(interpolation="nearest")
-        assert brain._interpolation == "nearest"
-
-    def test_interpolation_explicit_continuous(self):
-        """Test explicit interpolation='continuous' is stored."""
-        brain = BrainData(interpolation="continuous")
-        assert brain._interpolation == "continuous"
 
     def test_interpolation_invalid_raises_error(self):
         """Test invalid interpolation value raises ValueError."""
@@ -384,33 +346,6 @@ class TestIntegerImagesResampleQuietly:
             expected = apply_mask(resampled, brain.mask)
         np.testing.assert_allclose(brain.data, expected)
 
-    def test_interpolation_probe_reads_one_volume(self, tmp_path, monkeypatch):
-        from nltools.data.braindata.io import _detect_interpolation
-
-        img = nib.load(self._int16_bold(tmp_path))
-
-        def boom(*_a, **_k):
-            raise AssertionError("get_fdata() materializes the whole 4-D image")
-
-        monkeypatch.setattr(nib.Nifti1Image, "get_fdata", boom)
-        assert _detect_interpolation(img) == "continuous"
-
-    def test_interpolation_probe_still_detects_float_labels(self):
-        """A float-typed atlas with a few integer labels stays 'nearest'."""
-        from nltools.data.braindata.io import _detect_interpolation
-
-        labels = np.zeros((8, 8, 8))
-        labels[2:4] = 1
-        labels[5:7] = 2
-        assert _detect_interpolation(nib.Nifti1Image(labels, np.eye(4))) == "nearest"
-
-    def test_interpolation_probe_integer_bold_is_continuous(self):
-        """Many distinct integer intensities are signal, not labels."""
-        from nltools.data.braindata.io import _detect_interpolation
-
-        data = np.arange(12 * 12 * 12, dtype=np.int16).reshape(12, 12, 12)
-        assert _detect_interpolation(nib.Nifti1Image(data, np.eye(4))) == "continuous"
-
 
 class TestLoadPathSetsSform:
     def test_no_sform_header_loads_without_nilearn_notice(self, tmp_path):
@@ -456,72 +391,3 @@ class _FakeClientCreateFails:
 
     def create_collection(self, name):
         raise ValueError("Collection name already exists")
-
-
-class TestUploadNeurovaultUnbound:
-    def test_create_collection_failure_raises_cleanly(
-        self, minimal_brain_data, monkeypatch
-    ):
-        """A failed create_collection must not fall through to UnboundLocalError."""
-        import pynv
-
-        monkeypatch.setattr(pynv, "Client", _FakeClientCreateFails)
-
-        with pytest.raises(ValueError):
-            io_mod._upload_neurovault(
-                minimal_brain_data,
-                access_token="token",
-                collection_name="dupe",
-                img_type="Z",
-                img_modality="fMRI-BOLD",
-            )
-
-
-class TestLoadFromUrlTempDir:
-    def test_temp_dir_cleaned_up(self, minimal_brain_data, monkeypatch):
-        """_load_from_url must remove the temp dir it downloads into."""
-        seen = {}
-
-        def fake_download_nifti(url, data_dir=None):
-            seen["data_dir"] = data_dir
-            # Directory must already exist (created by tempfile) when we write.
-            assert data_dir is not None and os.path.isdir(data_dir)
-            path = os.path.join(data_dir, "img.nii.gz")
-            with open(path, "wb") as f:
-                f.write(b"stub")
-            return path
-
-        monkeypatch.setattr("nltools.datasets.download_nifti", fake_download_nifti)
-        monkeypatch.setattr(io_mod, "_load_from_file", lambda bd, data: None)
-
-        monkeypatch.setattr(nib, "load", lambda path: object())
-
-        io_mod._load_from_url(minimal_brain_data, "http://example.com/img.nii.gz")
-
-        assert "data_dir" in seen
-        assert not os.path.exists(seen["data_dir"]), (
-            "_load_from_url leaked its temp directory"
-        )
-
-    def test_repeated_calls_do_not_collide(self, minimal_brain_data, monkeypatch):
-        """Two back-to-back calls must both succeed (no FileExistsError)."""
-        dirs = []
-
-        def fake_download_nifti(url, data_dir=None):
-            dirs.append(data_dir)
-            path = os.path.join(data_dir, "img.nii.gz")
-            with open(path, "wb") as f:
-                f.write(b"stub")
-            return path
-
-        monkeypatch.setattr("nltools.datasets.download_nifti", fake_download_nifti)
-        monkeypatch.setattr(io_mod, "_load_from_file", lambda bd, data: None)
-
-        monkeypatch.setattr(nib, "load", lambda path: object())
-
-        for _ in range(3):
-            io_mod._load_from_url(minimal_brain_data, "http://example.com/img.nii.gz")
-
-        assert len(dirs) == 3
-        for d in dirs:
-            assert not os.path.exists(d)

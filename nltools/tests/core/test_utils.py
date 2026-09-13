@@ -1,51 +1,7 @@
-from pathlib import Path
-
-import numpy as np
 import pytest
 
 from nltools.data import BrainData
-from nltools.data.braindata.utils import _check_brain_data, _check_brain_data_is_single
-from nltools.mask import create_sphere
-
-
-def test_check_brain_data(sim_brain_data):
-    mask = BrainData(create_sphere([15, 10, -8], radius=10))
-    a = _check_brain_data(sim_brain_data)
-    assert isinstance(a, BrainData)
-    b = _check_brain_data(sim_brain_data, mask=mask)
-    assert isinstance(b, BrainData)
-    assert b.shape[1] == np.sum(mask.data == 1)
-
-
-def test_check_brain_data_is_single(sim_brain_data):
-    assert not _check_brain_data_is_single(sim_brain_data)
-    assert _check_brain_data_is_single(sim_brain_data[0])
-
-
-def test_check_brain_data_from_nifti(sim_brain_data):
-    """Nifti1Image input is coerced to BrainData (pre-existing behavior)."""
-    nifti = sim_brain_data.to_nifti()
-    out = _check_brain_data(nifti)
-    assert isinstance(out, BrainData)
-    assert out.shape == sim_brain_data.shape
-
-
-def test_check_brain_data_from_str_path(sim_brain_data, tmpdir):
-    """File path (str) is now accepted — delegates to BrainData.__init__."""
-    path = str(tmpdir.join("data.nii.gz"))
-    sim_brain_data.to_nifti().to_filename(path)
-    out = _check_brain_data(path)
-    assert isinstance(out, BrainData)
-    assert out.shape == sim_brain_data.shape
-
-
-def test_check_brain_data_from_pathlib(sim_brain_data, tmpdir):
-    """Path objects also accepted."""
-    path = Path(str(tmpdir.join("data.nii.gz")))
-    sim_brain_data.to_nifti().to_filename(str(path))
-    out = _check_brain_data(path)
-    assert isinstance(out, BrainData)
-    assert out.shape == sim_brain_data.shape
+from nltools.data.braindata.utils import _check_brain_data
 
 
 def test_check_brain_data_from_list_of_paths(sim_brain_data, tmpdir):

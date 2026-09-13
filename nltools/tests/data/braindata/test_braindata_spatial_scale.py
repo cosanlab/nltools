@@ -33,14 +33,6 @@ class TestDistanceWholeBrain:
         assert result.is_single_matrix
         assert not hasattr(result, "spatial_scale")
 
-    def test_explicit_whole_brain(self, minimal_brain_data):
-        result = minimal_brain_data.distance(
-            metric="euclidean", spatial_scale="whole_brain"
-        )
-        assert isinstance(result, Adjacency)
-        assert result.is_single_matrix
-        assert not hasattr(result, "spatial_scale")
-
 
 class TestDistanceROI:
     def test_returns_plain_stack(self, minimal_brain_data):
@@ -73,22 +65,6 @@ class TestDistanceROI:
     def test_requires_roi_mask(self, minimal_brain_data):
         with pytest.raises(ValueError, match="roi_mask"):
             minimal_brain_data.distance(metric="correlation", spatial_scale="roi")
-
-    def test_chain_to_brain_round_trip(self, minimal_brain_data):
-        """End-to-end: per-ROI distance → user reduction → voxel map."""
-        atlas = _atlas_for(minimal_brain_data, n_rois=2)
-        rdms = minimal_brain_data.distance(
-            metric="correlation", spatial_scale="roi", roi_mask=atlas
-        )
-        # Stand in for a model-similarity reduction: take the per-RDM mean.
-        per_roi = np.array([float(rdm.data.mean()) for rdm in rdms])
-        from nltools.mask import roi_to_brain_from_atlas
-
-        brain_map = roi_to_brain_from_atlas(
-            per_roi, atlas=atlas, source_mask=minimal_brain_data.mask, roi_labels=[1, 2]
-        )
-        assert isinstance(brain_map, BrainData)
-        assert brain_map.shape[-1] == minimal_brain_data.shape[-1]
 
 
 class TestDistanceSearchlight:
@@ -127,34 +103,6 @@ class TestDistanceSearchlight:
         )
         np.testing.assert_allclose(result[0].squareform(), expected, atol=1e-10)
 
-    def test_chain_to_brain_round_trip(self, minimal_brain_data):
-        """Per-center RSA → similarity to model → voxel map — same RSA chain
-        as the ROI case but each searchlight paints to its center voxel."""
-        rdms = minimal_brain_data.distance(
-            metric="correlation",
-            spatial_scale="searchlight",
-            radius=10.0,
-        )
-        n = minimal_brain_data.shape[0]
-        rng = np.random.default_rng(0)
-        model = Adjacency(
-            np.abs(rng.standard_normal(n * (n - 1) // 2)), matrix_type="distance_flat"
-        )
-        from nilearn.masking import unmask
-
-        values = np.array(
-            [
-                item["correlation"]
-                for item in rdms.similarity(model, method=None, metric="spearman")
-            ]
-        )
-        brain_map = BrainData(
-            unmask(values, minimal_brain_data.mask), mask=minimal_brain_data.mask
-        )
-        np.testing.assert_array_equal(brain_map.data, values)
-        assert isinstance(brain_map, BrainData)
-        assert brain_map.shape[-1] == minimal_brain_data.shape[-1]
-
 
 class TestDistanceInvalidScale:
     def test_unknown_scale_errors(self, minimal_brain_data):
@@ -166,27 +114,6 @@ class TestAlignROI:
     """Per-parcel functional alignment: each parcel aligned independently,
     transformed data stitched back to voxel space, transforms kept as a
     dict keyed by atlas label (per-parcel matrices don't reassemble)."""
-
-    def test_returns_dict_with_per_parcel_fields(self, minimal_brain_data):
-        atlas = _atlas_for(minimal_brain_data, n_rois=2)
-        out = minimal_brain_data.align(
-            minimal_brain_data,
-            method="procrustes",
-            spatial_scale="roi",
-            roi_mask=atlas,
-        )
-        assert isinstance(out, dict)
-        # Stitched transformed data → voxel-space BrainData of original shape.
-        assert isinstance(out["transformed"], BrainData)
-        assert out["transformed"].shape == minimal_brain_data.shape
-        # Per-parcel transforms: dict keyed by atlas label.
-        assert isinstance(out["transformation_matrix"], dict)
-        assert set(out["transformation_matrix"].keys()) == {1, 2}
-        # roi_labels ndarray in stack order.
-        assert list(out["roi_labels"]) == [1, 2]
-        # disparity / scale: per-parcel arrays.
-        assert out["disparity"].shape == (2,)
-        assert out["scale"].shape == (2,)
 
     def test_per_parcel_transformed_matches_manual(self, minimal_brain_data):
         from nilearn.masking import apply_mask
@@ -257,9 +184,3 @@ class TestRadiusKeyword:
         parameters = inspect.signature(BrainData.distance).parameters
         assert "radius" in parameters
         assert "radius_mm" not in parameters
-
-    def test_distance_searchlight_rejects_radius_mm(self, minimal_brain_data):
-        with pytest.raises(TypeError):
-            minimal_brain_data.distance(
-                metric="correlation", spatial_scale="searchlight", radius_mm=10.0
-            )

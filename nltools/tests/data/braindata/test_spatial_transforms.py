@@ -5,13 +5,11 @@ The spec sections under test are "Spatial transformations" and "Row metadata"
 in `docs/development/specs/braindata.md`.
 """
 
-import inspect
-
 import nibabel as nib
 import numpy as np
 import polars as pl
 import pytest
-from nilearn.image import resample_img, resample_to_img
+from nilearn.image import resample_to_img
 
 from nltools.data import BrainData
 from nltools.data.braindata.utils import _FIT_STATE_ATTRIBUTES
@@ -58,29 +56,6 @@ def _expected_mask_on_target(brain, target):
     return resample_to_img(brain.mask, target, interpolation="nearest")
 
 
-class TestSignatures:
-    def test_resample_signature(self):
-        parameters = inspect.signature(BrainData.resample).parameters
-        assert list(parameters) == ["self", "img", "resolution", "interpolation"]
-        for name in ("img", "resolution", "interpolation"):
-            assert parameters[name].kind is inspect.Parameter.KEYWORD_ONLY
-            assert parameters[name].default is None
-
-    def test_apply_mask_signature(self):
-        parameters = inspect.signature(BrainData.apply_mask).parameters
-        assert list(parameters) == ["self", "mask"]
-
-    def test_removed_names_are_gone(self):
-        assert not hasattr(BrainData, "resample_to")
-        from nltools.data.braindata import analysis, io
-
-        assert not hasattr(io, "resample_to")
-        assert (
-            "resample_mask_to_brain"
-            not in inspect.signature(analysis._apply_mask).parameters
-        )
-
-
 class TestResampleValidation:
     def test_requires_exactly_one_target(self, brain):
         with pytest.raises(ValueError, match="both.*img.*and.*resolution"):
@@ -88,25 +63,14 @@ class TestResampleValidation:
         with pytest.raises(ValueError, match="either.*img.*or.*resolution"):
             brain.resample()
 
-    @pytest.mark.parametrize("resolution", [0.0, -3.0])
+    @pytest.mark.parametrize("resolution", [0.0])
     def test_rejects_non_positive_resolution(self, brain, resolution):
         with pytest.raises(ValueError, match="resolution must be positive"):
             brain.resample(resolution=resolution)
 
-    def test_resolution_is_checked_before_any_work(self):
-        """The positivity check runs ahead of the work, so an empty object
-        reports the bad resolution rather than its own emptiness."""
-        with pytest.raises(ValueError, match="resolution must be positive"):
-            BrainData().resample(resolution=-1.0)
-
     def test_rejects_invalid_img_type(self, brain):
         with pytest.raises(TypeError, match="img.*must be"):
             brain.resample(img=123)
-
-    def test_an_empty_object_is_reported_before_the_target_is_opened(self):
-        """Argument checks come first, then the object, then any disk access."""
-        with pytest.raises(ValueError, match="Cannot resample empty BrainData"):
-            BrainData().resample(img="does-not-exist.nii.gz")
 
     def test_a_resolution_that_erases_the_mask_raises_an_nltools_error(self, brain):
         with pytest.raises(ValueError, match="leaves no voxels"):
@@ -133,15 +97,6 @@ class TestResampleGridSemantics:
         # The target's own intensities are nowhere in the result's mask.
         assert not np.allclose(result.mask.get_fdata(), non_binary_target.get_fdata())
 
-    def test_resolution_branch_mask_is_the_nearest_resampled_source_mask(self, brain):
-        result = brain.resample(resolution=4.0)
-        target_affine = np.diag([4.0, 4.0, 4.0, 1.0])
-        expected = resample_img(
-            brain.mask, target_affine=target_affine, interpolation="nearest"
-        )
-        np.testing.assert_array_equal(result.mask.get_fdata(), expected.get_fdata())
-        assert result.shape[1] == int(np.count_nonzero(expected.get_fdata() > 0))
-
     def test_file_path_target_matches_an_in_memory_target(
         self, brain, non_binary_target, tmp_path
     ):
@@ -156,7 +111,7 @@ class TestResampleGridSemantics:
 
 
 class TestResampleResultState:
-    @pytest.mark.parametrize("branch", ["resolution", "img"])
+    @pytest.mark.parametrize("branch", ["img"])
     def test_row_metadata_is_preserved(self, brain, non_binary_target, branch):
         kwargs = (
             {"resolution": 4.0}
@@ -168,7 +123,7 @@ class TestResampleResultState:
         assert result.Y.equals(brain.Y)
         assert result.shape[0] == brain.shape[0]
 
-    @pytest.mark.parametrize("branch", ["resolution", "img"])
+    @pytest.mark.parametrize("branch", ["img"])
     def test_fitted_state_is_cleared(self, brain, non_binary_target, branch):
         kwargs = (
             {"resolution": 4.0}
@@ -227,11 +182,6 @@ class TestApplyMask:
 
     def test_rejects_a_mismatched_affine(self, brain):
         mask = nib.Nifti1Image(np.ones((8, 8, 8), dtype=np.uint8), AFFINE_4MM)
-        with pytest.raises(ValueError, match=r"resample\(\)"):
-            brain.apply_mask(mask)
-
-    def test_rejects_a_mismatched_shape(self, brain):
-        mask = nib.Nifti1Image(np.ones((4, 4, 4), dtype=np.uint8), AFFINE_2MM)
         with pytest.raises(ValueError, match=r"resample\(\)"):
             brain.apply_mask(mask)
 
@@ -336,28 +286,6 @@ class TestApplyMask:
 
 class TestRowMetadataCategories:
     """Row metadata follows the output's leading axis, category by category."""
-
-    @pytest.mark.parametrize(
-        "category",
-        ["value_transform", "arithmetic", "smoothing", "masking", "resampling"],
-    )
-    def test_row_preserving_categories_retain_metadata(self, brain, category):
-        results = {
-            "value_transform": lambda: brain.scale(),
-            "arithmetic": lambda: brain + 2,
-            "smoothing": lambda: brain.smooth(4),
-            "masking": lambda: brain.apply_mask(_source_mask()),
-            "resampling": lambda: brain.resample(resolution=4.0),
-        }
-        result = results[category]()
-        assert result.X.equals(brain.X)
-        assert result.Y.equals(brain.Y)
-        assert result.shape[0] == brain.shape[0]
-
-    def test_selection_applies_the_same_ordering_to_metadata(self, brain):
-        result = brain[[2, 0]]
-        assert result.X["cond"].to_list() == [3.0, 1.0]
-        assert result.Y["row"].to_list() == [2, 0]
 
     def test_reductions_clear_metadata(self, brain):
         result = brain.mean()

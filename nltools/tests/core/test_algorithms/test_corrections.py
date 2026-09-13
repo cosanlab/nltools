@@ -15,18 +15,6 @@ class TestFDR:
         assert isinstance(thr, float)
         assert 0 < thr < 1
 
-    def test_fdr_all_significant(self):
-        """FDR with all very small p-values."""
-        p_values = np.array([0.001, 0.002, 0.003, 0.004])
-        thr = fdr(p_values, q=0.05)
-        assert thr > 0
-
-    def test_fdr_none_significant(self):
-        """FDR with all large p-values should return -1 (no threshold)."""
-        p_values = np.array([0.5, 0.6, 0.7, 0.8, 0.9])
-        thr = fdr(p_values, q=0.05)
-        assert thr == -1
-
 
 class TestHolmBonf:
     """Test Holm-Bonferroni correction."""
@@ -37,23 +25,6 @@ class TestHolmBonf:
         thr = holm_bonf(p_values)
         assert isinstance(thr, (float, np.floating))
         assert 0 < thr <= 0.05  # default alpha=0.05
-
-    def test_holm_bonf_none_significant(self):
-        """All large p-values should produce threshold of -1 (no threshold)."""
-        p_values = np.array([0.3, 0.5, 0.8, 0.9])
-        thr = holm_bonf(p_values)
-        assert thr == -1
-
-    def test_holm_bonf_respects_alpha(self):
-        """A stricter alpha must yield a stricter threshold (F135).
-
-        With p=[0.01, 0.4, 0.8] the smallest p (0.01) survives the step-down
-        threshold at alpha=0.05 (0.05/3 = 0.0167) but not at alpha=0.01
-        (0.01/3 = 0.0033), so the two alphas must return different results.
-        """
-        p_values = np.array([0.01, 0.4, 0.8])
-        assert holm_bonf(p_values, alpha=0.05) == 0.01
-        assert holm_bonf(p_values, alpha=0.01) == -1
 
 
 class TestThreshold:

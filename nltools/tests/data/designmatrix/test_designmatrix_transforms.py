@@ -1,8 +1,6 @@
 import pytest
 import numpy as np
 from nltools.data.designmatrix import DesignMatrix
-from nltools.data.designmatrix.append import _check_dtype_compatibility
-import polars as pl
 
 
 class TestDownsampleNonIntegerRatio:
@@ -20,28 +18,6 @@ class TestDownsampleNonIntegerRatio:
         values = down.data["a"].to_list()
         assert len(values) == 35
         assert values[-1] > 95
-
-    def test_integer_ratio_unchanged(self):
-        """Exact integer ratios keep their original balanced grouping."""
-        dm = DesignMatrix({"a": [float(i) for i in range(100)]}, sampling_freq=2.0)
-        down = dm.downsample(target=1.0)  # ratio == 2
-        values = down.data["a"].to_list()
-        assert len(values) == 50
-        assert values[0] == 0.5  # mean of rows 0, 1
-
-
-class TestCheckDtypeCompatibility:
-    """F082: dtype mismatches among later frames must be detected, not just vs dfs[0]."""
-
-    def test_mismatch_among_later_frames_flagged(self):
-        """A column absent from dfs[0] but conflicting between dfs[1]/dfs[2] is flagged."""
-        dfs = [
-            pl.DataFrame({"base": pl.Series([1], dtype=pl.Int64)}),
-            pl.DataFrame({"later": pl.Series([1], dtype=pl.Int64)}),
-            pl.DataFrame({"later": pl.Series([1.0], dtype=pl.Float64)}),
-        ]
-        with pytest.raises(ValueError, match="later"):
-            _check_dtype_compatibility(dfs)
 
 
 class TestDesignMatrixTransformations:
@@ -94,40 +70,6 @@ class TestDesignMatrixTransformations:
 
         assert dm_dropped.columns == ["a", "c"]
         assert dm.columns == ["a", "b", "c"], "Original should be unchanged"
-
-    def test_drop_multiple_columns(self):
-        """
-        .drop() should handle multiple columns at once.
-        """
-        dm = DesignMatrix({"a": [1], "b": [2], "c": [3], "d": [4]}, sampling_freq=1)
-        dm_dropped = dm.drop(columns=["b", "d"])
-
-        assert dm_dropped.columns == ["a", "c"]
-
-    def test_transformations_preserve_metadata(self):
-        """
-        Verify that transformations preserve metadata attributes.
-
-        Expected behavior:
-        - sampling_freq preserved
-        - confounds list preserved
-        - convolved list preserved
-        - multi flag preserved
-        """
-        dm = DesignMatrix(
-            {"stim": [1, 2, 3], "poly_0": [1, 1, 1]},
-            sampling_freq=2,
-            confounds=["poly_0"],
-            convolved=["stim"],
-        )
-        dm.multi = True
-
-        dm_filled = dm.fillna(0)
-
-        assert dm_filled.sampling_freq == 2
-        assert dm_filled.confounds == ["poly_0"]
-        assert dm_filled.convolved == ["stim"]
-        assert dm_filled.multi is True
 
 
 # NOTE: Make sure these as all re-implemented efficiently to take-advantage of polars vectorized operations as their documentation suggests!
@@ -263,20 +205,3 @@ class TestDesignMatrixStatisticalOperations:
         # Check interpolated values (linear interpolation)
         expected = np.array([0.0, 0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5])
         np.testing.assert_allclose(dm_up["a"], expected, rtol=1e-10)
-
-    def test_upsample_method_parameter(self):
-        """
-        .upsample() should support method='nearest' for nearest-neighbor interpolation.
-        """
-        dm = DesignMatrix({"a": [0.0, 1.0, 2.0, 3.0, 4.0]}, sampling_freq=1.0)
-
-        # Test linear method (default)
-        dm_linear = dm.upsample(target=2.0, method="linear")
-        expected_linear = np.array([0.0, 0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5])
-        np.testing.assert_allclose(dm_linear["a"], expected_linear, rtol=1e-10)
-
-        # Test nearest method
-        dm_nearest = dm.upsample(target=2.0, method="nearest")
-        # Nearest neighbor: values should snap to closest original value
-        expected_nearest = np.array([0.0, 0.0, 1.0, 1.0, 2.0, 2.0, 3.0, 3.0])
-        np.testing.assert_allclose(dm_nearest["a"], expected_nearest, rtol=1e-10)

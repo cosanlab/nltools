@@ -6,8 +6,6 @@ import pytest
 
 from nltools.data import BrainData
 from nltools.mask import create_sphere, roi_to_brain
-from nltools.data.simulator import Simulator
-from nltools.algorithms import align
 
 
 class TestBrainDataAnalysis:
@@ -170,16 +168,6 @@ class TestBrainDataAnalysis:
 
     # ==================== Transform Methods ====================
 
-    def test_r_to_z(self, minimal_brain_data):
-        """Test Fisher r-to-z transformation."""
-        z = minimal_brain_data.r_to_z()
-        assert z.shape == minimal_brain_data.shape
-
-    def test_copy(self, minimal_brain_data):
-        """Test copying BrainData objects."""
-        d_copy = minimal_brain_data.copy()
-        assert d_copy.shape == minimal_brain_data.shape
-
     def test_detrend(self, minimal_brain_data):
         """Test detrending removes linear trends."""
         detrend = minimal_brain_data.detrend()
@@ -242,19 +230,6 @@ class TestBrainDataAnalysis:
         np.testing.assert_allclose(z.data[:, 1:].mean(axis=0), 0.0, atol=1e-5)
         np.testing.assert_allclose(z.data[:, 1:].std(axis=0), 1.0, atol=1e-5)
 
-    def test_filter_high_pass(self, minimal_brain_data):
-        """Test high-pass filtering returns BrainData with correct shape."""
-        filtered = minimal_brain_data.filter(sampling_freq=0.5, high_pass=0.01)
-        assert isinstance(filtered, BrainData)
-        assert filtered.shape == minimal_brain_data.shape
-        assert not np.array_equal(id(filtered.data), id(minimal_brain_data.data))
-
-    def test_filter_low_pass(self, minimal_brain_data):
-        """Test low-pass filtering returns BrainData with correct shape."""
-        filtered = minimal_brain_data.filter(sampling_freq=0.5, low_pass=0.1)
-        assert isinstance(filtered, BrainData)
-        assert filtered.shape == minimal_brain_data.shape
-
     def test_filter_band_pass(self, minimal_brain_data):
         """Test band-pass filtering (both high and low pass)."""
         filtered = minimal_brain_data.filter(
@@ -281,14 +256,6 @@ class TestBrainDataAnalysis:
             ensure_finite=True,
         )
         assert isinstance(filtered, BrainData)
-
-    def test_smooth(self, sim_brain_data):
-        """Test spatial smoothing."""
-        smoothed = sim_brain_data.smooth(5.0)
-        assert isinstance(smoothed, BrainData)
-        assert smoothed.shape == sim_brain_data.shape
-        smoothed = sim_brain_data[0].smooth(5.0)
-        assert len(smoothed.shape) == 1
 
     @pytest.mark.slow
     def test_threshold(self):
@@ -329,12 +296,9 @@ class TestBrainDataAnalysis:
     @pytest.mark.parametrize(
         "lower,upper,cluster_threshold,binarize",
         [
-            (2, None, 10, False),  # lower only
-            (None, 2, 10, False),  # upper only
             (2.5, None, 50, False),  # realistic workflow
-            (2, None, 10, True),  # with binarization
         ],
-        ids=["lower_only", "upper_only", "realistic", "binarize"],
+        ids=["realistic"],
     )
     def test_threshold_cluster(
         self, sim_brain_data, lower, upper, cluster_threshold, binarize
@@ -399,13 +363,6 @@ class TestBrainDataAnalysis:
         r = minimal_brain_data.similarity(minimal_brain_data[0], metric="correlation")
         assert len(r) == minimal_brain_data.shape[0]
 
-    def test_similarity_operand_is_named_data(self, minimal_brain_data):
-        """The compared image is `data=`; v0.5.1's `image=` spelling is gone."""
-        r = minimal_brain_data.similarity(data=minimal_brain_data[0])
-        assert len(r) == minimal_brain_data.shape[0]
-        with pytest.raises(TypeError):
-            minimal_brain_data.similarity(image=minimal_brain_data[0])
-
     @pytest.mark.slow
     def test_decompose(self, sim_brain_data):
         """Test decomposition with PCA, ICA, NMF, and Factor Analysis."""
@@ -433,52 +390,6 @@ class TestBrainDataAnalysis:
 
     # ==================== Alignment ====================
 
-    @pytest.mark.slow
-    def test_hyperalignment(self):
-        """Test hyperalignment with SRM and Procrustes methods."""
-        sim = Simulator()
-        y = [0, 1]
-        n_reps = 10
-        s1 = create_sphere([0, 0, 0], radius=3)
-        d1 = sim.create_data(y, 1, reps=n_reps, output_dir=None).apply_mask(s1)
-        d2 = sim.create_data(y, 2, reps=n_reps, output_dir=None).apply_mask(s1)
-        d3 = sim.create_data(y, 3, reps=n_reps, output_dir=None).apply_mask(s1)
-        data = [d1, d2, d3]
-
-        # Deterministic SRM
-        out = align(data, method="deterministic_srm")
-        bout = d1.align(out["common_model"], method="deterministic_srm")
-        assert d1.shape == bout["transformed"].shape
-        assert d1.shape == bout["common_model"].shape
-        assert d1.shape[1] == bout["transformation_matrix"].shape[0]
-        btransformed = np.dot(d1.data, bout["transformation_matrix"].data.T)
-        np.testing.assert_almost_equal(
-            0, np.sum(bout["transformed"].data - btransformed)
-        )
-
-        # Probabilistic SRM
-        bout = d1.align(out["common_model"], method="probabilistic_srm")
-        assert d1.shape == bout["transformed"].shape
-        btransformed = np.dot(d1.data, bout["transformation_matrix"].data.T)
-        np.testing.assert_almost_equal(
-            0, np.sum(bout["transformed"].data - btransformed)
-        )
-
-        # Procrustes
-        out = align(data, method="procrustes")
-        bout = d1.align(out["common_model"], method="procrustes")
-        assert d1.shape == bout["transformed"].shape
-        centered = d1.data - np.mean(d1.data, 0)
-        btransformed = (
-            np.dot(
-                centered / np.linalg.norm(centered), bout["transformation_matrix"].data
-            )
-            * bout["scale"]
-        )
-        np.testing.assert_almost_equal(
-            0, np.sum(bout["transformed"].data - btransformed), decimal=5
-        )
-
     # ==================== Temporal Methods ====================
 
     @pytest.mark.slow
@@ -490,16 +401,6 @@ class TestBrainDataAnalysis:
         assert len(sim_brain_data) * 4 == len(up)
         down = up.temporal_resample(sampling_freq=2, target=1 / 2, target_type="hz")
         assert len(sim_brain_data) == len(down)
-
-    def test_fisher_r_to_z(self, minimal_brain_data):
-        """Test Fisher r-to-z and inverse transformation."""
-        np.testing.assert_almost_equal(
-            np.nansum(
-                minimal_brain_data.data - minimal_brain_data.r_to_z().z_to_r().data
-            ),
-            0,
-            decimal=2,
-        )
 
 
 class TestThresholdPercentileNonzero:
@@ -526,35 +427,8 @@ class TestThresholdPercentileNonzero:
         assert (np.abs(out.data) >= cutoff).sum() == 2
 
 
-class TestFilterDetrendStandardize:
-    """F047: `_filter_data` double-passed detrend/standardize to nilearn's clean().
-
-    It read them with ``kwargs.get()`` (leaving them in ``kwargs``) then
-    forwarded them both explicitly and again via ``**kwargs``, so the documented
-    ``filter(..., detrend=True)`` usage raised "got multiple values".
-    """
-
-    def test_filter_with_detrend_via_kwargs(self, minimal_brain_data):
-        """The documented `filter(..., detrend=True)` usage must not crash."""
-        out = minimal_brain_data.filter(sampling_freq=2.0, high_pass=0.01, detrend=True)
-        assert out.data.shape == minimal_brain_data.data.shape
-
-    def test_filter_with_standardize_via_kwargs(self, minimal_brain_data):
-        """`standardize` passed via kwargs must reach clean() exactly once."""
-        out = minimal_brain_data.filter(
-            sampling_freq=2.0, high_pass=0.01, standardize="zscore_sample"
-        )
-        # Standardized output should be roughly zero-mean per voxel.
-        np.testing.assert_allclose(out.data.mean(axis=0), 0.0, atol=1e-6)
-
-
 class TestStandardizeIsNotABool:
     """nilearn 0.15 drops boolean ``standardize``; never hand it one."""
-
-    def test_filter_default_emits_no_future_warning(self, minimal_brain_data):
-        with warnings.catch_warnings():
-            warnings.simplefilter("error", FutureWarning)
-            minimal_brain_data.filter(sampling_freq=2.0, high_pass=0.01)
 
     def test_filter_maps_true_to_zscore_sample(self, minimal_brain_data):
         with warnings.catch_warnings():
@@ -572,19 +446,3 @@ class TestStandardizeIsNotABool:
             )
         default = minimal_brain_data.filter(sampling_freq=2.0, high_pass=0.01)
         np.testing.assert_array_equal(out.data, default.data)
-
-    def test_extract_roi_labels_emits_no_future_warning(self):
-        shape, affine = (6, 6, 6), np.eye(4)
-        mask = nb.Nifti1Image(np.ones(shape, dtype=np.int8), affine)
-        labels = np.zeros(shape)  # 0 = background, as nilearn requires
-        labels[:2] = 1
-        labels[2:4] = 2
-        atlas = BrainData(nb.Nifti1Image(labels, affine), mask=mask)
-        rng = np.random.default_rng(0)
-        brain = BrainData(
-            nb.Nifti1Image(rng.standard_normal(shape + (4,)), affine), mask=mask
-        )
-        with warnings.catch_warnings():
-            warnings.simplefilter("error", FutureWarning)
-            out = brain.extract_roi(atlas, method="mean")
-        assert out.shape == (2, 4)

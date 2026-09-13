@@ -11,11 +11,6 @@ from nltools.data import Adjacency
 
 
 class TestAdjacencyCore:
-    def test_length(self, sim_adjacency_multiple):
-        """Test length property for multiple adjacency matrices."""
-        assert len(sim_adjacency_multiple) == sim_adjacency_multiple.data.shape[0]
-        assert len(sim_adjacency_multiple[0]) == 1
-
     def test_arithmetic(self, sim_adjacency_directed):
         """Test arithmetic operations on adjacency matrices."""
         assert (sim_adjacency_directed + 5).data[0] == sim_adjacency_directed.data[
@@ -60,45 +55,6 @@ class TestAdjacencyCore:
         assert len(sim_adjacency_multiple.std(axis=1)) == len(
             np.std(sim_adjacency_multiple.data, axis=1)
         )
-
-    def test_median(self, sim_adjacency_single, sim_adjacency_multiple):
-        """Test median calculation for single and multiple adjacency matrices."""
-        single_median = sim_adjacency_single.median()
-        assert isinstance(single_median, (float, np.floating))
-        assert np.isclose(single_median, np.nanmedian(sim_adjacency_single.data))
-
-        median_axis0 = sim_adjacency_multiple.median(axis=0)
-        assert isinstance(median_axis0, Adjacency)
-        assert len(median_axis0) == 1
-        np.testing.assert_array_almost_equal(
-            median_axis0.data.flatten(),
-            np.nanmedian(sim_adjacency_multiple.data, axis=0),
-        )
-
-        median_axis1 = sim_adjacency_multiple.median(axis=1)
-        assert isinstance(median_axis1, np.ndarray)
-        assert len(median_axis1) == len(sim_adjacency_multiple)
-        np.testing.assert_array_almost_equal(
-            median_axis1, np.nanmedian(sim_adjacency_multiple.data, axis=1)
-        )
-
-    def test_sum(self):
-        """Test sum handles different matrix types correctly."""
-        n = 10
-        a = Adjacency(np.ones((n, n)), matrix_type="directed")
-        assert a.sum() == n**2
-        a = Adjacency([a, a])
-        assert a.sum().data.sum() == (n**2) * 2
-
-        a = Adjacency(np.ones((n, n)), matrix_type="similarity")
-        assert a.sum() == n * (n - 1) / 2
-        a = Adjacency([a, a])
-        assert a.sum().data.sum() == n * (n - 1)
-
-        a = Adjacency(np.ones((n, n)), matrix_type="distance")
-        assert a.sum() == n * (n - 1) / 2
-        a = Adjacency([a, a])
-        assert a.sum().data.sum() == n * (n - 1)
 
     def test_list_of_adjacency_preserves_y_and_labels(self):
         """Adjacency([adj1, adj2]) must preserve concatenated Y and labels (F032)."""

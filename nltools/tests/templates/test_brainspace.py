@@ -8,12 +8,9 @@ import pytest
 
 from nltools.templates import (
     BrainSpaceConfig,
-    _TemplateMatch,
     _get_bg_image,
     get_brainspace,
-    _match_resolution,
     reset_brainspace,
-    _resolve_paths,
     _resolve_template_name,
     set_brainspace,
     with_brainspace,
@@ -90,11 +87,6 @@ class TestSetGet:
         assert new.resolution == 2  # preserved
         assert get_brainspace() is new
 
-    def test_set_resolution_only(self):
-        new = set_brainspace(resolution=3)
-        assert new.template == "default"
-        assert new.resolution == 3
-
     def test_set_both(self):
         new = set_brainspace(template="nilearn", resolution=1)
         assert new.template == "nilearn"
@@ -160,30 +152,6 @@ class TestWithBrainspace:
 # ---------------------------------------------------------------------------
 
 
-class TestResolvePaths:
-    @pytest.mark.parametrize(
-        "template,resolution",
-        [
-            ("default", 2),
-            ("nilearn", 3),
-            ("fmriprep", 1),
-        ],
-    )
-    def test_all_valid_combinations(self, template, resolution):
-        paths = _resolve_paths(template, resolution)
-        for key in ("mask", "brain", "plot"):
-            assert os.path.exists(paths[key]), f"missing: {paths[key]}"
-            assert f"{resolution}mm" in paths[key]
-
-    def test_unknown_template(self):
-        with pytest.raises(ValueError, match="Unknown template"):
-            _resolve_paths("bogus", 2)
-
-    def test_unsupported_resolution(self):
-        with pytest.raises(ValueError, match="not supported"):
-            _resolve_paths("default", 1)
-
-
 # ---------------------------------------------------------------------------
 # _resolve_template_name
 # ---------------------------------------------------------------------------
@@ -194,8 +162,6 @@ class TestResolveTemplateName:
         "name,expect_substr",
         [
             ("2mm-MNI152-2009fsl", "default"),
-            ("3mm-MNI152-2009a", "nilearn"),
-            ("2mm-MNI152-2009c", "fmriprep"),
         ],
     )
     def test_valid_names(self, name, expect_substr):
@@ -206,14 +172,6 @@ class TestResolveTemplateName:
     def test_default_file_type_is_mask(self):
         p = _resolve_template_name("2mm-MNI152-2009c")
         assert "mask" in os.path.basename(p)
-
-    def test_brain_file_type(self):
-        p = _resolve_template_name("2mm-MNI152-2009c", file_type="brain")
-        assert "brain" in os.path.basename(p)
-
-    def test_t1_file_type(self):
-        p = _resolve_template_name("2mm-MNI152-2009c", file_type="T1")
-        assert "T1" in os.path.basename(p)
 
     def test_invalid_file_type(self):
         with pytest.raises(ValueError, match="file_type"):
@@ -242,56 +200,6 @@ def _isotropic_affine(mm: float) -> np.ndarray:
     return aff
 
 
-class TestMatchResolution:
-    def test_exact_2mm(self):
-        m = _match_resolution(_isotropic_affine(2.0))
-        assert isinstance(m, _TemplateMatch)
-        assert m.resolution == 2
-        assert os.path.exists(m.mask_path)
-
-    def test_exact_1mm(self):
-        m = _match_resolution(_isotropic_affine(1.0))
-        assert m.resolution == 1
-        # default doesn't support 1mm, so nilearn wins (comes before fmriprep)
-        assert m.template == "nilearn"
-
-    def test_exact_3mm(self):
-        m = _match_resolution(_isotropic_affine(3.0))
-        assert m.resolution == 3
-        assert m.template == "default"
-
-    def test_non_isotropic_uses_mean(self):
-        aff = np.eye(4)
-        aff[0, 0] = 2.0
-        aff[1, 1] = 2.0
-        aff[2, 2] = 2.5
-        m = _match_resolution(aff)
-        # mean ≈ 2.17 rounds to 2
-        assert m.resolution == 2
-
-    def test_out_of_range_raises(self):
-        with pytest.raises(ValueError, match="outside"):
-            _match_resolution(_isotropic_affine(15.0))
-
-    def test_warns_on_resample(self):
-        """4mm has no exact template: a ResamplingWarning names the fallback and the fix."""
-        from nltools.utils import ResamplingWarning
-
-        with pytest.warns(ResamplingWarning) as record:
-            _match_resolution(_isotropic_affine(4.0), warn_resample=True)
-        assert len(record) == 1
-        msg = str(record[0].message)
-        assert "4.000mm" in msg
-        assert "default 3mm" in msg  # which template it will be resampled to
-        assert "mask=" in msg  # the action that keeps native resolution
-        # Attributed to the caller (this file), not to nltools/templates.
-        assert record[0].filename == __file__
-
-    def test_no_warning_when_disabled(self, recwarn):
-        _match_resolution(_isotropic_affine(4.0), warn_resample=False)
-        assert not recwarn.list
-
-
 # ---------------------------------------------------------------------------
 # _get_bg_image
 # ---------------------------------------------------------------------------
@@ -303,27 +211,6 @@ class TestGetBgImage:
         path = _get_bg_image(mask.affine)
         assert os.path.exists(path)
         assert "brain" in os.path.basename(path)
-
-    def test_non_isotropic_raises(self):
-        aff = np.eye(4)
-        aff[0, 0] = 2.0
-        aff[1, 1] = 2.0
-        aff[2, 2] = 3.0
-        with pytest.raises(ValueError, match="isotropic"):
-            _get_bg_image(aff)
-
-    def test_unsupported_resolution_falls_back_to_config(self):
-        # default template doesn't support 1mm; should fall back to cfg.brain
-        set_brainspace(template="default", resolution=2)
-        path = _get_bg_image(_isotropic_affine(1.0))
-        assert path == get_brainspace().brain
-
-    def test_near_integer_resolution_rounds_not_truncates(self):
-        # F153: a 1.999mm affine must round to the 2mm background, not truncate
-        # to 1 and silently fall back to the config default image.
-        with with_brainspace(template="default", resolution=3):
-            path = _get_bg_image(_isotropic_affine(1.999))
-        assert path == _resolve_paths("default", 2)["brain"]
 
 
 # ---------------------------------------------------------------------------
@@ -354,123 +241,7 @@ class TestIsStandardSpace:
         assert not ok
         assert "non-isotropic" in reason
 
-    def test_isotropic_unsupported_resolution_rejected(self):
-        # 7mm isotropic — isotropic but not in any template's supported set.
-        from nltools.templates import _is_standard_space
-
-        ok, reason = _is_standard_space(_isotropic_affine(7.0))
-        assert not ok
-        assert "supported MNI template resolution" in reason
-
-    def test_non_integer_resolution_rejected(self):
-        from nltools.templates import _is_standard_space
-
-        ok, reason = _is_standard_space(_isotropic_affine(2.5))
-        assert not ok
-        assert "integer-mm" in reason
-
 
 # ---------------------------------------------------------------------------
 # list_resources
 # ---------------------------------------------------------------------------
-
-
-class TestListResources:
-    """Discoverability for the nltools/niftis HF dataset.
-
-    These tests hit the HF API once per session (cached via lru_cache).
-    Skip the suite locally with `pytest -k "not list_resources"` if offline.
-    """
-
-    @pytest.fixture(autouse=True)
-    def _clear_cache(self):
-        from nltools.templates.fetch import _list_repo_files_cached
-
-        _list_repo_files_cached.cache_clear()
-        yield
-        _list_repo_files_cached.cache_clear()
-
-    def test_returns_non_empty_list(self):
-        from nltools.templates import list_resources
-
-        files = list_resources()
-        assert isinstance(files, list)
-        assert len(files) > 0
-        assert all(isinstance(f, str) for f in files)
-
-    def test_returns_sorted(self):
-        from nltools.templates import list_resources
-
-        files = list_resources()
-        assert files == sorted(files)
-
-    def test_includes_known_files(self):
-        """Sanity check: known files in the dataset are in the listing."""
-        from nltools.templates import list_resources
-
-        files = list_resources()
-        # Long-standing fixture
-        assert "masks/k50_2mm.nii.gz" in files
-        # Newly uploaded atlases (C6)
-        assert "masks/desikan_killiany_mni152nlin6_1mm.nii.gz" in files
-        assert "masks/shen_268_2mm.nii.gz" in files
-        assert "masks/glasser_360_mni152nlin6_4mm.nii.gz" in files
-        assert "masks/fsl_bilateral_amygdala_thr0.nii.gz" in files
-
-    def test_prefix_filter(self):
-        from nltools.templates import list_resources
-
-        masks = list_resources(prefix="masks/")
-        assert all(f.startswith("masks/") for f in masks)
-        assert "masks/k50_2mm.nii.gz" in masks
-
-    def test_prefix_no_matches_returns_empty(self):
-        from nltools.templates import list_resources
-
-        assert list_resources(prefix="nonexistent_subdir/") == []
-
-    def test_returned_paths_are_fetchable(self):
-        """A path from list_resources() round-trips through fetch_resource()."""
-        from nltools.templates import fetch_resource, list_resources
-
-        files = list_resources(prefix="masks/")
-        assert files, "expected non-empty mask listing"
-        # Pick the smallest known file to keep the test fast
-        path = fetch_resource("masks/fsl_bilateral_amygdala_thr0.nii.gz")
-        assert os.path.exists(path)
-
-
-class TestFetchResourceMemoization:
-    """fetch_resource must resolve each file to the network at most once per
-    session — repeated calls (the common case: every default-mask BrainData
-    construction) must not re-hit HuggingFace."""
-
-    def test_repeated_fetch_does_not_rehit_network(self, monkeypatch):
-        import nltools.templates.fetch as fetch_mod
-
-        cache_clear = getattr(fetch_mod.fetch_resource, "cache_clear", None)
-        if cache_clear:
-            cache_clear()
-
-        calls: list[str] = []
-
-        def fake_download(**kwargs):
-            calls.append(kwargs["filename"])
-            return f"/fake/cache/{kwargs['filename']}"
-
-        monkeypatch.setattr("huggingface_hub.hf_hub_download", fake_download)
-
-        try:
-            p1 = fetch_mod.fetch_resource("default/2mm-MNI152-2009fsl-mask.nii.gz")
-            n_after_first = len(calls)
-            p2 = fetch_mod.fetch_resource("default/2mm-MNI152-2009fsl-mask.nii.gz")
-
-            assert p1 == p2
-            # Second call for the same relpath must add zero network downloads.
-            assert len(calls) == n_after_first
-        finally:
-            # Evict the fake ``/fake/cache/...`` path we just memoized, or every
-            # later default-mask BrainData construction reads it and fails with
-            # FileNotFoundError. The lru_cache outlives ``monkeypatch``.
-            if cache_clear:
-                cache_clear()

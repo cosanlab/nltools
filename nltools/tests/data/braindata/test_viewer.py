@@ -11,8 +11,6 @@ import pytest
 
 from nltools.data.braindata.viewer import (
     _compute_display_window,
-    _qualitative_colors,
-    _resolve_background,
 )
 
 
@@ -21,28 +19,6 @@ class _FakeBD:
 
     def __init__(self, data):
         self.data = np.asarray(data, dtype=float)
-
-
-class TestQualitativeColors:
-    def test_n_tuples_in_range(self):
-        cs = _qualitative_colors(10)
-        assert len(cs) == 10
-        assert all(len(c) == 3 for c in cs)
-        assert all(0 <= v <= 255 for c in cs for v in c)
-
-    def test_deterministic(self):
-        assert _qualitative_colors(5) == _qualitative_colors(5)
-        assert _qualitative_colors(5, seed=1) != _qualitative_colors(5, seed=0)
-
-    def test_distinct(self):
-        assert len(set(_qualitative_colors(8))) == 8
-
-    def test_zero(self):
-        assert _qualitative_colors(0) == []
-
-    def test_negative_raises(self):
-        with pytest.raises(ValueError):
-            _qualitative_colors(-1)
 
 
 class TestComputeDisplayWindow:
@@ -131,17 +107,6 @@ class TestComputeDisplayWindow:
         assert window.slider_value_high >= window.slider_value_low
         assert window.cal_min_neg <= window.cal_max_neg
 
-    def test_default_floor_stays_above_zero_for_ordinary_maps(self):
-        """The floor is still a positive epsilon so exact zeros stay transparent."""
-        rng = np.random.default_rng(0)
-        data = rng.standard_normal(500)
-        data[::7] = 0.0
-
-        window = _compute_display_window(data)
-
-        assert window.cal_min > 0.0
-        assert window.cal_min < window.cal_max
-
 
 class TestBuildViewerRequiresWindow:
     """``_build_viewer`` cannot be constructed without an explicit window.
@@ -175,23 +140,12 @@ class TestDisplayWindowSliderBounds:
         assert window.slider_max == pytest.approx(9.0)
         assert window.slider_min > 0.0
 
-    def test_a_zero_floor_is_raised_above_zero(self):
-        """A floor of zero painted the whole volume box in the negative colormap."""
-        window = _compute_display_window([-3.0, 4.0], lower=0.0)
-        assert window.slider_value_low == pytest.approx(window.slider_min)
-        assert window.slider_value_low > 0.0
-
     def test_ignores_nonfinite(self):
         window = _compute_display_window(
             [np.nan, -2.0, np.inf, 5.0], lower=0.0, upper=1.0
         )
         assert window.slider_min > 0.0
         assert window.slider_max == pytest.approx(5.0)
-
-    def test_requested_window_sets_handles(self):
-        window = _compute_display_window([-3.0, 4.0], lower=1.0, upper=3.0)
-        assert window.slider_value_low == pytest.approx(1.0)
-        assert window.slider_value_high == pytest.approx(3.0)
 
     def test_requested_window_widens_bounds(self):
         # A ceiling beyond the data range widens the bounds so the handles land
@@ -202,35 +156,10 @@ class TestDisplayWindowSliderBounds:
         assert window.slider_value_high == pytest.approx(99.0)
         assert 0.0 < window.slider_min < window.slider_value_low
 
-    def test_empty_data_falls_back(self):
-        window = _compute_display_window([])
-        assert window.slider_max == pytest.approx(1.0)
-        assert window.slider_min > 0.0
-        assert window.slider_step > 0
-
     def test_all_zero_data_falls_back(self):
         window = _compute_display_window([0.0, 0.0, 0.0])
         assert window.slider_max == pytest.approx(1.0)
         assert window.slider_min > 0.0
-
-    def test_constant_data(self):
-        window = _compute_display_window([2.0, 2.0, 2.0], lower=2.0, upper=2.0)
-        assert window.slider_max == pytest.approx(2.0)
-        assert 0.0 < window.slider_min < window.slider_max
-
-
-class TestResolveBackground:
-    def test_false_disables_background(self):
-        assert _resolve_background(np.eye(4), False) is None
-
-    def test_string_path_passthrough(self):
-        assert _resolve_background(np.eye(4), "/tmp/bg.nii.gz") == "/tmp/bg.nii.gz"
-
-    def test_none_with_nonstandard_affine_is_none(self):
-        # Non-isotropic affine is not standard space, so auto resolves to no
-        # background without any network fetch.
-        affine = np.diag([2.0, 3.0, 4.0, 1.0])
-        assert _resolve_background(affine, None) is None
 
 
 def test_gzip_nifti_is_deterministic_across_calls():

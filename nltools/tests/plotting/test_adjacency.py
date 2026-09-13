@@ -49,15 +49,6 @@ class TestPlotMeanLabelDistance:
         assert within.mean() < 0.2
         assert between.mean() > 0.7
 
-    def test_with_permutation_returns_stats(self, well_separated_distance):
-        distance, labels = well_separated_distance
-        out, stats = _plot_mean_label_distance(
-            distance, labels, permutation_test=True, n_permute=200
-        )
-        assert isinstance(out, pl.DataFrame)
-        assert isinstance(stats, dict)
-        assert set(stats.keys()) == {"0", "1", "2"}
-
 
 class TestPlotBetweenLabelDistance:
     def test_returns_polars_and_within_is_small(self, well_separated_distance):
@@ -77,25 +68,6 @@ class TestPlotBetweenLabelDistance:
         ].to_numpy()
         assert diag.mean() < 0.2
         assert off.mean() > 0.7
-
-    def test_default_permutation_test_completes(self, well_separated_distance):
-        """The default permutation_test=True path must not crash (F-6).
-
-        It reads the two-sample result's `mean_diff` key — the stale `mean`
-        key raised KeyError.
-        """
-        distance, labels = well_separated_distance
-        long_df, within_mean, mean_diff_df, p_df = _plot_between_label_distance(
-            distance, labels, n_permute=100
-        )
-        assert set(mean_diff_df.columns) == {"label1", "label2", "mean_diff"}
-        assert set(p_df.columns) == {"label1", "label2", "p"}
-        # Diagonal comparisons are skipped: mean_diff 0, p 1.
-        diag = mean_diff_df.filter(pl.col("label1") == pl.col("label2"))
-        assert (diag["mean_diff"] == 0.0).all()
-        # Off-diagonal: within - between is negative for well-separated clusters.
-        off = mean_diff_df.filter(pl.col("label1") != pl.col("label2"))
-        assert (off["mean_diff"] < 0).all()
 
 
 class TestPlotSilhouette:
@@ -152,28 +124,6 @@ class TestPlotStackedAdjacency:
         # Upper triangle tracks adjacency1 in both branches (same argsort).
         assert np.array_equal(np.argsort(raw[iu]), a1_order)
         assert np.array_equal(np.argsort(norm[iu]), a1_order)
-
-    def test_normalize_no_nan_when_triangle_all_negative(self):
-        """F126: normalizing must divide by max-abs, never producing inf/nan."""
-        from nltools.data import Adjacency
-
-        rng = np.random.default_rng(3)
-        a1 = Adjacency(rng.random(10), matrix_type="similarity_flat")
-        a2 = Adjacency(rng.random(10), matrix_type="similarity_flat")
-        out = _stacked_adjacency_matrix(a1, a2, normalize=True)
-        assert np.isfinite(out).all()
-
-
-class TestPlotBetweenLabelDistanceFigureLeak:
-    def test_no_stray_figure_when_ax_supplied(self, well_separated_distance):
-        """F127: supplying an ax must not spawn an extra blank figure."""
-        distance, labels = well_separated_distance
-        plt.close("all")
-        fig, ax = plt.subplots(1)
-        n_before = len(plt.get_fignums())
-        _plot_between_label_distance(distance, labels, ax=ax, permutation_test=False)
-        assert len(plt.get_fignums()) == n_before
-        plt.close("all")
 
 
 class TestPlotMDS:

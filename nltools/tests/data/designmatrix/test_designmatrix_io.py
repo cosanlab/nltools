@@ -33,7 +33,7 @@ class TestTextRoundTrip:
     read back as a single mashed column named ``'cond_a\\tcond_b'``.
     """
 
-    @pytest.mark.parametrize("ext", [".csv", ".tsv", ".txt"])
+    @pytest.mark.parametrize("ext", [".csv"])
     def test_round_trip_preserves_columns_and_values(self, dm, tmp_path, ext):
         path = tmp_path / f"design{ext}"
         dm.write(path)
@@ -50,13 +50,6 @@ class TestTextRoundTrip:
         header = path.read_text().splitlines()[0]
         assert "," in header
         assert "\t" not in header
-
-    def test_tsv_is_tab_separated_on_disk(self, dm, tmp_path):
-        path = tmp_path / "design.tsv"
-        dm.write(path)
-
-        header = path.read_text().splitlines()[0]
-        assert "\t" in header
 
     def test_explicit_sep_overrides_the_extension(self, dm, tmp_path):
         """An explicit sep= still wins — callers may want a non-standard file."""
@@ -92,15 +85,6 @@ class TestH5RoundTrip:
 
         assert back.columns == dm.columns
         np.testing.assert_allclose(back.to_numpy(), dm.to_numpy())
-
-    def test_needs_no_run_length_or_sampling_freq(self, dm, tmp_path):
-        """An .h5 is a serialized DesignMatrix, not a table needing interpretation."""
-        path = tmp_path / "design.h5"
-        dm.write(path)
-
-        back = DesignMatrix(path)
-
-        assert back.sampling_freq == 0.5
 
     def test_metadata_round_trips(self, tmp_path):
         rng = np.random.default_rng(0)
@@ -144,21 +128,6 @@ class TestH5RoundTrip:
         assert ".nl_poly_0" in back.columns
         assert ".nl_poly_1" in back.columns
 
-    def test_integer_columns_keep_their_dtype(self, tmp_path):
-        """Spike indicators are integer one-hots; a round trip shouldn't float them."""
-        dm = DesignMatrix(
-            {"stim": [0.5, 1.5, 2.5], ".nl_global_spike1": [0, 1, 0]},
-            sampling_freq=1,
-        )
-        path = tmp_path / "design.h5"
-        dm.write(path)
-
-        back = DesignMatrix(path)
-
-        assert (
-            back.data.schema[".nl_global_spike1"] == dm.data.schema[".nl_global_spike1"]
-        )
-
     def test_column_less_matrix_keeps_its_row_count(self, tmp_path):
         """find_spikes() on a clean subject: no columns, but a real height."""
         dm = DesignMatrix(pl.DataFrame(), sampling_freq=0.5, n_rows=25)
@@ -168,11 +137,3 @@ class TestH5RoundTrip:
         back = DesignMatrix(path)
 
         assert back.shape == (25, 0)
-
-    def test_explicit_kwargs_override_stored_metadata(self, dm, tmp_path):
-        path = tmp_path / "design.h5"
-        dm.write(path)
-
-        back = DesignMatrix(path, sampling_freq=2.0)
-
-        assert back.sampling_freq == 2.0

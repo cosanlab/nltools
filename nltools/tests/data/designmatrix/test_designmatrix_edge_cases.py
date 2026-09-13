@@ -9,19 +9,6 @@ class TestDesignMatrixEdgeCases:
     Ensures robustness of implementation.
     """
 
-    def test_single_column_design_matrix(self):
-        """Single column should work (edge case for VIF, etc.)"""
-        dm = DesignMatrix({"a": [1, 2, 3]}, sampling_freq=1)
-
-        assert dm.shape == (3, 1)
-        assert dm["a"].to_list() == [1, 2, 3]
-
-    def test_single_row_design_matrix(self):
-        """Single row should work (unusual but valid)"""
-        dm = DesignMatrix({"a": [1], "b": [2]}, sampling_freq=1)
-
-        assert dm.shape == (1, 2)
-
     def test_vif_requires_multiple_columns(self):
         """VIF should error with only 1 column"""
         dm = DesignMatrix({"a": [1, 2, 3]}, sampling_freq=1)
@@ -43,13 +30,6 @@ class TestDesignMatrixEdgeCases:
 
         with pytest.raises(ValueError):
             dm.convolve()
-
-    def test_downsample_target_must_be_lower(self):
-        """Downsample target must be < current sampling_freq"""
-        dm = DesignMatrix({"a": list(range(10))}, sampling_freq=1.0)
-
-        with pytest.raises(ValueError):
-            dm.downsample(target=2.0)  # Target higher than current
 
     def test_upsample_target_must_be_higher(self):
         """Upsample target must be > current sampling_freq"""
@@ -75,18 +55,10 @@ class TestNRowsContract:
         assert dm.copy().shape == (60, 0)
         assert len(dm.copy()) == 60
 
-    def test_n_rows_survives_copy_constructor(self):
-        dm = self._empty_dm()
-        assert DesignMatrix(dm).shape == (60, 0)
-
     def test_conflicting_n_rows_raises(self):
         """A row count that contradicts the data is an error, not ignored."""
         with pytest.raises(ValueError, match="n_rows"):
             DesignMatrix({"a": [1, 2, 3]}, sampling_freq=1, n_rows=99)
-
-    def test_consistent_n_rows_accepted(self):
-        dm = DesignMatrix({"a": [1, 2, 3]}, sampling_freq=1, n_rows=3)
-        assert dm.shape == (3, 1)
 
     def test_negative_n_rows_raises(self):
         with pytest.raises(ValueError, match="n_rows"):

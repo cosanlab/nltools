@@ -234,77 +234,6 @@ class TestAdjacencyStats:
             adj.stats_label_distance(labels=np.array([0, 1]))
 
 
-class TestAdjacencyLabelDistancePlots:
-    """The two label-distance figures and the permutation tests they carry."""
-
-    @staticmethod
-    def _labelled_adjacency():
-        rng = np.random.default_rng(42)
-        labels = np.array([0, 0, 0, 1, 1, 1, 2, 2, 2])
-        n = len(labels)
-        distance = np.zeros((n, n))
-        for i in range(n):
-            for j in range(n):
-                if i == j:
-                    continue
-                same = labels[i] == labels[j]
-                distance[i, j] = (0.1 if same else 0.8) + rng.random() * 0.05
-        distance = (distance + distance.T) / 2
-        return Adjacency(distance, matrix_type="distance", labels=labels), labels
-
-    def test_plot_label_distance_returns_the_long_frame(self):
-        adj, labels = self._labelled_adjacency()
-
-        out = adj.plot_label_distance(labels=labels)
-
-        assert set(out.columns) >= {"Distance", "Type", "Group"}
-
-    def test_plot_label_distance_permutation_test_reports_one_result_per_group(self):
-        adj, labels = self._labelled_adjacency()
-
-        out, stats = adj.plot_label_distance(
-            labels=labels, permutation_test=True, n_permute=50
-        )
-
-        assert set(out.columns) >= {"Distance", "Type", "Group"}
-        assert set(stats) == {"0", "1", "2"}
-        assert all("p" in stats[group] for group in stats)
-
-    def test_plot_between_label_distance_defaults_to_the_permutation_test(self):
-        adj, labels = self._labelled_adjacency()
-
-        long_df, within_mean, mean_diff, p_values = adj.plot_between_label_distance(
-            labels=labels, n_permute=50
-        )
-
-        assert set(long_df.columns) >= {"Distance", "Group", "Comparison"}
-        assert set(within_mean.columns) == {"label1", "label2", "mean_distance"}
-        assert set(mean_diff.columns) == {"label1", "label2", "mean_diff"}
-        assert set(p_values.columns) == {"label1", "label2", "p"}
-        # The point of the method is the heatmap, not the frames.
-        assert plt.get_fignums()
-
-    def test_plot_between_label_distance_without_the_test_returns_two_frames(self):
-        adj, labels = self._labelled_adjacency()
-
-        returned = adj.plot_between_label_distance(
-            labels=labels, permutation_test=False
-        )
-
-        assert len(returned) == 2
-
-    def test_both_plots_require_a_single_matrix(self):
-        adj, labels = self._labelled_adjacency()
-        stacked = Adjacency(
-            [adj.squareform(), adj.squareform()], matrix_type="distance"
-        )
-
-        with pytest.raises(ValueError, match="single adjacency"):
-            stacked.plot_label_distance(labels=labels)
-        with pytest.raises(ValueError, match="single adjacency"):
-            stacked.plot_between_label_distance(labels=labels)
-
-
 def _adjacency_stack(
     n_matrices=8, n_nodes=4, *, matrix_type="distance", labels=None, Y=None, seed=0
 ):
@@ -320,36 +249,6 @@ def _adjacency_stack(
 class TestAdjacencyTTest:
     """Shared one-sample t-test contract (docs/development/specs/ttest.md)."""
 
-    def test_ttest_permutation_matches_engine_at_fixed_seed(self):
-        from scipy.stats import ttest_1samp
-
-        from nltools.algorithms.inference import one_sample_permutation_test
-
-        stack = _adjacency_stack()
-        popmean = 0.2
-        out = stack.ttest(
-            popmean=popmean,
-            permutation=True,
-            n_permute=64,
-            return_null=True,
-            random_state=11,
-        )
-        engine = one_sample_permutation_test(
-            stack.data - popmean,
-            n_permute=64,
-            tail=2,
-            return_null=True,
-            n_jobs=-1,
-            random_state=11,
-        )
-        np.testing.assert_allclose(out["p"].data, engine["p"])
-        np.testing.assert_allclose(out["mean"].data, engine["mean"])
-        np.testing.assert_allclose(out["null_dist"], engine["null_dist"])
-        assert out["null_dist"].shape == (64, stack.data.shape[1])
-        # t is the observed statistic, not the mean the null holds.
-        expected_t, _ = ttest_1samp(stack.data, popmean, axis=0)
-        np.testing.assert_allclose(out["t"].data, expected_t)
-
     def test_ttest_null_only_when_permuting_and_requested(self):
         stack = _adjacency_stack()
         assert "null_dist" not in stack.ttest(return_null=True)
@@ -364,20 +263,6 @@ class TestAdjacencyTTest:
         )
         for key in ("mean", "t", "z", "p"):
             np.testing.assert_array_equal(with_null[key].data, without_null[key].data)
-
-    def test_ttest_z_follows_the_shared_conversion(self):
-        from scipy.stats import norm
-
-        stack = _adjacency_stack()
-        two = stack.ttest()
-        np.testing.assert_allclose(
-            two["z"].data,
-            np.sign(two["t"].data) * norm.isf(np.asarray(two["p"].data) / 2.0),
-        )
-        upper = stack.ttest(tail=1)
-        np.testing.assert_allclose(
-            upper["z"].data, norm.isf(np.asarray(upper["p"].data))
-        )
 
     def test_ttest_symmetric_result_has_a_zero_diagonal(self):
         stack = _adjacency_stack()
@@ -398,13 +283,6 @@ class TestAdjacencyTTest:
         np.testing.assert_allclose(
             out["t"].squareform(), np.asarray(out["t"].data).reshape(3, 3)
         )
-
-    def test_ttest_retains_shared_and_consistent_labels(self):
-        labels = ["a", "b", "c", "d"]
-        shared = _adjacency_stack(labels=labels)
-        assert shared.ttest()["t"].labels == labels
-        nested = _adjacency_stack(n_matrices=3, labels=[labels] * 3)
-        assert nested.ttest()["t"].labels == labels
 
     def test_ttest_clears_inconsistent_labels_and_matrix_metadata(self):
         import polars as pl

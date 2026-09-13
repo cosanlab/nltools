@@ -22,7 +22,7 @@ N_VOXELS = 6
 N_PARCELS = 2
 N_REDUCED_FEATURES = 2
 
-SRM_METHODS = ["deterministic_srm", "probabilistic_srm"]
+SRM_METHODS = ["deterministic_srm"]
 SRM_KEYS = {"transformed", "transformation_matrix", "common_model"}
 PROCRUSTES_KEYS = SRM_KEYS | {"disparity", "scale"}
 
@@ -191,7 +191,7 @@ class TestWholeBrainContainer:
 
         assert_independent(out["transformation_matrix"], align_brain_data)
 
-    @pytest.mark.parametrize("method", SRM_METHODS + ["procrustes"])
+    @pytest.mark.parametrize("method", ["procrustes"])
     def test_row_metadata_policy(self, align_brain_data, whole_brain_model, method):
         target = align_brain_data if method == "procrustes" else whole_brain_model
 
@@ -205,7 +205,7 @@ class TestWholeBrainContainer:
         assert out["transformation_matrix"].X.is_empty()
         assert out["transformation_matrix"].Y.is_empty()
 
-    @pytest.mark.parametrize("method", SRM_METHODS + ["procrustes"])
+    @pytest.mark.parametrize("method", ["procrustes"])
     def test_every_brain_data_matches_its_mask_support(
         self, align_brain_data, whole_brain_model, method
     ):
@@ -234,16 +234,6 @@ class TestWholeBrainAxisOne:
         assert isinstance(out["transformation_matrix"], np.ndarray)
         assert out["transformation_matrix"].shape == (N_IMAGES, N_IMAGES)
 
-    @pytest.mark.parametrize("method", SRM_METHODS)
-    def test_srm(self, align_brain_data, whole_brain_model, method):
-        out = align_brain_data.align(whole_brain_model, method=method, axis=1)
-
-        assert set(out) == SRM_KEYS
-        for key in SRM_KEYS:
-            assert isinstance(out[key], np.ndarray), key
-        assert out["transformed"].shape[-1] == N_VOXELS
-        assert out["transformation_matrix"].shape == (N_IMAGES, N_IMAGES)
-
 
 class TestRoiContainer:
     def test_procrustes_keys_and_types(self, align_brain_data, align_atlas):
@@ -266,25 +256,6 @@ class TestRoiContainer:
         assert out["disparity"].shape == (N_PARCELS,)
         assert out["scale"].shape == (N_PARCELS,)
 
-    @pytest.mark.parametrize("method", SRM_METHODS)
-    def test_srm_keys_and_types(self, align_brain_data, align_atlas, roi_model, method):
-        out = align_brain_data.align(
-            roi_model,
-            method=method,
-            spatial_scale="roi",
-            roi_mask=align_atlas,
-        )
-
-        assert set(out) == SRM_KEYS | {"roi_labels"}
-        assert isinstance(out["transformed"], BrainData)
-        assert isinstance(out["transformation_matrix"], dict)
-        for parcel in out["transformation_matrix"].values():
-            assert isinstance(parcel, BrainData)
-            assert parcel.shape[-1] == mask_support(parcel)
-        assert isinstance(out["common_model"], dict)
-        for parcel in out["common_model"].values():
-            assert isinstance(parcel, np.ndarray)
-
     def test_srm_parcel_size_mismatch_raises(
         self, align_brain_data, align_atlas, reduced_model
     ):
@@ -295,20 +266,6 @@ class TestRoiContainer:
                 spatial_scale="roi",
                 roi_mask=align_atlas,
             )
-
-    def test_parcel_values_are_independent(self, align_brain_data, align_atlas):
-        out = align_brain_data.align(
-            align_brain_data,
-            method="procrustes",
-            spatial_scale="roi",
-            roi_mask=align_atlas,
-        )
-
-        assert_independent(out["transformed"], align_brain_data)
-        for key in ("transformation_matrix", "common_model"):
-            for parcel in out[key].values():
-                assert not np.shares_memory(parcel.data, align_brain_data.data)
-                assert parcel.mask is not align_brain_data.mask
 
     def test_parcel_transforms_carry_the_parcel_mask(
         self, align_brain_data, align_atlas

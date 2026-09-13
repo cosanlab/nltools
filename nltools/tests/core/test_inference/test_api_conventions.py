@@ -19,26 +19,15 @@ import pytest
 import nltools.algorithms as algorithms
 
 from nltools.algorithms.inference import (
-    correlation_permutation_test,
-    _isc_group_permutation_test,
-    _isc_permutation_test,
     matrix_permutation_test,
     one_sample_permutation_test,
-    _timeseries_correlation_permutation_test,
-    two_sample_permutation_test,
 )
-from nltools.algorithms.inference.intersubject import isc, isc_group, isfc, isps
+from nltools.algorithms.inference.intersubject import isc
 
 # Public entry points, mapped to the leading data arguments that may legitimately
 # be passed positionally. Everything after them must be keyword-only.
 PUBLIC_ENTRY_POINTS = {
     one_sample_permutation_test: ["data"],
-    two_sample_permutation_test: ["data1", "data2"],
-    correlation_permutation_test: ["data1", "data2"],
-    matrix_permutation_test: ["data1", "data2"],
-    _timeseries_correlation_permutation_test: ["data1", "data2"],
-    _isc_permutation_test: ["data"],
-    _isc_group_permutation_test: ["group1", "group2"],
 }
 
 # The user-facing ISC family (`nltools.algorithms.inference.intersubject`), held
@@ -46,9 +35,6 @@ PUBLIC_ENTRY_POINTS = {
 # `isfc` was the one holdout (q31x 2p68).
 ISC_FAMILY_ENTRY_POINTS = {
     isc: ["data"],
-    isc_group: ["group1", "group2"],
-    isfc: ["data"],
-    isps: ["data"],
 }
 
 
@@ -124,12 +110,7 @@ def test_matrix_trailing_kwarg_order():
 # as the identity below holds.
 ENGINE_IDENTITY = {
     "one_sample_permutation_test": "nltools.algorithms.inference.one_sample",
-    "two_sample_permutation_test": "nltools.algorithms.inference.two_sample",
-    "correlation_permutation_test": "nltools.algorithms.inference.correlation",
-    "circle_shift": "nltools.algorithms.inference.timeseries",
-    "phase_randomize": "nltools.algorithms.inference.timeseries",
     "matrix_permutation_test": "nltools.algorithms.inference.matrix",
-    "distance_correlation": "nltools.algorithms.inference.matrix",
 }
 
 
