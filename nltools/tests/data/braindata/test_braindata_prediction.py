@@ -2,13 +2,20 @@
 
 import inspect
 import typing
+import warnings
 
 import numpy as np
 import pytest
 from sklearn.base import BaseEstimator
-from sklearn.model_selection import KFold, LeaveOneGroupOut, StratifiedKFold
+from sklearn.model_selection import (
+    KFold,
+    LeaveOneGroupOut,
+    StratifiedGroupKFold,
+    StratifiedKFold,
+)
 
 from nltools.data import Predict
+from nltools.data.braindata.prediction import _continuous_strata, _resolve_splitter
 
 
 # ---------------------------------------------------------------------------
@@ -300,7 +307,8 @@ class TestScoring:
         result = minimal_brain_data.predict(y=y, cv=3, estimator="ridge")
 
         expected = []
-        for train, test in KFold(n_splits=3).split(minimal_brain_data.data, y):
+        splitter = _resolve_splitter(3, classifier=False, grouped=False, n_rows=n)
+        for train, test in splitter.split(minimal_brain_data.data, y):
             fitted = clone(result.estimator).fit(
                 minimal_brain_data.data[train], y[train]
             )
@@ -1056,36 +1064,104 @@ class TestCvPartition:
             ),
         )
 
-    def test_cv_none_on_a_regressor_is_an_unshuffled_kfold(self, minimal_brain_data):
-        y = np.random.default_rng(0).standard_normal(minimal_brain_data.shape[0])
-        result = minimal_brain_data.predict(y=y, estimator="ridge")
-        np.testing.assert_array_equal(
-            result.cv_folds,
-            self._reference_folds(KFold(n_splits=5), minimal_brain_data.data, y),
-        )
-
-    def test_integer_cv_ignores_groups_instead_of_going_group_aware(
+    def test_cv_none_on_a_regressor_stratifies_on_quantile_bins(
         self, minimal_brain_data
     ):
-        """An int is that many plain folds — never a `GroupKFold` promotion."""
+        """`cv=None` on a regressor is an unshuffled StratifiedKFold(5) on bins of `y`."""
+        y = np.random.default_rng(0).standard_normal(minimal_brain_data.shape[0])
+        first = minimal_brain_data.predict(y=y, estimator="ridge")
+        second = minimal_brain_data.predict(y=y, estimator="ridge")
+
+        np.testing.assert_array_equal(first.cv_folds, second.cv_folds)
+        np.testing.assert_array_equal(
+            first.cv_folds,
+            self._reference_folds(
+                StratifiedKFold(n_splits=5),
+                minimal_brain_data.data,
+                _continuous_strata(y, 5),
+            ),
+        )
+
+    def test_integer_cv_with_groups_is_group_aware(self, minimal_brain_data):
+        """An int plus `groups` promotes to the group-aware stratified splitter."""
         n = minimal_brain_data.shape[0]
         y = self._labels(minimal_brain_data)
         groups = np.arange(n) % 5
 
-        result = minimal_brain_data.predict(y=y, cv=4, groups=groups)
+        with warnings.catch_warnings():
+            # sklearn warns once per split when a splitter ignores `groups`,
+            # which is exactly the silent leak this promotion removes.
+            warnings.simplefilter("error", UserWarning)
+            result = minimal_brain_data.predict(y=y, cv=4, groups=groups)
 
         assert result.scores.shape == (4,)
-        # The folds are exactly StratifiedKFold's, which never sees `groups`.
         np.testing.assert_array_equal(
             result.cv_folds,
             self._reference_folds(
-                StratifiedKFold(n_splits=4), minimal_brain_data.data, y
+                StratifiedGroupKFold(n_splits=4), minimal_brain_data.data, y, groups
             ),
         )
-        # A group-aware splitter keeps each group inside one test fold; this
-        # one must not, or the promotion is still happening.
-        assert any(
-            len(np.unique(result.cv_folds[groups == g])) > 1 for g in np.unique(groups)
+        # No group straddles the train/test boundary.
+        assert all(
+            len(np.unique(result.cv_folds[groups == g])) == 1 for g in np.unique(groups)
+        )
+
+    def test_integer_cv_with_groups_on_a_regressor_keeps_groups_whole(
+        self, minimal_brain_data
+    ):
+        """The regressor promotion bins `y` and splits those bins group-aware."""
+        n = minimal_brain_data.shape[0]
+        y = np.random.default_rng(0).standard_normal(n)
+        groups = np.arange(n) % 5
+
+        result = minimal_brain_data.predict(y=y, estimator="ridge", cv=3, groups=groups)
+
+        assert result.scores.shape == (3,)
+        assert all(
+            len(np.unique(result.cv_folds[groups == g])) == 1 for g in np.unique(groups)
+        )
+
+    def test_integer_cv_on_a_regressor_balances_fold_means(self):
+        """Quantile-bin stratification is nltools' own addition to sklearn's grammar."""
+        rng = np.random.default_rng(1)
+        # Skewed and already ordered: the worst case for a contiguous KFold.
+        y = np.sort(rng.exponential(size=120))
+        X = rng.normal(size=(120, 3))
+        stratified = _resolve_splitter(4, classifier=False, grouped=False, n_rows=120)
+
+        stratified_means = [y[test].mean() for _, test in stratified.split(X, y)]
+        plain_means = [y[test].mean() for _, test in KFold(n_splits=4).split(X, y)]
+
+        # The folds never shuffle, so a within-bin gradient survives; the
+        # spread across fold means is still a fraction of a plain KFold's.
+        assert np.std(stratified_means) < np.std(plain_means) / 4
+        assert abs(np.mean(stratified_means) - y.mean()) < 0.05
+        assert stratified.get_n_splits(X, y) == 4
+
+    def test_too_few_rows_for_a_stratified_regressor_raises_in_nltools_terms(self):
+        """Quantile bins need two rows per fold; sklearn's "class" wording must not leak."""
+        with pytest.raises(ValueError, match="8 row"):
+            _resolve_splitter(5, classifier=False, grouped=False, n_rows=8)
+
+    def test_continuous_strata_are_never_thinner_than_the_fold_count(self):
+        """Ties at a quantile edge must not leave a bin scikit-learn calls a class."""
+        tied = np.round(np.random.default_rng(0).standard_normal(32), 1)
+
+        strata = _continuous_strata(tied, n_splits=2)
+
+        assert np.bincount(strata).min() >= 2
+
+    def test_continuous_strata_are_capped_quantile_bins(self):
+        """Ten bins at most, each big enough for every fold, and ordinals pass through."""
+        strata = _continuous_strata(
+            np.random.default_rng(0).standard_normal(200), n_splits=5
+        )
+
+        assert strata.min() == 0 and strata.max() == 9
+        assert np.bincount(strata).min() >= 2 * 5
+        np.testing.assert_array_equal(
+            _continuous_strata(np.repeat([1, 2, 3], 20), n_splits=5),
+            np.repeat([0, 1, 2], 20),
         )
 
     def test_supplied_splitter_is_used_as_given(self, minimal_brain_data):

@@ -520,7 +520,9 @@ def resolve_splits(cv, *, X, y, groups, classifier: bool) -> list:
     the same folds, and it lets the partition rule be checked before any model
     is fitted.
     """
-    splitter = _resolve_splitter(cv, classifier=classifier)
+    splitter = _resolve_splitter(
+        cv, classifier=classifier, grouped=groups is not None, n_rows=len(y)
+    )
     splits = [
         (_as_indices(train), _as_indices(test))
         for train, test in _iter_split(splitter, X, y, groups)
@@ -529,17 +531,42 @@ def resolve_splits(cv, *, X, y, groups, classifier: bool) -> list:
     return splits
 
 
-def _resolve_splitter(cv, *, classifier: bool):
+def _resolve_splitter(cv, *, classifier: bool, grouped: bool, n_rows: int):
     """Turn a `cv` spec into a scikit-learn splitter following sklearn's grammar.
 
-    This deliberately does not call the public `nltools.cross_validation.resolve_cv`.
-    That helper keeps the `'loo'`/`'logo'` names, promotes an int to a
-    group-aware splitter, and can shuffle; the prediction spec removes all
-    three from `predict` (see the cross-validation paragraph of
-    `docs/development/specs/braindata.md`), so the two rules have genuinely
-    different semantics.
+    `None` and an int both mean that many *stratified*, unshuffled folds. What
+    they stratify on, and whether they keep a group whole, depends on the
+    model and on whether the caller supplied `groups`:
+
+    | model      | `groups` | splitter                                       |
+    | ---------- | -------- | ---------------------------------------------- |
+    | classifier | no       | `StratifiedKFold(n)` on the class labels        |
+    | classifier | yes      | `StratifiedGroupKFold(n)` on the class labels   |
+    | regressor  | no       | `StratifiedKFold(n)` on quantile bins of `y`    |
+    | regressor  | yes      | `StratifiedGroupKFold(n)` on quantile bins of `y` |
+
+    A plain `(Stratified)KFold` accepts `groups` in `split()` but ignores it,
+    so before the group-aware rows a subject could straddle the train/test
+    boundary while the caller believed otherwise. There is no shuffle and no
+    `random_state` on any of these paths: `cv=None` and an int stay
+    reproducible across calls. A supplied splitter is used exactly as given,
+    and the `'loo'`/`'logo'` string aliases raise.
+
+    Args:
+        cv: `None`, an int fold count, or a scikit-learn splitter.
+        classifier: Whether the resolved model is a classifier.
+        grouped: Whether the caller supplied `groups`.
+        n_rows: The number of observations to be split.
+
+    Returns:
+        A scikit-learn-compatible splitter.
+
+    Raises:
+        ValueError: On a string `cv`, or on a regressor with too few rows to
+            fill the quantile bins.
+        TypeError: On anything that is not `None`, an int, or a splitter.
     """
-    from sklearn.model_selection import KFold, StratifiedKFold
+    from sklearn.model_selection import StratifiedGroupKFold, StratifiedKFold
 
     if isinstance(cv, str):
         raise ValueError(
@@ -550,17 +577,98 @@ def _resolve_splitter(cv, *, classifier: bool):
         )
     if cv is None or (isinstance(cv, int) and not isinstance(cv, bool)):
         n_splits = 5 if cv is None else cv
-        return (
-            StratifiedKFold(n_splits=n_splits)
-            if classifier
-            else KFold(n_splits=n_splits)
-        )
+        kind = StratifiedGroupKFold if grouped else StratifiedKFold
+        base = kind(n_splits=n_splits)
+        if classifier:
+            return base
+        # Quantile bins hold two rows per fold at least (`_continuous_strata`).
+        # Below that the bins are thinner than the fold count and scikit-learn
+        # refuses the split, talking about a "class" the caller never had.
+        if n_rows < 2 * n_splits:
+            raise ValueError(
+                f"cv={cv!r} stratifies a continuous target on quantile bins of "
+                f"y, which needs at least two rows per fold: {n_rows} row(s) "
+                f"cannot fill {n_splits} folds. Use at most {n_rows // 2} "
+                f"folds, or an unstratified splitter — "
+                f"cv=KFold(n_splits={n_splits})."
+            )
+        return _ContinuousStratifiedSplitter(base)
     if not (hasattr(cv, "split") and hasattr(cv, "get_n_splits")):
         raise TypeError(
             f"cv must be None, an int fold count, or a scikit-learn "
             f"cross-validation splitter; got {type(cv).__name__}."
         )
     return cv
+
+
+def _continuous_strata(y, n_splits: int, max_bins: int = 10) -> np.ndarray:
+    """Quantile-bin a continuous target so stratified splitters can balance it.
+
+    The bin count is capped so every bin holds at least `2 * n_splits` samples
+    — enough for each fold to draw from every bin — and never exceeds
+    `max_bins`. A target with few distinct values (an ordinal score) is used
+    as-is, its own values becoming the labels.
+
+    Every stratum ends up with at least `n_splits` members: a rare ordinal
+    level, or ties sitting on a quantile edge, would otherwise leave one
+    thinner than the fold count, and scikit-learn would then warn about a
+    "class" a regression caller never had. The bins widen until that holds,
+    down to a single stratum if the target is that degenerate. The caller
+    guarantees at least `2 * n_splits` rows (`_resolve_splitter`).
+
+    Args:
+        y: The continuous target, one value per sample.
+        n_splits: The fold count the strata will be split into.
+        max_bins: The hard cap on the number of bins.
+
+    Returns:
+        Integer strata labels, one per sample.
+    """
+    y = np.asarray(y).ravel()
+    n = y.shape[0]
+    uniques = np.unique(y)
+    n_bins = int(np.clip(n // (2 * n_splits), 2, max_bins))
+    if uniques.size <= n_bins:
+        labels = np.searchsorted(uniques, y)
+        if np.bincount(labels).min() >= n_splits:
+            return labels
+    while n_bins > 1:
+        edges = np.quantile(y, np.linspace(0, 1, n_bins + 1)[1:-1])
+        labels = np.digitize(y, edges)
+        if np.bincount(labels).min() >= n_splits:
+            return labels
+        n_bins -= 1
+    return np.zeros(n, dtype=np.intp)
+
+
+class _ContinuousStratifiedSplitter:
+    """Adapt a stratified splitter to a continuous `y` via quantile bins.
+
+    Exposes the scikit-learn splitter protocol (`split` / `get_n_splits`) so
+    it slots into every code path that consumes `cv`; the binning happens at
+    split time from whatever `y` the caller passes.
+
+    It is not a `BaseCrossValidator`. Only `resolve_splits` consumes it, and
+    it materializes the folds immediately, so the object itself never reaches
+    scikit-learn's `check_cv`. Keep it that way, or make it a subclass.
+    """
+
+    def __init__(self, base):
+        self.base = base
+
+    @property
+    def n_splits(self) -> int:
+        return self.base.n_splits
+
+    def get_n_splits(self, X=None, y=None, groups=None) -> int:
+        return self.base.get_n_splits(X, y, groups)
+
+    def split(self, X, y=None, groups=None):
+        strata = _continuous_strata(y, self.base.n_splits)
+        yield from self.base.split(X, strata, groups=groups)
+
+    def __repr__(self) -> str:
+        return f"ContinuousStratified({self.base!r})"
 
 
 def _as_indices(fold) -> np.ndarray:
