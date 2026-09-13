@@ -1540,17 +1540,22 @@ class BrainData:
                 in an estimator exposing ``coef_``, since those two scales
                 extract a weight map; searchlight builds none and does not
                 require it.
-            cv (int | sklearn splitter, optional): ``None`` (the default) is a
-                deterministic five-fold ``KFold`` (regression) or
-                ``StratifiedKFold`` (classification); an int selects that many
-                folds; an sklearn splitter is used as supplied. Test folds must
-                partition the rows, so shuffle-split and repeated splitters
-                raise. Rows ordered by condition make unshuffled contiguous
-                folds degenerate — pass a shuffled splitter to control that,
-                e.g. ``cv=KFold(n_splits=5, shuffle=True, random_state=0)``.
-            groups (array-like | str, optional): Group labels passed to the
-                splitter (e.g. ``LeaveOneGroupOut`` for leave-one-run-out), one
-                value per row, or the name of a ``.Y`` column holding them.
+            cv (int | sklearn splitter, optional): ``None`` (the default, five
+                folds) or an int fold count both mean a deterministic,
+                unshuffled *stratified* K-fold: class-balanced folds for a
+                classifier, and for a regressor folds balanced on quantile bins
+                of ``y`` so every fold matches the outcome distribution — which
+                needs at least two rows per fold, and raises below that. With
+                ``groups`` given, the group-aware variant
+                (``StratifiedGroupKFold``), so no group is split across the
+                train/test boundary. An sklearn splitter is used as supplied.
+                Test folds must partition the rows, so shuffle-split and
+                repeated splitters raise.
+            groups (array-like | str, optional): Group labels — one per row
+                (subject, run), or the name of a ``.Y`` column holding them.
+                With an integer or ``None`` ``cv`` they select the group-aware
+                splitter; with an explicit splitter they are forwarded to its
+                ``split()`` (e.g. ``LeaveOneGroupOut`` for leave-one-run-out).
             scoring (str | callable, optional): Follows scikit-learn's
                 single-metric scoring contract. ``None`` (the default) uses the
                 estimator's own ``score`` method; a scoring name or callable
@@ -1592,8 +1597,9 @@ class BrainData:
             ValueError: On both ``X`` and ``y``, a decoding argument on a
                 fitted-model call, an unknown estimator shortcut or spatial
                 scale, a target or group vector that is not one value per row,
-                cross-validation folds that do not partition the rows, a
-                preprocessing step outside the supported set, or — for
+                a continuous target with fewer than two rows per fold under an
+                integer ``cv``, cross-validation folds that do not partition
+                the rows, a preprocessing step outside the supported set, or — for
                 whole-brain and ROI decoding — a pipeline whose coefficients
                 cannot be projected back onto the voxel axis.
             TypeError: On a removed keyword, an `estimator` that is neither a

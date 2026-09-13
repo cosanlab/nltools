@@ -53,8 +53,9 @@ Goal | Use | Notes
 --- | --- | ---
 Decode a label or value | `predict(y=, estimator=, cv=)` | `y` is an array, or a string naming a column of `.Y`
 Pick an estimator | `estimator='linear_svc'`, `'logistic_regression'`, `'linear_discriminant_analysis'`, `'ridge_classifier'`, `'ridge'`, `'lasso'`, `'linear_svr'`, or any sklearn estimator | Every shortcut is linear; a non-linear estimator raises
-Cross-validation | `cv=None` (a deterministic five folds), `cv=5`, or an sklearn splitter such as `LeaveOneGroupOut()` + `groups=` | Test folds must partition the rows, so shuffle-split and repeated splitters raise
-Stratify a continuous target | [`KFoldStratified`](../api/tasks/prediction.md#nltools.cross_validation.KFoldStratified) | Deals `y`-ordered samples round-robin into folds
+Cross-validation | `cv=None` (a deterministic five folds), `cv=5`, or an sklearn splitter such as `LeaveOneGroupOut()` + `groups=` | An int (or `None`) is an unshuffled stratified K-fold: class labels for a classifier, quantile bins of `y` for a regressor. Test folds must partition the rows, so shuffle-split and repeated splitters raise
+Keep a subject or run whole | `cv=5` + `groups=` | The int becomes `StratifiedGroupKFold`, so no group is split across the train/test boundary
+Stratify a continuous target by rank | [`KFoldStratified`](../api/tasks/prediction.md#nltools.cross_validation.KFoldStratified) | Deals `y`-ordered samples round-robin into folds; an int `cv` already balances quantile bins
 Region-by-region | `spatial_scale='roi', roi_mask=atlas` | Answers "is this region informative on its own?"
 Voxel-by-voxel | `spatial_scale='searchlight', radius=8.0` | Thousands of models; `n_jobs` defaults to `1` here on purpose
 Classifier performance | [`Roc`](../api/tasks/prediction.md#nltools.data.roc.Roc) | `calculate()` then `summary()` or `plot()`
@@ -172,9 +173,10 @@ interval around it is the percentile interval across refits.
 - `predict` never mutates the object and attaches nothing to it. `fit` does mutate by default.
 - The built-in shortcuts z-score voxels *inside* each training fold, not before the split, so
   there is no leakage. A caller-supplied estimator or `Pipeline` is used exactly as given.
-- `cv=None` and an integer `cv` do not shuffle, so the folds are reproducible across calls. Rows
-  ordered by condition make contiguous folds degenerate — pass
-  `cv=KFold(n_splits=5, shuffle=True, random_state=0)` when that is a risk.
+- `cv=None` and an integer `cv` do not shuffle, so the folds are reproducible across calls. They
+  are stratified rather than contiguous, so rows ordered by condition or by outcome no longer
+  make degenerate folds; pass `cv=KFold(n_splits=5, shuffle=True, random_state=0)` if you want
+  a shuffled split anyway.
 - `n_jobs` parallelizes the outer work of the scale you asked for: folds for whole-brain, parcels
   for ROI, spheres for searchlight. It defaults to `1` because every worker holds a copy of the
   brain.

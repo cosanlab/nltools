@@ -654,10 +654,12 @@ instead.
 `predict` takes no cross-validation name strings: `"loso"`, `"loro"`, `"logo"`
 and `"loo"` all raise. Pass the splitter itself — `cv=LeaveOneGroupOut()` with
 `groups=` for leave-one-group-out, `cv=LeaveOneOut()` for leave-one-out. An
-integer selects that many unshuffled folds and ignores `groups`, so pass a group
-splitter when groups must stay disjoint across training and test sets. `cv=None`
-is a deterministic five-fold split. The legacy fluent `cv()` pipeline
-is removed; configure cross-validation through `BrainData.predict`.
+integer selects that many unshuffled folds, stratified on the class labels for a
+classifier and on quantile bins of `y` for a regressor; supply `groups=` and it
+becomes the group-aware variant, so a subject or run never straddles the
+train/test boundary. `cv=None` is that same split with five folds. The legacy
+fluent `cv()` pipeline is removed; configure cross-validation through
+`BrainData.predict`.
 
 Collection decoding and its permutation result fields are deferred to 0.6.1;
 see [BrainCollection](#braincollection).
@@ -1478,6 +1480,7 @@ result.available()     # list non-None fields
 | Built-in shortcuts are linear-only | `'svm'` (RBF `SVC`), `'randomforest'`, `'randomforestClassifier'` were spellable | Only the seven linear shortcuts; anything without `coef_` raises `ValueError` for whole-brain and ROI decoding | v0.5.1 accepted those names and then died with an opaque `AttributeError` at its weight-map line. The failure is now explicit and early, and it names the linear alternatives. Searchlight has no coefficient map to build, but shares the preprocessing whitelist (`StandardScaler`, `PCA`, `VarianceThreshold`, the six univariate selectors, `SelectFromModel`, `RFE`, `RFECV`, `SequentialFeatureSelector`, `None`/`'passthrough'`) |
 | Multiclass classification | one map per class, as a list | `result.weight_map` holds `(n_classes, n_voxels)`, in `classes` order; a built-in classification shortcut uses one-vs-rest | Same per-class semantics as v0.5.1, in one array. Coefficients are never averaged across classes |
 | CV | `cv_dict=` | `cv=` — `None` for a deterministic five folds, an int fold count, or an sklearn splitter (test folds must partition the rows) | Simpler, and follows scikit-learn's grammar |
+| Integer `cv` with `groups=` | `cv_dict={'type': 'kfolds', 'n_folds': 5, 'subject_id': subjects}` built a `GroupKFold` | `cv=5, groups=subjects` builds the same group-aware split (`StratifiedGroupKFold`), and a regressor's folds are stratified on quantile bins of `y` | One keyword pair covers what `cv_dict` spelled out. `KFoldStratified` remains for v0.5.1's sorted, rank-based variant |
 | Scoring | hardcoded | `scoring=None` uses the estimator's own `score` (accuracy for a classifier, R² for a regressor); any sklearn scoring name or callable overrides it | Follows scikit-learn's single-metric contract |
 | Label storage | `.Y` attribute | `y=` argument | Explicit |
 | Custom transforms | `brain.cv(k).normalize().reduce().pipe(t).predict()` (fluent) | Pass `estimator=make_pipeline(StandardScaler(), MyXform(), LinearSVC())`, used exactly as given | Standard sklearn pattern, no separate API to learn |

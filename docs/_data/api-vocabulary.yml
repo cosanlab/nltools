@@ -61,7 +61,7 @@ vocabulary:
     index_md: "`summary_statistic` (`'pairwise' | 'leave-one-out'`) on the ISC entry points — which cross-subject comparison is summarized, distinct from `summary`, which is the `'mean'`/`'median'` central tendency applied to it"
   - concept: "Cross-validation spec"
     kwarg: "cv"
-    index_md: "`cv` (`int |` splitter `| None`) on `BrainData.predict` — `None` is a deterministic five-fold `KFold`/`StratifiedKFold`; the `'loo'`/`'logo'` names are accepted only by the internal cv resolver behind `BrainData.predict`, and `'loso'`/`'loro'` are gone everywhere. The grouping lives in `groups=`"
+    index_md: "`cv` (`int |` splitter `| None`) on `BrainData.predict` — `None` is five folds and an int that many, both an unshuffled stratified K-fold (`StratifiedGroupKFold` when `groups=` is given); the `'loo'`/`'logo'`/`'loso'`/`'loro'` names are gone everywhere. The grouping lives in `groups=`"
   - concept: "Subject-level parallelism"
     kwarg: "n_jobs"
     index_md: "`n_jobs: int = -1`"
@@ -312,3 +312,4 @@ enforcement:
     - {path: "nltools/algorithms/backends.py", function: "zeros_like", reason: "mirrors np.zeros_like"}
     - {path: "nltools/algorithms/backends.py", function: "ones_like", reason: "mirrors np.ones_like"}
     - {path: "nltools/algorithms/backends.py", function: "full_like", reason: "mirrors np.full_like"}
+    - {path: "nltools/data/braindata/prediction.py", function: "get_n_splits", reason: "mirrors the sklearn splitter protocol, which callers invoke positionally"}

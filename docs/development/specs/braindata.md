@@ -346,16 +346,23 @@ cross-validation fold.
 
 `cv` and `groups` apply only to MVPA. Prediction from a fitted `Glm` or `Ridge`
 never constructs or evaluates cross-validation folds; it delegates directly to
-the fitted estimator. In MVPA, `groups` is optional and is passed to the
-selected scikit-learn cross-validation splitter, including splitters such as
-`LeaveOneGroupOut`.
+the fitted estimator. In MVPA, `groups` is optional. With a caller-supplied
+splitter it is passed to that splitter's `split()`, including splitters such as
+`LeaveOneGroupOut`; with `cv=None` or an integer it selects the group-aware
+splitter.
 
-MVPA follows scikit-learn's cross-validation grammar. `cv=None` selects its
-deterministic five-fold `KFold` or `StratifiedKFold`; an integer selects that
-many folds; and a scikit-learn cross-validation splitter is used as supplied.
-The nltools-specific `"loo"` and `"logo"` aliases are removed. `predict` has no
-`random_state` argument: callers configure randomness on the estimator or
-splitter that owns it.
+MVPA follows scikit-learn's cross-validation grammar. `cv=None` selects five
+folds and an integer selects that many, and both mean a deterministic,
+unshuffled stratified K-fold: `StratifiedKFold` on the class labels for a
+classifier, and `StratifiedKFold` on quantile bins of `y` for a regressor so
+the outcome distribution matches across folds. When `groups` is supplied both
+become `StratifiedGroupKFold` on the same strata, so no group straddles the
+train/test boundary. Quantile stratification needs at least two rows per fold;
+a shorter continuous target raises before splitting rather than surfacing
+scikit-learn's message about a class the caller never had. A scikit-learn cross-validation splitter is used as
+supplied. The nltools-specific `"loo"` and `"logo"` aliases are removed.
+`predict` has no `random_state` argument: callers configure randomness on the
+estimator or splitter that owns it.
 
 `n_jobs` controls the outer independent work for each MVPA spatial mode:
 cross-validation folds for whole-brain decoding, parcels for ROI decoding, and
