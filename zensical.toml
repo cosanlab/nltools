@@ -7,7 +7,10 @@ site_url = "https://nltools.org/"
 docs_dir = "docs"
 site_dir = "site"
 repo_url = "https://github.com/cosanlab/nltools"
-extra_css = ["_static/custom.css"]
+extra_css = ["_static/custom.css", "_static/pyodide-output.css"]
+# Rich output for the ```pyodide cells on the quickstart page: matplotlib
+# figures as inline SVG and HTML reprs. The file explains the seam it hooks.
+extra_javascript = ["_static/pyodide-output.js"]
 
 nav = [
   { "Home" = "index.md" },
