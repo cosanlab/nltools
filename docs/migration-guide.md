@@ -1,12 +1,12 @@
 # Migrating from v0.5.1
 
-nltools 0.6.0 stops re-implementing what nilearn, scikit-learn and polars already
-do well and delegates to them instead. The data classes keep their jobs, but their
-names, keyword vocabulary and return types are now consistent with each other and
-with the libraries underneath: `Brain_Data` is `BrainData`, `nltools.stats` is
-`nltools.algorithms`, prediction and regression return typed records instead of
-loose dictionaries, and one keyword name means one thing everywhere. There are no
-compatibility aliases — a v0.5.1 name either has a listed replacement or is gone.
+nltools 0.6.0 delegates to nilearn, scikit-learn and polars instead of
+re-implementing them. The data classes keep their jobs, but their names, keyword
+vocabulary and return types line up with each other and with the libraries
+underneath: `Brain_Data` is `BrainData`, `nltools.stats` is `nltools.algorithms`,
+prediction and regression return typed records instead of loose dictionaries, and
+one keyword name means one thing everywhere. There are no compatibility aliases —
+a v0.5.1 name either has a listed replacement or is gone.
 `BrainCollection` and collection-level execution are deferred to 0.6.1; in 0.6.0,
 apply `BrainData` methods per subject and stack the results with
 [`concatenate`](api/nltools.md).
@@ -18,10 +18,10 @@ apply `BrainData` methods per subject and stack the results with
 | Data classes | `Brain_Data`, `Design_Matrix` | `BrainData`, `DesignMatrix` | PEP 8 names; no aliases |
 | Data classes | `brain.shape()`, `brain.isempty()` | `brain.shape`, `brain.is_empty` | Properties, not methods |
 | Data classes | `brain.empty()` | `brain.create_empty()` | `empty` was ambiguous with the predicate |
-| Data classes | `brain.smooth(6)` mutates | `brain.smooth(6)` returns a copy | Every transform returns a new object |
 | Data classes | `brain.nifti_masker` | `nilearn.masking.apply_mask(img, brain.mask)` | Removed |
 | Data classes | `brain.apply_mask(mask, resample_mask_to_brain=True)` | `brain.apply_mask(mask)` | The mask must already sit on the data's grid; `resample()` first |
-| Data classes | `brain.resample(img=target)` took the target's support | `brain.resample(img=target)` takes only the grid | The source mask is carried over |
+| Data classes | `brain.threshold(2, -2)`, `brain.filter(0.5, 0.008)` | `brain.threshold(upper=2, lower=-2)`, `brain.filter(sampling_freq=0.5, high_pass=0.008)` | Options are keyword-only after the data argument |
+| Data classes | `brain.decompose(algorithm='ica')` | `brain.decompose(method='ica')` | `method` names the algorithm; `metric` is reserved for distances |
 | Data classes | `brain.append(data, **kwargs)` | `brain.append(data, *, ignore_attrs=False)` | Extra keywords are no longer forwarded to pandas |
 | Data classes | `adjacency.shape()` (vector), `square_shape()` | `adjacency.shape` (square), `adjacency.vector_shape` | The logical shape is the default |
 | Data classes | `Groupby`, `brain.groupby()`, `brain.aggregate()` | Removed, no successor | Loop over `extract_roi` output |
@@ -33,7 +33,7 @@ apply `BrainData` methods per subject and stack the results with
 | Design matrix | `dm.polys` | `dm.confounds` | Read-only; set columns as confounds when you append them |
 | Design matrix | `dm.zscore(columns=…)` | `dm.standardize(method='zscore', columns=…)` | Keyword-only; the default `method='center'` centers only |
 | Design matrix | `dm.convolve(conv_func='hrf')` | `dm.convolve(kernel='glover')` | Six nilearn HRF names or an array; `'hrf'` is gone |
-| Design matrix | 1-D kernel kept the column name | Always `<col>_c{i}` | The source column is dropped |
+| Design matrix | `dm.convolved` listed the source columns | `dm.convolved` lists the `<col>_c{i}` outputs | The suffix and the dropped source column are unchanged |
 | Design matrix | Convolved values from a nipy-derived kernel | nilearn's `compute_regressor` at `oversampling=50` | Every beta, t and contrast moves ([#492](https://github.com/cosanlab/nltools/issues/492)) |
 | Design matrix | `poly_0`, `cosine_1`, `global_spike1` | `.nl_poly_0`, `.nl_cosine_1`, `.nl_global_spike1` | Generated columns live in the reserved `.nl_` namespace |
 | Design matrix | `dm.vif(exclude_polys=…)`, `dm.clean(exclude_polys=…, verbose=…)` | `dm.vif(exclude_confounds=…)`, `dm.clean(exclude_confounds=…, progress_bar=…)` | Renamed with `.polys` |
@@ -43,14 +43,15 @@ apply `BrainData` methods per subject and stack the results with
 | GLM | `brain.regress(mode='ols')` → dict | `brain.fit(model='glm', X=dm)` then `compute_contrasts` | t/p are per contrast, not per regressor |
 | GLM | `nltools.stats.regress(X, Y, mode=…)` | `nltools.algorithms.regress(X, Y, *, stats=…, tail=…)` | OLS was the only working mode; robust/ARMA are gone |
 | GLM | `brain.randomise(...)` | `brain.ttest(permutation=True)` | Voxelwise permutation on the entry point that already existed |
-| GLM | `fit` cleaned the design implicitly | `fit` estimates the design you pass | Call `dm.clean()` yourself |
+| GLM | `adjacency.regress(X, mode='ols')` | `adjacency.regress(X)` | Same removal as the standalone `regress`; `tail` is keyword-only |
 | Prediction | `brain.predict(algorithm='svm', cv_dict=…)` → dict | `brain.predict(y=…, estimator=…, cv=…)` → `Predict` | Frozen record with `weight_map`, `scores`, `predictions` |
 | Prediction | `brain.predict_multi(...)` | `brain.predict(spatial_scale='roi'\|'searchlight')` | One entry point, three spatial scales |
 | Prediction | `set_cv(Y, cv_dict)` | `cv=<int>` or an sklearn splitter, plus `groups=` | Removed; an int is that many unshuffled stratified folds |
+| Prediction | `algorithm='svm'`, `'logistic'`, `'svr'` | `estimator='linear_svc'`, `'logistic_regression'`, `'linear_svr'` | Abbreviations are rejected by name; `linear`, `lassopcr` and the `*CV` variants are gone |
 | Prediction | `algorithm='ridge'` fitted `Ridge()` at its default penalty | `estimator='ridge'` fits `RidgeCV` over a 1e-3…1e6 grid | Pass `estimator_kwargs={'alphas': …}` for a fixed penalty |
 | Prediction | `Roc(threshold_type='optimal_overall')` | `Roc(method='optimal_overall')` | Keyword-only, and `calculate` takes `method=` too |
 | Similarity | `brain.similarity(image=…, method=…)` | `brain.similarity(data, *, metric=…)` | `metric` is the similarity metric everywhere |
-| Similarity | `adjacency.similarity(perm_type=…, ignore_diagonal=…)` | `adjacency.similarity(data, *, method=…, include_diag=…)` | Polarity of the diagonal flag is flipped |
+| Similarity | `adjacency.similarity(perm_type=…, ignore_diagonal=…)` | `adjacency.similarity(data, *, method=…, include_diag=…)` | Polarity is flipped, so the default now excludes the diagonal |
 | Similarity | `adjacency.cluster_summary(metric=…, summary=…)` | `adjacency.cluster_summary(summary=…, scope=…)` | `summary` is the central tendency; `scope` is within/between |
 | Similarity | `brain.extract_roi(metric=…)` | `brain.extract_roi(method=…)` | `metric` is reserved for distances |
 | Similarity | `brain.multivariate_similarity(images, method='ols')` | `brain.multivariate_similarity(images, tail=2)` | OLS was the only mode |
@@ -59,8 +60,10 @@ apply `BrainData` methods per subject and stack the results with
 | Alignment | Procrustes back-projection was `transformed @ T` | `transformed @ T.T` | `transformation_matrix` is stored as `transformed = original @ T` |
 | Statistics | `nltools.stats` | `nltools.algorithms` | Same functions, one namespace |
 | Statistics | `one_sample_permutation`, `two_sample_permutation`, `correlation_permutation`, `matrix_permutation` | Same names with a `_test` suffix | Keyword-only after the data arguments |
-| Statistics | `n_perm=` | `n_permute=` | Including `adjacency.generate_permutations` |
-| Statistics | `show_progress=True` | `progress_bar=False` | Renamed, and off by default |
+| Statistics | `adjacency.generate_permutations(n_perm=…)` | `generate_permutations(n_permute=…)` | One spelling for a permutation count everywhere |
+| Statistics | `return_perms=True` → `out['perm_dist']` | `return_null=True` → `out['null_dist']` | One name for the null distribution |
+| Statistics | `correlation_permutation`, `matrix_permutation` defaulted to `metric='spearman'` | Both default to `metric='pearson'` | Pass `metric='spearman'` to reproduce v0.5.1 numbers |
+| Statistics | `correlation_permutation(method='circle_shift'\|'phase_randomize')` | Removed | Shift or randomize with `circle_shift`/`phase_randomize` before the test |
 | Statistics | `brain.ttest(threshold_dict={'fdr': .05})` | `brain.ttest(popmean=…, permutation=…)` then `nltools.algorithms.threshold` | Thresholding is its own step |
 | Statistics | `adjacency.ttest(permutation=…, **kwargs)` | Same keywords as `BrainData.ttest` | Returns `mean`, `t`, `z`, `p` |
 | Statistics | `brain.bootstrap('mean', save_weights=…)` → dict | `brain.bootstrap('mean', return_samples=…)` → `BootstrapResult` | `estimate`, `standard_error`, `ci_lower`, `ci_upper` |
@@ -75,7 +78,7 @@ apply `BrainData` methods per subject and stack the results with
 | Plotting | `plot_stacked_adjacency` | Removed, no successor | Plot the two matrices side by side |
 | Plotting | `brain.iplot(threshold=0, surface=…)` | `brain.iplot(view=…, threshold=…, atlas=…)` | Rebuilt on niivue |
 | IO | `onsets_to_dm(f, sampling_freq, run_length)` | `DesignMatrix(events_path, run_length=…, TR=…)` | HRF-convolves by default; `hrf_model=None` for boxcars |
-| IO | `from nltools.external import glover_hrf` | `from nilearn.glm.first_level import glover_hrf` | The six HRF wrappers were pass-throughs |
+| IO | `from nltools.external import glover_hrf` | `from nilearn.glm.first_level import glover_hrf` | The five HRF wrappers were pass-throughs |
 | Datasets | `fetch_pain(data_dir=…, resume=…, verbose=1)` | `fetch_pain(verbose=0)` | Caching is handled for you; same for `fetch_emotion_ratings` |
 | Datasets | `download_collection`, `get_collection_image_metadata` | `fetch_neurovault_collection(collection_id)` | One function |
 | Datasets | `get_anatomical()` | `nilearn.datasets.load_mni152_brain_mask()` | Removed |
@@ -131,15 +134,11 @@ print(brain.shape, conditions[:6])
 
 ### Data classes
 
-Shape and emptiness are properties, and transforms return a new object instead of
-mutating the one you called them on.
+Shape and emptiness are properties rather than methods.
 
 ```python exec="on" source="above" result="text" session="mig"
 # v0.5.1: brain.shape(), brain.isempty(), brain.empty()
 print(brain.shape, brain.is_empty, brain.create_empty().shape)
-
-# v0.5.1: brain.smooth(6) modified brain in place and returned None
-print(brain.smooth(6) is brain)
 ```
 
 `Adjacency.shape` is the logical square shape; the packed vector length moved to
@@ -186,11 +185,12 @@ standardized = design.standardize(method="zscore", columns=["stim"])
 print(dict(zip(standardized.columns, standardized.to_numpy().std(axis=0).round(2))))
 ```
 
-Convolution names the kernel with `kernel=` and always suffixes the output
-column, so a design says which regressors have been convolved.
+Convolution names the kernel with `kernel=`. The output column keeps the
+`_c{i}` suffix it had in v0.5.1, and `.convolved` now lists those output names
+rather than the source names.
 
 ```python exec="on" source="above" result="text" session="mig"
-# v0.5.1: DesignMatrix(...).convolve(conv_func='hrf') kept the name 'stim'
+# v0.5.1: DesignMatrix(...).convolve(conv_func='hrf'); .convolved was ['stim']
 convolved = DesignMatrix({"stim": np.tile([0.0, 1.0], 10)}, sampling_freq=0.5).convolve()
 print(convolved.columns, convolved.convolved)
 ```
@@ -236,7 +236,7 @@ print(type(result).__name__, result.statistic.shape, result.degrees_of_freedom)
 ```
 
 The standalone OLS helper survives the move to `nltools.algorithms` but loses
-`mode=`: OLS was its only supported value.
+`mode=`; the robust and ARMA fits are gone.
 
 ```python exec="on" source="above" result="text" session="mig"
 from nltools.algorithms import regress
@@ -349,12 +349,12 @@ classes are no longer importable — the method builds them for you.
 ### Statistics and inference
 
 Everything from `nltools.stats` lives in `nltools.algorithms`. The four
-permutation tests gained a `_test` suffix, `n_perm=` became `n_permute=`, and
-`show_progress=` became `progress_bar=`, which is off by default.
+permutation tests gained a `_test` suffix, everything after the data arguments is
+keyword-only, and `return_perms=` became `return_null=`.
 
 ```python exec="on" source="above" result="text" session="mig"
 # v0.5.1: from nltools.stats import one_sample_permutation
-#         one_sample_permutation(x, n_perm=200, show_progress=True)
+#         one_sample_permutation(x, n_permute=200, return_perms=True)
 from nltools.algorithms import one_sample_permutation_test
 
 print({k: round(v, 3) for k, v in one_sample_permutation_test(
@@ -457,10 +457,11 @@ CSV under 0.5.1 first, then read them back in 0.6.0.
 ## What did not change
 
 `BrainData`, `Adjacency` and `DesignMatrix` still mean what they meant in v0.5.1,
-and the methods that were already well named — `threshold`, `extract_roi`,
-`detrend`, `filter`, `r_to_z`, `distance`, `to_nifti`, `write` — keep their names
-and their results. Masks are still nibabel images, `BrainData.data` is still a
-2-D NumPy array of images by voxels, `Y` and `X` still hold labels and designs,
-and `KFoldStratified` and the four v0.5.1 functions in
-[`nltools.mask`](api/mask.md) are unchanged. Reading a NIfTI file, a list of files, or a NeuroVault URL into
-`BrainData` works exactly as before — and now accepts `Path` objects too.
+and the methods that were already well named — `threshold`, `detrend`, `filter`,
+`r_to_z`, `distance`, `to_nifti`, `write` — keep their names and their results.
+Masks are still nibabel images, `BrainData.data` is still a 2-D NumPy array of
+images by voxels, `Y` and `X` still hold labels and designs, and
+`KFoldStratified` and the four v0.5.1 functions in
+[`nltools.mask`](api/mask.md) are unchanged. Reading a NIfTI file, a list of
+files, or a NeuroVault URL into `BrainData` works as before, and now accepts
+`Path` objects too.

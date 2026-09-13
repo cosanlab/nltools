@@ -35,6 +35,7 @@ decisions.
 | Packaging | `uv build`, then install the wheel into a fresh venv and run the smoke test from `scripts/release.py` (`SMOKE_TEST_CODE`) with the expected version | local | Wheel installs, version matches `pyproject.toml`, `DesignMatrix` and `Adjacency` construct. |
 | Export inventory | `uv run poe lint-api` plus `uv run python -c "import nltools.data as d; assert 'BrainCollection' not in d.__all__"` | local | API checks pass; `BrainCollection` is absent from public exports and `docs/api`; `q31x` has no unresolved findings. |
 | Migration examples | Run each code block in `docs/migration-guide.md` that shows 0.6.0 behavior in a scratch script | local | Every example runs and prints or asserts what the guide claims. |
+| Migration downloads | Run the one non-executed fence in `docs/migration-guide.md` (`fetch_pain()` and `fetch_neurovault_collection(504)`, under `### IO and datasets`) in a scratch script | local | Both fetchers download; `fetch_pain()` returns a `BrainData` and `fetch_neurovault_collection(504)` returns a `(metadata, files)` pair. The docs build skips this fence because it needs the network. |
 
 Record every log, the executed revision hash, and machine details in the
 `q62r` close message.
