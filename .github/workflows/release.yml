@@ -98,10 +98,8 @@ jobs:
         run: |
           # A pre-release tag (v0.6.0.dev0, v1.0.0rc1, ...) must not be marked
           # latest on the releases page.
-          prerelease=""
+          args=(--title "${GITHUB_REF_NAME}" --generate-notes)
           case "${GITHUB_REF_NAME}" in
-            *.dev*|*a[0-9]*|*b[0-9]*|*rc[0-9]*) prerelease="--prerelease" ;;
+            *.dev*|*a[0-9]*|*b[0-9]*|*rc[0-9]*) args+=(--prerelease) ;;
           esac
-          gh release create "${GITHUB_REF_NAME}" dist/* \
-            --title "${GITHUB_REF_NAME}" \
-            --generate-notes $prerelease
+          gh release create "${GITHUB_REF_NAME}" dist/* "${args[@]}"
