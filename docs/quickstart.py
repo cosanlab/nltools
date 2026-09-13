@@ -227,9 +227,11 @@ def _(mo):
     mo.md(r"""
     A beta map is the model's answer at every voxel and the contrast is the question
     asked of it. One subject is not a result, though — the map a paper reports is a
-    test across subjects. Load five, each a fresh draw of the same experiment, stack
+    test across subjects. `n_runs=5` returns five fresh draws of the experiment,
+    each with its own block order and noise, to stand in for five subjects; stack
     their contrast maps with `concatenate`, and `ttest` gives the voxelwise
-    one-sample test; `threshold` zeroes every voxel whose p-value misses a cutoff:
+    one-sample test, while `threshold` zeroes every voxel whose p-value misses a
+    cutoff:
     """)
     return
 
@@ -238,13 +240,7 @@ def _(mo):
 def _(concatenate, load_haxby_example):
     from nltools.algorithms import threshold
 
-    subjects = []
-    subject_designs = []
-    for seed in range(1, 6):
-        subject_brains, subject_design_matrices = load_haxby_example(random_state=seed)
-        subjects.append(subject_brains[0])
-        subject_designs.append(subject_design_matrices[0])
-
+    subjects, subject_designs = load_haxby_example(n_runs=5)
     group = concatenate(
         [
             subject.fit(model="glm", X=subject_design).compute_contrasts(
@@ -267,13 +263,14 @@ def _(mo):
     ### Predicting neural responses
 
     An encoding model turns the same equation around: features go in, and the model
-    is judged on data it never saw. Ridge regression is the usual estimator, because
-    it stays stable when the features are correlated or outnumber the timepoints.
-    Here two runs of the experiment, one to train on and one held out, each z-scored
-    so every voxel is on the same scale, and each run's own design as its features.
-    `ridge_cv` picks the penalty by cross-validation, one per voxel, and the whole
-    fit lands on `.model`: one weight map per feature in `betas`, the chosen penalty
-    in `alpha`, the variance explained in `r2`:
+    is judged on data it never saw. The features here are every convolved condition
+    regressor at twelve delays, 96 columns over 72 TRs, so ordinary least squares
+    has no unique solution and ridge regression is what makes the fit possible at
+    all. Two runs, one to train on and one held out, both z-scored because ridge
+    fits no intercept and the data sit on a baseline of 100. `ridge_cv` picks the
+    penalty by cross-validation, one per voxel, and the whole fit lands on `.model`:
+    one weight map per feature in `betas`, the chosen penalty in `alpha`, the
+    variance explained in `r2`:
     """)
     return
 
@@ -282,12 +279,19 @@ def _(mo):
 def _(load_haxby_example):
     import numpy as np
 
+    def delayed(design):
+        """The eight convolved regressors at twelve delays, side by side."""
+        names = [name for name in design.columns if name.endswith("_c0")]
+        regressors = np.column_stack([np.asarray(design[name]) for name in names])
+        shifted = [np.pad(regressors, ((lag, 0), (0, 0))) for lag in range(12)]
+        return np.column_stack([block[: len(regressors)] for block in shifted])
+
     runs, run_designs = load_haxby_example(n_runs=2)
     train = runs[0].standardize(method="zscore")
     held_out = runs[1].standardize(method="zscore")
     train.fit(
         model="ridge",
-        X=run_designs[0],
+        X=delayed(run_designs[0]),
         ridge_alpha=[1, 10, 100, 1000],
         ridge_cv=5,
         random_state=0,
@@ -296,7 +300,7 @@ def _(load_haxby_example):
     print(train.model.betas)
     print(f"penalty per voxel: {np.unique(train.model.alpha.data)}")
     print(f"best training r2: {train.model.r2.data.max():.2f}")
-    return held_out, np, run_designs, train
+    return delayed, held_out, np, run_designs, train
 
 
 @app.cell(hide_code=True)
@@ -311,7 +315,7 @@ def _(mo):
 
 
 @app.cell
-def _(held_out, np, run_designs, train):
+def _(delayed, held_out, np, run_designs, train):
     from nltools.data import BrainData
 
     def voxel_correlation(observed, predicted):
@@ -321,7 +325,7 @@ def _(held_out, np, run_designs, train):
         return (observed * predicted).mean(axis=0)
 
     encoding_scores = voxel_correlation(
-        held_out.data, train.predict(X=run_designs[1]).data
+        held_out.data, train.predict(X=delayed(run_designs[1])).data
     )
 
     BrainData(encoding_scores[None, :], mask=held_out.mask).plot(
