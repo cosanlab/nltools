@@ -81,6 +81,9 @@ from pymdownx.superfences import SuperFencesException
 matplotlib.use("Agg")
 matplotlib.rcParams["svg.fonttype"] = "none"
 
+# Resolution of the bitmaps `svg_of` rasterizes a figure's collections into.
+RASTER_DPI = 200
+
 __all__ = [
     "Cell",
     "CellFailure",
@@ -467,9 +470,19 @@ def figure_of(obj: Any) -> matplotlib.figure.Figure | None:
 
 
 def svg_of(fig: matplotlib.figure.Figure) -> str:
-    """Serialize a figure to an inline SVG fragment."""
+    """Serialize a figure to an inline SVG fragment.
+
+    Every matplotlib collection in the figure is rasterized into an embedded
+    bitmap at `RASTER_DPI` first. A surface or flatmap is tens of thousands of
+    mesh polygons, and left as vector paths one such figure is over a hundred
+    megabytes of SVG; rasterized it is under a megabyte. Text, axes and lines
+    are not collections, so they stay vector and stay sharp.
+    """
+    for axes in fig.axes:
+        for collection in axes.collections:
+            collection.set_rasterized(True)
     buf = io.StringIO()
-    fig.savefig(buf, format="svg", bbox_inches="tight")
+    fig.savefig(buf, format="svg", bbox_inches="tight", dpi=RASTER_DPI)
     svg = buf.getvalue()
     svg = svg[svg.index("<svg") :]
     return f'<div class="cell-output cell-figure">{svg}</div>'

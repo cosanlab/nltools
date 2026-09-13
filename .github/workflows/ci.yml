@@ -94,11 +94,17 @@ jobs:
         run: uv run poe test
 
       # Smoke the site the deploy builds: `docs-build` regenerates the API
-      # vocabulary tables, then runs `zensical build --strict`, which fails on a
-      # broken internal link or a `:::` directive naming something that does not
-      # exist. No page executes a notebook, so this is seconds. 3.12 leg only.
+      # vocabulary tables and the tutorial pages, then runs
+      # `zensical build --strict`, which fails on a broken internal link, a `:::`
+      # directive naming something that does not exist, or a tutorial cell that
+      # raises or writes to stderr. HF_TOKEN authenticates the template and atlas
+      # downloads those cells trigger; unauthenticated calls print a rate-limit
+      # warning to stderr, which fails the build. 3.12 leg only.
       - name: Build docs (zensical strict build)
         if: matrix.python-version == '3.12'
+        env:
+          HF_HUB_ETAG_TIMEOUT: "30"
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: uv run poe docs-build
 
       - name: Build package

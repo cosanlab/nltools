@@ -12,9 +12,19 @@ extra_css = ["_static/custom.css"]
 nav = [
   { "Home" = "index.md" },
   { "Migrating from v0.5" = "migration-guide.md" },
+  # Each tutorial page is generated from its marimo notebook by
+  # scripts/marimo_to_zensical.py and executes its cells while the site builds.
+  # The remaining notebooks under docs/tutorials/ are parked and join the nav one
+  # at a time; a notebook in this nav must also be in that script's
+  # TUTORIAL_GLOBS, and nowhere else.
+  { "Tutorials" = [
+    "tutorials/index.md",
+    { "Data operations" = [
+      "tutorials/data-operations/01_brain_data.md",
+    ] },
+  ] },
   # One page per user-facing namespace, rendered by mkdocstrings from docs/api/.
-  # The tutorial and User Guide pages are parked under docs-staging/ until #503
-  # and #505 bring them back one at a time.
+  # The User Guide pages are parked under docs-staging/.
   { "Reference" = [
     { "nltools" = "api/nltools.md" },
     { "nltools.data" = [
