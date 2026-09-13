@@ -78,6 +78,10 @@ scratch/
 # Zensical site output
 /site/
 
+# A locally built wheel staged for the quickstart page's ```pyodide cells to
+# install from, when testing a version that is not on PyPI yet.
+docs/_static/wheels/
+
 # Tutorial pages: build artifacts generated from the marimo notebooks beside
 # them by scripts/marimo_to_zensical.py (`uv run poe docs-generate`). The
 # patterns match the notebooks (scripts/marimo_to_zensical.py TUTORIAL_GLOBS),

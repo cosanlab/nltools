@@ -1,0 +1,21 @@
+/* Output that pyodide-output.js appends to a ```pyodide cell. Zensical styles
+   the block itself; these rules only cover the two node types it never emits.
+   The output element is a `<code>` inside a `<pre>`, so anything that is not
+   preformatted text has to opt out of `white-space: pre`. */
+
+.md-typeset .pyodide-output .pyodide-figure {
+  margin: 0.5em 0;
+}
+
+/* matplotlib sizes an SVG in points, which is the size the figure was drawn
+   at; only shrink it, so a small figure is not blown up to the page width. */
+.md-typeset .pyodide-output .pyodide-figure > svg {
+  display: block;
+  max-width: 100%;
+  height: auto;
+}
+
+.md-typeset .pyodide-output .pyodide-html {
+  overflow-x: auto;
+  white-space: normal;
+}
