@@ -71,7 +71,8 @@ def _plot_brain(
             (nltools semantics).
         threshold (float | str, optional): Absolute-value transparency cutoff
             forwarded to nilearn. Percentile strings such as ``"95%"`` are
-            resolved over finite, nonzero magnitudes. Must be >= 0.
+            resolved over finite, nonzero magnitudes. Must be >= 0. Omitted,
+            ``method="glass"`` forwards 0 so no voxel is hidden.
         view (str): For ``method="slices"``, any non-empty combination of
             ``"x"``, ``"y"``, ``"z"`` (e.g. ``"xyz"``, ``"xz"``, ``"y"``).
             Default: ``"z"``.
@@ -291,6 +292,10 @@ def _plot_brain(
         plot_kwargs.setdefault("transparency", obj.mask)
 
         if method == "glass":
+            # nilearn's own default is threshold='auto', a data percentile that
+            # hides voxels and costs the colorbar its 0 tick. Draw the map whole
+            # unless the caller asked for a cutoff.
+            plot_kwargs.setdefault("threshold", 0)
             display_glass = plot_glass_brain(
                 nifti_img,
                 display_mode="lzry",
