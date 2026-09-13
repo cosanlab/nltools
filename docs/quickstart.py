@@ -37,8 +37,8 @@ def _(mo):
     ### Working with neuroimaging data
 
     Start by choosing the grid every image lives on. `set_brainspace` sets it for
-    the session, and 3 mm is the grid the example dataset below is built on:
-    71,020 voxels in the mask, against 238,955 at the 2 mm default, which is what
+    the session, and 3 mm is the grid the example dataset below is built on. That
+    is 71,020 voxels in the mask against 238,955 at the 2 mm default, which is what
     keeps this page inside a browser tab.
     """)
     return
@@ -83,8 +83,8 @@ def _():
 def _(mo):
     mo.md(r"""
     `.Y` carries the condition of every TR, so ordinary indexing pulls one
-    condition out and `mean()` averages it — face blocks minus rest is the response
-    to faces. `iplot()` draws it in an interactive [niivue](https://niivue.com)
+    condition out and `mean()` averages it. Face blocks minus rest is the response
+    to faces, and `iplot()` draws it in an interactive [niivue](https://niivue.com)
     viewer: run the cell below, then drag the sliders to rewindow the map and
     scroll a panel to move through slices.
     """)
@@ -141,8 +141,8 @@ def _(mo):
     is worth doing inside a region: over 71,020 voxels, two patterns mostly differ
     by noise. `create_sphere` draws regions in MNI millimetres and `apply_mask`
     keeps the voxels inside them — here the eight ventral-stream spheres the example
-    responds in. Correlation distance compares the shape of a pattern rather than
-    its size, and shape is where a condition's identity lives:
+    responds in. Correlation distance ignores how strongly a pattern responds
+    overall and compares only its shape across those voxels:
     """)
     return
 
@@ -403,10 +403,10 @@ def _(decoded):
 def _(mo):
     mo.md(r"""
     The weight map is the pattern the classifier leaned on, refit on all twelve TRs.
-    Decoding runs inside a region because that is where the information is: one run
-    labels twelve TRs against 71,020 voxels, and a whole-brain classifier fitted to
-    that lands anywhere between chance and this, depending on the noise. Masking to
-    ventral temporal cortex first is how the real Haxby dataset is analyzed too.
+    Decoding runs inside a region rather than over the whole brain. One run labels
+    twelve TRs against 71,020 voxels, and a whole-brain classifier fitted to that
+    lands anywhere between chance and this, depending on the noise; masking to
+    ventral temporal cortex first is how the real Haxby data are analyzed too.
 
     ### Analyzing intersubject similarity
 
@@ -416,8 +416,8 @@ def _(mo):
     subject's timecourse inside every parcel of a 50-region atlas, `isc` correlates
     every pair of subjects one parcel at a time and bootstraps subjects for the
     p-value, and `roi_to_brain` paints the answer back onto the brain. Each
-    simulated subject saw the blocks in a different order, so the TRs are lined up
-    by condition first:
+    simulated subject saw the blocks in a different order, so line the TRs up by
+    condition first:
     """)
     return
 
