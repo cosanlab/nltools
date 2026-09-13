@@ -282,38 +282,48 @@ def _write(dm: DesignMatrix, file_name: str, sep: str | None = None) -> None:
 def _write_h5(dm: DesignMatrix, file_name: str) -> None:
     """Write DesignMatrix to HDF5 file with metadata.
 
-    The frame is stored as Arrow IPC bytes (via the shared
-    `nltools.io.h5` helpers) so every dtype round-trips exactly — an integer
-    spike indicator comes back an integer rather than being floated by a
-    detour through a homogeneous numpy array.
-
     Args:
         dm (DesignMatrix): DesignMatrix instance.
         file_name (str): Output HDF5 file path.
     """
     import h5py
 
+    with h5py.File(file_name, "w") as f:
+        _write_h5_group(f, dm, "gzip")
+
+
+def _write_h5_group(group, dm: DesignMatrix, compression: str) -> None:
+    """Write a DesignMatrix's frame and metadata into an open HDF5 group.
+
+    The frame is stored as Arrow IPC bytes (via the shared `nltools.io.h5`
+    helpers) so every dtype round-trips exactly — an integer spike indicator
+    comes back an integer rather than being floated by a detour through a
+    homogeneous numpy array. The group is the file itself for a standalone
+    `.h5`, and a subgroup when a design travels inside another object's file.
+
+    Args:
+        group (h5py.Group): Open group to write into.
+        dm (DesignMatrix): DesignMatrix instance.
+        compression (str): h5py compression filter for the frame dataset.
+    """
+    import h5py
+
     from nltools.io.h5 import _write_polars_frame
 
-    with h5py.File(file_name, "w") as f:
-        _write_polars_frame(f, "data", dm.data, "gzip")
+    _write_polars_frame(group, "data", dm.data, compression)
 
-        meta = f.create_group("metadata")
-        if dm.sampling_freq is not None:
-            meta.attrs["sampling_freq"] = dm.sampling_freq
-        meta.attrs["convolved"] = np.array(
-            dm.convolved, dtype=h5py.string_dtype("utf-8")
-        )
-        meta.attrs["confounds"] = np.array(
-            dm.confounds, dtype=h5py.string_dtype("utf-8")
-        )
-        meta.attrs["multi"] = dm.multi
-        meta.attrs["run_count"] = dm._run_count
-        # A column-less matrix still describes a specific number of
-        # timepoints, and polars cannot carry that in the frame itself.
-        if dm._n_rows is not None:
-            meta.attrs["n_rows"] = dm._n_rows
-        meta.attrs["obj_type"] = "design_matrix"
+    meta = group.create_group("metadata")
+    if dm.sampling_freq is not None:
+        meta.attrs["sampling_freq"] = dm.sampling_freq
+    meta.attrs["convolved"] = np.array(dm.convolved, dtype=h5py.string_dtype("utf-8"))
+    meta.attrs["confounds"] = np.array(dm.confounds, dtype=h5py.string_dtype("utf-8"))
+    meta.attrs["multi"] = dm.multi
+    meta.attrs["run_count"] = dm._run_count
+    # A column-less matrix still describes a specific number of timepoints,
+    # and polars cannot carry that in the frame itself.
+    if dm._n_rows is not None:
+        meta.attrs["n_rows"] = dm._n_rows
+    meta.attrs["obj_type"] = "design_matrix"
 
 
 def _read_h5(file_name: str | Path) -> tuple[pl.DataFrame, dict]:
@@ -329,28 +339,61 @@ def _read_h5(file_name: str | Path) -> tuple[pl.DataFrame, dict]:
     """
     import h5py
 
+    with h5py.File(file_name, "r") as f:
+        return _read_h5_group(f)
+
+
+def _read_h5_group(group) -> tuple[pl.DataFrame, dict]:
+    """Read the frame and metadata `_write_h5_group` put in an open HDF5 group.
+
+    Args:
+        group (h5py.Group): Open group holding a serialized DesignMatrix.
+
+    Returns:
+        tuple[pl.DataFrame, dict]: `(frame, metadata)`, where metadata holds
+            ``sampling_freq``, ``convolved``, ``confounds``, ``multi``,
+            ``run_count`` and ``n_rows`` — absent keys meaning the file did
+            not record them.
+    """
     from nltools.io.h5 import _read_polars_frame
 
     def _decode(values) -> list[str]:
         return [v.decode() if isinstance(v, bytes) else str(v) for v in values]
 
-    with h5py.File(file_name, "r") as f:
-        data = _read_polars_frame(f, "data")
+    data = _read_polars_frame(group, "data")
 
-        metadata: dict = {}
-        if "metadata" in f:
-            attrs = f["metadata"].attrs
-            if "sampling_freq" in attrs:
-                metadata["sampling_freq"] = float(attrs["sampling_freq"])
-            if "convolved" in attrs:
-                metadata["convolved"] = _decode(attrs["convolved"])
-            if "confounds" in attrs:
-                metadata["confounds"] = _decode(attrs["confounds"])
-            if "multi" in attrs:
-                metadata["multi"] = bool(attrs["multi"])
-            if "run_count" in attrs:
-                metadata["run_count"] = int(attrs["run_count"])
-            if "n_rows" in attrs:
-                metadata["n_rows"] = int(attrs["n_rows"])
+    metadata: dict = {}
+    if "metadata" in group:
+        attrs = group["metadata"].attrs
+        if "sampling_freq" in attrs:
+            metadata["sampling_freq"] = float(attrs["sampling_freq"])
+        if "convolved" in attrs:
+            metadata["convolved"] = _decode(attrs["convolved"])
+        if "confounds" in attrs:
+            metadata["confounds"] = _decode(attrs["confounds"])
+        if "multi" in attrs:
+            metadata["multi"] = bool(attrs["multi"])
+        if "run_count" in attrs:
+            metadata["run_count"] = int(attrs["run_count"])
+        if "n_rows" in attrs:
+            metadata["n_rows"] = int(attrs["n_rows"])
 
     return data, metadata
+
+
+def _design_matrix_from_h5_group(group) -> DesignMatrix:
+    """Rebuild a `DesignMatrix` from an open HDF5 group, metadata included."""
+    from nltools.data.designmatrix import DesignMatrix
+
+    frame, metadata = _read_h5_group(group)
+    dm = DesignMatrix(
+        frame,
+        sampling_freq=metadata.get("sampling_freq"),
+        convolved=metadata.get("convolved"),
+        confounds=metadata.get("confounds"),
+        n_rows=metadata.get("n_rows"),
+    )
+    dm.multi = metadata.get("multi", False)
+    if "run_count" in metadata:
+        dm._run_count = metadata["run_count"]
+    return dm

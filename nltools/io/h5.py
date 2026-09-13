@@ -170,6 +170,8 @@ def _to_h5(obj, file_name, obj_type="brain_data", h5_compression="gzip"):
                 f.create_dataset("mask_file_name", data=_mask_basename(mask_file_name))
             _write_polars_frame(f, "X", obj.X, h5_compression)
             _write_polars_frame(f, "Y", obj.Y, h5_compression)
+            if obj.model is not None:
+                _write_fit_record(f, obj.model, h5_compression)
     else:
         with h5File(file_name, "w") as f:
             f.create_dataset("data", data=obj.data, compression=h5_compression)
@@ -220,6 +222,7 @@ def _load_brain_data_h5(file_path, mask=None):
         result["data"] = np.array(f["data"])
         result["X"] = _read_polars_frame(f, "X")
         result["Y"] = _read_polars_frame(f, "Y")
+        result["model"] = _read_fit_record(f)
 
         if mask is None and "mask_data" in f:
             if "mask_file_name" in f:
@@ -244,3 +247,100 @@ def _load_brain_data_h5(file_path, mask=None):
             result["load_mask"] = False
 
     return result
+
+
+#: The map fields a fit record stores, and whether each one keeps the training
+#: row metadata when it is rebuilt. The same policy the fit itself applied.
+_FIT_MAP_ROWS = {
+    "betas": "clear",
+    "predicted": "preserve",
+    "residual": "preserve",
+    "r2": "clear",
+    "alpha": "clear",
+}
+
+#: Extension point: persisting the fitted estimator itself. A file stores the
+#: maps, the design and the kind, which is enough for effect-only contrasts and
+#: for reading any map back, but not enough to predict on new data, run
+#: inference, or bootstrap. Serializing a fitted `_Glm` or `_Ridge` — joblib
+#: bytes in a `model/estimator` dataset, versioned so a stale pickle is rejected
+#: rather than silently misread — is the work that would lift that limit, and
+#: `_read_fit_record` would then fill the record's estimator field instead of
+#: leaving it None. Ridge's resolved `cv` splitter travels with the estimator
+#: for the same reason, so it is not stored either.
+_FIT_ESTIMATOR_NOT_PERSISTED = True
+
+
+def _write_fit_record(h5_file, fit, compression):
+    """Store a `FitResult`'s maps, design and kind in a `model` group.
+
+    Args:
+        h5_file (h5py.File): Open file to write into.
+        fit (FitResult): The record on the BrainData being written.
+        compression (str): h5py compression filter for the map datasets.
+    """
+    from collections.abc import Mapping
+
+    from nltools.data.designmatrix import DesignMatrix
+    from nltools.data.designmatrix.io import _write_h5_group
+
+    group = h5_file.create_group("model")
+    group.attrs["kind"] = fit.kind
+    for name in _FIT_MAP_ROWS:
+        brain_map = getattr(fit, name)
+        if brain_map is not None:
+            group.create_dataset(name, data=brain_map.data, compression=compression)
+
+    design = fit.design
+    if isinstance(design, DesignMatrix):
+        _write_h5_group(group.create_group("design"), design, compression)
+    elif isinstance(design, Mapping):
+        spaces = group.create_group("design_spaces")
+        for name, matrix in design.items():
+            spaces.create_dataset(
+                str(name), data=np.asarray(matrix), compression=compression
+            )
+    elif design is not None:
+        group.create_dataset(
+            "design_array", data=np.asarray(design), compression=compression
+        )
+
+
+def _read_fit_record(h5_file):
+    """Read the stored fit back as the raw pieces a `FitResult` is rebuilt from.
+
+    The maps come back as arrays rather than `BrainData`: only the caller, once
+    it has installed the mask and row metadata, can wrap them.
+
+    Args:
+        h5_file (h5py.File): Open file to read from.
+
+    Returns:
+        dict | None: Keys `'kind'`, `'maps'` (name to array) and `'design'`
+            (a `DesignMatrix`, a mapping of feature spaces, an array, or None),
+            or None when the file holds no fit.
+    """
+    from nltools.data.designmatrix.io import _design_matrix_from_h5_group
+
+    if "model" not in h5_file:
+        return None
+    group = h5_file["model"]
+
+    design = None
+    if "design" in group:
+        design = _design_matrix_from_h5_group(group["design"])
+    elif "design_spaces" in group:
+        design = {
+            name: np.array(group["design_spaces"][name])
+            for name in group["design_spaces"]
+        }
+    elif "design_array" in group:
+        design = np.array(group["design_array"])
+
+    return {
+        "kind": group.attrs["kind"],
+        "maps": {
+            name: np.array(group[name]) for name in _FIT_MAP_ROWS if name in group
+        },
+        "design": design,
+    }

@@ -415,6 +415,75 @@ def _glm_fit_result(bd, X, model):
     )
 
 
+def _fit_result_from_storage(bd, stored):
+    """Rebuild the `FitResult` an HDF5 file stored, with no estimator behind it.
+
+    The file keeps the maps, the design and the kind, so the record answers
+    every read a live fit answers. `_estimator` stays None, which is what
+    `compute_contrasts(inference=True)`, `predict(X=...)` and `bootstrap` check
+    before refusing.
+
+    Args:
+        bd (BrainData): The object being loaded, already carrying its mask and
+            row metadata.
+        stored (dict): What `nltools.io.h5._read_fit_record` returned.
+
+    Returns:
+        FitResult: The restored record.
+    """
+    from nltools.io.h5 import _FIT_MAP_ROWS
+
+    from nltools.data.results import FitResult
+
+    maps = {
+        name: _result_from_array(bd, array, rows=_FIT_MAP_ROWS[name])
+        for name, array in stored["maps"].items()
+    }
+    return FitResult(
+        kind=str(stored["kind"]),
+        betas=maps["betas"],
+        predicted=maps["predicted"],
+        residual=maps["residual"],
+        r2=maps["r2"],
+        design=stored["design"],
+        alpha=maps.get("alpha"),
+    )
+
+
+def _contrasts_from_betas(bd, fit, contrasts, *, inference):
+    """Compute effect maps from a restored fit's stored betas.
+
+    A contrast effect is a linear combination of the coefficients, so it needs
+    the betas and the design's column names and nothing else. Every other
+    statistic needs the parameter covariance, which only the fitted model has.
+
+    Raises:
+        RuntimeError: If `inference=True`, with the one-line refit.
+    """
+    if inference:
+        raise RuntimeError(
+            "compute_contrasts(inference=True) needs the fitted GLM itself, "
+            "which an HDF5 file does not store — it keeps the maps, the design "
+            "and the kind. Refit with "
+            "data.fit(model='glm', X=data.model.design), then ask again."
+        )
+    columns = tuple(fit.design.columns)
+    if isinstance(contrasts, Mapping):
+        return {
+            name: _effect_from_betas(bd, fit, contrast, columns)
+            for name, contrast in contrasts.items()
+        }
+    return _effect_from_betas(bd, fit, contrasts, columns)
+
+
+def _effect_from_betas(bd, fit, contrast, columns):
+    """Wrap one contrast's `weights @ betas` as an independently owned map."""
+    from nltools.models.glm import _resolve_contrast
+
+    weights = _resolve_contrast(contrast, columns)
+    return _result_from_array(bd, weights @ fit.betas.data, rows="clear")
+
+
 def _ttest(
     bd,
     *,
@@ -562,6 +631,9 @@ def _compute_contrasts(bd, contrasts, *, inference=False):
             f"compute_contrasts requires a GLM fit, but this BrainData holds a "
             f"{fit.kind} fit. Refit with model='glm'."
         )
+    if fit._estimator is None:
+        return _contrasts_from_betas(bd, fit, contrasts, inference=inference)
+
     computed = fit._estimator.compute_contrasts(contrasts, inference=inference)
     if isinstance(computed, dict):
         return {name: _contrast_maps(bd, value) for name, value in computed.items()}

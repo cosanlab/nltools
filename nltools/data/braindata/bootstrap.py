@@ -300,7 +300,7 @@ def _fitted_ridge(bd, statistic):
     Raises:
         ValueError: If nothing is fitted, or the fit is not a ridge fit.
     """
-    from .utils import _NO_FIT_EXPLANATION
+    from .utils import _NO_FIT_EXPLANATION, _restored_fit_message
 
     fit = bd.model
     if fit is None:
@@ -313,6 +313,8 @@ def _fitted_ridge(bd, statistic):
             f"bootstrap('{statistic}') only supports a ridge fit, but this "
             f"BrainData holds a {fit.kind} fit."
         )
+    if fit._estimator is None:
+        raise ValueError(_restored_fit_message(f"bootstrap('{statistic}')"))
     return fit._estimator
 
 
