@@ -52,6 +52,12 @@ def load_atlas(name: str) -> _Atlas:
 
     Raises:
         ValueError: If `name` isn't a registered atlas.
+
+    Note:
+        An atlas is in MNI space, and nltools resamples it onto your data by
+        header affine alone. That is a grid change, not a spatial
+        normalization, so parcel boundaries are approximate unless your data
+        are already normalized to the same space.
     """
     if name not in ATLASES:
         known = ", ".join(sorted(ATLASES))
