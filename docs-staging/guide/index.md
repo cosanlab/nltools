@@ -33,7 +33,7 @@ Page | Covers
 [Loading data & masks](loading.md) | `BrainData` from files and URLs, masks, the resolution rule, HDF5, bundled datasets
 [Design matrices & GLM](design-and-glm.md) | Events → regressors, confounds, drift, collinearity warnings, `fit`, contrasts, group tests
 [Prediction: encoding & decoding](prediction.md) | `predict`, cross-validation specs, ROI and searchlight scales, ridge encoding, ROC
-[Similarity & RSA](similarity-and-rsa.md) | Brain RDMs, model RDMs, Mantel tests, `plot_stacked_adjacency`, painting results back on the brain
+[Similarity & RSA](similarity-and-rsa.md) | Brain RDMs, model RDMs, Mantel tests, `_plot_stacked_adjacency`, painting results back on the brain
 [Functional alignment](alignment.md) | Hyperalignment vs SRM vs local alignment, common models, transforming new subjects
 [Statistics & inference](statistics-and-inference.md) | t-tests, permutation, bootstrap, FDR/Holm, `tail`, `n_permute` vs `n_samples`, `n_jobs`
 [Intersubject correlation](intersubject.md) | `isc`, `isfc`, `isps`, group comparisons, array-based ISC
@@ -46,7 +46,7 @@ Page | Covers
   `summary=` picks a central tendency (`'mean'` or `'median'`). They are never interchangeable.
 - `spatial_scale=` (`'whole_brain'`, `'roi'`, `'searchlight'`) picks the scale an analysis runs at.
 - `n_jobs=` sets joblib workers and never changes a seeded result. `device=` picks CPU or GPU on
-  the ridge paths (`Ridge`, `BrainData.fit(ridge_device=)`, `BrainData.bootstrap`), the only ones
+  the ridge paths (`_Ridge`, `BrainData.fit(ridge_device=)`, `BrainData.bootstrap`), the only ones
   with a GPU implementation; an explicit `device='gpu'` runs on the GPU or raises.
 - `n_permute=` counts permutations; `n_samples=` counts bootstrap draws.
 - `random_state=` makes any resampling reproducible.

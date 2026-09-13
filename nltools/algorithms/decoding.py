@@ -66,7 +66,7 @@ SUPPORTED_TRANSFORMERS: tuple[type, ...] = (
 )
 
 
-class BackProjectionError(ValueError):
+class _BackProjectionError(ValueError):
     """A fitted pipeline's coefficients cannot be projected onto the voxel axis.
 
     A `ValueError` subclass, so callers that catch `ValueError` — including the
@@ -75,12 +75,12 @@ class BackProjectionError(ValueError):
     """
 
 
-def is_passthrough(step: Any) -> bool:
+def _is_passthrough(step: Any) -> bool:
     """Whether a pipeline step is a placeholder that transforms nothing."""
     return step is None or (isinstance(step, str) and step == "passthrough")
 
 
-def split_pipeline(pipeline: Any) -> tuple[list, Any]:
+def _split_pipeline(pipeline: Any) -> tuple[list, Any]:
     """Split a decoding pipeline into its preprocessing steps and final estimator.
 
     Args:
@@ -95,31 +95,31 @@ def split_pipeline(pipeline: Any) -> tuple[list, Any]:
     return [], pipeline
 
 
-def validate_decoding_pipeline(pipeline: Any) -> None:
+def _validate_decoding_pipeline(pipeline: Any) -> None:
     """Check a pipeline's structure before anything is fitted.
 
     Catches the two failures that are visible without fitting: a preprocessing
     step outside `SUPPORTED_TRANSFORMERS`, and a `OneVsRestClassifier` that is
     not the final step. Whether the final estimator exposes ``coef_`` can only
-    be observed after a fit, so `back_project_weight_maps` checks that.
+    be observed after a fit, so `_back_project_weight_maps` checks that.
 
     Args:
         pipeline: The estimator or `Pipeline` MVPA is about to fit.
 
     Raises:
-        BackProjectionError: If a step is unsupported or misplaced.
+        _BackProjectionError: If a step is unsupported or misplaced.
     """
-    steps, _ = split_pipeline(pipeline)
+    steps, _ = _split_pipeline(pipeline)
     for step in steps:
-        if is_passthrough(step):
+        if _is_passthrough(step):
             continue
         if isinstance(step, OneVsRestClassifier):
-            raise BackProjectionError(_ovr_not_final_message())
+            raise _BackProjectionError(_ovr_not_final_message())
         if not isinstance(step, SUPPORTED_TRANSFORMERS):
-            raise BackProjectionError(_unsupported_step_message(step))
+            raise _BackProjectionError(_unsupported_step_message(step))
 
 
-def whitening_scale(explained_variance: np.ndarray) -> np.ndarray:
+def _whitening_scale(explained_variance: np.ndarray) -> np.ndarray:
     """Return the per-component scale a whitened `PCA` divides its output by.
 
     ``sqrt(explained_variance_)``, with values below the dtype's epsilon
@@ -137,7 +137,7 @@ def whitening_scale(explained_variance: np.ndarray) -> np.ndarray:
     return np.where(scale < eps, eps, scale)
 
 
-def coefficient_rows(final_estimator: Any) -> np.ndarray:
+def _coefficient_rows(final_estimator: Any) -> np.ndarray:
     """Return a fitted estimator's coefficients as ``(n_maps, n_final_features)``.
 
     One row for a regressor or a binary classifier — the signed map for
@@ -155,20 +155,20 @@ def coefficient_rows(final_estimator: Any) -> np.ndarray:
         ndarray: Coefficients, ``(n_maps, n_final_features)``.
 
     Raises:
-        BackProjectionError: If the estimator exposes no usable ``coef_``.
+        _BackProjectionError: If the estimator exposes no usable ``coef_``.
     """
     if isinstance(final_estimator, OneVsRestClassifier):
         return _one_vs_rest_rows(final_estimator)
     coef = _coef_of(final_estimator)
     if coef.ndim != 2:
-        raise BackProjectionError(
+        raise _BackProjectionError(
             f"{type(final_estimator).__name__}.coef_ has shape {coef.shape}; "
             f"a decoding estimator must expose one coefficient row per map."
         )
     return coef
 
 
-def back_project_step(weights: np.ndarray, step: Any) -> np.ndarray:
+def _back_project_step(weights: np.ndarray, step: Any) -> np.ndarray:
     """Project coefficients backwards through one fitted preprocessing step.
 
     Args:
@@ -181,15 +181,15 @@ def back_project_step(weights: np.ndarray, step: Any) -> np.ndarray:
             ``(n_maps, n_input_features)``.
 
     Raises:
-        BackProjectionError: If the step is unsupported, or its fitted output
+        _BackProjectionError: If the step is unsupported, or its fitted output
             width does not match the incoming coefficients.
     """
-    if is_passthrough(step):
+    if _is_passthrough(step):
         return weights
     if not isinstance(step, SUPPORTED_TRANSFORMERS):
-        # The same whitelist `validate_decoding_pipeline` applies before
+        # The same whitelist `_validate_decoding_pipeline` applies before
         # fitting, re-checked here so a direct caller cannot skip it.
-        raise BackProjectionError(_unsupported_step_message(step))
+        raise _BackProjectionError(_unsupported_step_message(step))
     if isinstance(step, StandardScaler):
         _check_width(weights, int(step.n_features_in_), step)
         if step.with_std and step.scale_ is not None:
@@ -199,7 +199,7 @@ def back_project_step(weights: np.ndarray, step: Any) -> np.ndarray:
         components = step.components_
         _check_width(weights, components.shape[0], step)
         if step.whiten:
-            weights = weights / whitening_scale(step.explained_variance_)
+            weights = weights / _whitening_scale(step.explained_variance_)
         return weights @ components
     if isinstance(step, SelectorMixin):
         support = step.get_support()
@@ -209,10 +209,10 @@ def back_project_step(weights: np.ndarray, step: Any) -> np.ndarray:
         return expanded
     # Unreachable today: every whitelisted class is a StandardScaler, a PCA, or
     # a SelectorMixin. It guards a future whitelist entry that forgets a branch.
-    raise BackProjectionError(_unsupported_step_message(step))  # pragma: no cover
+    raise _BackProjectionError(_unsupported_step_message(step))  # pragma: no cover
 
 
-def back_project_weight_maps(fitted_estimator: Any, n_features: int) -> np.ndarray:
+def _back_project_weight_maps(fitted_estimator: Any, n_features: int) -> np.ndarray:
     """Project a fitted pipeline's coefficients onto the original feature axis.
 
     Starts from ``(n_maps, n_final_features)`` coefficients and walks the fitted
@@ -229,7 +229,7 @@ def back_project_weight_maps(fitted_estimator: Any, n_features: int) -> np.ndarr
             classification, one row per class for multiclass.
 
     Raises:
-        BackProjectionError: If the final estimator exposes no ``coef_``, a step
+        _BackProjectionError: If the final estimator exposes no ``coef_``, a step
             is unsupported or misplaced, or any width does not line up.
 
     Examples:
@@ -239,19 +239,19 @@ def back_project_weight_maps(fitted_estimator: Any, n_features: int) -> np.ndarr
         from sklearn.svm import LinearSVC
 
         pipe = make_pipeline(StandardScaler(), LinearSVC()).fit(X, y)
-        maps = back_project_weight_maps(pipe, X.shape[1])
+        maps = _back_project_weight_maps(pipe, X.shape[1])
         # → (1, n_voxels), in raw voxel units
         ```
     """
-    steps, final_estimator = split_pipeline(fitted_estimator)
+    steps, final_estimator = _split_pipeline(fitted_estimator)
     for step in steps:
         if isinstance(step, OneVsRestClassifier):
-            raise BackProjectionError(_ovr_not_final_message())
-    weights = coefficient_rows(final_estimator)
+            raise _BackProjectionError(_ovr_not_final_message())
+    weights = _coefficient_rows(final_estimator)
     for step in reversed(steps):
-        weights = back_project_step(weights, step)
+        weights = _back_project_step(weights, step)
     if weights.shape[1] != n_features:
-        raise BackProjectionError(
+        raise _BackProjectionError(
             f"Back-projected coefficients have width {weights.shape[1]}, but "
             f"the original feature axis has width {n_features}. The pipeline's "
             f"fitted steps do not reach back to the voxels it was fitted from."
@@ -263,7 +263,7 @@ def _coef_of(estimator: Any) -> np.ndarray:
     """Return an estimator's ``coef_`` as a 2-D array, or raise if it has none."""
     coef = getattr(estimator, "coef_", None)
     if coef is None:
-        raise BackProjectionError(
+        raise _BackProjectionError(
             f"{type(estimator).__name__} exposes no coef_, so this decoding "
             f"pipeline produces no weight map. Use a linear estimator — "
             f"'linear_svc', 'logistic_regression', "
@@ -280,7 +280,7 @@ def _one_vs_rest_rows(ovr: OneVsRestClassifier) -> np.ndarray:
     children = list(ovr.estimators_)
     expected = 1 if len(classes) == 2 else len(classes)
     if len(children) != expected:
-        raise BackProjectionError(
+        raise _BackProjectionError(
             f"OneVsRestClassifier fitted {len(children)} child estimator(s) for "
             f"{len(classes)} classes; {expected} were expected."
         )
@@ -288,7 +288,7 @@ def _one_vs_rest_rows(ovr: OneVsRestClassifier) -> np.ndarray:
     for child in children:
         coef = _coef_of(child)
         if coef.shape[0] != 1:
-            raise BackProjectionError(
+            raise _BackProjectionError(
                 f"Each OneVsRestClassifier child must expose one coefficient "
                 f"row; {type(child).__name__} exposes {coef.shape[0]}."
             )
@@ -299,7 +299,7 @@ def _one_vs_rest_rows(ovr: OneVsRestClassifier) -> np.ndarray:
 def _check_width(weights: np.ndarray, expected: int, step: Any) -> None:
     """Require incoming coefficients to match a fitted step's output width."""
     if weights.shape[1] != expected:
-        raise BackProjectionError(
+        raise _BackProjectionError(
             f"{type(step).__name__} was fitted to produce {expected} features, "
             f"but the coefficients arriving at it have width "
             f"{weights.shape[1]}. The pipeline's fitted steps do not line up."

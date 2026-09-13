@@ -30,14 +30,14 @@ from nltools.algorithms import (
     procrustes_distance,
     regress,
 )
-from nltools.algorithms.similarity import compute_multivariate_similarity
+from nltools.algorithms.similarity import _compute_multivariate_similarity
 from nltools.algorithms.inference import (
     correlation_permutation_test,
-    isc_group_permutation_test,
-    isc_permutation_test,
+    _isc_group_permutation_test,
+    _isc_permutation_test,
     matrix_permutation_test,
     one_sample_permutation_test,
-    timeseries_correlation_permutation_test,
+    _timeseries_correlation_permutation_test,
     two_sample_permutation_test,
 )
 from nltools.data import Adjacency, BrainData
@@ -47,15 +47,15 @@ TAIL_ENTRY_POINTS = [
     one_sample_permutation_test,
     two_sample_permutation_test,
     correlation_permutation_test,
-    timeseries_correlation_permutation_test,
+    _timeseries_correlation_permutation_test,
     matrix_permutation_test,
-    isc_permutation_test,
-    isc_group_permutation_test,
+    _isc_permutation_test,
+    _isc_group_permutation_test,
     isc,
     isc_group,
     procrustes_distance,
     regress,
-    compute_multivariate_similarity,
+    _compute_multivariate_similarity,
     BrainData.ttest,
     BrainData.multivariate_similarity,
     Adjacency.ttest,
@@ -137,9 +137,9 @@ class TestParametricTails:
         rng = np.random.default_rng(2)
         X = rng.standard_normal((50, 2))
         y = X @ np.array([1.0, 0.2]) + rng.standard_normal(50)
-        p_two = np.asarray(compute_multivariate_similarity(y, X, tail=2)["p"])
-        p_one = np.asarray(compute_multivariate_similarity(y, X, tail=1)["p"])
-        t = np.asarray(compute_multivariate_similarity(y, X, tail=2)["t"])
+        p_two = np.asarray(_compute_multivariate_similarity(y, X, tail=2)["p"])
+        p_one = np.asarray(_compute_multivariate_similarity(y, X, tail=1)["p"])
+        t = np.asarray(_compute_multivariate_similarity(y, X, tail=2)["t"])
         pos = t > 0
         np.testing.assert_allclose(p_one[pos], p_two[pos] / 2)
 
@@ -183,12 +183,12 @@ class TestIscFamilyVocabulary:
         return shared + 0.5 * rng.standard_normal((30, 6))
 
     def test_isc_engine_accepts_strings(self, subjects_data):
-        out = isc_permutation_test(
+        out = _isc_permutation_test(
             subjects_data, n_permute=30, tail="one", n_jobs=1, random_state=0
         )
         assert 0 < out["p"] <= 1
         with pytest.raises(ValueError, match="tail"):
-            isc_permutation_test(subjects_data, n_permute=30, tail="upper", n_jobs=1)
+            _isc_permutation_test(subjects_data, n_permute=30, tail="upper", n_jobs=1)
 
     def test_isc_wrapper_accepts_strings(self, subjects_data):
         out = isc(subjects_data, n_samples=30, tail="one", n_jobs=1, random_state=0)

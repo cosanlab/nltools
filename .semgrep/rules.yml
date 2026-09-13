@@ -61,7 +61,7 @@ rules:
   # Plotting modules are excluded: they overwhelmingly forward **kwargs to
   # matplotlib / seaborn / nilearn (legitimate third-party passthrough), so a
   # blanket flag there is pure noise. The genuine plotting misuses (mining
-  # kwargs.get instead of forwarding — F128 plot_silhouette, F035 plot_mds) are
+  # kwargs.get instead of forwarding — F128 _plot_silhouette, F035 _plot_mds) are
   # tracked as targeted api-consistency findings, not by this rule.
   - id: kwargs-internal-forwarding
     languages: [python]

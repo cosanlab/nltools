@@ -75,8 +75,8 @@ Use `uv run poe docs-generate` after changing the vocabulary manifest or a tutor
 
 ## Hard invariants
 
-- The reserved `.nl_` namespace applies only to columns generated inside a `DesignMatrix`. Create, recognize, and parse those names with `reserved_name()`, `run_separated_name()`, `is_reserved_name()`, and `parse_run_separated()`. Never identify generated `DesignMatrix` columns by matching user-controlled naming patterns.
-- GPU execution means Himalaya ridge fitting (`Ridge(device='gpu')`, `BrainData.fit(ridge_device='gpu')`) and the ridge bootstrap (`BrainData.bootstrap(device='gpu')`). nltools ships no GPU implementation of its own; permutation, ISC and alignment run on CPU workers. Memory budgeting, batch sizing, worker sizing and OOM recovery for those paths live only in `nltools/algorithms/backends.py`; an algorithm supplies its per-item working-set estimate and never its own budget arithmetic.
+- The reserved `.nl_` namespace applies only to columns generated inside a `DesignMatrix`. Create, recognize, and parse those names with `_reserved_name()`, `_run_separated_name()`, `_is_reserved_name()`, and `_parse_run_separated()`. Never identify generated `DesignMatrix` columns by matching user-controlled naming patterns.
+- GPU execution means Himalaya ridge fitting (`_Ridge(device='gpu')`, `BrainData.fit(ridge_device='gpu')`) and the ridge bootstrap (`BrainData.bootstrap(device='gpu')`). nltools ships no GPU implementation of its own; permutation, ISC and alignment run on CPU workers. Memory budgeting, batch sizing, worker sizing and OOM recovery for those paths live only in `nltools/algorithms/backends.py`; an algorithm supplies its per-item working-set estimate and never its own budget arithmetic.
 - On those ridge paths an explicit `device="gpu"` must run on the GPU or raise; there is no silent CPU fallback, and no `"auto"` value.
 - Read the relevant design document before changing these subsystems:
   - `docs/development/execution-model.md` preserves deferred 0.6.1 `BrainCollection` execution design; it is not an active 0.6.0 subsystem

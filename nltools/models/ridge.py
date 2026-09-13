@@ -1,6 +1,6 @@
 """Ridge and banded Ridge regression, with the numerics delegated to Himalaya.
 
-`Ridge` owns argument names, validation, named feature-space alignment, device
+`_Ridge` owns argument names, validation, named feature-space alignment, device
 and memory policy, and fitted-state normalization. Himalaya owns decomposition,
 the cross-validation loss, alpha selection, the Dirichlet search, and
 coefficient refitting. Nothing here re-implements a solver.
@@ -17,9 +17,9 @@ from typing import Any
 import numpy as np
 
 from ..algorithms.backends import (
-    auto_batch_size,
-    device_memory_budget,
-    resolve_backend,
+    _auto_batch_size,
+    _device_memory_budget,
+    _resolve_backend,
 )
 from .validation import _check_is_fitted
 
@@ -35,7 +35,7 @@ _BANDED_ONLY_DEFAULTS = {
     "dirichlet_concentration": (0.1, 1.0),
 }
 
-#: nltools `Backend.device` -> Himalaya backend name.
+#: nltools `_Backend.device` -> Himalaya backend name.
 _HIMALAYA_BACKEND_FOR_DEVICE = {
     "cpu": "numpy",
     "cuda": "torch_cuda",
@@ -72,10 +72,10 @@ def _scoped_himalaya_backend(name: str):
 
 
 def _himalaya_backend_name(backend) -> str:
-    """Map a resolved nltools `Backend` to its Himalaya backend name.
+    """Map a resolved nltools `_Backend` to its Himalaya backend name.
 
     Args:
-        backend (Backend): Backend returned by `resolve_backend`.
+        backend (Backend): Backend returned by `_resolve_backend`.
 
     Returns:
         str: One of `"numpy"`, `"torch_cuda"`, or `"torch_mps"`.
@@ -114,22 +114,22 @@ def _batch_sizes(
         dict[str, int]: `n_targets_batch`, `n_targets_batch_refit`, and
             `n_alphas_batch`.
     """
-    budget_gb = device_memory_budget(
+    budget_gb = _device_memory_budget(
         backend, max_gpu_memory_gb=memory_budget_gb, cap_for_batching=True
     )
-    n_alphas_batch, _ = auto_batch_size(
+    n_alphas_batch, _ = _auto_batch_size(
         n_alphas,
         n_features * n_samples * itemsize,
         budget_gb=budget_gb,
         overhead=_WORKING_SET_OVERHEAD,
     )
-    n_targets_batch, _ = auto_batch_size(
+    n_targets_batch, _ = _auto_batch_size(
         n_targets,
         n_alphas_batch * n_samples * itemsize,
         budget_gb=budget_gb,
         overhead=_WORKING_SET_OVERHEAD,
     )
-    n_targets_batch_refit, _ = auto_batch_size(
+    n_targets_batch_refit, _ = _auto_batch_size(
         n_targets,
         n_alphas_batch * n_features * itemsize,
         budget_gb=budget_gb,
@@ -162,14 +162,14 @@ def _refit_targets_batch(
     Returns:
         int: Target batch size in `[1, n_targets]`.
     """
-    budget_gb = device_memory_budget(
+    budget_gb = _device_memory_budget(
         backend, max_gpu_memory_gb=memory_budget_gb, cap_for_batching=True
     )
     if per_target_alpha:
         bytes_per_target = n_samples * n_samples * itemsize
     else:
         bytes_per_target = (n_samples + n_features) * itemsize
-    batch, _ = auto_batch_size(
+    batch, _ = _auto_batch_size(
         n_targets,
         bytes_per_target,
         budget_gb=budget_gb,
@@ -265,7 +265,7 @@ class _ResidentDesign:
         targets: `(n_samples, n_targets)`, on the backend.
         sizes (tuple[int, ...]): Feature count per space, in the same order.
         dtype (np.dtype): The working dtype both arrays were converted to.
-        backend: The resolved nltools `Backend`, or None for the CPU.
+        backend: The resolved nltools `_Backend`, or None for the CPU.
         backend_name (str): Himalaya's name for that backend.
     """
 
@@ -550,11 +550,11 @@ def _snap_to_grid(values: np.ndarray, grid: np.ndarray) -> np.ndarray:
     return np.asarray(grid, dtype=np.float64)[nearest]
 
 
-class Ridge:
+class _Ridge:
     """Ridge regression over one or several named feature spaces.
 
     Fits `argmin_b ||X @ b - y||^2 + alpha * ||b||^2` without an intercept.
-    Callers own preprocessing: `Ridge` never centers, scales, standardizes, or
+    Callers own preprocessing: `_Ridge` never centers, scales, standardizes, or
     adds an intercept column. Constructor arguments are validated once, at
     construction, and must not be reassigned afterwards.
 
@@ -632,12 +632,12 @@ class Ridge:
         X = np.random.randn(100, 50)
         y = np.random.randn(100)
 
-        model = Ridge(alpha=1.0).fit(X, y)
+        model = _Ridge(alpha=1.0).fit(X, y)
         predictions = model.predict(X)
 
         # Banded ridge over two named feature spaces
         spaces = {"motion": np.random.randn(100, 6), "task": np.random.randn(100, 12)}
-        banded = Ridge(alpha=[1.0, 10.0, 100.0], cv=5, search_iterations=20)
+        banded = _Ridge(alpha=[1.0, 10.0, 100.0], cv=5, search_iterations=20)
         banded.fit(spaces, y)
         print(banded.feature_space_weights_)
         ```
@@ -900,7 +900,7 @@ class Ridge:
 
     # ----------------------------------------------------------------------- fit
 
-    def fit(self, X, y) -> Ridge:
+    def fit(self, X, y) -> _Ridge:
         """Fit the model.
 
         Args:
@@ -912,7 +912,7 @@ class Ridge:
                 n_targets)`.
 
         Returns:
-            Ridge: `self`.
+            _Ridge: `self`.
 
         Raises:
             ValueError: If any input or argument combination is invalid.
@@ -948,7 +948,7 @@ class Ridge:
         else:
             self._check_banded_only_arguments_unused()
 
-        backend = resolve_backend("cpu" if self.device == "cpu" else "gpu")
+        backend = _resolve_backend("cpu" if self.device == "cpu" else "gpu")
         dtype = _working_dtype(spaces, y_2d, backend)
         spaces = [np.ascontiguousarray(space, dtype=dtype) for space in spaces]
         targets = np.ascontiguousarray(y_2d, dtype=dtype)
@@ -1300,4 +1300,4 @@ class Ridge:
 
     def __repr__(self) -> str:
         """Return a short constructor-style summary of the model."""
-        return f"Ridge(alpha={self.alpha!r}, device={self.device!r})"
+        return f"_Ridge(alpha={self.alpha!r}, device={self.device!r})"

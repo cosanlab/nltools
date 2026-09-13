@@ -135,15 +135,15 @@ Use `result.estimator` to predict on new data.
 ## Encoding
 
 ```python
-from nltools.models import Ridge
+from nltools.models import _Ridge
 
-model = Ridge(alpha=np.logspace(0, 6, 20), cv=5).fit(X, brain.data)
+model = _Ridge(alpha=np.logspace(0, 6, 20), cv=5).fit(X, brain.data)
 model.coef_, model.alpha_, model.cv_scores_
 ```
 
 A scalar `alpha` with `cv=None` fits it as given; a sequence of alphas with a `cv` selects one,
 per voxel by default (`per_target_alpha=False` shares a single alpha). Pass `X` as a *mapping* of
-named feature spaces and `Ridge` becomes banded ridge, sampling each space's weight from a
+named feature spaces and `_Ridge` becomes banded ridge, sampling each space's weight from a
 Dirichlet controlled by `dirichlet_concentration=` and exposing the result as
 `feature_space_weights_`. Both forms accept `device='gpu'`; see the `n_jobs` vs `device` guidance in
 [Statistics & inference](statistics-and-inference.md).

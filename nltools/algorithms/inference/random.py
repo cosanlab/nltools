@@ -7,9 +7,9 @@ across CPU and GPU execution.
 
 Examples:
     ```python
-    from nltools.algorithms.inference.random import generate_seeds
+    from nltools.algorithms.inference.random import _generate_seeds
 
-    seeds = generate_seeds(100, random_state=42)
+    seeds = _generate_seeds(100, random_state=42)
     # Hand one seed to each parallel worker for deterministic results
     ```
 """
@@ -18,7 +18,7 @@ import numpy as np
 from sklearn.utils import check_random_state
 
 
-def generate_seeds(n_permute: int, random_state: int | None = None) -> np.ndarray:
+def _generate_seeds(n_permute: int, random_state: int | None = None) -> np.ndarray:
     """Generate one random seed per permutation or bootstrap iteration.
 
     Args:
@@ -30,7 +30,7 @@ def generate_seeds(n_permute: int, random_state: int | None = None) -> np.ndarra
 
     Examples:
         ```python
-        seeds = generate_seeds(100, random_state=42)
+        seeds = _generate_seeds(100, random_state=42)
         seeds.shape  # (100,)
         isinstance(seeds[0], (int, np.integer))  # True
         ```
@@ -41,7 +41,7 @@ def generate_seeds(n_permute: int, random_state: int | None = None) -> np.ndarra
     return seeds
 
 
-def generate_sign_flips(
+def _generate_sign_flips(
     n_permute: int,
     n_samples: int,
     random_state: int | None = None,
@@ -50,7 +50,7 @@ def generate_sign_flips(
 
     Each row is one permutation: every sample is multiplied by +1 or -1 to build
     the null distribution. Each permutation draws from an independent
-    `RandomState` seeded by `generate_seeds`, so the matrix is reproducible for
+    `RandomState` seeded by `_generate_seeds`, so the matrix is reproducible for
     any degree of parallelism.
 
     Args:
@@ -64,12 +64,12 @@ def generate_sign_flips(
 
     Examples:
         ```python
-        sign_flips = generate_sign_flips(n_permute=100, n_samples=30, random_state=42)
+        sign_flips = _generate_sign_flips(n_permute=100, n_samples=30, random_state=42)
         sign_flips.shape  # → (100, 30)
         np.all(np.isin(sign_flips, [-1, 1]))  # → True
         ```
     """
-    seeds = generate_seeds(n_permute, random_state=random_state)
+    seeds = _generate_seeds(n_permute, random_state=random_state)
 
     # Generate sign-flips using independent RNG per permutation
     # This matches stats._permute_sign behavior exactly
@@ -83,7 +83,7 @@ def generate_sign_flips(
     return sign_flips
 
 
-def generate_bootstrap_indices(
+def _generate_bootstrap_indices(
     n_samples: int,
     n_bootstrap: int,
     random_state: int | None = None,
@@ -91,7 +91,7 @@ def generate_bootstrap_indices(
     """Generate bootstrap resampling indices deterministically.
 
     Each bootstrap draw uses an independent `RandomState` seeded by
-    `generate_seeds`, the same scheme as the permutation tests.
+    `_generate_seeds`, the same scheme as the permutation tests.
 
     Args:
         n_samples (int): Number of samples in the original dataset.
@@ -104,12 +104,12 @@ def generate_bootstrap_indices(
 
     Examples:
         ```python
-        indices = generate_bootstrap_indices(100, 1000, random_state=42)
+        indices = _generate_bootstrap_indices(100, 1000, random_state=42)
         indices.shape  # → (1000, 100)
         indices[0]  # → array([23, 45, 23, 67, ...])  one bootstrap sample
         ```
     """
-    seeds = generate_seeds(n_bootstrap, random_state=random_state)
+    seeds = _generate_seeds(n_bootstrap, random_state=random_state)
 
     # Each bootstrap gets independent RandomState
     indices = np.array(

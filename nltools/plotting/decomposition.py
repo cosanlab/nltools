@@ -6,10 +6,10 @@ import sklearn
 from numpy.fft import fft, fftfreq
 from nilearn.plotting import plot_stat_map
 
-from nltools.utils import attempt_to_import
+from nltools.utils import _attempt_to_import
 
 # Optional dependencies
-ipywidgets = attempt_to_import(
+ipywidgets = _attempt_to_import(
     "ipywidgets",
     fromlist=["interact", "fixed", "widgets", "BoundedFloatText", "BoundedIntText"],
 )

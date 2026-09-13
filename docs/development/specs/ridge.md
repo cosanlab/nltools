@@ -3,15 +3,15 @@
 > Release scope: BrainCollection and collection-only requirements in this specification
 > are deferred to 0.6.1. Retained BrainData and estimator contracts remain targets for 0.6.0.
 
-This file specifies `nltools.models.Ridge` and its Himalaya adapter. Code,
+This file specifies `nltools.models._Ridge` and its Himalaya adapter. Code,
 tests, and docstrings must implement this contract. Compatibility notes and
 migration history belong elsewhere.
 
 ## Purpose and ownership
 
-`Ridge` fits ordinary and banded Ridge regressions. It estimates coefficients
+`_Ridge` fits ordinary and banded Ridge regressions. It estimates coefficients
 and selects hyperparameters. Callers construct and preprocess `X` and `y`,
-including any intercept column. `Ridge` must not center, standardize, scale, or
+including any intercept column. `_Ridge` must not center, standardize, scale, or
 add an intercept.
 
 Himalaya defines the numerical behavior for Ridge fitting. `nltools` depends
@@ -43,11 +43,11 @@ sampling uncertainty conditional on the selected model; it does not rerun
 cross-validation or the banded random search within each resample.
 
 `BrainData.fit` does not create a separate `cv_results_` dictionary or run a
-second cross-validation pass for held-out predictions. `Ridge.alpha_` and
-`Ridge.cv_scores_` are the only alpha-selection results. The facade stores
+second cross-validation pass for held-out predictions. `_Ridge.alpha_` and
+`_Ridge.cv_scores_` are the only alpha-selection results. The facade stores
 `ridge_weights`, `ridge_fitted_values`, and `ridge_r2` as independently owned
 `BrainData` results. `ridge_r2` is the full-data, per-target value returned by
-`Ridge.score`; the facade does not use the ambiguous name `ridge_scores`, which
+`_Ridge.score`; the facade does not use the ambiguous name `ridge_scores`, which
 could be confused with the negative-MSE selection values in `cv_scores_`.
 Every attached or returned `BrainData` follows the ownership contract in
 `braindata.md`, including independent mask and masker state.
@@ -55,7 +55,7 @@ Every attached or returned `BrainData` follows the ownership contract in
 ## Public API
 
 ```python
-Ridge(
+_Ridge(
     *,
     alpha: float | Sequence[float] | np.ndarray = 1.0,
     cv: int | BaseCrossValidator | None = None,
@@ -70,10 +70,10 @@ Ridge(
 )
 ```
 
-`Ridge` provides these methods:
+`_Ridge` provides these methods:
 
 ```python
-fit(X, y) -> Ridge
+fit(X, y) -> _Ridge
 predict(X) -> np.ndarray
 score(X, y) -> float | np.ndarray
 ```
@@ -93,7 +93,7 @@ score(X, y) -> float | np.ndarray
 
 `predict` must accept the structure used by `fit`. Ordinary Ridge accepts one
 matrix. Banded Ridge accepts a mapping with exactly the fitted feature-space
-names. Mapping order may differ; `Ridge` aligns spaces to
+names. Mapping order may differ; `_Ridge` aligns spaces to
 `feature_space_names_` before prediction. Each space must retain its fitted
 feature count. The implementation may concatenate banded inputs internally.
 
@@ -136,7 +136,7 @@ standard deviation across folds. Fitting selects the largest eligible alpha.
 When candidates have equal selection scores, fitting selects the larger alpha.
 `prefer_conservative_alpha=True` is invalid with `per_target_alpha=False`.
 
-`Ridge.score()` does not participate in alpha selection. It returns R-squared
+`_Ridge.score()` does not participate in alpha selection. It returns R-squared
 separately for each target. A one-dimensional target produces a `float`; a
 two-dimensional target produces an array with shape `(n_targets,)`. A constant
 target has a score of zero.
@@ -273,7 +273,7 @@ normalizes fitted arrays to NumPy on the CPU, and exposes only the fitted state
 specified above.
 
 `BrainData.fit` translates `ridge_memory_budget_gb` to
-`Ridge.memory_budget_gb` and `ridge_progress_bar` to `Ridge.progress_bar`.
+`_Ridge.memory_budget_gb` and `ridge_progress_bar` to `_Ridge.progress_bar`.
 `BrainData.bootstrap` uses the device-neutral name `memory_budget_gb`. CPU
 bootstrap worker count and result streaming and GPU batch sizing derive from
 the same budget policy; `n_jobs` remains an independent concurrency ceiling.

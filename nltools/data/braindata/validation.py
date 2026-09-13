@@ -10,7 +10,7 @@ import nibabel as nib
 import numpy as np
 
 
-def validate_brain_data_shapes(brain1, brain2, operation="operation"):
+def _validate_brain_data_shapes(brain1, brain2, operation="operation"):
     """Validate shape compatibility between two BrainData objects.
 
     Args:
@@ -55,7 +55,7 @@ def validate_brain_data_shapes(brain1, brain2, operation="operation"):
     return brain1_is_single, brain2_is_single
 
 
-def validate_arithmetic_operand(other, operation_name):
+def _validate_arithmetic_operand(other, operation_name):
     """Validate operand type for arithmetic operations.
 
     Args:
@@ -87,7 +87,7 @@ def validate_arithmetic_operand(other, operation_name):
     )
 
 
-def validate_data_type(data):
+def _validate_data_type(data):
     """Validate input data type for BrainData initialization.
 
     Args:
@@ -110,10 +110,10 @@ def validate_data_type(data):
     if isinstance(data, list):
         return "list"
     if isinstance(data, (str, Path)):
-        from nltools.io.h5 import is_h5_path
+        from nltools.io.h5 import _is_h5_path
 
         data_str = str(data)
-        if is_h5_path(data_str):
+        if _is_h5_path(data_str):
             return "h5"
         if "://" in data_str:
             return "url"
@@ -128,7 +128,7 @@ def validate_data_type(data):
     )
 
 
-def validate_list_data(data_list):
+def _validate_list_data(data_list):
     """Validate that all items in a list are the same type.
 
     Args:
@@ -166,7 +166,7 @@ def validate_list_data(data_list):
     )
 
 
-def validate_append_shapes(data1_shape, data2_shape):
+def _validate_append_shapes(data1_shape, data2_shape):
     """Validate shape compatibility for appending BrainData objects.
 
     Args:

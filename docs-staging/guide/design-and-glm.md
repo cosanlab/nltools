@@ -85,7 +85,7 @@ fdr_thr = fdr(result["p"].data, q=0.05)                   # -1 if nothing surviv
 
 One warning describes your design, not a bug in nltools. Read it instead of filtering it.
 
-- [`RankDeficientDesignWarning`](../api/tasks/design-and-glm.md#nltools.data.braindata.modeling.RankDeficientDesignWarning).
+- [`DesignMatrixWarning`](../api/utils.md#nltools.utils.DesignMatrixWarning).
   A column is an exact linear combination of others (a duplicated regressor, an intercept added
   twice, a condition that never occurs in this run). The fit uses a pseudo-inverse, so contrasts
   involving that column are not interpretable. Fix the design; `clean()` handles the common case.

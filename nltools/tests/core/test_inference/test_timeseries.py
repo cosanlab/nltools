@@ -186,19 +186,19 @@ class TestPhaseRandomize:
 
 
 class TestTimeseriesCorrelation:
-    """Tests for timeseries_correlation_permutation_test() function."""
+    """Tests for _timeseries_correlation_permutation_test() function."""
 
     def test_basic_functionality_circle_shift(self):
         """Test basic functionality with circle_shift method."""
         from nltools.algorithms.inference import (
-            timeseries_correlation_permutation_test,
+            _timeseries_correlation_permutation_test,
         )
 
         np.random.seed(42)
         x = np.random.randn(50)  # Reduced from 100 for tier1 speed
         y = np.random.randn(50)  # Reduced from 100 for tier1 speed
 
-        result = timeseries_correlation_permutation_test(
+        result = _timeseries_correlation_permutation_test(
             x, y, method="circle_shift", n_permute=100, random_state=42
         )
 
@@ -210,14 +210,14 @@ class TestTimeseriesCorrelation:
     def test_basic_functionality_phase_randomize(self):
         """Test basic functionality with phase_randomize method."""
         from nltools.algorithms.inference import (
-            timeseries_correlation_permutation_test,
+            _timeseries_correlation_permutation_test,
         )
 
         np.random.seed(42)
         x = np.random.randn(50)  # Reduced from 100 for tier1 speed
         y = np.random.randn(50)  # Reduced from 100 for tier1 speed
 
-        result = timeseries_correlation_permutation_test(
+        result = _timeseries_correlation_permutation_test(
             x, y, method="phase_randomize", n_permute=100, random_state=42
         )
 
@@ -229,17 +229,17 @@ class TestTimeseriesCorrelation:
     def test_deterministic_with_seed(self):
         """Test that results are deterministic with random_state."""
         from nltools.algorithms.inference import (
-            timeseries_correlation_permutation_test,
+            _timeseries_correlation_permutation_test,
         )
 
         np.random.seed(42)
         x = np.random.randn(50)  # Reduced from 100 for tier1 speed
         y = np.random.randn(50)  # Reduced from 100 for tier1 speed
 
-        result1 = timeseries_correlation_permutation_test(
+        result1 = _timeseries_correlation_permutation_test(
             x, y, method="circle_shift", n_permute=100, random_state=42
         )
-        result2 = timeseries_correlation_permutation_test(
+        result2 = _timeseries_correlation_permutation_test(
             x, y, method="circle_shift", n_permute=100, random_state=42
         )
 
@@ -249,14 +249,14 @@ class TestTimeseriesCorrelation:
     def test_return_null_distribution(self):
         """Test that null distribution is returned when requested."""
         from nltools.algorithms.inference import (
-            timeseries_correlation_permutation_test,
+            _timeseries_correlation_permutation_test,
         )
 
         np.random.seed(42)
         x = np.random.randn(50)  # Reduced from 100 for tier1 speed
         y = np.random.randn(50)  # Reduced from 100 for tier1 speed
 
-        result = timeseries_correlation_permutation_test(
+        result = _timeseries_correlation_permutation_test(
             x,
             y,
             method="circle_shift",
@@ -271,14 +271,14 @@ class TestTimeseriesCorrelation:
     def test_spearman_metric(self):
         """Test with Spearman correlation metric."""
         from nltools.algorithms.inference import (
-            timeseries_correlation_permutation_test,
+            _timeseries_correlation_permutation_test,
         )
 
         np.random.seed(42)
         x = np.random.randn(50)  # Reduced from 100 for tier1 speed
         y = x**2  # Nonlinear monotonic relationship
 
-        result = timeseries_correlation_permutation_test(
+        result = _timeseries_correlation_permutation_test(
             x,
             y,
             method="circle_shift",
@@ -293,14 +293,14 @@ class TestTimeseriesCorrelation:
     def test_kendall_metric(self):
         """Test with Kendall correlation metric."""
         from nltools.algorithms.inference import (
-            timeseries_correlation_permutation_test,
+            _timeseries_correlation_permutation_test,
         )
 
         np.random.seed(42)
         x = np.random.randn(30)  # Reduced from 50 for tier1 speed
         y = np.random.randn(30)  # Reduced from 50 for tier1 speed
 
-        result = timeseries_correlation_permutation_test(
+        result = _timeseries_correlation_permutation_test(
             x, y, method="circle_shift", n_permute=50, metric="kendall", random_state=42
         )
 
@@ -310,7 +310,7 @@ class TestTimeseriesCorrelation:
     def test_invalid_method(self):
         """Test that invalid method raises ValueError."""
         from nltools.algorithms.inference import (
-            timeseries_correlation_permutation_test,
+            _timeseries_correlation_permutation_test,
         )
 
         np.random.seed(42)
@@ -318,14 +318,14 @@ class TestTimeseriesCorrelation:
         y = np.random.randn(50)  # Reduced from 100 for tier1 speed
 
         with pytest.raises(ValueError, match="method must be"):
-            timeseries_correlation_permutation_test(
+            _timeseries_correlation_permutation_test(
                 x, y, method="invalid_method", n_permute=100, random_state=42
             )
 
     def test_mismatched_lengths(self):
         """Test that mismatched lengths raise ValueError."""
         from nltools.algorithms.inference import (
-            timeseries_correlation_permutation_test,
+            _timeseries_correlation_permutation_test,
         )
 
         np.random.seed(42)
@@ -333,7 +333,7 @@ class TestTimeseriesCorrelation:
         y = np.random.randn(25)  # Reduced from 50 for tier1 speed
 
         with pytest.raises(ValueError, match="same length"):
-            timeseries_correlation_permutation_test(
+            _timeseries_correlation_permutation_test(
                 x, y, method="circle_shift", n_permute=100, random_state=42
             )
 

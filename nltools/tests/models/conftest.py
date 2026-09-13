@@ -41,7 +41,7 @@ def ar_targets(glm_design):
 
 @pytest.fixture(scope="module")
 def fitted_glm(glm_design, glm_targets):
-    """OLS `Glm` fitted on `glm_design` and the three-target response."""
-    from nltools.models import Glm
+    """OLS `_Glm` fitted on `glm_design` and the three-target response."""
+    from nltools.models import _Glm
 
-    return Glm().fit(glm_design, glm_targets)
+    return _Glm().fit(glm_design, glm_targets)

@@ -8,7 +8,7 @@ stat-map display params (``statmap`` dict + ``cal_min`` / ``cal_max``),
 4D scrubbing, right-drag windowing) lives in ``viewer.js`` and is exercised by
 the browser smoke test, not here.
 
-``iplot()`` returns a `NiivueViewer` directly (no ipywidgets wrapper); the
+``iplot()`` returns a `_NiivueViewer` directly (no ipywidgets wrapper); the
 in-widget threshold slider is native to the frontend, so ``controls`` only
 toggles a trait.
 
@@ -22,8 +22,8 @@ import numpy as np
 import polars as pl
 import pytest
 
-from nltools.data.atlases import Atlas
-from nltools.data.braindata.viewer import NiivueViewer
+from nltools.data.atlases import _Atlas
+from nltools.data.braindata.viewer import _NiivueViewer
 
 
 def _n_volumes(viewer):
@@ -38,7 +38,7 @@ def det_atlas():
     """Synthetic deterministic atlas with sparse indices (1, 2, 5)."""
     arr = np.zeros((4, 4, 4), dtype=np.int16)
     arr.flat[:3] = [1, 2, 5]
-    return Atlas(
+    return _Atlas(
         name="synthdet",
         image=nib.Nifti1Image(arr, np.eye(4)),
         labels=pl.DataFrame({"index": [1, 2, 5], "name": ["a", "b", "c"]}),
@@ -50,7 +50,7 @@ def det_atlas():
 @pytest.fixture
 def prob_atlas():
     """Synthetic probabilistic (4D) atlas."""
-    return Atlas(
+    return _Atlas(
         name="synthprob",
         image=nib.Nifti1Image(np.zeros((4, 4, 4, 2), np.float32), np.eye(4)),
         labels=pl.DataFrame({"index": [0, 1], "name": ["a", "b"]}),
@@ -62,7 +62,7 @@ def prob_atlas():
 class TestReturnType:
     def test_returns_niivue_viewer(self, minimal_brain_data):
         v = minimal_brain_data[0].iplot(bg_img=False)
-        assert isinstance(v, NiivueViewer)
+        assert isinstance(v, _NiivueViewer)
 
     def test_controls_default_on(self, minimal_brain_data):
         v = minimal_brain_data[0].iplot(bg_img=False)
@@ -271,7 +271,7 @@ class TestRealAtlasAndBackground:
         assert len(v.atlas_lut["labels"]) == expected
 
     def test_auto_mni_background_loads_for_standard_space(self, minimal_brain_data):
-        # Identity affine -> is_standard_space True (1mm) -> fetch MNI bg.
+        # Identity affine -> _is_standard_space True (1mm) -> fetch MNI bg.
         v = minimal_brain_data[0].iplot()  # bg_img default None == auto
         assert _n_volumes(v) == 2  # background + statmap
         assert v.bg_bytes

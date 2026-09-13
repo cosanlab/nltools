@@ -5,12 +5,12 @@ import numpy as np
 import polars as pl
 from sklearn.metrics.pairwise import pairwise_distances
 
-from nltools.utils import attempt_to_import
-from .utils import apply_stat, perform_arithmetic
+from nltools.utils import _attempt_to_import
+from .utils import _apply_stat, _perform_arithmetic
 
 
 # Optional dependencies
-nx = attempt_to_import("networkx")
+nx = _attempt_to_import("networkx")
 
 MAX_INT = np.iinfo(np.int32).max
 
@@ -56,14 +56,14 @@ class Adjacency:
     """
 
     def __init__(self, data=None, *, Y=None, matrix_type=None, labels=None):
-        from .state import initialize
+        from .state import _initialize
 
-        initialize(self, data, matrix_type=matrix_type, labels=labels, Y=Y)
+        _initialize(self, data, matrix_type=matrix_type, labels=labels, Y=Y)
 
     # ── Dunders (alphabetical) ──────────────────────────────────────────
 
     def __add__(self, y):
-        return perform_arithmetic(self, y, np.add, "add")
+        return _perform_arithmetic(self, y, np.add, "add")
 
     def __copy__(self):
         from nltools.data.ownership import _copy_complete
@@ -76,9 +76,9 @@ class Adjacency:
         return _copy_complete(self, memo)
 
     def __getitem__(self, index):
-        from .state import select
+        from .state import _select
 
-        return select(self, index)
+        return _select(self, index)
 
     def __iter__(self):
         for x in range(len(self)):
@@ -90,25 +90,25 @@ class Adjacency:
         return self.data.shape[0]
 
     def __mul__(self, y):
-        return perform_arithmetic(self, y, np.multiply, "multiply")
+        return _perform_arithmetic(self, y, np.multiply, "multiply")
 
     def __radd__(self, y):
-        return perform_arithmetic(self, y, np.add, "add", reverse=True)
+        return _perform_arithmetic(self, y, np.add, "add", reverse=True)
 
     def __repr__(self):
         return f"{self.__class__.__module__}.{self.__class__.__name__}(shape={self.shape}, Y={self.Y.shape}, is_symmetric={self.issymmetric}, matrix_type={self.matrix_type})"
 
     def __rmul__(self, y):
-        return perform_arithmetic(self, y, np.multiply, "multiply", reverse=True)
+        return _perform_arithmetic(self, y, np.multiply, "multiply", reverse=True)
 
     def __rsub__(self, y):
-        return perform_arithmetic(self, y, np.subtract, "subtract", reverse=True)
+        return _perform_arithmetic(self, y, np.subtract, "subtract", reverse=True)
 
     def __sub__(self, y):
-        return perform_arithmetic(self, y, np.subtract, "subtract")
+        return _perform_arithmetic(self, y, np.subtract, "subtract")
 
     def __truediv__(self, y):
-        return perform_arithmetic(self, y, np.divide, "divide")
+        return _perform_arithmetic(self, y, np.divide, "divide")
 
     # ── Properties (alphabetical) ───────────────────────────────────────
 
@@ -119,9 +119,9 @@ class Adjacency:
 
     @Y.setter
     def Y(self, value) -> None:
-        from .state import owned_frame
+        from .state import _owned_frame
 
-        self._Y = owned_frame(value, len(self))
+        self._Y = _owned_frame(value, len(self))
 
     @property
     def is_empty(self) -> bool:
@@ -185,9 +185,9 @@ class Adjacency:
         Returns:
             Adjacency: New appended Adjacency instance.
         """
-        from .state import append
+        from .state import _append
 
-        return append(self, data)
+        return _append(self, data)
 
     def bootstrap(
         self,
@@ -236,9 +236,9 @@ class Adjacency:
             boot.estimate  # → Adjacency
             ```
         """
-        from .modeling import bootstrap
+        from .modeling import _bootstrap
 
-        return bootstrap(
+        return _bootstrap(
             self,
             statistic,
             n_samples=n_samples,
@@ -264,9 +264,9 @@ class Adjacency:
         Returns:
             dict: Per-cluster summaries keyed by cluster label.
         """
-        from .stats import cluster_summary
+        from .stats import _cluster_summary
 
-        return cluster_summary(self, clusters=clusters, summary=summary, scope=scope)
+        return _cluster_summary(self, clusters=clusters, summary=summary, scope=scope)
 
     def copy(self):
         """Return an independently owned copy, preserving internal aliases and cycles."""
@@ -322,9 +322,9 @@ class Adjacency:
         Returns:
             Adjacency: The converted similarity matrix.
         """
-        from .state import distance_to_similarity
+        from .state import _distance_to_similarity
 
-        return distance_to_similarity(self, metric, beta)
+        return _distance_to_similarity(self, metric, beta)
 
     def generate_permutations(self, n_permute, random_state=None):
         """Generate permuted versions of an Adjacency instance lazily.
@@ -343,9 +343,9 @@ class Adjacency:
                 out = neural_distance_mat.similarity(perm)
             ```
         """
-        from .modeling import generate_permutations
+        from .modeling import _generate_permutations
 
-        return generate_permutations(self, n_permute, random_state)
+        return _generate_permutations(self, n_permute, random_state)
 
     def mean(self, axis=0):
         """Calculate mean of Adjacency.
@@ -357,7 +357,7 @@ class Adjacency:
             float | Adjacency | np.ndarray: A float for a single matrix; an
                 Adjacency when `axis=0`; an array when `axis=1`.
         """
-        return apply_stat(self, np.nanmean, axis)
+        return _apply_stat(self, np.nanmean, axis)
 
     def median(self, axis=0):
         """Calculate median of Adjacency.
@@ -369,9 +369,9 @@ class Adjacency:
             float | Adjacency | np.ndarray: A float for a single matrix; an
                 Adjacency when `axis=0`; an array when `axis=1`.
         """
-        return apply_stat(self, np.nanmedian, axis)
+        return _apply_stat(self, np.nanmedian, axis)
 
-    def plot(  # nosemgrep: kwargs-internal-forwarding  # forwards to seaborn via plot_adjacency
+    def plot(  # nosemgrep: kwargs-internal-forwarding  # forwards to seaborn via _plot_adjacency
         self, *, limit=3, ax=None, **kwargs
     ):
         """Create a heatmap of an Adjacency matrix.
@@ -382,9 +382,9 @@ class Adjacency:
             ax (matplotlib.axes.Axes, optional): Axis to draw on (single matrix only).
             **kwargs (dict): Forwarded to `seaborn.heatmap`.
         """
-        from .plotting import plot_adjacency
+        from .plotting import _plot_adjacency
 
-        return plot_adjacency(self, limit=limit, ax=ax, **kwargs)
+        return _plot_adjacency(self, limit=limit, ax=ax, **kwargs)
 
     def plot_between_label_distance(  # nosemgrep: kwargs-internal-forwarding  # forwards to seaborn via stats.plot_between_label_distance
         self, *, labels=None, ax=None, permutation_test=True, n_permute=5000, **kwargs
@@ -409,9 +409,9 @@ class Adjacency:
                 `Group` and `Comparison` labels; the others are long-format
                 label-pair frames.
         """
-        from .stats import plot_between_label_distance
+        from .stats import _plot_between_label_distance
 
-        return plot_between_label_distance(
+        return _plot_between_label_distance(
             self,
             labels=labels,
             ax=ax,
@@ -441,9 +441,9 @@ class Adjacency:
                 `permutation_test=True`, where `stats` maps each group label to
                 its permutation-test result.
         """
-        from .stats import plot_label_distance
+        from .stats import _plot_label_distance
 
-        return plot_label_distance(
+        return _plot_label_distance(
             self,
             labels,
             ax,
@@ -481,9 +481,9 @@ class Adjacency:
             n_jobs (int): Number of parallel jobs.
             **kwargs (dict): Forwarded to `sklearn.manifold.MDS`.
         """
-        from .plotting import plot_mds
+        from .plotting import _plot_mds
 
-        return plot_mds(
+        return _plot_mds(
             self,
             n_components=n_components,
             metric_mds=metric_mds,
@@ -523,9 +523,9 @@ class Adjacency:
             pl.DataFrame: Columns `label` and `mean_silhouette`, plus `p` when
                 `permutation_test=True`.
         """
-        from .stats import plot_silhouette
+        from .stats import _plot_silhouette
 
-        return plot_silhouette(
+        return _plot_silhouette(
             self,
             labels=labels,
             ax=ax,
@@ -537,9 +537,9 @@ class Adjacency:
 
     def r_to_z(self):
         """Apply Fisher's r-to-z transformation to each data element."""
-        from .stats import r_to_z
+        from .stats import _r_to_z
 
-        return r_to_z(self)
+        return _r_to_z(self)
 
     def regress(self, X, *, tail=2):
         """Run a regression on an adjacency instance.
@@ -560,9 +560,9 @@ class Adjacency:
                 coefficient fields are native predictor arrays or scalars.
                 `df` is a scalar; `residual` retains response shape and metadata.
         """
-        from .modeling import regress
+        from .modeling import _regress
 
-        return regress(self, X, tail=tail)
+        return _regress(self, X, tail=tail)
 
     def similarity(
         self,
@@ -614,9 +614,9 @@ class Adjacency:
                 'correlation' and 'p' for a single matrix, or a list of these
                 dicts for a stack.
         """
-        from .stats import similarity
+        from .stats import _similarity
 
-        return similarity(
+        return _similarity(
             self,
             data,
             plot=plot,
@@ -663,9 +663,9 @@ class Adjacency:
             Kenny, D. A., Kashy, D. A., & Cook, W. L. (2006). *Dyadic data analysis*.
             Guilford Press.
         """
-        from .modeling import social_relations_model
+        from .modeling import _social_relations_model
 
-        return social_relations_model(self, summarize_results, nan_replace)
+        return _social_relations_model(self, summarize_results, nan_replace)
 
     def squareform(self):
         """Convert adjacency data back to square form.
@@ -674,9 +674,9 @@ class Adjacency:
             np.ndarray | list[np.ndarray]: Detached square matrix, or a list of
                 detached matrices for a stack. Symmetric diagonals are zero.
         """
-        from .state import to_square
+        from .state import _to_square
 
-        return to_square(self)
+        return _to_square(self)
 
     def stats_label_distance(self, *, labels=None, n_permute=5000, n_jobs=-1):
         """Calculate permutation tests on within and between label distance.
@@ -691,9 +691,9 @@ class Adjacency:
             dict: Per-group within-vs-between distance differences and p-values, keyed
                 by group label.
         """
-        from .stats import stats_label_distance
+        from .stats import _stats_label_distance
 
-        return stats_label_distance(
+        return _stats_label_distance(
             self, labels=labels, n_permute=n_permute, n_jobs=n_jobs
         )
 
@@ -707,7 +707,7 @@ class Adjacency:
             float | Adjacency | np.ndarray: A float for a single matrix; an
                 Adjacency when `axis=0`; an array when `axis=1`.
         """
-        return apply_stat(self, np.nanstd, axis)
+        return _apply_stat(self, np.nanstd, axis)
 
     def sum(self, axis=0):
         """Calculate sum of Adjacency.
@@ -719,7 +719,7 @@ class Adjacency:
             float | Adjacency | np.ndarray: A float for a single matrix; an
                 Adjacency when `axis=0`; an array when `axis=1`.
         """
-        return apply_stat(self, np.nansum, axis)
+        return _apply_stat(self, np.nansum, axis)
 
     def threshold(self, *, upper=None, lower=None, binarize=False):
         """Threshold an Adjacency instance.
@@ -739,9 +739,9 @@ class Adjacency:
         Returns:
             Adjacency: Thresholded Adjacency instance.
         """
-        from .stats import threshold
+        from .stats import _threshold
 
-        return threshold(self, upper=upper, lower=lower, binarize=binarize)
+        return _threshold(self, upper=upper, lower=lower, binarize=binarize)
 
     def to_graph(self):
         """Convert a single Adjacency matrix into a NetworkX graph.
@@ -752,9 +752,9 @@ class Adjacency:
             networkx.Graph | networkx.DiGraph: `DiGraph` for directed matrices,
                 `Graph` otherwise; nodes are relabeled with `labels` when set.
         """
-        from .io import to_graph
+        from .io import _to_graph
 
-        return to_graph(self)
+        return _to_graph(self)
 
     def to_square(self):
         """Convert adjacency back to square matrix format.
@@ -830,9 +830,9 @@ class Adjacency:
             significant.data = np.where(result["p"].data < 0.05, result["t"].data, 0.0)
             ```
         """
-        from .stats import ttest
+        from .stats import _ttest
 
-        return ttest(
+        return _ttest(
             self,
             popmean=popmean,
             permutation=permutation,
@@ -857,12 +857,12 @@ class Adjacency:
             method (str): Layout for CSV output, `'long'` (vectorized rows) or
                 `'square'` (single matrix only).
         """
-        from .io import write
+        from .io import _write
 
-        return write(self, file_name, method)
+        return _write(self, file_name, method)
 
     def z_to_r(self):
         """Convert each z score back into an r value."""
-        from .stats import z_to_r
+        from .stats import _z_to_r
 
-        return z_to_r(self)
+        return _z_to_r(self)

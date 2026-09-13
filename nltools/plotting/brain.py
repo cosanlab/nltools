@@ -150,9 +150,9 @@ def _require_standard_space(bd, op_name: str, *, remedy: str) -> None:
     (glass-brain outlines, fsaverage surfaces, template backgrounds).
     Native-space data would render in misleading positions.
     """
-    from nltools.templates import is_standard_space
+    from nltools.templates import _is_standard_space
 
-    ok, reason = is_standard_space(bd.mask.affine)
+    ok, reason = _is_standard_space(bd.mask.affine)
     if ok:
         return
     raise ValueError(
@@ -255,7 +255,7 @@ def _project_to_surface(
     return textures, threshold, cmap, vmin, vmax
 
 
-def plot_surf(
+def _plot_surf(
     brain,
     *,
     hemi="both",
@@ -425,7 +425,7 @@ def plot_surf(
     return fig
 
 
-def plot_flatmap(
+def _plot_flatmap(
     brain,
     *,
     threshold=None,

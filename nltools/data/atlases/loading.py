@@ -12,7 +12,7 @@ from .registry import ATLASES, AtlasKind
 
 
 @dataclass(frozen=True)
-class Atlas:
+class _Atlas:
     """A loaded atlas — image, labels, and metadata.
 
     Constructed by `load_atlas`; users normally don't instantiate
@@ -37,7 +37,7 @@ class Atlas:
 
 
 @functools.cache
-def load_atlas(name: str) -> Atlas:
+def load_atlas(name: str) -> _Atlas:
     """Lazy-load an atlas by registry name.
 
     The first call fetches the NIfTI + label CSV from
@@ -48,7 +48,7 @@ def load_atlas(name: str) -> Atlas:
         name (str): Atlas key from `list_atlases`.
 
     Returns:
-        Atlas: The atlas with image, labels, and metadata loaded.
+        _Atlas: The atlas with image, labels, and metadata loaded.
 
     Raises:
         ValueError: If `name` isn't a registered atlas.
@@ -61,7 +61,7 @@ def load_atlas(name: str) -> Atlas:
     img_path = fetch_resource(f"atlases/atlas_{name}.nii.gz")
     csv_path = fetch_resource(f"atlases/labels_{name}.csv")
 
-    return Atlas(
+    return _Atlas(
         name=name,
         image=nb.load(img_path),
         labels=pl.read_csv(csv_path),

@@ -28,7 +28,7 @@ from nltools.algorithms.inference.isc import (
     _bootstrap_pairwise_numpy,
     _compute_loo_isc,
     _compute_pairwise_isc,
-    isc_permutation_test,
+    _isc_permutation_test,
 )
 
 
@@ -281,7 +281,7 @@ def test_isc_permutation_test_loo_basic():
     np.random.seed(42)
     data = np.random.randn(100, 10)  # 100 timepoints, 10 subjects
 
-    result = isc_permutation_test(
+    result = _isc_permutation_test(
         data,
         summary_statistic="leave-one-out",
         n_permute=100,
@@ -303,7 +303,7 @@ def test_isc_permutation_test_pairwise_basic():
     np.random.seed(42)
     data = np.random.randn(100, 10)
 
-    result = isc_permutation_test(
+    result = _isc_permutation_test(
         data,
         summary_statistic="pairwise",
         n_permute=100,
@@ -321,7 +321,7 @@ def test_isc_loo_vs_pairwise_correlated():
     np.random.seed(42)
     data = np.random.randn(100, 20)  # 20 subjects for good comparison
 
-    result_loo = isc_permutation_test(
+    result_loo = _isc_permutation_test(
         data,
         summary_statistic="leave-one-out",
         n_permute=100,
@@ -329,7 +329,7 @@ def test_isc_loo_vs_pairwise_correlated():
         progress_bar=False,
     )
 
-    result_pairwise = isc_permutation_test(
+    result_pairwise = _isc_permutation_test(
         data,
         summary_statistic="pairwise",
         n_permute=100,
@@ -349,7 +349,7 @@ def test_isc_voxelwise_shape():
     np.random.seed(42)
     data = np.random.randn(100, 10, 50)  # 50 voxels
 
-    result = isc_permutation_test(
+    result = _isc_permutation_test(
         data,
         summary_statistic="pairwise",
         n_permute=100,
@@ -368,11 +368,11 @@ def test_isc_worker_count_is_numerically_invisible():
     np.random.seed(42)
     data = np.random.randn(100, 10, 20)
 
-    result_serial = isc_permutation_test(
+    result_serial = _isc_permutation_test(
         data, n_permute=100, n_jobs=1, random_state=42, progress_bar=False
     )
 
-    result_parallel = isc_permutation_test(
+    result_parallel = _isc_permutation_test(
         data, n_permute=100, n_jobs=-1, random_state=42, progress_bar=False
     )
 
@@ -389,7 +389,7 @@ def test_isc_return_null_dist():
     np.random.seed(42)
     data = np.random.randn(100, 10)
 
-    result = isc_permutation_test(
+    result = _isc_permutation_test(
         data, n_permute=100, return_null=True, random_state=42, progress_bar=False
     )
 
@@ -402,7 +402,7 @@ def test_isc_circle_shift_method():
     np.random.seed(42)
     data = np.random.randn(100, 10)
 
-    result = isc_permutation_test(
+    result = _isc_permutation_test(
         data, method="circle_shift", n_permute=50, random_state=42, progress_bar=False
     )
 
@@ -415,7 +415,7 @@ def test_isc_phase_randomize_method():
     np.random.seed(42)
     data = np.random.randn(100, 10)
 
-    result = isc_permutation_test(
+    result = _isc_permutation_test(
         data,
         method="phase_randomize",
         n_permute=50,
@@ -440,7 +440,7 @@ def test_isc_matches_brainiak_loo_logic():
     data = np.random.randn(100, 5)
 
     # Our implementation
-    result = isc_permutation_test(
+    result = _isc_permutation_test(
         data,
         summary_statistic="leave-one-out",
         summary="median",
@@ -466,7 +466,7 @@ def test_isc_chen_bootstrap_correctness():
     np.random.seed(42)
     data = np.random.randn(100, 10)
 
-    result = isc_permutation_test(
+    result = _isc_permutation_test(
         data,
         summary_statistic="pairwise",
         n_permute=1000,
@@ -494,7 +494,7 @@ def test_isc_invalid_summary_statistic():
     data = np.random.randn(100, 10)
 
     with pytest.raises(ValueError, match="summary_statistic must be"):
-        isc_permutation_test(
+        _isc_permutation_test(
             data, summary_statistic="invalid", n_permute=100, progress_bar=False
         )
 
@@ -505,7 +505,7 @@ def test_isc_invalid_method():
     data = np.random.randn(100, 10)
 
     with pytest.raises(ValueError, match="method must be"):
-        isc_permutation_test(data, method="invalid", n_permute=100, progress_bar=False)
+        _isc_permutation_test(data, method="invalid", n_permute=100, progress_bar=False)
 
 
 def test_isc_invalid_data_dimensions():
@@ -513,7 +513,7 @@ def test_isc_invalid_data_dimensions():
     data_1d = np.random.randn(100)
 
     with pytest.raises(ValueError, match="data must be 2D or 3D"):
-        isc_permutation_test(data_1d, n_permute=100, progress_bar=False)
+        _isc_permutation_test(data_1d, n_permute=100, progress_bar=False)
 
 
 def test_isc_default_is_pairwise():
@@ -522,12 +522,12 @@ def test_isc_default_is_pairwise():
     data = np.random.randn(100, 10)
 
     # Call without specifying summary_statistic
-    result = isc_permutation_test(
+    result = _isc_permutation_test(
         data, n_permute=100, random_state=42, progress_bar=False
     )
 
     # Verify it used pairwise by comparing with explicit pairwise call
-    result_explicit = isc_permutation_test(
+    result_explicit = _isc_permutation_test(
         data,
         summary_statistic="pairwise",
         n_permute=100,
@@ -544,7 +544,7 @@ def test_isc_exclude_self_corr_parameter():
     data = np.random.randn(100, 10)
 
     # Test with exclude_self_corr=True (default)
-    result_exclude = isc_permutation_test(
+    result_exclude = _isc_permutation_test(
         data,
         summary_statistic="pairwise",
         method="bootstrap",
@@ -555,7 +555,7 @@ def test_isc_exclude_self_corr_parameter():
     )
 
     # Test with exclude_self_corr=False
-    result_include = isc_permutation_test(
+    result_include = _isc_permutation_test(
         data,
         summary_statistic="pairwise",
         method="bootstrap",
@@ -585,7 +585,7 @@ def test_isc_exclude_self_corr_affects_bootstrap(n_jobs):
     np.random.seed(42)
     data = np.random.randn(100, 5)  # Small n_subjects increases chance of duplicates
 
-    result_exclude = isc_permutation_test(
+    result_exclude = _isc_permutation_test(
         data,
         summary_statistic="pairwise",
         method="bootstrap",
@@ -597,7 +597,7 @@ def test_isc_exclude_self_corr_affects_bootstrap(n_jobs):
         progress_bar=False,
     )
 
-    result_include = isc_permutation_test(
+    result_include = _isc_permutation_test(
         data,
         summary_statistic="pairwise",
         method="bootstrap",
@@ -631,7 +631,7 @@ def test_isc_metric_parameter():
     data = np.random.randn(100, 10)
 
     # Test with correlation (default)
-    result_corr = isc_permutation_test(
+    result_corr = _isc_permutation_test(
         data,
         summary_statistic="pairwise",
         metric="correlation",
@@ -641,7 +641,7 @@ def test_isc_metric_parameter():
     )
 
     # Test with euclidean distance (converted to similarity)
-    result_eucl = isc_permutation_test(
+    result_eucl = _isc_permutation_test(
         data,
         summary_statistic="pairwise",
         metric="euclidean",
@@ -671,7 +671,7 @@ def test_isc_metric_affects_pairwise_computation():
     data = np.random.randn(100, 5)
 
     # Test with different metrics
-    result_corr = isc_permutation_test(
+    result_corr = _isc_permutation_test(
         data,
         summary_statistic="pairwise",
         metric="correlation",
@@ -680,7 +680,7 @@ def test_isc_metric_affects_pairwise_computation():
         progress_bar=False,
     )
 
-    result_cosine = isc_permutation_test(
+    result_cosine = _isc_permutation_test(
         data,
         summary_statistic="pairwise",
         metric="cosine",
@@ -706,7 +706,7 @@ def test_isc_exclude_self_corr_pairwise_only():
     data = np.random.randn(100, 10)
 
     # exclude_self_corr should not affect LOO (which doesn't use pairwise matrix)
-    result_loo = isc_permutation_test(
+    result_loo = _isc_permutation_test(
         data,
         summary_statistic="leave-one-out",
         method="bootstrap",
@@ -716,7 +716,7 @@ def test_isc_exclude_self_corr_pairwise_only():
         progress_bar=False,
     )
 
-    result_loo_default = isc_permutation_test(
+    result_loo_default = _isc_permutation_test(
         data,
         summary_statistic="leave-one-out",
         method="bootstrap",
@@ -736,7 +736,7 @@ def test_isc_metric_pairwise_only():
     data = np.random.randn(100, 10)
 
     # metric should not affect LOO (which computes correlations directly)
-    result_loo_corr = isc_permutation_test(
+    result_loo_corr = _isc_permutation_test(
         data,
         summary_statistic="leave-one-out",
         metric="correlation",  # Should be ignored for LOO
@@ -745,7 +745,7 @@ def test_isc_metric_pairwise_only():
         progress_bar=False,
     )
 
-    result_loo_eucl = isc_permutation_test(
+    result_loo_eucl = _isc_permutation_test(
         data,
         summary_statistic="leave-one-out",
         metric="euclidean",  # Should be ignored for LOO
@@ -764,7 +764,7 @@ def test_isc_metric_spearman_basic():
     data = np.random.randn(100, 10)
 
     # Spearman should work (currently fails, but will work after optimization)
-    result_spearman = isc_permutation_test(
+    result_spearman = _isc_permutation_test(
         data,
         summary_statistic="pairwise",
         metric="spearman",
@@ -1012,7 +1012,7 @@ class TestISCStatisticalCorrectness:
             # Generate independent time series (ISC = 0)
             data = np.random.randn(n_timepoints, n_subjects)
 
-            result = isc_permutation_test(
+            result = _isc_permutation_test(
                 data,
                 summary_statistic=summary_statistic,
                 method=method,
@@ -1047,7 +1047,7 @@ class TestISCStatisticalCorrectness:
         )
 
         # Compute ISC
-        result = isc_permutation_test(
+        result = _isc_permutation_test(
             data,
             summary_statistic="leave-one-out",
             n_permute=100,  # Small for speed
@@ -1075,7 +1075,7 @@ class TestISCStatisticalCorrectness:
         )
 
         # Compute ISC
-        result = isc_permutation_test(
+        result = _isc_permutation_test(
             data,
             summary_statistic="pairwise",
             n_permute=100,  # Small for speed
@@ -1105,7 +1105,7 @@ class TestISCStatisticalCorrectness:
                 n_timepoints, n_subjects, isc_strength, random_state=42
             )
 
-            result = isc_permutation_test(
+            result = _isc_permutation_test(
                 data,
                 summary_statistic="leave-one-out",
                 n_permute=n_permute,
@@ -1156,7 +1156,7 @@ class TestISCStatisticalCorrectness:
         )
 
         # Compute both LOO and pairwise ISC
-        result_loo = isc_permutation_test(
+        result_loo = _isc_permutation_test(
             data,
             summary_statistic="leave-one-out",
             n_permute=2000,
@@ -1164,7 +1164,7 @@ class TestISCStatisticalCorrectness:
             progress_bar=False,
         )
 
-        result_pairwise = isc_permutation_test(
+        result_pairwise = _isc_permutation_test(
             data,
             summary_statistic="pairwise",
             n_permute=2000,
@@ -1191,7 +1191,7 @@ class TestISCStatisticalCorrectness:
             n_timepoints, n_subjects, isc_strength=0.8, random_state=42
         )
 
-        result_loo_high = isc_permutation_test(
+        result_loo_high = _isc_permutation_test(
             data_high,
             summary_statistic="leave-one-out",
             n_permute=1000,
@@ -1199,7 +1199,7 @@ class TestISCStatisticalCorrectness:
             progress_bar=False,
         )
 
-        result_pairwise_high = isc_permutation_test(
+        result_pairwise_high = _isc_permutation_test(
             data_high,
             summary_statistic="pairwise",
             n_permute=1000,
@@ -1228,7 +1228,7 @@ class TestISCStatisticalCorrectness:
         )
 
         # Run bootstrap with return_null=True
-        result = isc_permutation_test(
+        result = _isc_permutation_test(
             data,
             summary_statistic="leave-one-out",
             method="bootstrap",
@@ -1280,7 +1280,7 @@ class TestISCStatisticalCorrectness:
             autocorr_orig.append(np.corrcoef(data[:-1, i], data[1:, i])[0, 1])
 
         # Run ISC test with circle_shift (which should preserve autocorrelation)
-        result = isc_permutation_test(
+        result = _isc_permutation_test(
             data,
             summary_statistic="leave-one-out",
             method="circle_shift",
@@ -1354,7 +1354,7 @@ class TestISCStatisticalCorrectness:
             )
 
         # Verify ISC test with phase_randomize completes successfully
-        result = isc_permutation_test(
+        result = _isc_permutation_test(
             data,
             summary_statistic="leave-one-out",
             method="phase_randomize",
@@ -1379,7 +1379,7 @@ class TestISCStatisticalCorrectness:
         )
 
         # Compute ISC with median summary
-        result_median = isc_permutation_test(
+        result_median = _isc_permutation_test(
             data,
             summary_statistic="leave-one-out",
             summary="median",
@@ -1389,7 +1389,7 @@ class TestISCStatisticalCorrectness:
         )
 
         # Compute ISC with mean summary
-        result_mean = isc_permutation_test(
+        result_mean = _isc_permutation_test(
             data,
             summary_statistic="leave-one-out",
             summary="mean",
@@ -1411,7 +1411,7 @@ class TestISCStatisticalCorrectness:
         data_outlier = data.copy()
         data_outlier[:, 0] = np.random.randn(n_timepoints) * 10  # Outlier subject
 
-        result_median_outlier = isc_permutation_test(
+        result_median_outlier = _isc_permutation_test(
             data_outlier,
             summary_statistic="leave-one-out",
             summary="median",
@@ -1420,7 +1420,7 @@ class TestISCStatisticalCorrectness:
             progress_bar=False,
         )
 
-        result_mean_outlier = isc_permutation_test(
+        result_mean_outlier = _isc_permutation_test(
             data_outlier,
             summary_statistic="leave-one-out",
             summary="mean",
@@ -1456,7 +1456,7 @@ class TestISCStatisticalCorrectness:
         p_values = []
 
         for n_permute in n_permutes:
-            result = isc_permutation_test(
+            result = _isc_permutation_test(
                 data,
                 summary_statistic="leave-one-out",
                 n_permute=n_permute,

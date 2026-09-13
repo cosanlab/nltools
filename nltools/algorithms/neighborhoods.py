@@ -29,14 +29,14 @@ import numpy as np
 from scipy import sparse
 from sklearn import neighbors
 
-from nltools.utils import maybe_tqdm
+from nltools.utils import _maybe_tqdm
 
 if TYPE_CHECKING:
     from nibabel import Nifti1Image
 
 
 @dataclass(frozen=True)
-class SphereNeighborhoods:
+class _SphereNeighborhoods:
     """Precomputed sphere neighborhoods for a brain mask.
 
     This dataclass stores a sparse adjacency matrix where row i contains True
@@ -102,7 +102,7 @@ class SphereNeighborhoods:
             tuple[int, np.ndarray]: ``(center_voxel_idx, neighbor_indices)`` for
                 each voxel.
         """
-        iterator = maybe_tqdm(
+        iterator = _maybe_tqdm(
             range(self.n_voxels),
             progress_bar=progress_bar,
             desc="Searchlight",
@@ -131,7 +131,7 @@ class SphereNeighborhoods:
 
     def __repr__(self) -> str:
         return (
-            f"SphereNeighborhoods(n_voxels={self.n_voxels}, "
+            f"_SphereNeighborhoods(n_voxels={self.n_voxels}, "
             f"radius={self.radius}mm, "
             f"mean_size={self.mean_size:.1f})"
         )
@@ -140,7 +140,7 @@ class SphereNeighborhoods:
 def compute_searchlight_neighborhoods(
     mask_img: Nifti1Image,
     radius: float = 10.0,
-) -> SphereNeighborhoods:
+) -> _SphereNeighborhoods:
     """Compute sphere neighborhoods for all voxels in a brain mask.
 
     For each voxel in the mask, this function identifies all other voxels
@@ -155,7 +155,7 @@ def compute_searchlight_neighborhoods(
         radius: Radius of spheres in millimeters (default: 10.0)
 
     Returns:
-        SphereNeighborhoods with precomputed adjacency matrix
+        _SphereNeighborhoods with precomputed adjacency matrix
 
     Raises:
         ValueError: If mask has no non-zero voxels
@@ -168,7 +168,7 @@ def compute_searchlight_neighborhoods(
         neighborhoods = compute_searchlight_neighborhoods(mask, radius=8.0)
 
         print(neighborhoods)
-        # SphereNeighborhoods(n_voxels=50000, radius=8.0mm, mean_size=33.2)
+        # _SphereNeighborhoods(n_voxels=50000, radius=8.0mm, mean_size=33.2)
         ```
     """
     from nilearn.image.resampling import coord_transform
@@ -200,7 +200,7 @@ def compute_searchlight_neighborhoods(
     adjacency = clf.radius_neighbors_graph(mask_coords_world, mode="connectivity")
     adjacency = adjacency.tocsr()
 
-    return SphereNeighborhoods(
+    return _SphereNeighborhoods(
         adjacency=adjacency,
         radius=radius,
         n_voxels=n_voxels,

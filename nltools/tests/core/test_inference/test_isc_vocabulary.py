@@ -21,13 +21,13 @@ import pytest
 
 from nltools.algorithms import isc, isc_group
 from nltools.algorithms.inference import (
-    isc_group_permutation_test,
-    isc_permutation_test,
+    _isc_group_permutation_test,
+    _isc_permutation_test,
 )
 
 CANONICAL_SIGNATURES = [
-    isc_permutation_test,
-    isc_group_permutation_test,
+    _isc_permutation_test,
+    _isc_group_permutation_test,
     isc,
     isc_group,
 ]
@@ -52,7 +52,7 @@ def test_summary_and_metric_are_canonical(func):
     assert params["summary"].default == "median"
     assert "sim_metric" not in params, f"{func.__name__} still exposes sim_metric="
     metric = params.get("metric")
-    if func is isc_group or func is isc_group_permutation_test:
+    if func is isc_group or func is _isc_group_permutation_test:
         # isc_group computes a pairwise-ISC difference; a similarity-metric knob
         # only exists where the engine exposes one.
         if metric is None:
@@ -101,7 +101,7 @@ def test_isc_group_summary_kwarg_validated(group_data):
 
 def test_engine_summary_kwarg_validated(subjects_data):
     with pytest.raises(ValueError, match="summary"):
-        isc_permutation_test(subjects_data, n_permute=20, summary="mode")
+        _isc_permutation_test(subjects_data, n_permute=20, summary="mode")
 
 
 class TestWrapperProgressBarThreading:

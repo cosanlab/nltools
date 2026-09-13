@@ -10,7 +10,7 @@ import numpy as np
 import seaborn as sns
 
 
-def plot_predicted_versus_actual(y_true, y_pred, *, r=None, ax=None):
+def _plot_predicted_versus_actual(y_true, y_pred, *, r=None, ax=None):
     """Scatter cross-validated predictions against the observed target.
 
     Args:
@@ -36,7 +36,7 @@ def plot_predicted_versus_actual(y_true, y_pred, *, r=None, ax=None):
     return axis
 
 
-def plot_decision_margin(margins, y_true, *, ax=None):
+def _plot_decision_margin(margins, y_true, *, ax=None):
     """Plot each observation's signed distance from the decision boundary by class.
 
     Args:
@@ -63,7 +63,7 @@ def plot_decision_margin(margins, y_true, *, ax=None):
     return axis
 
 
-def plot_class_probability(probabilities, y_true, *, ax=None):
+def _plot_class_probability(probabilities, y_true, *, ax=None):
     """Plot the predicted positive-class probability of each observation by class.
 
     Args:
@@ -90,7 +90,7 @@ def plot_class_probability(probabilities, y_true, *, ax=None):
     return axis
 
 
-def plot_roc(fpr, tpr):
+def _plot_roc(fpr, tpr):
     """Plot 1-Specificity by Sensitivity.
 
     Args:

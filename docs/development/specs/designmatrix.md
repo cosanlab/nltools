@@ -38,7 +38,7 @@ dm.rename({"stim": "task"}).head(10)
 ```
 
 The forwarding layer invokes the Polars method and supplies operation context
-to `copy_with`. That shared constructor owns copying, effective row count and
+to `_copy_with`. That shared constructor owns copying, effective row count and
 metadata policy. It must not infer observation or column semantics solely from
 matching output shapes or names.
 

@@ -17,10 +17,10 @@ from sklearn.svm import SVC, LinearSVC
 
 from nltools.algorithms.decoding import (
     SUPPORTED_TRANSFORMERS,
-    BackProjectionError,
-    back_project_weight_maps,
-    validate_decoding_pipeline,
-    whitening_scale,
+    _BackProjectionError,
+    _back_project_weight_maps,
+    _validate_decoding_pipeline,
+    _whitening_scale,
 )
 
 N_SAMPLES = 40
@@ -71,7 +71,7 @@ class TestCoefficientShapes:
         X, y = regression_data
         fitted = Ridge().fit(X, y)
 
-        maps = back_project_weight_maps(fitted, N_FEATURES)
+        maps = _back_project_weight_maps(fitted, N_FEATURES)
 
         assert maps.shape == (1, N_FEATURES)
         np.testing.assert_allclose(maps[0], fitted.coef_)
@@ -80,7 +80,7 @@ class TestCoefficientShapes:
         X, y = binary_data
         fitted = svc().fit(X, y)
 
-        maps = back_project_weight_maps(fitted, N_FEATURES)
+        maps = _back_project_weight_maps(fitted, N_FEATURES)
 
         assert maps.shape == (1, N_FEATURES)
         # The sign convention is the estimator's own: classes_[1] vs classes_[0],
@@ -91,7 +91,7 @@ class TestCoefficientShapes:
         X, y = multiclass_data
         fitted = LogisticRegression(max_iter=1000).fit(X, y)
 
-        maps = back_project_weight_maps(fitted, N_FEATURES)
+        maps = _back_project_weight_maps(fitted, N_FEATURES)
 
         assert maps.shape == (3, N_FEATURES)
         np.testing.assert_allclose(maps, fitted.coef_)
@@ -100,7 +100,7 @@ class TestCoefficientShapes:
         X, y = multiclass_data
         fitted = LogisticRegression(max_iter=1000).fit(X, y)
 
-        maps = back_project_weight_maps(fitted, N_FEATURES)
+        maps = _back_project_weight_maps(fitted, N_FEATURES)
 
         assert maps.shape[0] == len(fitted.classes_)
         assert not np.allclose(maps[0], maps.mean(axis=0))
@@ -116,7 +116,7 @@ class TestStandardScaler:
         X, y = binary_data
         pipe = make_pipeline(StandardScaler(), svc()).fit(X, y)
 
-        maps = back_project_weight_maps(pipe, N_FEATURES)
+        maps = _back_project_weight_maps(pipe, N_FEATURES)
 
         scaler, estimator = pipe[0], pipe[-1]
         np.testing.assert_allclose(maps[0], estimator.coef_.ravel() / scaler.scale_)
@@ -125,7 +125,7 @@ class TestStandardScaler:
         X, y = binary_data
         pipe = make_pipeline(StandardScaler(with_std=False), svc()).fit(X, y)
 
-        maps = back_project_weight_maps(pipe, N_FEATURES)
+        maps = _back_project_weight_maps(pipe, N_FEATURES)
 
         np.testing.assert_allclose(maps[0], pipe[-1].coef_.ravel())
 
@@ -135,7 +135,7 @@ class TestStandardScaler:
         centered = make_pipeline(StandardScaler(with_std=False), LinearRegression())
         raw = LinearRegression().fit(X, y)
 
-        maps = back_project_weight_maps(centered.fit(X, y), N_FEATURES)
+        maps = _back_project_weight_maps(centered.fit(X, y), N_FEATURES)
 
         np.testing.assert_allclose(maps[0], raw.coef_, rtol=1e-8)
 
@@ -145,7 +145,7 @@ class TestPca:
         X, y = regression_data
         pipe = make_pipeline(PCA(n_components=3), Ridge()).fit(X, y)
 
-        maps = back_project_weight_maps(pipe, N_FEATURES)
+        maps = _back_project_weight_maps(pipe, N_FEATURES)
 
         pca, estimator = pipe[0], pipe[-1]
         np.testing.assert_allclose(maps[0], estimator.coef_ @ pca.components_)
@@ -156,7 +156,7 @@ class TestPca:
         X, y = regression_data
         pipe = make_pipeline(PCA(n_components=3, whiten=True), Ridge()).fit(X, y)
 
-        maps = back_project_weight_maps(pipe, N_FEATURES)
+        maps = _back_project_weight_maps(pipe, N_FEATURES)
 
         pca, estimator = pipe[0], pipe[-1]
         scale = np.sqrt(pca.explained_variance_)
@@ -169,8 +169,8 @@ class TestPca:
         white = make_pipeline(PCA(n_components=3, whiten=True), Ridge()).fit(X, y)
 
         assert not np.allclose(
-            back_project_weight_maps(plain, N_FEATURES),
-            back_project_weight_maps(white, N_FEATURES),
+            _back_project_weight_maps(plain, N_FEATURES),
+            _back_project_weight_maps(white, N_FEATURES),
         )
 
     def test_multiclass_back_projects_every_class_row(self, multiclass_data):
@@ -178,7 +178,7 @@ class TestPca:
         pipe = make_pipeline(PCA(n_components=3), LogisticRegression(max_iter=1000))
         pipe.fit(X, y)
 
-        maps = back_project_weight_maps(pipe, N_FEATURES)
+        maps = _back_project_weight_maps(pipe, N_FEATURES)
 
         assert maps.shape == (3, N_FEATURES)
         np.testing.assert_allclose(maps, pipe[-1].coef_ @ pipe[0].components_)
@@ -188,7 +188,7 @@ class TestWhiteningScale:
     def test_zero_variance_is_floored_at_epsilon(self):
         variance = np.array([4.0, 0.0])
 
-        scale = whitening_scale(variance)
+        scale = _whitening_scale(variance)
 
         eps = np.finfo(variance.dtype).eps
         np.testing.assert_allclose(scale, [2.0, eps])
@@ -196,7 +196,7 @@ class TestWhiteningScale:
     def test_values_below_epsilon_are_floored(self):
         variance = np.array([1e-40, 1.0])
 
-        scale = whitening_scale(variance)
+        scale = _whitening_scale(variance)
 
         eps = np.finfo(variance.dtype).eps
         assert scale[0] == eps
@@ -216,7 +216,7 @@ class TestFeatureSelectors:
         X, y = binary_data
         pipe = make_pipeline(selector, svc()).fit(X, y)
 
-        maps = back_project_weight_maps(pipe, N_FEATURES)
+        maps = _back_project_weight_maps(pipe, N_FEATURES)
 
         assert maps.shape == (1, N_FEATURES)
 
@@ -224,7 +224,7 @@ class TestFeatureSelectors:
         X, y = binary_data
         pipe = make_pipeline(selector, svc()).fit(X, y)
 
-        maps = back_project_weight_maps(pipe, N_FEATURES)
+        maps = _back_project_weight_maps(pipe, N_FEATURES)
 
         support = pipe[0].get_support()
         assert np.all(maps[0][~support] == 0.0)
@@ -237,7 +237,7 @@ class TestPassthrough:
         X, y = binary_data
         pipe = Pipeline([("pre", step), ("clf", svc())]).fit(X, y)
 
-        maps = back_project_weight_maps(pipe, N_FEATURES)
+        maps = _back_project_weight_maps(pipe, N_FEATURES)
 
         np.testing.assert_allclose(maps[0], pipe[-1].coef_.ravel())
 
@@ -252,7 +252,7 @@ class TestComposition:
             svc(),
         ).fit(X, y)
 
-        maps = back_project_weight_maps(pipe, N_FEATURES)
+        maps = _back_project_weight_maps(pipe, N_FEATURES)
 
         scaler, selector, pca, estimator = pipe[0], pipe[1], pipe[2], pipe[3]
         expected = estimator.coef_ @ pca.components_  # (1, 4)
@@ -269,8 +269,8 @@ class TestComposition:
         second = make_pipeline(PCA(n_components=3), StandardScaler(), svc()).fit(X, y)
 
         assert not np.allclose(
-            back_project_weight_maps(first, N_FEATURES),
-            back_project_weight_maps(second, N_FEATURES),
+            _back_project_weight_maps(first, N_FEATURES),
+            _back_project_weight_maps(second, N_FEATURES),
         )
 
 
@@ -284,7 +284,7 @@ class TestOneVsRest:
         X, y = binary_data
         fitted = OneVsRestClassifier(svc()).fit(X, y)
 
-        maps = back_project_weight_maps(fitted, N_FEATURES)
+        maps = _back_project_weight_maps(fitted, N_FEATURES)
 
         assert maps.shape == (1, N_FEATURES)
         np.testing.assert_allclose(maps[0], fitted.estimators_[0].coef_.ravel())
@@ -293,7 +293,7 @@ class TestOneVsRest:
         X, y = multiclass_data
         fitted = OneVsRestClassifier(svc()).fit(X, y)
 
-        maps = back_project_weight_maps(fitted, N_FEATURES)
+        maps = _back_project_weight_maps(fitted, N_FEATURES)
 
         assert maps.shape == (3, N_FEATURES)
         for i, child in enumerate(fitted.estimators_):
@@ -303,7 +303,7 @@ class TestOneVsRest:
         X, y = multiclass_data
         pipe = make_pipeline(StandardScaler(), OneVsRestClassifier(svc())).fit(X, y)
 
-        maps = back_project_weight_maps(pipe, N_FEATURES)
+        maps = _back_project_weight_maps(pipe, N_FEATURES)
 
         scaler, ovr = pipe[0], pipe[-1]
         for i, child in enumerate(ovr.estimators_):
@@ -314,7 +314,7 @@ class TestOneVsRest:
         fitted = OneVsRestClassifier(SVC(kernel="rbf")).fit(X, y)
 
         with pytest.raises(ValueError, match="coef_"):
-            back_project_weight_maps(fitted, N_FEATURES)
+            _back_project_weight_maps(fitted, N_FEATURES)
 
     def test_it_must_be_the_final_step(self):
         # Never fitted: sklearn rejects a non-transformer intermediate step, and
@@ -322,7 +322,7 @@ class TestOneVsRest:
         pipe = Pipeline([("ovr", OneVsRestClassifier(svc())), ("clf", svc())])
 
         with pytest.raises(ValueError, match="final"):
-            back_project_weight_maps(pipe, N_FEATURES)
+            _back_project_weight_maps(pipe, N_FEATURES)
 
 
 # ---------------------------------------------------------------------------
@@ -336,15 +336,15 @@ class TestRejection:
         fitted = SVC(kernel="rbf").fit(X, y)
 
         with pytest.raises(ValueError, match="coef_"):
-            back_project_weight_maps(fitted, N_FEATURES)
+            _back_project_weight_maps(fitted, N_FEATURES)
 
     def test_the_error_is_a_value_error(self, binary_data):
         X, y = binary_data
         fitted = SVC(kernel="rbf").fit(X, y)
 
-        with pytest.raises(BackProjectionError):
-            back_project_weight_maps(fitted, N_FEATURES)
-        assert issubclass(BackProjectionError, ValueError)
+        with pytest.raises(_BackProjectionError):
+            _back_project_weight_maps(fitted, N_FEATURES)
+        assert issubclass(_BackProjectionError, ValueError)
 
     def test_an_unsupported_transformer_raises_even_with_inverse_transform(
         self, binary_data
@@ -354,21 +354,21 @@ class TestRejection:
         pipe = make_pipeline(Normalizer(), svc()).fit(X, y)
 
         with pytest.raises(ValueError, match="Normalizer"):
-            back_project_weight_maps(pipe, N_FEATURES)
+            _back_project_weight_maps(pipe, N_FEATURES)
 
     def test_the_rejection_message_lists_the_supported_steps(self, binary_data):
         X, y = binary_data
         pipe = make_pipeline(Normalizer(), svc()).fit(X, y)
 
         with pytest.raises(ValueError, match="StandardScaler"):
-            back_project_weight_maps(pipe, N_FEATURES)
+            _back_project_weight_maps(pipe, N_FEATURES)
 
     def test_the_final_width_must_match_the_voxel_axis(self, binary_data):
         X, y = binary_data
         pipe = make_pipeline(StandardScaler(), svc()).fit(X, y)
 
         with pytest.raises(ValueError, match="width"):
-            back_project_weight_maps(pipe, N_FEATURES + 1)
+            _back_project_weight_maps(pipe, N_FEATURES + 1)
 
     def test_a_step_whose_fitted_width_does_not_line_up_raises(self, binary_data):
         """Each step validates its own fitted input and output widths."""
@@ -380,7 +380,7 @@ class TestRejection:
         )
 
         with pytest.raises(ValueError, match="width"):
-            back_project_weight_maps(mismatched, N_FEATURES)
+            _back_project_weight_maps(mismatched, N_FEATURES)
 
 
 # ---------------------------------------------------------------------------
@@ -392,22 +392,22 @@ class TestValidateDecodingPipeline:
     def test_an_unfitted_whitelisted_pipeline_passes(self):
         pipe = make_pipeline(StandardScaler(), PCA(n_components=2), svc())
 
-        validate_decoding_pipeline(pipe)  # no raise
+        _validate_decoding_pipeline(pipe)  # no raise
 
     def test_an_unfitted_unsupported_transformer_raises_before_fitting(self):
         pipe = make_pipeline(Normalizer(), svc())
 
         with pytest.raises(ValueError, match="Normalizer"):
-            validate_decoding_pipeline(pipe)
+            _validate_decoding_pipeline(pipe)
 
     def test_one_vs_rest_must_be_final_before_fitting(self):
         pipe = Pipeline([("ovr", OneVsRestClassifier(svc())), ("clf", svc())])
 
         with pytest.raises(ValueError, match="final"):
-            validate_decoding_pipeline(pipe)
+            _validate_decoding_pipeline(pipe)
 
     def test_a_bare_estimator_passes(self):
-        validate_decoding_pipeline(svc())  # no raise
+        _validate_decoding_pipeline(svc())  # no raise
 
     def test_every_supported_transformer_is_whitelisted(self):
         names = {cls.__name__ for cls in SUPPORTED_TRANSFORMERS}

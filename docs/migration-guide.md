@@ -420,7 +420,7 @@ dependent columns, returning finite, plausible-looking betas that are not
 uniquely determined.
 
 ```text
-RankDeficientDesignWarning: Design matrix is rank deficient: rank 2 of 3
+DesignMatrixWarning: Design matrix is rank deficient: rank 2 of 3
 columns — 1 column(s) are linear combinations of the others. The OLS betas are
 not uniquely determined, and contrasts touching the dependent columns are not
 interpretable: the fit silently returns one of infinitely many solutions.
@@ -436,7 +436,7 @@ to blame, and a design with more columns than timepoints — rank deficient by
 construction — is called out as such instead of being skipped. The warning has
 its own category so it can be silenced surgically:
 `warnings.filterwarnings("ignore",
-category=nltools.data.braindata.modeling.RankDeficientDesignWarning)`.
+category=nltools.utils.DesignMatrixWarning)`.
 
 **Full-rank designs stay silent.** The designs the old `design_clean` used to
 prune — a column pair correlated at `|r| >= 0.95` — are technically estimable,
@@ -486,19 +486,19 @@ the warning.
 
 Every permutation-test and bootstrap entry point — the `algorithms.inference` engines and the class facades (`BrainData.bootstrap`, `Adjacency.similarity` / `.ttest` / `.bootstrap`) — now takes `progress_bar: bool = False` and stays silent unless asked. Previously most of these functions wrote a tqdm bar to stderr unconditionally, which emitted one bar per call in any loop (a 100-iteration calibration study produced 100 bars).
 
-The one *silent* behavior change: `isc_permutation_test` and `isc_group_permutation_test` previously defaulted to `progress_bar=True` — existing calls will no longer show a bar. Pass `progress_bar=True` to any of these functions to get it back:
+The one *silent* behavior change: the ISC permutation engines behind `isc` and `isc_group` previously defaulted to `progress_bar=True` — existing calls will no longer show a bar. Pass `progress_bar=True` to get it back:
 
 ```python
 # before: bar appeared unasked
-stats = isc_permutation_test(data)
+stats = isc(data)
 
 # now: opt in explicitly
-stats = isc_permutation_test(data, progress_bar=True)
+stats = isc(data, progress_bar=True)
 ```
 
 `BrainData.fit` follows the same convention: `progress_bar` defaults to `False` and no longer inherits `bd.verbose` when unset (`verbose` is reserved for log-level output only) — pass `progress_bar=True` explicitly if you relied on that coupling.
 
-The mechanism is also unified: all bars go through shared helpers in `nltools.utils` (`maybe_tqdm` / `make_progress_bar`) built on `tqdm.auto`, so notebooks render widget bars and terminals render text bars.
+The mechanism is also unified: all bars go through shared helpers in `nltools.utils` (`_maybe_tqdm` / `_make_progress_bar`) built on `tqdm.auto`, so notebooks render widget bars and terminals render text bars.
 
 
 ### `BrainData.ttest(popmean=..., permutation=True)` now tests against `popmean` {#ttest-popmean-permutation}
@@ -579,15 +579,15 @@ The implementations moved into focused submodules (the flat import above is all 
 | `nltools.stats.corrections` | `nltools.algorithms.corrections` | `fdr`, `holm_bonf`, `threshold`, `multi_threshold` |
 | `nltools.stats.outliers` | `nltools.algorithms.outliers` | `zscore`, `winsorize`, `trim`, `find_spikes` |
 | `nltools.stats.timeseries` | `nltools.algorithms.signal` | `downsample`, `upsample`, `calc_bpm`, `make_cosine_basis` |
-| `nltools.stats.correlation` | `nltools.algorithms.similarity` | `fisher_r_to_z`, `fisher_z_to_r`, `compute_similarity`, `compute_multivariate_similarity`, `transform_pairwise` |
+| `nltools.stats.correlation` | `nltools.algorithms.similarity` | `fisher_r_to_z`, `fisher_z_to_r`, `compute_similarity`, `transform_pairwise` |
 | `nltools.stats.regression` | `nltools.algorithms.regression` | `regress` |
 | `nltools.stats.alignment` | `nltools.algorithms.alignment` | `align`, `procrustes`, `procrustes_distance`, `align_states` |
 | `nltools.stats.intersubject` | `nltools.algorithms.inference.intersubject` | `isc`, `isc_group`, `isfc`, `isps` |
 | `nltools.stats.permutation` | *(deleted — the wrappers are gone)* | the `nltools.algorithms` exports **are** the `algorithms.inference` engine functions |
 
-The `parallel=` keyword is gone from every `algorithms.inference` entry point (`one_sample_permutation_test`, `two_sample_permutation_test`, `correlation_permutation_test`, `timeseries_correlation_permutation_test`, `matrix_permutation_test`, `isc_permutation_test`, `isc_group_permutation_test`). Each spreads its permutations across `n_jobs` joblib workers, and a seeded run gives the same numbers at every worker count. `phase_randomize` likewise takes no execution selector: it is `phase_randomize(data, *, random_state=None)`.
+The `parallel=` keyword is gone from every `algorithms.inference` entry point (`one_sample_permutation_test`, `two_sample_permutation_test`, `correlation_permutation_test`, `matrix_permutation_test`, and the internal time-series and ISC engines). Each spreads its permutations across `n_jobs` joblib workers, and a seeded run gives the same numbers at every worker count. `phase_randomize` likewise takes no execution selector: it is `phase_randomize(data, *, random_state=None)`.
 
-The ISC family was canonicalized the same way: `isc_permutation_test` / `isc_group_permutation_test` rename `metric=` (the `'median'|'mean'` central-tendency choice) to **`summary=`** and `sim_metric=` (the similarity metric) to **`metric=`**; `isc_group()` likewise takes `summary=` instead of `metric=`. All ISC results (including wrappers) now expose the null under the engine-standard **`null_dist`** key — the legacy `null_distribution` key is gone — and the `isc` / `isc_group` wrappers expose `progress_bar: bool = False`.
+The ISC family was canonicalized the same way: the ISC permutation engines rename `metric=` (the `'median'|'mean'` central-tendency choice) to **`summary=`** and `sim_metric=` (the similarity metric) to **`metric=`**; `isc_group()` likewise takes `summary=` instead of `metric=`. All ISC results (including wrappers) now expose the null under the engine-standard **`null_dist`** key — the legacy `null_distribution` key is gone — and the `isc` / `isc_group` wrappers expose `progress_bar: bool = False`.
 
 The same `summary` vocabulary reached the two remaining mean/median knobs on the data classes:
 
@@ -617,8 +617,7 @@ Code that already imported from `nltools.stats` gets the same signatures it had 
 
 **Status**: **BREAKING** — passing the keyword now raises `TypeError`
 
-`regress`, `nltools.algorithms.compute_multivariate_similarity`, and
-`BrainData.multivariate_similarity` each carried a `method=` keyword whose only
+`regress` and `BrainData.multivariate_similarity` each carried a `method=` keyword whose only
 legal value was `'ols'`. v0.5.1's robust and ARMA fits were already gone — 0.6.0
 rejected `mode=` outright and raised `NotImplementedError` for
 `method='robust'`/`'arma'`, directing those callers to statsmodels — so the
@@ -1274,7 +1273,7 @@ adj.threshold(upper='90%')     # Keep top 10% (percentile threshold)
 
 ### Pattern 0: Interactive viewing (`iplot`) — Rebuilt on niivue {#interactive-viewing}
 
-**Status**: 🔧 **REBUILT** — `BrainData.iplot()` is now a WebGL [niivue](https://niivue.com) viewer instead of the nilearn HTML viewer. It is a self-owned `anywidget` (`NiivueViewer`) that drives `@niivue/niivue` (loaded from a CDN) directly through anywidget's standard model API — **not** `ipyniivue`. By default it renders an in-widget **threshold slider** above the viewer and shows the **stat-map colorbar**; niivue also gives live windowing (right-drag), native 4D frame scrubbing, true 3D rendering, and — the headline feature — direct overlays of nltools atlases (colored regions, outlines, hover-to-label).
+**Status**: 🔧 **REBUILT** — `BrainData.iplot()` is now a WebGL [niivue](https://niivue.com) viewer instead of the nilearn HTML viewer. It is a self-owned `anywidget` (`_NiivueViewer`) that drives `@niivue/niivue` (loaded from a CDN) directly through anywidget's standard model API — **not** `ipyniivue`. By default it renders an in-widget **threshold slider** above the viewer and shows the **stat-map colorbar**; niivue also gives live windowing (right-drag), native 4D frame scrubbing, true 3D rendering, and — the headline feature — direct overlays of nltools atlases (colored regions, outlines, hover-to-label).
 
 `iplot` renders in a live kernel (Jupyter, marimo desktop). In-browser (WASM) support is deferred to 0.6.1 — see [the in-browser plan](#browser-support-deferred). It does not render in statically-built (plain-Markdown) docs — use `BrainData.plot()` there.
 
@@ -1285,11 +1284,11 @@ adj.threshold(upper='90%')     # Keep top 10% (percentile threshold)
 | Engine | nilearn `view_img` HTML in an iframe | niivue (`@niivue/niivue`, WebGL) via a self-owned `anywidget` |
 | Threshold control | Bespoke panel (Value↔Percentile, Symmetric↔Independent) | An in-widget threshold slider (`controls=True`, default) plus niivue's right-drag windowing; `threshold=`/`lower=`/`upper=` set the initial window. Reactive via the `cal_min`/`cal_max` traits |
 | Colorbar | On | On by default (`colorbar=False` to hide); only the stat map carries one |
-| Return value | `ipyniivue.NiiVue` | `NiivueViewer` (an `anywidget.AnyWidget`); `controls=False` hides the slider. No `ipywidgets` dependency |
+| Return value | `ipyniivue.NiiVue` | `_NiivueViewer` (an `anywidget.AnyWidget`); `controls=False` hides the slider. No `ipywidgets` dependency |
 | Surface view | `view='surface'` (`view_img_on_surf`) | **removed** — niivue's 3D is volumetric. Use `view='render'`, or `plot_flatmap`/`plot_surf` for a cortical mesh |
 | Views | `'ortho'`, `'surface'` | `'ortho'`, `'axial'`, `'coronal'`, `'sagittal'`, `'render'` |
 | 4D handling | Re-render per volume; pre-render every frame for static docs | Loaded once; niivue scrubs frames natively |
-| Atlas overlay | — | `atlas='aal'` (or an `Atlas`) overlays colored regions / outlines (`outline=`) with hover labels |
+| Atlas overlay | — | `atlas='aal'` (or an atlas object from `load_atlas`) overlays colored regions / outlines (`outline=`) with hover labels |
 | `mode=`, `units=`, `cut_coords=`, `symmetric_cmap=` | supported | **removed** (divergent windowing is implicit) |
 | `cmap` default | `'RdBu_r'` | `'warm'` (niivue colormap; matplotlib names auto-mapped with a warning) |
 | Static docs | mimebundle + pre-rendered fallback | none — live kernel only |
@@ -1319,13 +1318,13 @@ bd.iplot(atlas='aal', outline=2)        # region boundaries only (stat map stays
 stack = BrainData([f1, f2, f3, f4, f5])
 stack.iplot()
 
-# Return value: a NiivueViewer widget (threshold slider + viewer, colorbar shown)
+# Return value: a _NiivueViewer widget (threshold slider + viewer, colorbar shown)
 ui = bd.iplot()                         # reactive window via ui.cal_min / ui.cal_max
 bd.iplot(controls=False)                # hide the slider (right-drag still windows)
 bd.iplot(colorbar=False)                # hide the stat-map colorbar
 ```
 
-By default (`controls=True`) `iplot()` returns a `NiivueViewer` (an `anywidget.AnyWidget`) rendering an in-widget threshold slider above the viewer; the window is reactive through the `cal_min`/`cal_max` traits. No `ipywidgets` dependency is needed either way. Pass `controls=False` to hide the slider (niivue's right-drag windowing still works). Any `new Niivue(opts)` option (e.g. `height=`, `is_colorbar=`) still passes through `iplot(...)`. For surface rendering of a cortical mesh, use `plot_flatmap`/`plot_surf` (static) — niivue's `view='render'` is a 3D volume render, not a mesh projection.
+By default (`controls=True`) `iplot()` returns a `_NiivueViewer` (an `anywidget.AnyWidget`) rendering an in-widget threshold slider above the viewer; the window is reactive through the `cal_min`/`cal_max` traits. No `ipywidgets` dependency is needed either way. Pass `controls=False` to hide the slider (niivue's right-drag windowing still works). Any `new Niivue(opts)` option (e.g. `height=`, `is_colorbar=`) still passes through `iplot(...)`. For surface rendering of a cortical mesh, use `plot_flatmap`/`plot_surf` (static) — niivue's `view='render'` is a 3D volume render, not a mesh projection.
 
 
 
@@ -1384,7 +1383,7 @@ brain_data.glm_betas      # Beta coefficients (BrainData)
 brain_data.glm_residual   # Residuals (BrainData)
 brain_data.glm_predicted  # Predicted values (BrainData)
 brain_data.glm_r2         # R-squared (BrainData)
-brain_data.model_         # Fitted Glm model instance
+brain_data.model_         # Fitted _Glm model instance
 ```
 
 | Aspect | Old | New | Benefit |
@@ -1416,8 +1415,8 @@ predictions = brain_data.predict(X=new_features)
 ```
 
 Ridge numerics come from [Himalaya](https://github.com/gallantlab/himalaya),
-which nltools now depends on; `nltools.models.Ridge` is the estimator behind the
-facade. It never adds an intercept — center or standardize before fitting.
+which nltools now depends on. The estimator behind the facade never adds an
+intercept — center or standardize before fitting.
 
 | Feature | Before | After | Benefit |
 |---------|--------|-------|---------|
@@ -1626,15 +1625,15 @@ For direct engine access (`n_permute` vocabulary, `null_dist` key):
 
 ```python
 from nltools.algorithms.inference import (
-    isc_permutation_test,
-    isc_group_permutation_test,
+    _isc_permutation_test,
+    _isc_group_permutation_test,
 )
 
 # ISC - single group
-result = isc_permutation_test(data, n_permute=1000)
+result = _isc_permutation_test(data, n_permute=1000)
 
 # ISC Group - two groups
-result = isc_group_permutation_test(group1, group2, n_permute=1000)
+result = _isc_group_permutation_test(group1, group2, n_permute=1000)
 ```
 
 **Key Changes**:
@@ -1737,15 +1736,15 @@ ci_lower, ci_upper = np.percentile(draws, [2.5, 97.5], axis=0)
 
 **After (v0.6.0):**
 ```python
-from nltools.algorithms.alignment import SRM, DetSRM
+from nltools.algorithms.alignment import _SRM, _DetSRM
 
 # Probabilistic SRM (internal estimators; align() builds them for you)
-model = SRM(n_features=50, n_iter=10)
+model = _SRM(n_features=50, n_iter=10)
 model.fit(subjects)             # List of (n_voxels, n_timepoints) arrays
 aligned = model.transform(subjects)  # Project to shared space
 
 # Deterministic SRM (faster, no noise model)
-det_model = DetSRM(n_features=50, n_iter=10)
+det_model = _DetSRM(n_features=50, n_iter=10)
 det_model.fit(subjects)
 aligned = det_model.transform(subjects)
 
@@ -1814,7 +1813,7 @@ A sweep of the implemented data-class facades (`BrainData`, `Adjacency`, and `De
 | Permutation count | `n_perm` | `n_permute` | `Adjacency.generate_permutations`. |
 | Similarity diagonal | `ignore_diagonal=False` | `include_diag=False` | `Adjacency.similarity`. **Polarity is flipped AND the default changed**: directed matrices now exclude the (trivially 1.0) self-similarity diagonal by default. No-op for symmetric matrices, which never store the diagonal. |
 | Threshold arms on `BrainData.plot` | `thr_upper`, `thr_lower`, `kind` | `upper`, `lower`, `method` | The convenience scalar `threshold=` kwarg is unchanged. |
-| Contrast output statistic | `contrast_type` | `inference` | `BrainData.compute_contrasts` and `Glm.compute_contrasts` return the contrast effect by default — the right input to a second-level model. There is no statistic to select: `inference=True` returns one `ContrastResult` carrying effect, variance, standard error, t-statistic, z-score, one-sided p-value, and degrees of freedom together. |
+| Contrast output statistic | `contrast_type` | `inference` | `BrainData.compute_contrasts` and its `_Glm.compute_contrasts` delegate return the contrast effect by default — the right input to a second-level model. There is no statistic to select: `inference=True` returns one `ContrastResult` carrying effect, variance, standard error, t-statistic, z-score, one-sided p-value, and degrees of freedom together. |
 | Central tendency + cluster scope | `method=` (the <code>'mean'&#124;'median'&#124;None</code> choice), `summary=` (the within/between choice) | `summary=`, `scope=` | `Adjacency.cluster_summary` — the central tendency moved to `summary=`, and the within/between-cluster choice it displaced is now <code>scope='within'&#124;'between'</code>. See [the stats-module removal](#stats-module-removed) for the full `summary=` vocabulary sweep (ISC family included). |
 | ROI extraction variant | `metric=` | `method=` | `BrainData.extract_roi` — <code>'mean'&#124;'median'&#124;'pca'</code> selects an extraction *variant* (PCA is not a central tendency), so it takes the canonical `method=` name; `metric=` stays reserved for distance/similarity metrics. |
 
@@ -1838,7 +1837,7 @@ adj.similarity(other, include_diag=False)     # explicit + now the default for d
 
 ### Algorithm-layer APIs are unchanged
 
-Internal algorithm classes — `CVScheme.scheme`, `Glm.noise_model` — keep their legacy names. The class facades translate at the boundary. You only need to update code that calls the facade methods.
+Internal algorithm classes — `CVScheme.scheme`, `_Glm.noise_model` — keep their legacy names. The class facades translate at the boundary. You only need to update code that calls the facade methods.
 
 ## Explicit signatures instead of `**kwargs` passthroughs
 
@@ -1878,9 +1877,9 @@ Affected:
 - `DesignMatrix.append` — keyword-only after `dm`
 - `Adjacency.bootstrap` — keyword-only after `statistic`
 - `BrainData.predict` — keyword-only after the required positionals
-- The seven public inference entry points — `one_sample_permutation_test`, `two_sample_permutation_test`, `correlation_permutation_test`, `matrix_permutation_test`, `timeseries_correlation_permutation_test`, `isc_permutation_test`, `isc_group_permutation_test` — keyword-only after the leading data arguments: `one_sample_permutation_test(data, 5000)` becomes `one_sample_permutation_test(data, n_permute=5000)`
+- The four public inference entry points — `one_sample_permutation_test`, `two_sample_permutation_test`, `correlation_permutation_test`, `matrix_permutation_test` — keyword-only after the leading data arguments: `one_sample_permutation_test(data, 5000)` becomes `one_sample_permutation_test(data, n_permute=5000)`
 - The remaining public functions the convention sweep caught — `KFoldStratified.__init__` (matching sklearn's own `KFold(n_splits, *, ...)` shape) and the alignment and plotting internals behind the facades: `KFoldStratified(5, True)` becomes `KFoldStratified(5, shuffle=True)`
-- `SphereNeighborhoods.iter_neighborhoods` — `progress_bar` is keyword-only
+- `_SphereNeighborhoods.iter_neighborhoods` — `progress_bar` is keyword-only
 
 The `*` marker prevents classes of bug that the old implicit-positional API allowed — e.g. `Adjacency(data, "directed")` used to silently bind `"directed"` to the `Y` parameter, and a parameter inserted mid-signature in the inference layer once silently shifted `single_feature` into `progress_bar` with no error of any kind.
 
@@ -1911,10 +1910,10 @@ This is a **position-only** break — callers passing these as keywords are unaf
 | `dist_from_hyperplane_plot` | `BrainData.predict(plot=True)` — it draws the margin figure itself |
 | `scatterplot` | `BrainData.predict(plot=True)` — it draws the predicted-versus-actual figure itself |
 | `probability_plot` | `BrainData.predict(plot=True)` — it draws the probability figure itself |
-| `roc_plot` | `plot_roc`, reached through `Roc.plot` |
+| `roc_plot` | `_plot_roc`, reached through `Roc.plot` |
 | `plot_interactive_brain` | [`BrainData.iplot()`](#interactive-viewing) — an interactive 3-D *volume* render. There is no interactive surface view in 0.6.0: v0.5.1's `plot_interactive_brain(surface=True)` wrapped nilearn's `view_img_on_surf`, and `iplot(view='surface')` raises. Use `plot_surf` or `plot_flatmap` for a static cortical projection |
-| `nltools.data.adjacency.plotting.plot` (module-level fn) | `plot_adjacency` |
-| `nltools.data.designmatrix.io.heatmap` | `plot_designmatrix` |
+| `nltools.data.adjacency.plotting.plot` (module-level fn) | `_plot_adjacency`, reached through `Adjacency.plot` |
+| `nltools.data.designmatrix.io.heatmap` | `_plot_designmatrix`, reached through `DesignMatrix.plot` |
 | `DesignMatrix.heatmap()` (method) | `DesignMatrix.plot()` |
 | `nltools.data.braindata.plotting.plot_matplotlib` | `_plot_matplotlib` (now internal — no longer re-exported from the package root) |
 
@@ -2049,7 +2048,7 @@ adj.matrix_type   # 'similarity'
 | `BrainData.fit()` | New parameter | `fit()` mutates | `fit(inplace=False)` returns Fit | Optional migration |
 | `BrainData.predict()` | API + return type changed | `algorithm=`, `cv_dict=`, dict return | `estimator=`, `cv=`, `Predict` dataclass return (`.weight_map`, `.scores`, `.predictions`, …) | Update keywords; `result['weight_map']` → `result.weight_map`. Fluent `.cv().predict()` removed — pass `estimator=Pipeline(...)` for custom transforms |
 | `BrainData.decompose()` | Kwarg renamed | `algorithm='ica'` | `method='ica'` | Update keyword (see Algorithm/variant choice row above) |
-| Import paths | Module moved | `stats.isc()` | `nltools.algorithms.isc()` (or the `isc_permutation_test()` engine) | Update the import — `nltools.stats` is gone; the permutation `*_test` exports **are** the engine functions, with no wrapper layer |
+| Import paths | Module moved | `stats.isc()` | `nltools.algorithms.isc()` | Update the import — `nltools.stats` is gone; the permutation `*_test` exports **are** the engine functions, with no wrapper layer |
 | Return keys | Unified | `null_distribution` result key | `null_dist` everywhere (engines, `isc`/`isc_group`) | Update key lookups to `null_dist` |
 | `Roc.plot()` | Bug fix | `plot(method='gaussian')` on forced-choice data overwrote `sensitivity`, `specificity`, `ppv`, and `auc` with its Gaussian-model estimates | Those attributes stay as `calculate()` set them; the model estimates land on `gaussian_sensitivity`, `gaussian_specificity`, `gaussian_ppv`, `gaussian_auc` instead | Read the Gaussian estimates off the new `gaussian_*` attributes if you relied on the old overwrite |
 
@@ -2166,7 +2165,7 @@ consumes. Ask for `inference=True` when you want the first-level statistics.
 `nltools.models.ContrastResult` is the frozen record for inferential contrast
 results: `effect`, `variance`, `standard_error`, `statistic`, `z_score`,
 `p_value`, and `degrees_of_freedom` in one object instead of separate maps. It
-is generic over its payload — floats or arrays for a `Glm`, `BrainData` maps for
+is generic over its payload — floats or arrays for the GLM estimator, `BrainData` maps for
 the facade — its fields cannot be rebound, and each result owns its arrays. Its
 p-values are one-sided: negate the contrast to test the other direction.
 
@@ -2355,7 +2354,6 @@ is_empty = brain_data.is_empty
 
 - [ ] Consider using new `.fit(model='ridge')` for regression
 - [ ] Consider using new CV features (`cv=5`, `alpha='auto'`)
-- [ ] Migrate `isc()`, `isc_group()` to `isc_permutation_test()`, `isc_group_permutation_test()` (optional — `isc()` / `isc_group()` remain available from `nltools.algorithms`, with the bootstrap `n_samples=` vocabulary)
 - [ ] Replace `stats.correlation()` with `correlation_permutation_test()` from inference module
 - [ ] Replace `stats.pearson()` with `scipy.stats.pearsonr` or `correlation_permutation_test()`
 - [ ] Consider using `fit(inplace=False)` for immutable results and serialization
@@ -2385,15 +2383,13 @@ nltools v0.6.0 introduces a consolidated inference module for permutation testin
 | `one_sample_permutation_test()` | Sign-flipping test (mean ≠ 0) | 4-8× parallel |
 | `two_sample_permutation_test()` | Group comparison (mean₁ ≠ mean₂) | 4-8× parallel |
 | `correlation_permutation_test()` | Correlation significance (Pearson/Spearman/Kendall) | 4-8× parallel |
-| `timeseries_correlation_permutation_test()` | Time-series correlation (preserves autocorrelation) | 4-8× parallel |
 | `matrix_permutation_test()` | Mantel test for matrix correlation | 6× parallel |
-| `isc_permutation_test()` | Intersubject correlation (LOO/Pairwise) | 4-8× parallel |
 | `circle_shift()` | Circular rotation for time series | - |
 | `phase_randomize()` | FFT-based phase shuffling | - |
 
 ### Migration from nltools.stats
 
-The old unsuffixed permutation wrappers are removed, and so is `nltools.stats` itself. Add the `_test` suffix and import the resulting name from `nltools.algorithms.inference`, which has every engine (`nltools.algorithms` re-exports the one- and two-sample, correlation and matrix tests too).
+The old unsuffixed permutation wrappers are removed, and so is `nltools.stats` itself. Add the `_test` suffix and import the resulting name from `nltools.algorithms` (the one- and two-sample, correlation and matrix tests). The ISC and time-series engines are internal in 0.6.0 — they carry a leading underscore and are reached through `isc`, `isc_group` and the facade methods; the examples below call them directly only to show the engine vocabulary.
 
 **New API** (nltools.algorithms.inference):
 ```python
@@ -2402,7 +2398,7 @@ from nltools.algorithms.inference import (
     two_sample_permutation_test,
     correlation_permutation_test,
     matrix_permutation_test,
-    isc_permutation_test
+    _isc_permutation_test
 )
 
 # One-sample test
@@ -2435,7 +2431,7 @@ result = matrix_permutation_test(
 )
 
 # NEW: Intersubject correlation (ISC)
-result = isc_permutation_test(
+result = _isc_permutation_test(
     data,  # (n_observations, n_subjects) or (n_obs, n_subjects, n_voxels)
     n_permute=5000,
     summary_statistic='pairwise',  # 'pairwise' or 'leave-one-out'
@@ -2448,7 +2444,7 @@ result = isc_permutation_test(
 **1. Time-Series Correlation Tests**
 ```python
 from nltools.algorithms.inference import (
-    timeseries_correlation_permutation_test,
+    _timeseries_correlation_permutation_test,
     circle_shift,
     phase_randomize
 )
@@ -2457,14 +2453,14 @@ from nltools.algorithms.inference import (
 # Use time-series-preserving methods instead:
 
 # Circle shift: Preserves autocorrelation
-result = timeseries_correlation_permutation_test(
+result = _timeseries_correlation_permutation_test(
     x, y,
     n_permute=5000,
     method='circle_shift'
 )
 
 # Phase randomize: Preserves power spectrum
-result = timeseries_correlation_permutation_test(
+result = _timeseries_correlation_permutation_test(
     x, y,
     n_permute=5000,
     method='phase_randomize'
@@ -2477,15 +2473,15 @@ randomized = phase_randomize(timeseries, random_state=42)
 
 **2. Intersubject Correlation (ISC)**
 ```python
-from nltools.algorithms.inference import isc_permutation_test
+from nltools.algorithms.inference import _isc_permutation_test
 
 # Single-feature ISC
 data = np.random.randn(100, 20)  # (n_observations, n_subjects)
-result = isc_permutation_test(data, n_permute=5000)
+result = _isc_permutation_test(data, n_permute=5000)
 
 # Voxel-wise ISC
 data = np.random.randn(100, 50, 5000)  # (n_obs, n_subjects, n_voxels)
-result = isc_permutation_test(
+result = _isc_permutation_test(
     data,
     n_permute=5000,
     summary_statistic='leave-one-out',  # or 'pairwise'

@@ -5,11 +5,11 @@ from pathlib import Path
 
 import pytest
 
-from nltools.io.h5 import is_h5_path, load_brain_data_h5, to_h5
+from nltools.io.h5 import _is_h5_path, _load_brain_data_h5, _to_h5
 
 
 class TestIsH5Path:
-    """Tests for is_h5_path."""
+    """Tests for _is_h5_path."""
 
     @pytest.mark.parametrize(
         "path,expected",
@@ -29,19 +29,19 @@ class TestIsH5Path:
         ],
     )
     def test_string_paths(self, path, expected):
-        assert is_h5_path(path) == expected
+        assert _is_h5_path(path) == expected
 
     def test_pathlib_path(self):
-        assert is_h5_path(Path("results.hdf5")) is True
-        assert is_h5_path(Path("results.csv")) is False
+        assert _is_h5_path(Path("results.hdf5")) is True
+        assert _is_h5_path(Path("results.csv")) is False
 
 
 class TestToH5BrainData:
-    """Tests for to_h5 with brain_data type (round-trip via fixtures)."""
+    """Tests for _to_h5 with brain_data type (round-trip via fixtures)."""
 
     def test_invalid_obj_type_raises(self, sim_brain_data, tmp_path):
         with pytest.raises(ValueError, match="obj_type"):
-            to_h5(sim_brain_data, str(tmp_path / "bad.h5"), obj_type="invalid")
+            _to_h5(sim_brain_data, str(tmp_path / "bad.h5"), obj_type="invalid")
 
 
 class TestCompressionFilters:
@@ -49,7 +49,7 @@ class TestCompressionFilters:
 
     def test_plugin_filter_name_is_rejected(self, sim_brain_data, tmp_path):
         with pytest.raises(ValueError, match="h5_compression must be one of"):
-            to_h5(
+            _to_h5(
                 sim_brain_data,
                 str(tmp_path / "blosc.h5"),
                 obj_type="brain_data",
@@ -58,12 +58,12 @@ class TestCompressionFilters:
 
 
 class TestToH5Adjacency:
-    """Tests for to_h5 with adjacency type."""
+    """Tests for _to_h5 with adjacency type."""
 
     def test_round_trip(self, sim_adjacency_single, tmp_path):
         """Write adjacency to h5 and verify file exists."""
         path = str(tmp_path / "adj.h5")
-        to_h5(sim_adjacency_single, path, obj_type="adjacency")
+        _to_h5(sim_adjacency_single, path, obj_type="adjacency")
         assert os.path.exists(path)
 
 
@@ -78,7 +78,7 @@ class TestLegacyLayoutRejected:
             f.create_dataset("X_columns", data=[b"regressor"])
 
         with pytest.raises(ValueError, match="nltools 0.5.1"):
-            load_brain_data_h5(str(path))
+            _load_brain_data_h5(str(path))
 
     def test_legacy_adjacency_layout_raises(self, tmp_path):
         h5py = pytest.importorskip("h5py")
@@ -102,13 +102,13 @@ class TestMaskFileName:
         """A file written on Windows carries backslash separators."""
         h5py = pytest.importorskip("h5py")
         path = tmp_path / "windows_mask_name.h5"
-        to_h5(sim_brain_data, str(path), obj_type="brain_data")
+        _to_h5(sim_brain_data, str(path), obj_type="brain_data")
         with h5py.File(path, "a") as f:
             del f["mask_file_name"]
             f.create_dataset(
                 "mask_file_name", data="C:\\Users\\someone\\masks\\2mm-mask.nii.gz"
             )
 
-        result = load_brain_data_h5(str(path))
+        result = _load_brain_data_h5(str(path))
 
         assert result["mask"].get_filename() == "2mm-mask.nii.gz"

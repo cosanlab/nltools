@@ -20,7 +20,7 @@ except ImportError as _h5_import_error:
 else:
     _H5_IMPORT_ERROR = None
 
-#: The compression filters `to_h5` accepts — h5py's own, needing no plugin.
+#: The compression filters `_to_h5` accepts — h5py's own, needing no plugin.
 _SUPPORTED_COMPRESSION = ("gzip", "lzf")
 
 
@@ -70,7 +70,7 @@ def _validate_compression(compression):
         )
 
 
-def is_h5_path(file_name) -> bool:
+def _is_h5_path(file_name) -> bool:
     """Check if a file path indicates an HDF5 file.
 
     Args:
@@ -81,9 +81,9 @@ def is_h5_path(file_name) -> bool:
 
     Examples:
         ```python
-        is_h5_path("data.h5")  # → True
-        is_h5_path("data.csv")  # → False
-        is_h5_path(Path("results.hdf5"))  # → True
+        _is_h5_path("data.h5")  # → True
+        _is_h5_path("data.csv")  # → False
+        _is_h5_path(Path("results.hdf5"))  # → True
         ```
     """
     if isinstance(file_name, Path):
@@ -126,7 +126,7 @@ def _read_polars_frame(h5_file, name):
     return pl.read_ipc(io.BytesIO(np.asarray(h5_file[name]).tobytes()))
 
 
-def to_h5(obj, file_name, obj_type="brain_data", h5_compression="gzip"):
+def _to_h5(obj, file_name, obj_type="brain_data", h5_compression="gzip"):
     """Save BrainData or Adjacency objects to HDF5 files.
 
     Uses h5py for both types; the `X`/`Y` frames (BrainData) and `Y` (Adjacency)
@@ -191,7 +191,7 @@ def to_h5(obj, file_name, obj_type="brain_data", h5_compression="gzip"):
             _write_polars_frame(f, "Y", obj.Y, h5_compression)
 
 
-def load_brain_data_h5(file_path, mask=None):
+def _load_brain_data_h5(file_path, mask=None):
     """Load BrainData contents from an HDF5 file.
 
     Reads the v0.6 layout only (`X`/`Y` as Arrow IPC byte datasets); a file

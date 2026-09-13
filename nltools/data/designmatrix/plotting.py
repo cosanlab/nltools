@@ -1,7 +1,7 @@
 """Visualize a DesignMatrix as a heatmap, overlaid time courses, or a correlation matrix.
 
-`DesignMatrix.plot` dispatches over `method` to `plot_matrix`,
-`plot_timeseries`, and `plot_corr`, mirroring `BrainData.plot`.
+`DesignMatrix.plot` dispatches over `method` to `_plot_matrix`,
+`_plot_timeseries`, and `_plot_corr`, mirroring `BrainData.plot`.
 """
 
 from __future__ import annotations
@@ -19,7 +19,7 @@ if TYPE_CHECKING:
 VALID_PLOT_METHODS = ("matrix", "timeseries", "corr")
 
 
-def plot_designmatrix(
+def _plot_designmatrix(
     dm: DesignMatrix,
     method: str = "matrix",
     *,
@@ -61,7 +61,7 @@ def plot_designmatrix(
         ValueError: If `method` is not one of the three supported values.
     """
     if method == "matrix":
-        return plot_matrix(
+        return _plot_matrix(
             dm,
             columns=columns,
             rescale=rescale,
@@ -73,7 +73,7 @@ def plot_designmatrix(
             **kwargs,
         )
     if method == "timeseries":
-        return plot_timeseries(
+        return _plot_timeseries(
             dm,
             columns=columns,
             figsize=figsize,
@@ -83,7 +83,7 @@ def plot_designmatrix(
             **kwargs,
         )
     if method == "corr":
-        return plot_corr(
+        return _plot_corr(
             dm,
             columns=columns,
             metric=metric,
@@ -97,7 +97,7 @@ def plot_designmatrix(
     raise ValueError(f"Invalid method {method!r}. Must be one of {VALID_PLOT_METHODS}.")
 
 
-def plot_matrix(
+def _plot_matrix(
     dm: DesignMatrix,
     *,
     columns: list[str] | None = None,
@@ -154,7 +154,7 @@ def plot_matrix(
     return _finalize(fig, owns_fig, save)
 
 
-def plot_timeseries(
+def _plot_timeseries(
     dm: DesignMatrix,
     *,
     columns: list[str] | None = None,
@@ -198,7 +198,7 @@ def plot_timeseries(
     return _finalize(fig, owns_fig, save)
 
 
-def plot_corr(
+def _plot_corr(
     dm: DesignMatrix,
     *,
     columns: list[str] | None = None,
@@ -235,7 +235,7 @@ def plot_corr(
     """
     import seaborn as sns
 
-    from .diagnostics import corr as _corr
+    from .diagnostics import _corr as _corr
 
     adj = _corr(dm, metric=metric, columns=columns)
     mat = adj.squareform()

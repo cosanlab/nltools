@@ -16,7 +16,7 @@ AtlasKind = Literal["deterministic", "probabilistic"]
 
 
 @dataclass(frozen=True)
-class AtlasMetadata:
+class _AtlasMetadata:
     """Static description of a registered atlas.
 
     Attributes:
@@ -29,53 +29,53 @@ class AtlasMetadata:
     citation: str
 
 
-ATLASES: dict[str, AtlasMetadata] = {
-    "aal": AtlasMetadata(
+ATLASES: dict[str, _AtlasMetadata] = {
+    "aal": _AtlasMetadata(
         kind="deterministic",
         citation="Tzourio-Mazoyer et al. 2002, NeuroImage",
     ),
-    "aicha": AtlasMetadata(
+    "aicha": _AtlasMetadata(
         kind="deterministic",
         citation="Joliot et al. 2015, J Neurosci Methods",
     ),
-    "desikan_killiany": AtlasMetadata(
+    "desikan_killiany": _AtlasMetadata(
         kind="deterministic",
         citation="Desikan et al. 2006, NeuroImage (FreeSurfer license)",
     ),
-    "destrieux": AtlasMetadata(
+    "destrieux": _AtlasMetadata(
         kind="deterministic",
         citation="Destrieux et al. 2010, NeuroImage (FreeSurfer license)",
     ),
-    "harvard_oxford": AtlasMetadata(
+    "harvard_oxford": _AtlasMetadata(
         kind="probabilistic",
         citation="Desikan et al. 2006, NeuroImage / FSL Harvard-Oxford",
     ),
-    "juelich": AtlasMetadata(
+    "juelich": _AtlasMetadata(
         kind="probabilistic",
         citation="Eickhoff et al. 2005, NeuroImage",
     ),
-    "marsatlas": AtlasMetadata(
+    "marsatlas": _AtlasMetadata(
         kind="deterministic",
         citation="Auzias et al. 2016, Hum Brain Mapp",
     ),
-    "neuromorphometrics": AtlasMetadata(
+    "neuromorphometrics": _AtlasMetadata(
         kind="deterministic",
         citation="MICCAI 2012 Multi-Atlas Labeling Challenge",
     ),
-    "schaefer_200": AtlasMetadata(
+    "schaefer_200": _AtlasMetadata(
         kind="deterministic",
         citation="Schaefer et al. 2018, Cereb Cortex (200-parcel, 7-network)",
     ),
-    "talairach_ba": AtlasMetadata(
+    "talairach_ba": _AtlasMetadata(
         kind="deterministic",
         citation="Talairach & Tournoux 1988 (Brodmann areas)",
     ),
-    "talairach_gyrus": AtlasMetadata(
+    "talairach_gyrus": _AtlasMetadata(
         kind="deterministic",
         citation="Talairach & Tournoux 1988 (gyri)",
     ),
 }
-"""Registered atlases keyed by name; each value is an `AtlasMetadata` (kind + citation)."""
+"""Registered atlases keyed by name; each value is an `_AtlasMetadata` (kind + citation)."""
 
 
 DEFAULT_ATLASES: tuple[str, ...] = ("harvard_oxford", "aal", "schaefer_200")

@@ -3,11 +3,11 @@
 import numpy as np
 import polars as pl
 
-from nltools.data.ownership import _copy_object_frames, copy_frame
+from nltools.data.ownership import _copy_object_frames, _copy_frame
 
 
 def test_copy_frame_owns_buffers_that_object_frame_copying_leaves_shared():
-    """`copy_frame` detaches numeric buffers; `_copy_object_frames` does not.
+    """`_copy_frame` detaches numeric buffers; `_copy_object_frames` does not.
 
     Polars wraps a NumPy array zero-copy, so a plain clone still reads the
     caller's memory. The two copiers answer that differently and both answers
@@ -16,7 +16,7 @@ def test_copy_frame_owns_buffers_that_object_frame_copying_leaves_shared():
     values = np.arange(5, dtype=np.float64)
     frame = pl.DataFrame({"a": values})
 
-    detached = copy_frame(frame)
+    detached = _copy_frame(frame)
     memo = {}
     _copy_object_frames({"frame": frame}, memo)
     shared = memo[id(frame)]

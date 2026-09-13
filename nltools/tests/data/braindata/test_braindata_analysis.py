@@ -527,7 +527,7 @@ class TestThresholdPercentileNonzero:
 
 
 class TestFilterDetrendStandardize:
-    """F047: `filter_data` double-passed detrend/standardize to nilearn's clean().
+    """F047: `_filter_data` double-passed detrend/standardize to nilearn's clean().
 
     It read them with ``kwargs.get()`` (leaving them in ``kwargs``) then
     forwarded them both explicitly and again via ``**kwargs``, so the documented

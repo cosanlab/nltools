@@ -1,7 +1,7 @@
 """Part B: mask-once dedup in list construction (``io.mask_images``).
 
 The GLM builds result maps as ``BrainData(list_of_niftis, mask=bd.mask)``,
-routing through ``load_from_list`` -> ``mask_images``. These tests pin the
+routing through ``_load_from_list`` -> ``_mask_images``. These tests pin the
 byte-equivalence contract (must reproduce the functional per-item
 ``apply_mask`` + ``vstack`` exactly) and the perf contract (the mask is
 validated once per call, not once per image).
@@ -57,7 +57,7 @@ class TestGLMFitMapsByteIdentical:
             }
         )
 
-        # Fast path (default mask_images dedup).
+        # Fast path (default _mask_images dedup).
         fast = minimal_brain_data.copy()
         fast.fit(model="glm", X=design)
 
@@ -65,7 +65,7 @@ class TestGLMFitMapsByteIdentical:
         def functional_mask_images(mask, imgs):
             return np.vstack([nm.apply_mask(im, mask) for im in imgs])
 
-        monkeypatch.setattr(bd_io, "mask_images", functional_mask_images)
+        monkeypatch.setattr(bd_io, "_mask_images", functional_mask_images)
         ref = minimal_brain_data.copy()
         ref.fit(model="glm", X=design)
 

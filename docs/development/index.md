@@ -58,12 +58,12 @@ results and inference semantics for BrainData and Adjacency.
 - **Facade translation at the boundary.** Internal algorithm-layer APIs may keep legacy
   parameter names; the class facade translates to the [canonical vocabulary](#canonical-api-vocabulary).
 - **One GPU execution layer, run-or-raise.** GPU execution means Himalaya ridge
-  fitting (`Ridge(device='gpu')`, `BrainData.fit(ridge_device='gpu')`) and the
+  fitting (`_Ridge(device='gpu')`, `BrainData.fit(ridge_device='gpu')`) and the
   ridge bootstrap (`BrainData.bootstrap(device='gpu')`); nltools ships no GPU
   implementation of its own, and permutation, ISC and alignment run on CPU
   workers. Memory budgets, batch sizing, and OOM recovery for those ridge paths
-  live only in `algorithms.backends` (`device_memory_budget`, `auto_batch_size`,
-  `compute_oom_safe`); an algorithm supplies its per-item working-set estimate and
+  live only in `algorithms.backends` (`_device_memory_budget`, `_auto_batch_size`,
+  `_compute_oom_safe`); an algorithm supplies its per-item working-set estimate and
   never its own budget math (pinned by a source-scan test in `test_backends.py`).
   A `None` memory budget — the default everywhere — means "measure the device";
   when sizing batches, a measured budget is capped at a saturation ceiling
@@ -75,13 +75,13 @@ results and inference semantics for BrainData and Adjacency.
   invents rather than the user — polynomial drift (`.nl_poly_0`), DCT cosines
   (`.nl_cosine_1`), spike indicators (`.nl_global_spike1`), and the run-separated
   variants a multi-run append produces (`.nl_r0_poly_0`) — is built with
-  `nltools.data.designmatrix.utils.reserved_name()` / `run_separated_name()`. The
+  `nltools.data.designmatrix.utils._reserved_name()` / `_run_separated_name()`. The
   `DesignMatrix` package is the only writer of the namespace: code elsewhere that
   generates columns (`find_spikes`) names them plainly and hands the frame to
-  `designmatrix.utils.design_from_generated`, which applies the prefix. Code that
-  needs to recognize nltools' own columns tests the prefix (`is_reserved_name`,
-  `parse_run_separated`, or a domain predicate built on them like
-  `designmatrix.utils.is_generated_intercept`) and **never** pattern-matches
+  `designmatrix.utils._design_from_generated`, which applies the prefix. Code that
+  needs to recognize nltools' own columns tests the prefix (`_is_reserved_name`,
+  `_parse_run_separated`, or a domain predicate built on them like
+  `designmatrix.utils._is_generated_intercept`) and **never** pattern-matches
   user-controlled names — no underscore counts, no substring tests. Users may then name
   their regressors anything without colliding with the machinery.
 
@@ -107,7 +107,7 @@ public signature against in CI. The table below is rendered from it:
 | Cross-validation spec | `cv` (<code>int &#124;</code> splitter <code>&#124; None</code>) on `BrainData.predict` — `None` is five folds and an int that many, both an unshuffled stratified K-fold (`StratifiedGroupKFold` when `groups=` is given); the `'loo'`/`'logo'`/`'loso'`/`'loro'` names are gone everywhere. The grouping lives in `groups=` |
 | Subject-level parallelism | `n_jobs: int = -1` |
 | GPU / CPU selection | `device: str = "cpu"` on the ridge entry points — `BrainData.fit(ridge_device=)`, `BrainData.bootstrap`, and the internal ridge estimator they drive — the only paths with a GPU implementation. Run-or-raise: explicit `'gpu'` either runs on the GPU or raises, and there is no `'auto'` |
-| Alignment refinement count | `n_iter` on `SRM` and `DetSRM` — EM iterations or coordinate-descent iterations; everywhere else `n_iter` is a banned alias for `n_permute`/`n_samples`/`search_iterations` |
+| Alignment refinement count | `n_iter` on `_SRM` and `_DetSRM` — EM iterations or coordinate-descent iterations; everywhere else `n_iter` is a banned alias for `n_permute`/`n_samples`/`search_iterations` |
 | Working-memory budget | <code>memory_budget_gb: float &#124; None = None</code> — device-neutral working-memory budget for internal batching; `None` measures the selected device with headroom |
 | Progress indicator | `progress_bar: bool = False` |
 | Permutation count | `n_permute` — including the `Adjacency` label-distance and silhouette plots (`plot_label_distance`, `plot_between_label_distance`, `plot_silhouette`), where it pairs with `permutation_test` |
@@ -132,7 +132,7 @@ public signature against in CI. The table below is rendered from it:
 
 ## The internals pages
 
-- **[Ridge internals](ridge-internals.md)** — how `nltools.models.Ridge` adapts the
+- **[Ridge internals](ridge-internals.md)** — how `nltools.models._Ridge` adapts the
   Himalaya solvers: name translation, device and memory policy, and fitted state.
 - **[Inference internals](inference-internals.md)** — permutation and bootstrap testing:
   the algorithms, deterministic cross-backend RNG, p-value calculation, and numerical

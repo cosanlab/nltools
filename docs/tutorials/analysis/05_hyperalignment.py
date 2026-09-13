@@ -358,46 +358,6 @@ def _(N_SUBJECTS, align, np, plt, subjects):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    ## The estimators underneath
-
-    `align` is a convenience wrapper over two internal estimators that follow the
-    scikit-learn `fit`/`transform` shape. They live in
-    `nltools.algorithms.alignment`, and reaching for them directly is worth it
-    only when you need the fitted state or want to reuse one model across
-    datasets.
-
-    | Class | What it fits |
-    |---|---|
-    | `SRM` | Probabilistic shared response model, by expectation-maximization |
-    | `DetSRM` | The same factorization by coordinate descent — faster, deterministic |
-
-    Both take `n_iter`, `n_features` and `random_state`.
-
-    **Mind the transpose.** `BrainData.data` is `(timepoints, voxels)`, but these
-    estimators expect `(voxels, timepoints)`, the convention the original SRM
-    implementations set. `align` and `BrainData.align` handle it; the estimators
-    do not.
-    """)
-    return
-
-
-@app.cell
-def _(subjects):
-    from nltools.algorithms.alignment import SRM, DetSRM
-
-    voxels_by_time = [subject.data.T for subject in subjects]
-
-    probabilistic = SRM(n_features=10, n_iter=10, random_state=0).fit(voxels_by_time)
-    print(f"SRM shared response:     {probabilistic.s_.shape}")
-
-    deterministic = DetSRM(n_features=10, n_iter=10, random_state=0).fit(voxels_by_time)
-    print(f"DetSRM shared response:  {deterministic.s_.shape}")
-    return
-
-
-@app.cell(hide_code=True)
-def _(mo):
-    mo.md(r"""
     ## Recap
 
     | Step | Call |
@@ -407,7 +367,6 @@ def _(mo):
     | What came back | `transformed`, `transformation_matrix`, `common_model`, `isc` (+ `disparity`, `scale` for Procrustes) |
     | Back into voxels | `aligned @ transform.data.T` — check with a correlation |
     | Add one subject to a model | `subject.align(common_model, method=...)` |
-    | Fitted estimators | `SRM`, `DetSRM` |
 
     **Next steps**
 

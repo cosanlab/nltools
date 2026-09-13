@@ -1,11 +1,11 @@
 ---
 title: Ridge internals
-description: How nltools.models.Ridge adapts the Himalaya solvers — argument translation, device and memory policy, and fitted-state normalization.
+description: How nltools.models._Ridge adapts the Himalaya solvers — argument translation, device and memory policy, and fitted-state normalization.
 ---
 
 # Ridge internals
 
-`nltools.models.Ridge` is an adapter. All of the ridge numerics —
+`nltools.models._Ridge` is an adapter. All of the ridge numerics —
 decomposition, the cross-validation loss, alpha selection, the banded Dirichlet
 search, and coefficient refitting — come from
 [Himalaya](https://github.com/gallantlab/himalaya) (Dupré la Tour et al., 2022),
@@ -44,7 +44,7 @@ output against direct Himalaya calls; they do not re-derive the math.
 
 The public keywords are the nltools vocabulary; Himalaya's names stay internal.
 
-| `Ridge` keyword | Himalaya argument |
+| `_Ridge` keyword | Himalaya argument |
 |---|---|
 | `per_target_alpha` | `local_alpha` |
 | `prefer_conservative_alpha` | `conservative` |
@@ -159,9 +159,9 @@ one replicate implementation: it applies the same indices to the design and the
 response and forwards the fitted `alpha_` and `feature_space_weights_`
 untouched. The GPU driver's batch loop exists only to bound how many replicates
 are retained before aggregation, and it uses the same
-`backends.ridge_bootstrap_batch_size` / `compute_oom_safe` machinery.
+`backends._ridge_bootstrap_batch_size` / `_compute_oom_safe` machinery.
 
-`_working_dtype` is the single dtype rule both `Ridge.fit` and the shared refit
+`_working_dtype` is the single dtype rule both `_Ridge.fit` and the shared refit
 use: `float32` on MPS, which is float32-only, otherwise the promoted input
 dtype with a `float32` floor. Applying it inside the refit is what keeps a
 bootstrap from handing float64 to the MPS backend and triggering its downcast
@@ -209,16 +209,16 @@ so `coef_` comes back in original coordinates.
 ## Device and memory
 
 `device` accepts only `"cpu"` and `"gpu"`. There is no `"auto"` on this
-estimator. `resolve_backend` maps the request to an nltools `Backend`, which
+estimator. `_resolve_backend` maps the request to an nltools `_Backend`, which
 the adapter maps to a Himalaya backend:
 
-| `device` | `Backend.device` | Himalaya backend |
+| `device` | `_Backend.device` | Himalaya backend |
 |---|---|---|
 | `"cpu"` | `cpu` | `numpy` |
 | `"gpu"` | `cuda` | `torch_cuda` |
 | `"gpu"` | `mps` | `torch_mps` |
 
-An explicit `"gpu"` runs on an accelerator or raises; `resolve_backend` owns
+An explicit `"gpu"` runs on an accelerator or raises; `_resolve_backend` owns
 that rule, so the estimator cannot silently degrade to CPU. On MPS the fit runs
 in float32 — the backend supports nothing else — and Himalaya's documented
 hybrid path may execute individual unsupported operations on the host. That
@@ -235,10 +235,10 @@ The previous backend is restored after success and after an exception alike, so
 a fit cannot leak its device into unrelated code.
 
 Batch sizes are derived, never passed by the user. `memory_budget_gb=None`
-measures the device through `backends.device_memory_budget`; an explicit
+measures the device through `backends._device_memory_budget`; an explicit
 positive value is the budget verbatim. Two sizing functions supply only the
 Himalaya-shaped working-set estimates and hand them to
-`backends.auto_batch_size`. `_batch_sizes` sizes a whole cross-validated or
+`backends._auto_batch_size`. `_batch_sizes` sizes a whole cross-validated or
 banded fit; `_refit_targets_batch` sizes the fixed-hyperparameter refit, whose
 dominant allocation depends on whether the targets share an alpha:
 
@@ -256,19 +256,19 @@ working set but must never compute a budget.
 
 ## Backend abstraction
 
-The nltools `Backend` in `nltools/algorithms/backends.py` remains the device
-abstraction for alignment and the bootstrap engines, and `Ridge.backend_` is
+The nltools `_Backend` in `nltools/algorithms/backends.py` remains the device
+abstraction for alignment and the bootstrap engines, and `_Ridge.backend_` is
 the resolved instance (its `.name` reports `numpy`, `torch-cuda`, or
-`torch-mps`). Himalaya owns every decomposition on the ridge paths; `Backend` supplies the
+`torch-mps`). Himalaya owns every decomposition on the ridge paths; `_Backend` supplies the
 device, the array module, and the memory budget only.
 
-`Backend` instances are picklable: `backend_` is public fitted state, so a
-fitted `Ridge` has to survive `copy.deepcopy`, `BrainData.copy()`, and
+`_Backend` instances are picklable: `backend_` is public fitted state, so a
+fitted `_Ridge` has to survive `copy.deepcopy`, `BrainData.copy()`, and
 process-based `n_jobs` workers. `__getstate__` drops the live array module and
 `__setstate__` recovers it from the pickled backend name.
 
 `parallel=` stays an internal name in those subsystems. The public surface —
-`Ridge(device=...)`, `BrainData.fit(model='ridge', ridge_device=...)`,
+`_Ridge(device=...)`, `BrainData.fit(model='ridge', ridge_device=...)`,
 `BrainData.bootstrap(device=...)` — uses the canonical `device` keyword, and
 `scripts/check_api_vocabulary.py` enforces that against
 `docs/_data/api-vocabulary.yml`.

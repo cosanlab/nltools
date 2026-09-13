@@ -14,7 +14,7 @@ import numpy as np
 from pathlib import Path
 
 from nltools.templates.paths import _split_template_name
-from nltools.utils import ResamplingWarning, find_stack_level
+from nltools.utils import ResamplingWarning, _find_stack_level
 
 
 def _detect_interpolation(img):
@@ -64,7 +64,7 @@ def _detect_interpolation(img):
     return "continuous"
 
 
-def initialize_mask(bd, mask):
+def _initialize_mask(bd, mask):
     """Initialize the mask image.
 
     Args:
@@ -89,9 +89,9 @@ def initialize_mask(bd, mask):
         # A template name string ({res}mm-MNI152-2009{version}) resolves through
         # the templates registry; anything else is a plain file path.
         if _split_template_name(mask_str) is not None:
-            from nltools.templates import resolve_template_name
+            from nltools.templates import _resolve_template_name
 
-            mask_path = resolve_template_name(mask_str, file_type="mask")
+            mask_path = _resolve_template_name(mask_str, file_type="mask")
             bd.mask = nib.load(mask_path)
         else:
             bd.mask = nib.load(mask_str)
@@ -109,10 +109,10 @@ def initialize_mask(bd, mask):
     bd._voxel_resolution = np.abs(np.diag(affine[:3, :3]))
 
     # Determine space (MNI or native) based on mask
-    bd._space = detect_space(bd.mask)
+    bd._space = _detect_space(bd.mask)
 
 
-def get_interpolation(bd, img):
+def _get_interpolation(bd, img):
     """Get the interpolation method to use for a given image.
 
     Resolves 'auto' to either 'nearest' or 'continuous' based on data type.
@@ -145,7 +145,7 @@ def _resample_img_to_mask(bd, data_img):
     import nibabel as nib
     from nilearn.image import resample_to_img
 
-    interpolation = get_interpolation(bd, data_img)
+    interpolation = _get_interpolation(bd, data_img)
     if interpolation != "nearest":
         data = np.asanyarray(data_img.dataobj)
         if data.dtype.kind in "iu":
@@ -163,14 +163,14 @@ def _resample_to_mask(bd, data_img, context=""):
 
     Returns data_img unchanged if spaces already match or resampling is disabled.
     """
-    if check_space_match(data_img, bd.mask) or not bd._resample:
+    if _check_space_match(data_img, bd.mask) or not bd._resample:
         return data_img
 
-    warn_if_resampling(bd, context)
+    _warn_if_resampling(bd, context)
     return _resample_img_to_mask(bd, data_img)
 
 
-def detect_and_update_mask(bd, data_img):
+def _detect_and_update_mask(bd, data_img):
     """Detect best matching template from data and update mask if mask was None.
 
     Also handles resampling if needed based on the resample kwarg.
@@ -192,9 +192,9 @@ def detect_and_update_mask(bd, data_img):
         return _resample_to_mask(bd, data_img)
 
     try:
-        from nltools.templates import match_resolution
+        from nltools.templates import _match_resolution
 
-        template_info = match_resolution(
+        template_info = _match_resolution(
             data_img.affine,
             warn_resample=bd._resample,
         )
@@ -207,7 +207,7 @@ def detect_and_update_mask(bd, data_img):
             bd.mask = detected_mask
             affine = bd.mask.affine
             bd._voxel_resolution = np.abs(np.diag(affine[:3, :3]))
-            bd._space = detect_space(bd.mask)
+            bd._space = _detect_space(bd.mask)
 
         return _resample_to_mask(
             bd,
@@ -221,7 +221,7 @@ def detect_and_update_mask(bd, data_img):
             f"Failed to auto-detect template from data: {e}. "
             f"Using default template (get_brainspace().mask).",
             UserWarning,
-            stacklevel=find_stack_level(),
+            stacklevel=_find_stack_level(),
         )
         return _resample_to_mask(
             bd,
@@ -230,7 +230,7 @@ def detect_and_update_mask(bd, data_img):
         )
 
 
-def detect_space(mask):
+def _detect_space(mask):
     """Detect if mask is in MNI space or native space.
 
     Args:
@@ -246,7 +246,7 @@ def detect_space(mask):
     mask_filename = mask.get_filename()
 
     # Check if mask is None (uses default MNI template)
-    # This is handled in initialize_mask, but check here for safety
+    # This is handled in _initialize_mask, but check here for safety
     if mask_filename is None:
         # Compare affine matrix with MNI template
         try:
@@ -277,7 +277,7 @@ def detect_space(mask):
     return "native"
 
 
-def check_space_match(data_img, mask_img):
+def _check_space_match(data_img, mask_img):
     """Check if data and mask are in same space.
 
     Args:
@@ -296,10 +296,10 @@ def check_space_match(data_img, mask_img):
     return affine_match and shape_match
 
 
-def warn_if_resampling(bd, context=""):
+def _warn_if_resampling(bd, context=""):
     """Emit a `ResamplingWarning` if ``verbose=True`` and ``resample=True``.
 
-    Sibling of the template-mismatch notice in `match_resolution`: that one
+    Sibling of the template-mismatch notice in `_match_resolution`: that one
     fires when a template is chosen for data at another resolution; this one
     fires when the data is actually resampled to the mask's grid.
 
@@ -316,10 +316,10 @@ def warn_if_resampling(bd, context=""):
         )
         if context:
             msg = f"{msg} {context}"
-        warnings.warn(msg, ResamplingWarning, stacklevel=find_stack_level())
+        warnings.warn(msg, ResamplingWarning, stacklevel=_find_stack_level())
 
 
-def mask_images(mask, imgs):
+def _mask_images(mask, imgs):
     """Mask a list of space-aligned images with a single fitted masker.
 
     Validates ``mask`` exactly ONCE — one ``load_mask_img`` — and reuses the
@@ -360,7 +360,7 @@ def _mask_images_fast(mask, imgs):
 
     Reproduces ``nilearn.masking.apply_mask``'s internals with the
     validate-and-binarize step (``load_mask_img`` + ``new_img_like``) hoisted
-    out of the per-image loop. Split out so the fallback in `mask_images`
+    out of the per-image loop. Split out so the fallback in `_mask_images`
     is testable in isolation.
     """
     from nilearn.image import new_img_like
@@ -371,7 +371,7 @@ def _mask_images_fast(mask, imgs):
     return np.vstack([apply_mask_fmri(im, binary_mask) for im in imgs])
 
 
-def load_from_list(bd, data_list):
+def _load_from_list(bd, data_list):
     """Load data from a list of BrainData objects or file paths.
 
     Args:
@@ -381,9 +381,9 @@ def load_from_list(bd, data_list):
     """
     import nibabel as nib
     from ..combine import concatenate
-    from nltools.data.braindata.validation import validate_list_data
+    from nltools.data.braindata.validation import _validate_list_data
 
-    list_type = validate_list_data(data_list)
+    list_type = _validate_list_data(data_list)
 
     if list_type == "brain_data":
         tmp = concatenate(data_list)
@@ -404,7 +404,7 @@ def load_from_list(bd, data_list):
             first_img = None
 
         if first_img is not None:
-            detect_and_update_mask(bd, first_img)
+            _detect_and_update_mask(bd, first_img)
 
     # Prepare (load + space-align) each item, then mask them all with a single
     # fitted masker so the mask is validated once per call rather than per item.
@@ -420,7 +420,7 @@ def load_from_list(bd, data_list):
                 f"Received {type(item).__name__}"
             )
 
-        if not check_space_match(item_img, bd.mask):
+        if not _check_space_match(item_img, bd.mask):
             if not bd._resample:
                 raise ValueError(
                     f"Data item and mask are in different spaces. "
@@ -432,18 +432,18 @@ def load_from_list(bd, data_list):
                     f"Mask shape: {bd.mask.shape[:3]}"
                 )
             if idx == 0:
-                warn_if_resampling(bd)
+                _warn_if_resampling(bd)
             item_img = _resample_to_mask(bd, item_img)
 
         prepared_imgs.append(item_img)
 
     # Byte-equivalent to per-item apply_mask + vstack, but validates the mask
-    # once (see mask_images). vstack for nilearn 0.12+ compat (transforms
+    # once (see _mask_images). vstack for nilearn 0.12+ compat (transforms
     # 3D -> 1D instead of 3D -> 2D).
-    bd.data = mask_images(bd.mask, prepared_imgs)
+    bd.data = _mask_images(bd.mask, prepared_imgs)
 
 
-def load_from_brain_data(bd, brain_data, mask=None):
+def _load_from_brain_data(bd, brain_data, mask=None):
     """Load data from another BrainData object.
 
     Args:
@@ -467,9 +467,9 @@ def load_from_brain_data(bd, brain_data, mask=None):
         if isinstance(mask, (str, Path)):
             mask_str = str(mask)
             if _split_template_name(mask_str) is not None:
-                from nltools.templates import resolve_template_name
+                from nltools.templates import _resolve_template_name
 
-                new_mask = nib.load(resolve_template_name(mask_str, file_type="mask"))
+                new_mask = nib.load(_resolve_template_name(mask_str, file_type="mask"))
             else:
                 new_mask = nib.load(mask_str)
         elif isinstance(mask, nib.Nifti1Image):
@@ -481,15 +481,15 @@ def load_from_brain_data(bd, brain_data, mask=None):
             )
 
         # Check if mask differs from source
-        if not check_space_match(brain_data.mask, new_mask):
+        if not _check_space_match(brain_data.mask, new_mask):
             # Need to resample data to new mask space
             if bd._resample:
-                warn_if_resampling(bd, "New mask differs from source BrainData mask.")
+                _warn_if_resampling(bd, "New mask differs from source BrainData mask.")
                 source_nifti = brain_data.to_nifti()
                 resampled_nifti = resample_to_img(
                     source_nifti,
                     new_mask,
-                    interpolation=get_interpolation(bd, source_nifti),
+                    interpolation=_get_interpolation(bd, source_nifti),
                 )
                 # Update mask
                 bd.mask = new_mask
@@ -498,7 +498,7 @@ def load_from_brain_data(bd, brain_data, mask=None):
                 # Update voxel resolution and space
                 affine = bd.mask.affine
                 bd._voxel_resolution = np.abs(np.diag(affine[:3, :3]))
-                bd._space = detect_space(bd.mask)
+                bd._space = _detect_space(bd.mask)
             else:
                 raise ValueError(
                     "Source BrainData mask and provided mask are in different spaces. "
@@ -509,7 +509,7 @@ def load_from_brain_data(bd, brain_data, mask=None):
             bd.mask = new_mask
             affine = bd.mask.affine
             bd._voxel_resolution = np.abs(np.diag(affine[:3, :3]))
-            bd._space = detect_space(bd.mask)
+            bd._space = _detect_space(bd.mask)
     else:
         # Use source mask
         bd.mask = brain_data.mask
@@ -520,7 +520,7 @@ def load_from_brain_data(bd, brain_data, mask=None):
         bd._mask_was_none = brain_data._mask_was_none
 
 
-def load_from_h5(bd, file_path, mask):
+def _load_from_h5(bd, file_path, mask):
     """Load data from HDF5 file.
 
     Args:
@@ -529,10 +529,10 @@ def load_from_h5(bd, file_path, mask):
         mask (Nifti1Image | str | Path | None): User-specified mask; when None the
             mask stored in the file is used.
     """
-    from nltools.io.h5 import load_brain_data_h5
+    from nltools.io.h5 import _load_brain_data_h5
 
     # Load data using utility function
-    h5_data = load_brain_data_h5(file_path, mask)
+    h5_data = _load_brain_data_h5(file_path, mask)
     bd.data = h5_data["data"]
 
     # Load X and Y if present (for backward compatibility)
@@ -548,18 +548,18 @@ def load_from_h5(bd, file_path, mask):
         affine = bd.mask.affine
         bd._voxel_resolution = np.abs(np.diag(affine[:3, :3]))
         # Determine space (MNI or native) based on mask
-        bd._space = detect_space(bd.mask)
+        bd._space = _detect_space(bd.mask)
     elif mask is not None and not h5_data.get("load_mask", True):
         warnings.warn(
             "Existing mask found in HDF5 file but is being ignored because "
             "you passed a value for mask. Set mask=None to use existing "
             "mask in the HDF5 file",
             UserWarning,
-            stacklevel=find_stack_level(),
+            stacklevel=_find_stack_level(),
         )
 
 
-def load_from_url(bd, url):
+def _load_from_url(bd, url):
     """Load data from URL.
 
     Args:
@@ -573,10 +573,10 @@ def load_from_url(bd, url):
     # (avoids the os.times()-based collision + leak in the old code).
     with tempfile.TemporaryDirectory() as tmp_dir:
         downloaded_file = nib.load(download_nifti(url, data_dir=tmp_dir))
-        load_from_file(bd, downloaded_file)
+        _load_from_file(bd, downloaded_file)
 
 
-def load_from_file(bd, data):
+def _load_from_file(bd, data):
     """Load data from file path or nibabel object.
 
     Args:
@@ -597,11 +597,11 @@ def load_from_file(bd, data):
         )
 
     # Auto-detect template from data if mask was None; also handles resampling.
-    data_img = detect_and_update_mask(bd, data_img)
+    data_img = _detect_and_update_mask(bd, data_img)
 
     # When resample=False but spaces still mismatch, warn and resample anyway
     # (required for correct masking).
-    if not bd._resample and not check_space_match(data_img, bd.mask):
+    if not bd._resample and not _check_space_match(data_img, bd.mask):
         if bd.verbose:
             warnings.warn(
                 f"Data and mask are in different spaces (affine or shape mismatch). "
@@ -613,14 +613,14 @@ def load_from_file(bd, data):
                 f"Data shape: {data_img.shape[:3]}\n"
                 f"Mask shape: {bd.mask.shape[:3]}",
                 ResamplingWarning,
-                stacklevel=find_stack_level(),
+                stacklevel=_find_stack_level(),
             )
         data_img = _resample_img_to_mask(bd, data_img)
 
     bd.data = nilearn_apply_mask(data_img, bd.mask)
 
 
-def to_nifti(bd):
+def _to_nifti(bd):
     """Convert BrainData instance to a nibabel NIfTI image.
 
     Args:
@@ -657,7 +657,7 @@ def _ensure_sform(img):
     return out
 
 
-def resample(bd, *, img=None, resolution=None, interpolation=None):
+def _resample(bd, *, img=None, resolution=None, interpolation=None):
     """Resample BrainData onto a new voxel grid.
 
     Exactly one of `img` or `resolution` must be given. An `img` supplies only
@@ -730,9 +730,9 @@ def resample(bd, *, img=None, resolution=None, interpolation=None):
         # Copy-on-write via _ensure_sform avoids mutating the caller's image.
         target_img = _ensure_sform(img)
 
-    source_nifti = to_nifti(bd)
+    source_nifti = _to_nifti(bd)
     if interpolation is None:
-        interpolation = get_interpolation(bd, source_nifti)
+        interpolation = _get_interpolation(bd, source_nifti)
     source_nifti = _ensure_sform(source_nifti)
 
     # Both branches clip spline overshoot to the source range; nilearn's own
@@ -771,7 +771,7 @@ def resample(bd, *, img=None, resolution=None, interpolation=None):
     return _result_with_mask(bd, resampled_data, resampled_mask, rows="preserve")
 
 
-def write_brain_data(bd, file_name):
+def _write_brain_data(bd, file_name):
     """Write out BrainData object to Nifti or HDF5 File.
 
     Args:
@@ -779,23 +779,23 @@ def write_brain_data(bd, file_name):
         file_name (str | Path): Output file path. Supports `.nii`/`.nii.gz` (NIfTI)
             and `.h5`/`.hdf5` (HDF5) formats.
     """
-    from nltools.io.h5 import is_h5_path, to_h5
+    from nltools.io.h5 import _is_h5_path, _to_h5
 
     if isinstance(file_name, Path):
         file_name = str(file_name)
 
-    if is_h5_path(file_name):
-        to_h5(
+    if _is_h5_path(file_name):
+        _to_h5(
             bd,
             file_name,
             obj_type="brain_data",
             h5_compression=bd._h5_compression,
         )
     else:
-        to_nifti(bd).to_filename(file_name)
+        _to_nifti(bd).to_filename(file_name)
 
 
-def upload_neurovault(  # nosemgrep: kwargs-internal-forwarding  # forwards to the NeuroVault API
+def _upload_neurovault(  # nosemgrep: kwargs-internal-forwarding  # forwards to the NeuroVault API
     bd,
     *,
     access_token=None,

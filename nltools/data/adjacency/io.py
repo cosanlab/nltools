@@ -8,7 +8,7 @@ import polars as pl
 from nltools.io.h5 import _read_polars_frame, _reject_legacy_h5, _require_h5
 
 
-def write(adj, file_name, method="long"):
+def _write(adj, file_name, method="long"):
     """Write an Adjacency to a `.csv` or `.h5` file.
 
     HDF5 is the round-trip format: it stores the matrix values, the matrix kind,
@@ -23,7 +23,7 @@ def write(adj, file_name, method="long"):
         method (str): Layout for CSV output, `'long'` (vectorized rows) or `'square'`
             (single matrix only).
     """
-    from nltools.io.h5 import is_h5_path, to_h5
+    from nltools.io.h5 import _is_h5_path, _to_h5
 
     if method not in ["long", "square"]:
         raise ValueError('Make sure method is ["long","square"].')
@@ -31,10 +31,10 @@ def write(adj, file_name, method="long"):
     if isinstance(file_name, Path):
         file_name = str(file_name)
 
-    if is_h5_path(file_name):
+    if _is_h5_path(file_name):
         if method == "square":
             raise NotImplementedError('Saving as hdf5 does not support method="square"')
-        to_h5(adj, file_name, obj_type="adjacency")
+        _to_h5(adj, file_name, obj_type="adjacency")
     else:
         if method == "long":
             _write_2d_csv(adj.data, file_name)
@@ -59,7 +59,7 @@ def _write_2d_csv(arr: np.ndarray, file_name: str) -> None:
     pl.DataFrame(arr, schema=schema).write_csv(file_name)
 
 
-def to_graph(adj):
+def _to_graph(adj):
     """Convert Adjacency into networkx graph.
 
     Only works on single matrices for now.
@@ -86,7 +86,7 @@ def to_graph(adj):
     raise NotImplementedError("This function currently only works on single matrices.")
 
 
-def read_h5(file_name):
+def _read_h5(file_name):
     """Read the current vector layout into a normalized Adjacency."""
     from . import Adjacency
 

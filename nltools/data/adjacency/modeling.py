@@ -6,7 +6,7 @@ Each function takes an Adjacency instance as its first argument (`adj`).
 import numpy as np
 
 
-def bootstrap(
+def _bootstrap(
     adj,
     statistic,
     *,
@@ -78,10 +78,10 @@ def bootstrap(
         progress_bar=progress_bar,
     )
 
-    return convert_bootstrap_results_to_adjacency(adj, result)
+    return _convert_bootstrap_results_to_adjacency(adj, result)
 
 
-def convert_bootstrap_results_to_adjacency(adj, result):
+def _convert_bootstrap_results_to_adjacency(adj, result):
     """Wrap an engine's arrays as a `BootstrapResult` of single-matrix `Adjacency`.
 
     Args:
@@ -97,9 +97,9 @@ def convert_bootstrap_results_to_adjacency(adj, result):
 
     from nltools.data.results import BootstrapResult
 
-    from .state import common_labels, result as adjacency_result
+    from .state import _common_labels, _result as adjacency_result
 
-    labels = common_labels(adj)
+    labels = _common_labels(adj)
 
     def _map(values):
         return adjacency_result(
@@ -118,7 +118,7 @@ def convert_bootstrap_results_to_adjacency(adj, result):
     )
 
 
-def regress(adj, X, *, tail=2):
+def _regress(adj, X, *, tail=2):
     """Run a regression on an adjacency instance.
 
     Pass an `Adjacency` as `X` to decompose `adj` with other matrices, or a
@@ -140,16 +140,16 @@ def regress(adj, X, *, tail=2):
     from nltools.algorithms.regression import regress as ols_regress
     from nltools.data.adjacency import Adjacency
     from nltools.data.designmatrix import DesignMatrix
-    from nltools.algorithms.validation import validate_tail_parameter
-    from .state import common_labels, result, validate_compatible
+    from nltools.algorithms.validation import _validate_tail_parameter
+    from .state import _common_labels, _result, _validate_compatible
 
-    validate_tail_parameter(tail)
+    _validate_tail_parameter(tail)
     if isinstance(X, Adjacency):
         if not adj.is_single_matrix:
             raise ValueError("Adjacency predictors require a single response matrix.")
-        validate_compatible(adj, X)
-        response_labels = common_labels(adj)
-        predictor_labels = common_labels(X)
+        _validate_compatible(adj, X)
+        response_labels = _common_labels(adj)
+        predictor_labels = _common_labels(X)
         if response_labels != predictor_labels or X.labels and not predictor_labels:
             raise ValueError("Predictor and response node ordering must match.")
         design = np.atleast_2d(X.data).T
@@ -179,10 +179,10 @@ def regress(adj, X, *, tail=2):
         if isinstance(X, Adjacency):
             stats[key] = values[:, 0].copy() if len(values) > 1 else values[0, 0].item()
         else:
-            stats[key] = result(
+            stats[key] = _result(
                 adj,
                 values[0] if len(values) == 1 else values,
-                labels=common_labels(adj),
+                labels=_common_labels(adj),
                 Y=pl.DataFrame(),
             )
     residual_values = (
@@ -192,11 +192,11 @@ def regress(adj, X, *, tail=2):
         if adj.is_single_matrix
         else residual
     )
-    stats["residual"] = result(adj, residual_values, labels=adj.labels, Y=adj.Y)
+    stats["residual"] = _result(adj, residual_values, labels=adj.labels, Y=adj.Y)
     return stats
 
 
-def social_relations_model(adj, summarize_results=True, nan_replace=True):
+def _social_relations_model(adj, summarize_results=True, nan_replace=True):
     """Estimate the social relations model from a matrix for a round-robin design.
 
     $$X_{ij} = m + \\alpha_i + \\beta_j + g_{ij} + \\epsilon_{ijl}$$
@@ -532,7 +532,7 @@ def social_relations_model(adj, summarize_results=True, nan_replace=True):
     return results
 
 
-def generate_permutations(adj, n_permute, random_state=None):
+def _generate_permutations(adj, n_permute, random_state=None):
     """Generate permuted versions of an Adjacency instance lazily.
 
     This is useful for iterative comparisons.

@@ -79,7 +79,7 @@ Two computation modes:
 2. **Pairwise** — all `n(n-1)/2` correlations; traditional, complete structure.
 
 Null via subject-wise bootstrap (resample with replacement), circle shift, or phase
-randomize. A companion `isc_group_permutation_test` tests a two-group ISC
+randomize. A companion `_isc_group_permutation_test` tests a two-group ISC
 difference. `isc_test` re-centers the bootstrap null at zero before computing p
 (fixing a pre-0.6.0 regression).
 
@@ -87,7 +87,7 @@ difference. `isc_test` re-centers the bootstrap null at zero before computing p
 
 Estimate a sampling distribution and a confidence interval by resampling rows
 with replacement. There is one mode, not two: replicates stream through
-`BootstrapAccumulator`, which keeps a running Welford variance plus a bounded
+`_BootstrapAccumulator`, which keeps a running Welford variance plus a bounded
 per-element tail — exactly the order statistics NumPy's linear-interpolation
 percentile can reach at either end. For `B` replicates at confidence level `c`
 it retains, per output element, this many of the smallest and largest values:
@@ -108,7 +108,7 @@ neither `pre_dispatch` nor `return_as="generator"` bounds how many replicate
 arrays are alive — collecting the run into a list, the obvious spelling, would
 make peak memory `O(B)` and reduce the preflight to a number the run ignores.
 `_run_replicates` therefore dispatches in windows of
-`backends.bootstrap_replicate_window(n_samples, n_workers=...)` and folds each
+`backends._bootstrap_replicate_window(n_samples, n_workers=...)` and folds each
 window into the accumulator before opening the next. The window scales with the
 worker count and never with `B`, and windows are consecutive and folded in
 order, so Welford's accumulation order — and therefore every reported number —
@@ -132,7 +132,7 @@ not-yet-defined API. Non-finite replicate values propagate: `np.partition`
 drops NaN, so the accumulator tracks a per-element NaN flag and reproduces
 `np.percentile`'s propagation instead of quietly skipping it.
 
-Aggregation runs on the CPU and is mergeable: `BootstrapAccumulator.merge`
+Aggregation runs on the CPU and is mergeable: `_BootstrapAccumulator.merge`
 combines two blocks with the Chan-Golub-LeVeque parallel variance update and a
 tail merge, so a run split across workers or memory-driven batches summarizes to
 the same numbers as one sequential pass. Both blocks must be sized with the
@@ -140,16 +140,16 @@ run's *total* replicate count, or the merge refuses — a block sized for its ow
 length would retain too short a tail.
 
 Memory is planned in `nltools/algorithms/backends.py` and nowhere else.
-`bootstrap_memory_preflight` charges eight bytes for every output-sized array a
+`_bootstrap_memory_preflight` charges eight bytes for every output-sized array a
 run holds at once — the two bounded tails, the replicates buffered before the
 next flush and the two temporaries that flush builds, one dispatch window, every
 replicate when `return_samples=True`, and the two Welford accumulators plus the
 four summary payloads — and raises *before* resampling if that exceeds the
 budget, naming the requirement, the measured budget, and the `memory_budget_gb`
 override. It never weakens the interval, reduces `n_samples`, or disables
-`return_samples`. `bootstrap_n_jobs_cpu` treats `n_jobs` as a ceiling and lowers
+`return_samples`. `_bootstrap_n_jobs_cpu` treats `n_jobs` as a ceiling and lowers
 it when a worker's copy of the data would not fit;
-`bootstrap_replicate_window` turns that worker count into the dispatch window.
+`_bootstrap_replicate_window` turns that worker count into the dispatch window.
 `BOOTSTRAP_TAIL_FLUSH_BLOCK` lives there too rather than in the engine, so the
 one budget owner sees every constant it has to charge for.
 
@@ -167,7 +167,7 @@ shared fixed-hyperparameter refit in `nltools/models/ridge.py` directly
 converted onto the backend once and `_refit_resample` — the one replicate
 implementation — resamples rows in place, so the GPU driver differs only in
 which backend it converts to and in how many replicate results it holds before
-aggregation. `backends.ridge_bootstrap_batch_size` sizes that batch: it charges
+aggregation. `backends._ridge_bootstrap_batch_size` sizes that batch: it charges
 both the resident replicate and the host-side float64 results, so a prediction
 bootstrap with a wide `X_test` shrinks the batch instead of overrunning the
 budget. The refit holds `alpha_` — and, for a banded model,

@@ -16,7 +16,7 @@ class ContrastResult(Generic[Payload]):
     """Frozen record of the inferential outputs of one contrast.
 
     The one result type inferential contrast methods return. Its payload is
-    whatever the producer works in: `float` or `np.ndarray` for a `Glm`,
+    whatever the producer works in: `float` or `np.ndarray` for a `_Glm`,
     `BrainData` for the `BrainData` facade.
 
     Fields cannot be rebound. Array payloads stay mutable, but each result owns

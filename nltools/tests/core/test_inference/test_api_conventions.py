@@ -20,11 +20,11 @@ import nltools.algorithms as algorithms
 
 from nltools.algorithms.inference import (
     correlation_permutation_test,
-    isc_group_permutation_test,
-    isc_permutation_test,
+    _isc_group_permutation_test,
+    _isc_permutation_test,
     matrix_permutation_test,
     one_sample_permutation_test,
-    timeseries_correlation_permutation_test,
+    _timeseries_correlation_permutation_test,
     two_sample_permutation_test,
 )
 from nltools.algorithms.inference.intersubject import isc, isc_group, isfc, isps
@@ -36,9 +36,9 @@ PUBLIC_ENTRY_POINTS = {
     two_sample_permutation_test: ["data1", "data2"],
     correlation_permutation_test: ["data1", "data2"],
     matrix_permutation_test: ["data1", "data2"],
-    timeseries_correlation_permutation_test: ["data1", "data2"],
-    isc_permutation_test: ["data"],
-    isc_group_permutation_test: ["group1", "group2"],
+    _timeseries_correlation_permutation_test: ["data1", "data2"],
+    _isc_permutation_test: ["data"],
+    _isc_group_permutation_test: ["group1", "group2"],
 }
 
 # The user-facing ISC family (`nltools.algorithms.inference.intersubject`), held

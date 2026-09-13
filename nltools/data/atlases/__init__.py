@@ -18,6 +18,6 @@ References:
 # Internal package: these imports are re-exports for the rest of nltools, not
 # an advertised surface, so there is no `__all__` to mark them as used.
 from .labeling import label_coords  # noqa: F401
-from .loading import Atlas, load_atlas  # noqa: F401
+from .loading import _Atlas, load_atlas  # noqa: F401
 from .registry import list_atlases  # noqa: F401
-from .reporting import ClusterReport, cluster_report_data  # noqa: F401
+from .reporting import _ClusterReport, _cluster_report_data  # noqa: F401

@@ -10,7 +10,7 @@ from nltools.algorithms.alignment.procrustes import (
     procrustes_distance,
     align_states,
 )
-from nltools.algorithms.alignment.srm import SRM, DetSRM
+from nltools.algorithms.alignment.srm import _SRM, _DetSRM
 from nltools.data import BrainData
 from nltools.data.simulator import Simulator
 from nltools.mask import create_sphere
@@ -356,30 +356,30 @@ class TestAlign:
             align([np.zeros((10, 5)), [[1, 2], [3, 4]]])
 
     def test_n_iter_and_random_state_reach_deterministic_srm(self, monkeypatch):
-        """3by0: n_iter/random_state on align() must reach the constructed DetSRM."""
+        """3by0: n_iter/random_state on align() must reach the constructed _DetSRM."""
         captured = {}
-        real_init = DetSRM.__init__
+        real_init = _DetSRM.__init__
 
         def spy_init(self, **kwargs):
             captured.update(kwargs)
             real_init(self, **kwargs)
 
-        monkeypatch.setattr(DetSRM, "__init__", spy_init)
+        monkeypatch.setattr(_DetSRM, "__init__", spy_init)
         data = [np.random.randn(30, 5), np.random.randn(30, 5)]
         align(data, method="deterministic_srm", n_iter=3, random_state=11)
         assert captured["n_iter"] == 3
         assert captured["random_state"] == 11
 
     def test_n_iter_and_random_state_reach_probabilistic_srm(self, monkeypatch):
-        """3by0: n_iter/random_state on align() must reach the constructed SRM."""
+        """3by0: n_iter/random_state on align() must reach the constructed _SRM."""
         captured = {}
-        real_init = SRM.__init__
+        real_init = _SRM.__init__
 
         def spy_init(self, **kwargs):
             captured.update(kwargs)
             real_init(self, **kwargs)
 
-        monkeypatch.setattr(SRM, "__init__", spy_init)
+        monkeypatch.setattr(_SRM, "__init__", spy_init)
         data = [np.random.randn(30, 5), np.random.randn(30, 5)]
         align(data, method="probabilistic_srm", n_iter=4, random_state=12)
         assert captured["n_iter"] == 4

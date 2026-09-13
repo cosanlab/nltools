@@ -4,26 +4,26 @@ import warnings
 
 import numpy as np
 
-from nltools.utils import DesignMatrixWarning, find_stack_level
+from nltools.utils import DesignMatrixWarning, _find_stack_level
 
 
 class TestAttemptToImport:
-    """``attempt_to_import`` returns the module or ``None`` — no side-registry."""
+    """``_attempt_to_import`` returns the module or ``None`` — no side-registry."""
 
     def test_returns_module_on_success(self):
-        from nltools.utils import attempt_to_import
+        from nltools.utils import _attempt_to_import
 
-        mod = attempt_to_import("numpy")
+        mod = _attempt_to_import("numpy")
         assert mod is np
 
     def test_returns_none_on_missing_module(self):
-        from nltools.utils import attempt_to_import
+        from nltools.utils import _attempt_to_import
 
-        assert attempt_to_import("no_such_module_nltools_test") is None
+        assert _attempt_to_import("no_such_module_nltools_test") is None
 
 
 class TestFindStackLevel:
-    """`find_stack_level()` attributes a library warning to the user's line.
+    """`_find_stack_level()` attributes a library warning to the user's line.
 
     A fixed `stacklevel` drifts as facades gain layers, so every
     `warnings.warn` in the library computes the level instead.
@@ -31,13 +31,13 @@ class TestFindStackLevel:
 
     def test_test_files_count_as_outside_the_package(self):
         """nltools/tests/ lives under the package dir but is user code here."""
-        # Only find_stack_level's own frame is inside the library -> level 1,
+        # Only _find_stack_level's own frame is inside the library -> level 1,
         # so a warn() issued from this file is attributed to this file.
-        assert find_stack_level() == 1
+        assert _find_stack_level() == 1
 
         with warnings.catch_warnings(record=True) as caught:
             warnings.simplefilter("always")
-            warnings.warn("probe", UserWarning, stacklevel=find_stack_level())
+            warnings.warn("probe", UserWarning, stacklevel=_find_stack_level())
         assert caught[0].filename == __file__
 
     def test_walks_past_library_frames(self):
@@ -53,13 +53,12 @@ class TestFindStackLevel:
         assert caught[0].category is DesignMatrixWarning
 
     def test_skips_contextlib_decorator_frames(self):
-        """`@coalesced_gc()` facades put a stdlib contextlib frame between the
+        """`@_coalesced_gc()` facades put a stdlib contextlib frame between the
         user and nltools; the level must step over it too."""
         import nibabel as nib
         import numpy as np
 
         from nltools.data import BrainData, DesignMatrix
-        from nltools.data.braindata.modeling import RankDeficientDesignWarning
 
         mask = nib.Nifti1Image(np.ones((3, 3, 3), dtype=np.int8), np.eye(4))
         rng = np.random.default_rng(0)
@@ -69,6 +68,6 @@ class TestFindStackLevel:
         design = DesignMatrix(np.column_stack([np.arange(6.0), 2 * np.arange(6.0)]))
         with warnings.catch_warnings(record=True) as caught:
             warnings.simplefilter("always")
-            bd.fit(model="glm", X=design)  # BrainData.fit is @coalesced_gc()
-        rank = [w for w in caught if w.category is RankDeficientDesignWarning]
+            bd.fit(model="glm", X=design)  # BrainData.fit is @_coalesced_gc()
+        rank = [w for w in caught if w.category is DesignMatrixWarning]
         assert rank and rank[0].filename == __file__

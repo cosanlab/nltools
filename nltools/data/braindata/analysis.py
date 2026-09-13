@@ -62,7 +62,7 @@ def _aligned_array(value):
     return value if isinstance(value, np.ndarray) else value.data
 
 
-def check_masks(bd, image):
+def _check_masks(bd, image):
     """Ensure two datasets use compatible masks, creating a union mask if needed.
 
     Args:
@@ -89,7 +89,7 @@ def check_masks(bd, image):
     return data2, image2
 
 
-def similarity(bd, image, metric="correlation"):
+def _similarity(bd, image, metric="correlation"):
     """Calculate similarity to a single BrainData or nibabel image.
 
     Args:
@@ -103,7 +103,7 @@ def similarity(bd, image, metric="correlation"):
         np.ndarray: Similarity values.
     """
     from nltools.algorithms.similarity import compute_similarity
-    from .utils import check_brain_data
+    from .utils import _check_brain_data
 
     supported_metrics = [
         "correlation",
@@ -116,14 +116,14 @@ def similarity(bd, image, metric="correlation"):
     if metric not in supported_metrics:
         raise ValueError(f"metric must be one of {supported_metrics}")
 
-    image = check_brain_data(image)
-    data2, image2 = check_masks(bd, image)
+    image = _check_brain_data(image)
+    data2, image2 = _check_masks(bd, image)
 
     # Delegate to functional core (stats.py)
     return compute_similarity(data2, image2, metric=metric)
 
 
-def distance(  # nosemgrep: kwargs-internal-forwarding  # forwards to scipy.spatial.distance.cdist
+def _distance(  # nosemgrep: kwargs-internal-forwarding  # forwards to scipy.spatial.distance.cdist
     bd,
     metric="euclidean",
     *,
@@ -217,7 +217,7 @@ def _resolve_atlas_label_vec(bd, roi_mask):
     return roi_img, label_vec, unique_labels
 
 
-def align_per_roi(bd, target, *, method, axis, roi_mask):
+def _align_per_roi(bd, target, *, method, axis, roi_mask):
     """Per-parcel functional alignment + voxel-space reassembly.
 
     For each atlas parcel, runs ``align()`` on the slice of ``bd`` and
@@ -257,9 +257,9 @@ def align_per_roi(bd, target, *, method, axis, roi_mask):
 
     if method == "procrustes":
         # Need a target BrainData to slice.
-        from .utils import check_brain_data
+        from .utils import _check_brain_data
 
-        target_bd = check_brain_data(target)
+        target_bd = _check_brain_data(target)
         if target_bd.shape[-1] != bd.shape[-1]:
             raise ValueError(
                 "For spatial_scale='roi' procrustes, target must share "
@@ -294,7 +294,7 @@ def align_per_roi(bd, target, *, method, axis, roi_mask):
         else:
             sub_target = target  # SRM common model is voxel-agnostic
 
-        sub_out = align(sub, sub_target, method=method, axis=axis)
+        sub_out = _align(sub, sub_target, method=method, axis=axis)
 
         # Accumulate: every spatial value is already an owned BrainData.
         transforms[int(label)] = sub_out["transformation_matrix"]
@@ -415,7 +415,7 @@ def _distance_searchlight(bd, *, metric, radius, **kwargs):
     return Adjacency(matrices, matrix_type="distance")
 
 
-def multivariate_similarity(bd, images, tail=2):
+def _multivariate_similarity(bd, images, tail=2):
     """Predict a BrainData spatial distribution from a linear combination.
 
     The predictors may be other BrainData instances or nibabel images.
@@ -431,14 +431,14 @@ def multivariate_similarity(bd, images, tail=2):
             ``'residual'``.
     """
     # Notes:  Should add ridge, and lasso, elastic net options options
-    from nltools.algorithms.similarity import compute_multivariate_similarity
-    from .utils import check_brain_data
+    from nltools.algorithms.similarity import _compute_multivariate_similarity
+    from .utils import _check_brain_data
 
     if len(bd.shape) > 1:
         raise ValueError("This method can only decompose a single brain image.")
 
-    images = check_brain_data(images)
-    data2, image2 = check_masks(bd, images)
+    images = _check_brain_data(images)
+    data2, image2 = _check_masks(bd, images)
 
     # Prepare data for functional core: y is single image, X is predictors
     # image2 shape: (n_images, n_voxels) -> transpose to (n_voxels, n_images)
@@ -446,13 +446,13 @@ def multivariate_similarity(bd, images, tail=2):
     X = image2.T  # Predictors: (n_voxels, n_images)
 
     # Delegate to functional core (stats.py)
-    return compute_multivariate_similarity(y, X, tail=tail)
+    return _compute_multivariate_similarity(y, X, tail=tail)
 
 
 def _mask_image_on_source_grid(bd, mask):
     """Return ``mask`` as a single 3-D image verified to share ``bd``'s grid.
 
-    Sameness is `check_space_match`, the one predicate the loader also uses, so
+    Sameness is `_check_space_match`, the one predicate the loader also uses, so
     a mask the constructor would have accepted without resampling is accepted
     here too. Nothing is resampled: a foreign grid is an error, not something to
     fix silently, because resampling either operand would change the voxel axis
@@ -463,7 +463,7 @@ def _mask_image_on_source_grid(bd, mask):
     import nibabel as nib
 
     from . import BrainData
-    from .io import check_space_match
+    from .io import _check_space_match
 
     if isinstance(mask, BrainData):
         mask_img = mask.to_nifti()
@@ -480,7 +480,7 @@ def _mask_image_on_source_grid(bd, mask):
     if len(mask_img.shape) != 3:
         raise ValueError("Mask must be a single image")
 
-    if not check_space_match(mask_img, bd.mask):
+    if not _check_space_match(mask_img, bd.mask):
         raise ValueError(
             "apply_mask requires a mask on the same grid as the data: the data "
             f"is {bd.mask.shape} with affine\n{bd.mask.affine}\nand the mask is "
@@ -493,7 +493,7 @@ def _mask_image_on_source_grid(bd, mask):
     return mask_img
 
 
-def apply_mask(bd, mask):
+def _apply_mask(bd, mask):
     """Restrict BrainData to a mask's support without changing the grid.
 
     Support is every voxel of ``mask`` greater than zero. The mask defines the
@@ -532,7 +532,7 @@ def apply_mask(bd, mask):
     return masked
 
 
-def extract_roi(bd, mask, method="mean", n_components=None):
+def _extract_roi(bd, mask, method="mean", n_components=None):
     """Extract activity from a binary mask or a labeled ROI atlas.
 
     `extract_roi` is an extraction convenience, not a masking primitive: unlike
@@ -577,8 +577,8 @@ def extract_roi(bd, mask, method="mean", n_components=None):
     from nilearn.maskers import NiftiLabelsMasker
 
     from . import BrainData
-    from .io import check_space_match
-    from .utils import check_brain_data_is_single
+    from .io import _check_space_match
+    from .utils import _check_brain_data_is_single
 
     methods = ["mean", "median", "pca"]
     if method not in methods:
@@ -590,7 +590,7 @@ def extract_roi(bd, mask, method="mean", n_components=None):
     # resamples it implicitly the same way BrainData loading always has.
     if isinstance(mask, BrainData):
         mask_brain = mask
-        if not check_space_match(mask_brain.mask, bd.mask):
+        if not _check_space_match(mask_brain.mask, bd.mask):
             mask_brain = mask_brain.resample(img=bd.mask, interpolation="nearest")
     else:
         mask_brain = BrainData(mask, mask=bd.mask, interpolation="nearest")
@@ -608,8 +608,8 @@ def extract_roi(bd, mask, method="mean", n_components=None):
 
     if n_unique == 2:
         # Binary mask - use simple extraction
-        masked = apply_mask(bd, mask_brain)
-        is_single = check_brain_data_is_single(masked)
+        masked = _apply_mask(bd, mask_brain)
+        is_single = _check_brain_data_is_single(masked)
 
         if method == "mean":
             out = masked.mean() if is_single else masked.mean(axis=1)
@@ -618,7 +618,7 @@ def extract_roi(bd, mask, method="mean", n_components=None):
         elif method == "pca":
             if is_single:
                 raise ValueError("Cannot run PCA on a single image")
-            output = decompose(
+            output = _decompose(
                 masked, method="pca", n_components=n_components, axis="images"
             )
             out = output["weights"].T
@@ -657,13 +657,13 @@ def extract_roi(bd, mask, method="mean", n_components=None):
         elif method == "pca":
             # Extract voxels from the whole atlas once, then slice by label in
             # numpy. This avoids rebuilding the nifti and re-resampling per ROI.
-            if check_brain_data_is_single(bd):
+            if _check_brain_data_is_single(bd):
                 raise ValueError("Cannot run PCA on a single image")
 
             atlas_mask = _result_from_array(
                 mask_brain, (mask_brain.data > 0).astype(float), rows="preserve"
             )
-            all_masked = apply_mask(bd, atlas_mask)
+            all_masked = _apply_mask(bd, atlas_mask)
 
             # apply_mask preserves voxel ordering relative to the mask, so the
             # label vector lines up with the columns of all_masked.data.
@@ -678,7 +678,7 @@ def extract_roi(bd, mask, method="mean", n_components=None):
                     _subset_mask(all_masked, labels_flat == label),
                     rows="preserve",
                 )
-                output = decompose(
+                output = _decompose(
                     roi, method="pca", n_components=n_components, axis="images"
                 )
                 out.append(output["weights"].T)
@@ -694,7 +694,7 @@ def extract_roi(bd, mask, method="mean", n_components=None):
     return out
 
 
-def detrend_data(bd, method="linear"):
+def _detrend_data(bd, method="linear"):
     """Remove the linear trend from each voxel.
 
     Args:
@@ -713,7 +713,7 @@ def detrend_data(bd, method="linear"):
     return out
 
 
-def r_to_z(bd):
+def _r_to_z(bd):
     """Apply Fisher's r-to-z transformation to each data element.
 
     Args:
@@ -728,7 +728,7 @@ def r_to_z(bd):
     return out
 
 
-def z_to_r(bd):
+def _z_to_r(bd):
     """Convert Fisher z scores back into r values for each data element.
 
     Args:
@@ -743,7 +743,7 @@ def z_to_r(bd):
     return out
 
 
-def filter_data(  # nosemgrep: kwargs-internal-forwarding  # forwards to nilearn.signal.clean
+def _filter_data(  # nosemgrep: kwargs-internal-forwarding  # forwards to nilearn.signal.clean
     bd, *, sampling_freq=None, high_pass=None, low_pass=None, **kwargs
 ):
     """Apply a Butterworth filter to data (wraps `nilearn.signal.clean`).
@@ -810,7 +810,7 @@ def filter_data(  # nosemgrep: kwargs-internal-forwarding  # forwards to nilearn
     )
 
 
-def standardize(bd, *, method="center", axis=0):
+def _standardize(bd, *, method="center", axis=0):
     """Standardize data by centering it, optionally scaling to unit variance.
 
     Computed in float64 and cast back to the input dtype, so raw float32 BOLD
@@ -850,7 +850,7 @@ def standardize(bd, *, method="center", axis=0):
     return out
 
 
-def scale_data(bd, scale_val=100.0, axis=None):
+def _scale_data(bd, scale_val=100.0, axis=None):
     """Scale data via mean scaling.
 
     Two scaling modes are available:
@@ -918,7 +918,7 @@ def scale_data(bd, scale_val=100.0, axis=None):
     return _result_from_array(bd, data, rows="preserve")
 
 
-def threshold_data(
+def _threshold_data(
     bd,
     *,
     upper=None,
@@ -937,7 +937,7 @@ def threshold_data(
         bd (BrainData): Data to threshold.
         upper (float | str | None): Upper cutoff. A string like ``'98%'``
             resolves as a percentile over the finite **nonzero** voxels (via
-            `resolve_threshold`; zeros on a masked map are absence of data and
+            `_resolve_threshold`; zeros on a masked map are absence of data and
             would skew the percentile). ``None`` for one-sided thresholding.
         lower (float | str | None): Lower cutoff, with the same percentile
             semantics as ``upper``. ``None`` for one-sided thresholding.
@@ -981,9 +981,9 @@ def threshold_data(
         if coerce_nan:
             b.data = np.nan_to_num(b.data)
 
-        from .utils import resolve_threshold
+        from .utils import _resolve_threshold
 
-        threshold_val = resolve_threshold(threshold_val, b.data)
+        threshold_val = _resolve_threshold(threshold_val, b.data)
 
         # Use nilearn's cluster thresholding
         out = _result_from_array(bd, bd.data, rows="preserve")
@@ -1009,10 +1009,10 @@ def threshold_data(
     if coerce_nan:
         b.data = np.nan_to_num(b.data)
 
-    from .utils import resolve_threshold
+    from .utils import _resolve_threshold
 
-    upper = resolve_threshold(upper, b.data)
-    lower = resolve_threshold(lower, b.data)
+    upper = _resolve_threshold(upper, b.data)
+    lower = _resolve_threshold(lower, b.data)
 
     if upper is not None and lower is not None:
         b.data[(b.data < upper) & (b.data > lower)] = 0
@@ -1026,7 +1026,7 @@ def threshold_data(
     return b
 
 
-def regions(
+def _regions(
     bd,
     *,
     min_region_size=1350,
@@ -1067,7 +1067,7 @@ def regions(
     )
 
 
-def transform_pairwise_data(bd):
+def _transform_pairwise_data(bd):
     """Transform BrainData into pairwise comparisons.
 
     Args:
@@ -1083,7 +1083,7 @@ def transform_pairwise_data(bd):
     return _result_from_rows(bd, data, X=None, Y=pl.DataFrame(new_Y))
 
 
-def decompose(  # nosemgrep: kwargs-internal-forwarding  # forwards to the sklearn decomposition estimator
+def _decompose(  # nosemgrep: kwargs-internal-forwarding  # forwards to the sklearn decomposition estimator
     bd, *, method="pca", axis="voxels", n_components=None, **kwargs
 ):
     """Decompose a BrainData object.
@@ -1137,7 +1137,7 @@ def decompose(  # nosemgrep: kwargs-internal-forwarding  # forwards to the sklea
     return out
 
 
-def align(bd, target, method="procrustes", axis=0):
+def _align(bd, target, method="procrustes", axis=0):
     """Align a BrainData instance to a target using functional alignment.
 
     Alignment type can be hyperalignment or Shared Response Model. When
@@ -1202,7 +1202,7 @@ def align(bd, target, method="procrustes", axis=0):
         ```
     """
     from nltools.algorithms.alignment import procrustes
-    from .utils import check_brain_data
+    from .utils import _check_brain_data
 
     if method not in ["probabilistic_srm", "deterministic_srm", "procrustes"]:
         raise ValueError(
@@ -1212,7 +1212,7 @@ def align(bd, target, method="procrustes", axis=0):
     data1 = bd.data.copy()
 
     if method == "procrustes":
-        target = check_brain_data(target)
+        target = _check_brain_data(target)
         data2 = target.data.copy()
 
         # pad columns if different shapes
@@ -1289,7 +1289,7 @@ def align(bd, target, method="procrustes", axis=0):
     return out
 
 
-def smooth(bd, fwhm):
+def _smooth(bd, fwhm):
     """Apply spatial smoothing using nilearn's ``smooth_img``.
 
     Args:
@@ -1302,7 +1302,7 @@ def smooth(bd, fwhm):
     from nilearn.image import smooth_img
     from nilearn.masking import apply_mask as nilearn_apply_mask
 
-    from .utils import check_brain_data_is_single
+    from .utils import _check_brain_data_is_single
 
     # Single conversion: data -> nifti -> smooth -> data
     nifti = bd.to_nifti()
@@ -1310,7 +1310,7 @@ def smooth(bd, fwhm):
     smoothed_data = nilearn_apply_mask(smoothed_nifti, bd.mask)
 
     # Ensure single images remain 1D
-    if check_brain_data_is_single(bd):
+    if _check_brain_data_is_single(bd):
         smoothed_data = smoothed_data.flatten()
 
     out = _result_from_array(bd, smoothed_data, rows="preserve")
@@ -1318,7 +1318,7 @@ def smooth(bd, fwhm):
     return out
 
 
-def find_spikes_data(
+def _find_spikes_data(
     bd,
     global_spike_cutoff=3,
     diff_spike_cutoff=3,
@@ -1338,7 +1338,7 @@ def find_spikes_data(
     )
 
 
-def temporal_resample(bd, *, sampling_freq=None, target=None, target_type="hz"):
+def _temporal_resample(bd, *, sampling_freq=None, target=None, target_type="hz"):
     """Resample a BrainData time series to a target frequency or sample count.
 
     Resample BrainData timeseries to a new target frequency or number of samples

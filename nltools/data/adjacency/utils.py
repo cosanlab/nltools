@@ -10,7 +10,7 @@ import numpy as np
 import polars as pl
 
 
-def perform_arithmetic(adj, y, op, op_name, reverse=False):
+def _perform_arithmetic(adj, y, op, op_name, reverse=False):
     """Perform arithmetic operation with validation.
 
     Args:
@@ -34,9 +34,9 @@ def perform_arithmetic(adj, y, op, op_name, reverse=False):
         from . import Adjacency
 
         if isinstance(y, Adjacency):
-            from .state import validate_compatible
+            from .state import _validate_compatible
 
-            validate_compatible(adj, y, labels=True)
+            _validate_compatible(adj, y, labels=True)
             if adj.shape != y.shape:
                 raise ValueError(
                     "Both Adjacency() instances need to be the same shape."
@@ -50,7 +50,7 @@ def perform_arithmetic(adj, y, op, op_name, reverse=False):
     return new
 
 
-def apply_stat(adj, func, axis=0):
+def _apply_stat(adj, func, axis=0):
     """Apply a statistical function along an axis.
 
     Args:
@@ -68,11 +68,11 @@ def apply_stat(adj, func, axis=0):
         raise ValueError(f"axis must be 0 or 1, got {axis}")
     if adj.is_single_matrix:
         return func(adj.data)
-    from .state import common_labels, result
+    from .state import _common_labels, _result
 
     if axis == 0:
-        return result(
-            adj, func(adj.data, axis=axis), labels=common_labels(adj), Y=pl.DataFrame()
+        return _result(
+            adj, func(adj.data, axis=axis), labels=_common_labels(adj), Y=pl.DataFrame()
         )
     if axis == 1:
         return func(adj.data, axis=axis)

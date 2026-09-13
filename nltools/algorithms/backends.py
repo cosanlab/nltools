@@ -5,8 +5,8 @@ operations, so algorithms are written once against NumPy semantics and run on a
 GPU when one is available.
 
 This module is also the package's single GPU execution layer: memory budgets
-(`device_memory_budget`), batch sizing (`auto_batch_size`), out-of-memory
-recovery (`compute_oom_safe`), and CPU worker sizing (`_auto_n_jobs_cpu`)
+(`_device_memory_budget`), batch sizing (`_auto_batch_size`), out-of-memory
+recovery (`_compute_oom_safe`), and CPU worker sizing (`_auto_n_jobs_cpu`)
 live only here. Algorithms supply per-item working-set estimates and never do
 their own budget math.
 """
@@ -16,7 +16,7 @@ from copy import deepcopy
 import numpy as np
 from typing import Any
 
-from nltools.utils import find_stack_level
+from nltools.utils import _find_stack_level
 
 # Track if we've warned about MPS initialization to avoid spam
 _already_warned_mps_init = [False]
@@ -50,7 +50,7 @@ def _array_module_for(name):
     return None
 
 
-class Backend:
+class _Backend:
     """Backend abstraction for numerical operations.
 
     Provides a unified interface for NumPy and PyTorch operations, enabling
@@ -93,7 +93,7 @@ class Backend:
     def __getstate__(self):
         """Drop the array module, which is a live module object and unpicklable.
 
-        `backend_` is public fitted state on `Ridge`, so a fitted model has to
+        `backend_` is public fitted state on `_Ridge`, so a fitted model has to
         survive `pickle` — `BrainData.copy()` and any process-based `n_jobs`
         worker carry one across. Everything else on a backend is a plain string
         or a `torch.device`, both of which pickle fine; `xp` is recovered by
@@ -177,7 +177,7 @@ class Backend:
                     "This may result in reduced numerical precision compared to float64 backends. "
                     "For high-precision requirements, consider using 'torch' (CPU) or 'numpy' backends.",
                     UserWarning,
-                    stacklevel=find_stack_level(),
+                    stacklevel=_find_stack_level(),
                 )
                 _already_warned_mps_init[0] = True
         else:
@@ -332,33 +332,33 @@ class Backend:
     # ------------------------------------------------------------------
 
 
-def resolve_backend(parallel):
-    """Coerce a backend specifier into a `Backend` instance.
+def _resolve_backend(parallel):
+    """Coerce a backend specifier into a `_Backend` instance.
 
     Accepts the values callers thread through the algorithms package. An
-    existing `Backend` is returned unchanged, which is the reason to prefer
-    this over constructing `Backend(...)` at each call site: device detection
+    existing `_Backend` is returned unchanged, which is the reason to prefer
+    this over constructing `_Backend(...)` at each call site: device detection
     and the torch import happen once, upstream.
 
     Args:
         parallel (str | Backend | None): Backend specifier. `None` or `"cpu"`
             gives the numpy backend; `"gpu"` requires CUDA or MPS; `"numpy"`,
-            `"torch"`, and `"auto"` are passed to `Backend(...)`; a `Backend`
+            `"torch"`, and `"auto"` are passed to `_Backend(...)`; a `_Backend`
             instance is returned as-is.
 
     Returns:
-        Backend: Resolved backend instance.
+        _Backend: Resolved backend instance.
 
     Raises:
         ValueError: If `parallel` is a string outside the accepted set.
         RuntimeError: If `parallel="gpu"` and no accelerator is available.
     """
-    if isinstance(parallel, Backend):
+    if isinstance(parallel, _Backend):
         return parallel
     if parallel in (None, "cpu"):
-        return Backend("numpy")
+        return _Backend("numpy")
     if parallel == "gpu":
-        backend = Backend("torch")
+        backend = _Backend("torch")
         if not backend.is_gpu:
             raise RuntimeError(
                 "GPU requested explicitly, but no GPU accelerator is available. "
@@ -366,7 +366,7 @@ def resolve_backend(parallel):
             )
         return backend
     if parallel in ("numpy", "torch", "auto"):
-        return Backend(parallel)
+        return _Backend(parallel)
     raise ValueError(
         f"parallel must be None, 'cpu', 'gpu', 'numpy', 'torch', 'auto', "
         f"or a Backend instance; got: {parallel!r}"
@@ -410,7 +410,7 @@ def check_gpu_available() -> tuple[bool, dict[str, Any]]:
         }
 
 
-def auto_select_backend(n_samples: int, n_features: int, cv: int = 1) -> Backend:
+def _auto_select_backend(n_samples: int, n_features: int, cv: int = 1) -> _Backend:
     """Select a backend from the problem size.
 
     Small problems stay on NumPy to avoid GPU transfer overhead; large problems
@@ -424,13 +424,13 @@ def auto_select_backend(n_samples: int, n_features: int, cv: int = 1) -> Backend
             size. Defaults to 1.
 
     Returns:
-        Backend: The selected backend.
+        _Backend: The selected backend.
 
     Note:
         Below 10M elements the numpy backend is returned. Above 30M elements the
         torch backend is returned when a GPU is available, as it is for any
         cross-validated problem (`cv > 1`) with a GPU. Everything else falls to
-        `Backend('auto')`.
+        `_Backend('auto')`.
     """
     # Compute effective problem size
     problem_size = n_samples * n_features * cv
@@ -445,15 +445,15 @@ def auto_select_backend(n_samples: int, n_features: int, cv: int = 1) -> Backend
     # Decision logic
     if problem_size < SMALL_THRESHOLD:
         # Small problem: NumPy is efficient enough
-        return Backend("numpy")
+        return _Backend("numpy")
     if problem_size > LARGE_THRESHOLD and gpu_available:
         # Large problem with GPU: Use PyTorch
-        return Backend("torch")
+        return _Backend("torch")
     if cv > 1 and gpu_available:
         # Cross-validation with GPU: Prefer PyTorch
-        return Backend("torch")
+        return _Backend("torch")
     # Default: Try auto-selection (falls back to NumPy if no GPU)
-    return Backend("auto")
+    return _Backend("auto")
 
 
 # ----------------------------------------------------------------------
@@ -479,12 +479,12 @@ a measured ~100 GB budget on a 128 GB GB10 sized ~100 GB ISC batches, 4.2s → 1
 and a wedged machine. The cap applies only to *measured* budgets — an explicit
 `max_gpu_memory_gb` is the documented contract and always wins, uncapped.
 Capacity reasoning (OOM recovery, single-item-too-large errors) still uses the
-true measured budget. See `device_memory_budget(cap_for_batching=True)`.
+true measured budget. See `_device_memory_budget(cap_for_batching=True)`.
 """
 
 
-def device_memory_budget(
-    backend: "Backend | None" = None,
+def _device_memory_budget(
+    backend: "_Backend | None" = None,
     max_gpu_memory_gb: float | None = None,
     *,
     cap_for_batching: bool = False,
@@ -542,7 +542,7 @@ def device_memory_budget(
     return measured
 
 
-def gb_to_bytes(gb: float) -> int:
+def _gb_to_bytes(gb: float) -> int:
     """Convert a GB budget to bytes — the package's one GB↔bytes conversion."""
     return int(gb * 1e9)
 
@@ -552,7 +552,7 @@ def gb_to_bytes(gb: float) -> int:
 _RIDGE_BOOTSTRAP_SOLVER_OVERHEAD = 3.0
 
 
-def auto_batch_size(
+def _auto_batch_size(
     n_items: int,
     bytes_per_item: float,
     *,
@@ -568,7 +568,7 @@ def auto_batch_size(
     Args:
         n_items (int): Total number of items (permutations, targets, ...).
         bytes_per_item (float): Dominant working-set size of one item in bytes.
-        budget_gb (float): Memory budget from `device_memory_budget`.
+        budget_gb (float): Memory budget from `_device_memory_budget`.
         overhead (float): Multiplier for intermediate allocations (e.g. 3.0 when
             the computation holds ~3x the input working set). Defaults to 1.0.
 
@@ -587,7 +587,7 @@ def auto_batch_size(
     if per_item <= 0:
         batch_size = n_items
     else:
-        capacity = int(gb_to_bytes(budget_gb) / per_item)
+        capacity = int(_gb_to_bytes(budget_gb) / per_item)
         if capacity < 1:
             raise ValueError(
                 f"one item requires {per_item / 1e9:.6g} GB, exceeding the "
@@ -598,7 +598,7 @@ def auto_batch_size(
     return batch_size, n_batches
 
 
-def ridge_bootstrap_batch_size(
+def _ridge_bootstrap_batch_size(
     n_bootstrap: int,
     *,
     n_samples: int,
@@ -636,7 +636,7 @@ def ridge_bootstrap_batch_size(
     Returns:
         tuple[int, int]: `(batch_size, n_batches)`.
     """
-    budget_gb = device_memory_budget(
+    budget_gb = _device_memory_budget(
         backend, max_gpu_memory_gb=max_gpu_memory_gb, cap_for_batching=True
     )
     resident = (
@@ -645,7 +645,7 @@ def ridge_bootstrap_batch_size(
         * _RIDGE_BOOTSTRAP_SOLVER_OVERHEAD
     )
     retained = int(np.prod(output_shape)) * 8  # host float64 accumulation
-    return auto_batch_size(
+    return _auto_batch_size(
         n_bootstrap, resident + retained, budget_gb=budget_gb, overhead=1.0
     )
 
@@ -664,11 +664,11 @@ _BOOTSTRAP_FIXED_OUTPUT_ARRAYS = 6
 #: plain comparison, but the buffer and the two temporaries a flush creates are
 #: real output-sized allocations — so the constant lives here, with the budget
 #: that has to charge for it, and the accumulator imports it. It doubles as the
-#: per-worker dispatch window (`bootstrap_replicate_window`).
+#: per-worker dispatch window (`_bootstrap_replicate_window`).
 BOOTSTRAP_TAIL_FLUSH_BLOCK = 64
 
 
-def bootstrap_replicate_window(n_samples: int, *, n_workers: int = 1) -> int:
+def _bootstrap_replicate_window(n_samples: int, *, n_workers: int = 1) -> int:
     """Replicates a CPU bootstrap may hold in flight before it must aggregate.
 
     `joblib.Parallel` dispatches eagerly and queues finished results, so neither
@@ -688,15 +688,15 @@ def bootstrap_replicate_window(n_samples: int, *, n_workers: int = 1) -> int:
 
     Examples:
         ```python
-        bootstrap_replicate_window(5000, n_workers=4)  # → 256
-        bootstrap_replicate_window(50, n_workers=4)  # → 50
+        _bootstrap_replicate_window(5000, n_workers=4)  # → 256
+        _bootstrap_replicate_window(50, n_workers=4)  # → 50
         ```
     """
     per_worker = BOOTSTRAP_TAIL_FLUSH_BLOCK * max(1, int(n_workers))
     return max(1, min(int(n_samples), per_worker))
 
 
-def bootstrap_retained_tail_size(n_samples: int, *, confidence_level: float) -> int:
+def _bootstrap_retained_tail_size(n_samples: int, *, confidence_level: float) -> int:
     """Per-element retained tail size for a streaming percentile interval.
 
     The streaming accumulator reproduces the complete-distribution percentile
@@ -720,7 +720,7 @@ def bootstrap_retained_tail_size(n_samples: int, *, confidence_level: float) -> 
 
     Examples:
         ```python
-        bootstrap_retained_tail_size(1000, confidence_level=0.95)  # → 26
+        _bootstrap_retained_tail_size(1000, confidence_level=0.95)  # → 26
         ```
     """
     half_alpha = (1 - confidence_level) / 2
@@ -728,7 +728,7 @@ def bootstrap_retained_tail_size(n_samples: int, *, confidence_level: float) -> 
     return min(k, int(n_samples))
 
 
-def bootstrap_output_bytes(
+def _bootstrap_output_bytes(
     output_shape: tuple[int, ...],
     n_samples: int,
     *,
@@ -752,13 +752,13 @@ def bootstrap_output_bytes(
         return_samples (bool): Whether the complete distribution is retained.
         n_workers (int): Planned CPU worker count, which sets the dispatch
             window. Defaults to 1 (the GPU driver budgets its own batch through
-            `ridge_bootstrap_batch_size` instead).
+            `_ridge_bootstrap_batch_size` instead).
 
     Returns:
         int: Required bytes.
     """
     output_size = int(np.prod(output_shape)) if output_shape else 1
-    tail_size = bootstrap_retained_tail_size(
+    tail_size = _bootstrap_retained_tail_size(
         n_samples, confidence_level=confidence_level
     )
     buffered = min(BOOTSTRAP_TAIL_FLUSH_BLOCK, int(n_samples))
@@ -766,14 +766,14 @@ def bootstrap_output_bytes(
         2 * tail_size  # the two bounded tails
         + buffered  # replicates buffered before the next flush
         + 2 * (tail_size + buffered)  # a flush's concatenation and partition
-        + bootstrap_replicate_window(n_samples, n_workers=n_workers)
+        + _bootstrap_replicate_window(n_samples, n_workers=n_workers)
         + (int(n_samples) if return_samples else 0)
         + _BOOTSTRAP_FIXED_OUTPUT_ARRAYS
     )
     return output_size * arrays * _BOOTSTRAP_OUTPUT_ITEMSIZE
 
 
-def bootstrap_memory_preflight(
+def _bootstrap_memory_preflight(
     output_shape: tuple[int, ...],
     n_samples: int,
     *,
@@ -781,7 +781,7 @@ def bootstrap_memory_preflight(
     return_samples: bool,
     n_workers: int = 1,
     memory_budget_gb: float | None = None,
-    backend: "Backend | None" = None,
+    backend: "_Backend | None" = None,
 ) -> float:
     """Raise before any resampling if the retained output cannot fit the budget.
 
@@ -808,7 +808,7 @@ def bootstrap_memory_preflight(
     Raises:
         ValueError: If the required storage exceeds the budget.
     """
-    required_bytes = bootstrap_output_bytes(
+    required_bytes = _bootstrap_output_bytes(
         output_shape,
         n_samples,
         confidence_level=confidence_level,
@@ -816,9 +816,9 @@ def bootstrap_memory_preflight(
         n_workers=n_workers,
     )
     required_gb = required_bytes / 1e9
-    budget_gb = device_memory_budget(backend, max_gpu_memory_gb=memory_budget_gb)
+    budget_gb = _device_memory_budget(backend, max_gpu_memory_gb=memory_budget_gb)
     if required_gb > budget_gb:
-        tail_size = bootstrap_retained_tail_size(
+        tail_size = _bootstrap_retained_tail_size(
             n_samples, confidence_level=confidence_level
         )
         retained = f"{tail_size} values per element at each tail"
@@ -842,7 +842,7 @@ def bootstrap_memory_preflight(
     return required_gb
 
 
-def bootstrap_n_jobs_cpu(
+def _bootstrap_n_jobs_cpu(
     data_size_mb: float,
     n_samples: int,
     *,
@@ -885,7 +885,7 @@ def bootstrap_n_jobs_cpu(
         return 1
 
 
-def is_oom_error(exc: BaseException) -> bool:
+def _is_oom_error(exc: BaseException) -> bool:
     """True if `exc` is a device out-of-memory error (CUDA or MPS)."""
     try:
         import torch
@@ -918,7 +918,7 @@ def _empty_device_cache() -> None:
         torch.mps.empty_cache()
 
 
-def compute_oom_safe(fn, *arrays, min_chunk: int = 1):
+def _compute_oom_safe(fn, *arrays, min_chunk: int = 1):
     """Run `fn(*arrays)` with reactive out-of-memory recovery.
 
     All `arrays` must share their axis-0 length, and `fn` must map them to
@@ -952,7 +952,7 @@ def compute_oom_safe(fn, *arrays, min_chunk: int = 1):
     try:
         return fn(*arrays)
     except Exception as exc:
-        if not is_oom_error(exc):
+        if not _is_oom_error(exc):
             raise
         _empty_device_cache()
         if n <= min_chunk:
@@ -962,8 +962,8 @@ def compute_oom_safe(fn, *arrays, min_chunk: int = 1):
                 "the device, or use device='cpu'."
             ) from exc
         mid = n // 2
-        left = compute_oom_safe(fn, *(a[:mid] for a in arrays), min_chunk=min_chunk)
-        right = compute_oom_safe(fn, *(a[mid:] for a in arrays), min_chunk=min_chunk)
+        left = _compute_oom_safe(fn, *(a[:mid] for a in arrays), min_chunk=min_chunk)
+        right = _compute_oom_safe(fn, *(a[mid:] for a in arrays), min_chunk=min_chunk)
         return np.concatenate([left, right], axis=0)
 
 
@@ -990,7 +990,7 @@ def _auto_n_jobs_cpu(
             per-worker result overhead).
         max_memory_gb (float | None): Explicit memory budget in GB. None
             (default) measures available system RAM with headroom via
-            `device_memory_budget`.
+            `_device_memory_budget`.
         max_jobs (int | None): Maximum number of workers. None (default) means
             all cores.
 
@@ -1009,8 +1009,8 @@ def _auto_n_jobs_cpu(
     if max_jobs is None:
         max_jobs = multiprocessing.cpu_count()
 
-    available_memory_gb = device_memory_budget(None, max_gpu_memory_gb=max_memory_gb)
-    available_memory_bytes = gb_to_bytes(available_memory_gb)
+    available_memory_gb = _device_memory_budget(None, max_gpu_memory_gb=max_memory_gb)
+    available_memory_bytes = _gb_to_bytes(available_memory_gb)
 
     # Memory per worker: data serialization overhead (3× is conservative for pickle)
     # Plus small overhead for result arrays (n_permute results per worker)

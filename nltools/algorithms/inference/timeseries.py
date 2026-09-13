@@ -6,7 +6,7 @@ temporal structure:
 
 - `circle_shift`: rotate the series (preserves autocorrelation exactly)
 - `phase_randomize`: randomize Fourier phases (preserves the power spectrum)
-- `timeseries_correlation_permutation_test`: correlation test using either method
+- `_timeseries_correlation_permutation_test`: correlation test using either method
 
 Permutations run on joblib workers; `n_jobs` sets how many, and a given
 `random_state` gives the same result at any worker count.
@@ -24,8 +24,8 @@ import numpy as np
 from typing import Literal
 from sklearn.utils import check_random_state
 
-from .utils import maybe_tqdm
-from ..validation import _compute_pvalue, validate_tail_parameter
+from .utils import _maybe_tqdm
+from ..validation import _compute_pvalue, _validate_tail_parameter
 from .correlation import _select_corr_func
 
 
@@ -198,7 +198,7 @@ def _timeseries_correlation_cpu_parallel(
         progress_bar (bool): Whether to display a tqdm progress bar.
 
     Returns:
-        dict: Same format as `timeseries_correlation_permutation_test`.
+        dict: Same format as `_timeseries_correlation_permutation_test`.
     """
     from joblib import Parallel, delayed
 
@@ -222,7 +222,7 @@ def _timeseries_correlation_cpu_parallel(
 
     null_dist = Parallel(n_jobs=n_jobs)(
         delayed(_compute_one_perm)(seeds[i])
-        for i in maybe_tqdm(
+        for i in _maybe_tqdm(
             range(n_permute),
             progress_bar=progress_bar,
             desc=f"{method} perms",
@@ -244,7 +244,7 @@ def _timeseries_correlation_cpu_parallel(
     return results
 
 
-def timeseries_correlation_permutation_test(
+def _timeseries_correlation_permutation_test(
     data1: np.ndarray,
     data2: np.ndarray,
     *,
@@ -296,12 +296,12 @@ def timeseries_correlation_permutation_test(
     Examples:
         ```python
         import numpy as np
-        from nltools.algorithms import timeseries_correlation_permutation_test
+        from nltools.algorithms import _timeseries_correlation_permutation_test
 
         rng = np.random.default_rng(0)
         x = np.sin(np.linspace(0, 10 * np.pi, 100))  # strongly autocorrelated
         y = x + rng.standard_normal(100) * 0.5
-        result = timeseries_correlation_permutation_test(
+        result = _timeseries_correlation_permutation_test(
             x, y, method="circle_shift", n_permute=1000, random_state=42
         )
         result["correlation"]  # → 0.853
@@ -311,7 +311,7 @@ def timeseries_correlation_permutation_test(
     """
     # Validate tail up front (like one_sample/two_sample/matrix) so an invalid
     # value fails immediately rather than after every permutation has run.
-    validate_tail_parameter(tail)
+    _validate_tail_parameter(tail)
 
     # Validate inputs
     data1 = np.asarray(data1).squeeze()

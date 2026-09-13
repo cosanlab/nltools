@@ -7,17 +7,17 @@ The `tail` vocabulary is wider than inference, so it lives one level up in
 
 Examples:
     ```python
-    from nltools.algorithms.inference.validation import validate_square_matrix
+    from nltools.algorithms.inference.validation import _validate_square_matrix
 
-    validate_square_matrix(np.eye(3))  # → None
-    validate_square_matrix(np.zeros((2, 3)))  # raises ValueError
+    _validate_square_matrix(np.eye(3))  # → None
+    _validate_square_matrix(np.zeros((2, 3)))  # raises ValueError
     ```
 """
 
 import numpy as np
 
 
-def validate_array_shape(
+def _validate_array_shape(
     array: np.ndarray,
     expected_ndim: int,
     name: str = "array",
@@ -38,7 +38,7 @@ def validate_array_shape(
         )
 
 
-def validate_array_shape_range(
+def _validate_array_shape_range(
     array: np.ndarray,
     min_ndim: int,
     max_ndim: int,
@@ -62,7 +62,7 @@ def validate_array_shape_range(
         )
 
 
-def validate_same_shape(
+def _validate_same_shape(
     array1: np.ndarray,
     array2: np.ndarray,
     name1: str = "array1",
@@ -86,7 +86,7 @@ def validate_same_shape(
         )
 
 
-def validate_metric_parameter(
+def _validate_metric_parameter(
     metric: str,
     allowed: list[str],
     name: str = "metric",
@@ -106,7 +106,7 @@ def validate_metric_parameter(
         raise ValueError(f"{name} must be one of [{allowed_str}], got {metric!r}")
 
 
-def validate_how_parameter(how: str) -> None:
+def _validate_how_parameter(how: str) -> None:
     """Validate the `how` parameter for matrix operations.
 
     Args:
@@ -119,7 +119,7 @@ def validate_how_parameter(how: str) -> None:
         raise ValueError(f"how must be 'upper', 'lower', or 'full', got {how!r}")
 
 
-def validate_square_matrix(matrix: np.ndarray, name: str = "matrix") -> None:
+def _validate_square_matrix(matrix: np.ndarray, name: str = "matrix") -> None:
     """Validate that a matrix is square.
 
     Args:
@@ -133,7 +133,7 @@ def validate_square_matrix(matrix: np.ndarray, name: str = "matrix") -> None:
         raise ValueError(f"{name} must be square, got shape {matrix.shape}")
 
 
-def validate_shape_compatibility(
+def _validate_shape_compatibility(
     X: np.ndarray,
     y: np.ndarray,
     X_name: str = "X",
@@ -157,7 +157,7 @@ def validate_shape_compatibility(
         )
 
 
-def validate_bootstrap_method(
+def _validate_bootstrap_method(
     method: str, simple_methods: list[str], fitted_methods: list[str]
 ) -> None:
     """Validate a bootstrap method name.
@@ -180,7 +180,7 @@ def validate_bootstrap_method(
         )
 
 
-def validate_bootstrap_data(data: np.ndarray, method: str) -> None:
+def _validate_bootstrap_data(data: np.ndarray, method: str) -> None:
     """Validate input data for bootstrapping.
 
     Args:
@@ -206,7 +206,7 @@ def validate_bootstrap_data(data: np.ndarray, method: str) -> None:
         )
 
 
-def validate_n_samples(n_samples: int) -> None:
+def _validate_n_samples(n_samples: int) -> None:
     """Reject a replicate count a bootstrap cannot be computed from.
 
     Two replicates are the fewest a `ddof=1` standard error can be computed
@@ -231,7 +231,7 @@ def validate_n_samples(n_samples: int) -> None:
         )
 
 
-def validate_confidence_level(confidence_level: float) -> None:
+def _validate_confidence_level(confidence_level: float) -> None:
     """Validate the interval confidence level.
 
     Args:
@@ -255,7 +255,7 @@ def validate_confidence_level(confidence_level: float) -> None:
         )
 
 
-def validate_memory_budget(memory_budget_gb: float | None) -> None:
+def _validate_memory_budget(memory_budget_gb: float | None) -> None:
     """Validate an explicit working-memory budget.
 
     Args:

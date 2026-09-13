@@ -1,6 +1,6 @@
 """The one validation check the nltools estimators share.
 
-`Glm` and `Ridge` are independent estimators with different input contracts, so
+`_Glm` and `_Ridge` are independent estimators with different input contracts, so
 they share this small private function instead of a common base class.
 """
 

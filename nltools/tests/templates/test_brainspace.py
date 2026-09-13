@@ -8,13 +8,13 @@ import pytest
 
 from nltools.templates import (
     BrainSpaceConfig,
-    TemplateMatch,
-    get_bg_image,
+    _TemplateMatch,
+    _get_bg_image,
     get_brainspace,
-    match_resolution,
+    _match_resolution,
     reset_brainspace,
-    resolve_paths,
-    resolve_template_name,
+    _resolve_paths,
+    _resolve_template_name,
     set_brainspace,
     with_brainspace,
 )
@@ -156,7 +156,7 @@ class TestWithBrainspace:
 
 
 # ---------------------------------------------------------------------------
-# resolve_paths
+# _resolve_paths
 # ---------------------------------------------------------------------------
 
 
@@ -170,22 +170,22 @@ class TestResolvePaths:
         ],
     )
     def test_all_valid_combinations(self, template, resolution):
-        paths = resolve_paths(template, resolution)
+        paths = _resolve_paths(template, resolution)
         for key in ("mask", "brain", "plot"):
             assert os.path.exists(paths[key]), f"missing: {paths[key]}"
             assert f"{resolution}mm" in paths[key]
 
     def test_unknown_template(self):
         with pytest.raises(ValueError, match="Unknown template"):
-            resolve_paths("bogus", 2)
+            _resolve_paths("bogus", 2)
 
     def test_unsupported_resolution(self):
         with pytest.raises(ValueError, match="not supported"):
-            resolve_paths("default", 1)
+            _resolve_paths("default", 1)
 
 
 # ---------------------------------------------------------------------------
-# resolve_template_name
+# _resolve_template_name
 # ---------------------------------------------------------------------------
 
 
@@ -199,38 +199,38 @@ class TestResolveTemplateName:
         ],
     )
     def test_valid_names(self, name, expect_substr):
-        path = resolve_template_name(name, file_type="mask")
+        path = _resolve_template_name(name, file_type="mask")
         assert os.path.exists(path)
         assert expect_substr in path
 
     def test_default_file_type_is_mask(self):
-        p = resolve_template_name("2mm-MNI152-2009c")
+        p = _resolve_template_name("2mm-MNI152-2009c")
         assert "mask" in os.path.basename(p)
 
     def test_brain_file_type(self):
-        p = resolve_template_name("2mm-MNI152-2009c", file_type="brain")
+        p = _resolve_template_name("2mm-MNI152-2009c", file_type="brain")
         assert "brain" in os.path.basename(p)
 
     def test_t1_file_type(self):
-        p = resolve_template_name("2mm-MNI152-2009c", file_type="T1")
+        p = _resolve_template_name("2mm-MNI152-2009c", file_type="T1")
         assert "T1" in os.path.basename(p)
 
     def test_invalid_file_type(self):
         with pytest.raises(ValueError, match="file_type"):
-            resolve_template_name("2mm-MNI152-2009c", file_type="bogus")
+            _resolve_template_name("2mm-MNI152-2009c", file_type="bogus")
 
     def test_invalid_name_format(self):
         with pytest.raises(ValueError, match="Invalid template name format"):
-            resolve_template_name("not-a-template")
+            _resolve_template_name("not-a-template")
 
     def test_unknown_version_code(self):
         # "f" has the template-name shape but isn't a valid version code
         with pytest.raises(ValueError, match="Unknown version code"):
-            resolve_template_name("2mm-MNI152-2009f")
+            _resolve_template_name("2mm-MNI152-2009f")
 
 
 # ---------------------------------------------------------------------------
-# match_resolution
+# _match_resolution
 # ---------------------------------------------------------------------------
 
 
@@ -244,19 +244,19 @@ def _isotropic_affine(mm: float) -> np.ndarray:
 
 class TestMatchResolution:
     def test_exact_2mm(self):
-        m = match_resolution(_isotropic_affine(2.0))
-        assert isinstance(m, TemplateMatch)
+        m = _match_resolution(_isotropic_affine(2.0))
+        assert isinstance(m, _TemplateMatch)
         assert m.resolution == 2
         assert os.path.exists(m.mask_path)
 
     def test_exact_1mm(self):
-        m = match_resolution(_isotropic_affine(1.0))
+        m = _match_resolution(_isotropic_affine(1.0))
         assert m.resolution == 1
         # default doesn't support 1mm, so nilearn wins (comes before fmriprep)
         assert m.template == "nilearn"
 
     def test_exact_3mm(self):
-        m = match_resolution(_isotropic_affine(3.0))
+        m = _match_resolution(_isotropic_affine(3.0))
         assert m.resolution == 3
         assert m.template == "default"
 
@@ -265,20 +265,20 @@ class TestMatchResolution:
         aff[0, 0] = 2.0
         aff[1, 1] = 2.0
         aff[2, 2] = 2.5
-        m = match_resolution(aff)
+        m = _match_resolution(aff)
         # mean ≈ 2.17 rounds to 2
         assert m.resolution == 2
 
     def test_out_of_range_raises(self):
         with pytest.raises(ValueError, match="outside"):
-            match_resolution(_isotropic_affine(15.0))
+            _match_resolution(_isotropic_affine(15.0))
 
     def test_warns_on_resample(self):
         """4mm has no exact template: a ResamplingWarning names the fallback and the fix."""
         from nltools.utils import ResamplingWarning
 
         with pytest.warns(ResamplingWarning) as record:
-            match_resolution(_isotropic_affine(4.0), warn_resample=True)
+            _match_resolution(_isotropic_affine(4.0), warn_resample=True)
         assert len(record) == 1
         msg = str(record[0].message)
         assert "4.000mm" in msg
@@ -288,19 +288,19 @@ class TestMatchResolution:
         assert record[0].filename == __file__
 
     def test_no_warning_when_disabled(self, recwarn):
-        match_resolution(_isotropic_affine(4.0), warn_resample=False)
+        _match_resolution(_isotropic_affine(4.0), warn_resample=False)
         assert not recwarn.list
 
 
 # ---------------------------------------------------------------------------
-# get_bg_image
+# _get_bg_image
 # ---------------------------------------------------------------------------
 
 
 class TestGetBgImage:
     def test_matching_resolution_returns_template_path(self):
         mask = nib.load(get_brainspace().mask)
-        path = get_bg_image(mask.affine)
+        path = _get_bg_image(mask.affine)
         assert os.path.exists(path)
         assert "brain" in os.path.basename(path)
 
@@ -310,24 +310,24 @@ class TestGetBgImage:
         aff[1, 1] = 2.0
         aff[2, 2] = 3.0
         with pytest.raises(ValueError, match="isotropic"):
-            get_bg_image(aff)
+            _get_bg_image(aff)
 
     def test_unsupported_resolution_falls_back_to_config(self):
         # default template doesn't support 1mm; should fall back to cfg.brain
         set_brainspace(template="default", resolution=2)
-        path = get_bg_image(_isotropic_affine(1.0))
+        path = _get_bg_image(_isotropic_affine(1.0))
         assert path == get_brainspace().brain
 
     def test_near_integer_resolution_rounds_not_truncates(self):
         # F153: a 1.999mm affine must round to the 2mm background, not truncate
         # to 1 and silently fall back to the config default image.
         with with_brainspace(template="default", resolution=3):
-            path = get_bg_image(_isotropic_affine(1.999))
-        assert path == resolve_paths("default", 2)["brain"]
+            path = _get_bg_image(_isotropic_affine(1.999))
+        assert path == _resolve_paths("default", 2)["brain"]
 
 
 # ---------------------------------------------------------------------------
-# is_standard_space
+# _is_standard_space
 # ---------------------------------------------------------------------------
 
 
@@ -335,37 +335,37 @@ class TestIsStandardSpace:
     """Gate predicate used by plotting paths to refuse non-MNI data."""
 
     def test_isotropic_supported_resolutions(self):
-        from nltools.templates import is_standard_space
+        from nltools.templates import _is_standard_space
 
         for mm in (1, 2, 3):
-            ok, reason = is_standard_space(_isotropic_affine(float(mm)))
+            ok, reason = _is_standard_space(_isotropic_affine(float(mm)))
             assert ok, f"{mm}mm should be standard, got reason={reason!r}"
             assert reason is None
 
     def test_non_isotropic_rejected(self):
         # Miyawaki-shaped voxels: non-isotropic in subject native space.
-        from nltools.templates import is_standard_space
+        from nltools.templates import _is_standard_space
 
         aff = np.eye(4)
         aff[0, 0] = 3.3
         aff[1, 1] = 3.6
         aff[2, 2] = 6.4
-        ok, reason = is_standard_space(aff)
+        ok, reason = _is_standard_space(aff)
         assert not ok
         assert "non-isotropic" in reason
 
     def test_isotropic_unsupported_resolution_rejected(self):
         # 7mm isotropic — isotropic but not in any template's supported set.
-        from nltools.templates import is_standard_space
+        from nltools.templates import _is_standard_space
 
-        ok, reason = is_standard_space(_isotropic_affine(7.0))
+        ok, reason = _is_standard_space(_isotropic_affine(7.0))
         assert not ok
         assert "supported MNI template resolution" in reason
 
     def test_non_integer_resolution_rejected(self):
-        from nltools.templates import is_standard_space
+        from nltools.templates import _is_standard_space
 
-        ok, reason = is_standard_space(_isotropic_affine(2.5))
+        ok, reason = _is_standard_space(_isotropic_affine(2.5))
         assert not ok
         assert "integer-mm" in reason
 

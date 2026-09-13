@@ -295,13 +295,13 @@ def find_spikes(
     if TR is not None:
         sampling_freq = 1.0 / TR
 
-    from nltools.data.designmatrix.utils import design_from_generated
+    from nltools.data.designmatrix.utils import _design_from_generated
 
     # No spikes is a normal outcome, not an error. Polars cannot express
     # "n rows, 0 columns", so hand the row count over explicitly — otherwise
     # the result reports 0 rows and downstream `.append()` rejects it for not
     # matching the rest of the design.
-    return design_from_generated(
+    return _design_from_generated(
         pl.DataFrame(outlier_data),
         sampling_freq=sampling_freq,
         n_rows=None if outlier_data else len(global_mn),

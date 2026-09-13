@@ -3,11 +3,11 @@
 A data class holds polars frames whose storage may be a view onto a NumPy
 array the user still holds, and frames whose `pl.Object` cells are Python
 objects shared with the original. Copying either naively hands the clone a
-buffer or a cell somebody else can mutate. `copy_frame` detaches one frame;
+buffer or a cell somebody else can mutate. `_copy_frame` detaches one frame;
 `_copy_graph` walks a whole object's `__dict__` and detaches every frame it
 finds, preserving the aliases inside that graph through a shared memo.
 
-The two frame copiers are deliberately not the same function: `copy_frame`
+The two frame copiers are deliberately not the same function: `_copy_frame`
 re-`gather`s every non-Object series so a `DesignMatrix` clone owns its
 numeric buffers outright, while `_copy_object_frames` clones the frame and
 rewrites only its `pl.Object` columns, which is what `BrainData` and
@@ -19,7 +19,7 @@ from copy import deepcopy
 import polars as pl
 
 
-def copy_frame(frame: pl.DataFrame, memo: dict | None = None) -> pl.DataFrame:
+def _copy_frame(frame: pl.DataFrame, memo: dict | None = None) -> pl.DataFrame:
     """Detach frame storage and Python Object cells with a shared copy memo."""
     if memo is None:
         memo = {}

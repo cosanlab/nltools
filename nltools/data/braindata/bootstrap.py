@@ -10,12 +10,12 @@ from .utils import _result_from_array
 #: Statistics that reduce `bd.data` directly and need no fitted model.
 SIMPLE_STATS = ("mean", "median", "std", "sum", "min", "max")
 
-#: Statistics that resample a fitted `Ridge` and therefore need explicit
+#: Statistics that resample a fitted `_Ridge` and therefore need explicit
 #: training features. `'predict'` additionally needs evaluation features.
 FITTED_STATS = ("weights", "predict")
 
 
-def bootstrap(
+def _bootstrap(
     bd,
     statistic,
     *,
@@ -51,7 +51,7 @@ def bootstrap(
         bd (BrainData): Data to resample.
         statistic (str): Statistic to bootstrap. Basic aggregates: ``'mean'``,
             ``'median'``, ``'std'``, ``'sum'``, ``'min'``, ``'max'``. Model
-            statistics (require a fitted `Ridge`): ``'weights'`` or
+            statistics (require a fitted `_Ridge`): ``'weights'`` or
             ``'predict'``.
         X (np.ndarray | Mapping[str, np.ndarray] | None): Training features in
             their original row order, required by both Ridge statistics and
@@ -87,7 +87,7 @@ def bootstrap(
     Raises:
         ValueError: If `statistic` is unknown, a basic statistic is given `X`,
             `X_test`, or ``device='gpu'``, a Ridge statistic is missing `X` (or
-            `X_test` for ``'predict'``), the fitted model is not a `Ridge`, `X`
+            `X_test` for ``'predict'``), the fitted model is not a `_Ridge`, `X`
             does not match the fitted feature structure and observation count,
             an argument is out of range, or the retained output cannot fit the
             memory budget.
@@ -184,7 +184,7 @@ def bootstrap(
             )
         return _as_bootstrap_result(bd, result)
 
-    # `Ridge` owns the alignment of both feature arguments, through the one
+    # `_Ridge` owns the alignment of both feature arguments, through the one
     # seam this facade uses; the engines concatenate in coefficient order.
     test_spaces = model._aligned_feature_spaces(X_test)
     predictions = _stacked(test_spaces) @ coefficients
@@ -288,26 +288,26 @@ def _stacked(spaces):
 
 
 def _fitted_ridge(bd, statistic):
-    """Return the fitted `Ridge` a model bootstrap needs, or raise.
+    """Return the fitted `_Ridge` a model bootstrap needs, or raise.
 
     Args:
         bd (BrainData): The object being resampled.
         statistic (str): The requested model statistic, for the error message.
 
     Returns:
-        Ridge: The fitted estimator.
+        _Ridge: The fitted estimator.
 
     Raises:
-        ValueError: If nothing is fitted, or the fit is not a `Ridge`.
+        ValueError: If nothing is fitted, or the fit is not a `_Ridge`.
     """
-    from nltools.models import Ridge
+    from nltools.models import _Ridge
 
     model = getattr(bd, "model_", None)
     if model is None or not getattr(model, "is_fitted_", False):
         raise ValueError(
             f"Must call .fit(model='ridge', X=features) before bootstrap('{statistic}')"
         )
-    if not isinstance(model, Ridge):
+    if not isinstance(model, _Ridge):
         raise ValueError(
             f"bootstrap('{statistic}') only supports a fitted Ridge, but this "
             f"BrainData holds a fitted {type(model).__name__}."
@@ -362,7 +362,7 @@ def _resolve_device(device):
     Raises:
         ValueError: If ``'gpu'`` was requested with no accelerator available.
     """
-    from nltools.algorithms.backends import check_gpu_available, resolve_backend
+    from nltools.algorithms.backends import check_gpu_available, _resolve_backend
 
     if device == "cpu":
         return None
@@ -371,7 +371,7 @@ def _resolve_device(device):
             "GPU requested via device='gpu' but no CUDA or MPS device is "
             "available. Use device='cpu'."
         )
-    return resolve_backend("gpu")
+    return _resolve_backend("gpu")
 
 
 def _as_bootstrap_result(bd, result):

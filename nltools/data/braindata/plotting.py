@@ -5,7 +5,7 @@ import warnings
 
 import numpy as np
 
-from nltools.utils import find_stack_level
+from nltools.utils import _find_stack_level
 from .utils import _result_from_array
 
 
@@ -40,7 +40,7 @@ def _image_world_bounds(nifti_img, axis_letter: str) -> tuple[float, float]:
     return float(world[:, axis_idx].min()), float(world[:, axis_idx].max())
 
 
-def plot_brain(
+def _plot_brain(
     bd,
     *,
     method="glass",
@@ -112,7 +112,7 @@ def plot_brain(
     import matplotlib.pyplot as plt
     from nilearn.plotting import plot_glass_brain, plot_stat_map
 
-    from nltools.templates import get_bg_image
+    from nltools.templates import _get_bg_image
 
     # Validate inputs
     if bd.is_empty:
@@ -186,7 +186,7 @@ def plot_brain(
                 f"{n_to_plot}. Pass `limit={n_total}` (or higher) to plot "
                 "more, or index/aggregate before calling .plot().",
                 UserWarning,
-                stacklevel=find_stack_level(),
+                stacklevel=_find_stack_level(),
             )
         sub_objs = [bd[i] for i in range(n_to_plot)]
     else:
@@ -197,9 +197,9 @@ def plot_brain(
     # — both are misleading on native-space data. Slices with a user-
     # supplied bg_img work for any space and are the documented escape
     # hatch (see Miyawaki / native-space tutorials).
-    from nltools.templates import is_standard_space
+    from nltools.templates import _is_standard_space
 
-    standard, reason = is_standard_space(bd.mask.affine)
+    standard, reason = _is_standard_space(bd.mask.affine)
     if not standard:
         if method == "glass":
             if bg_img is not None:
@@ -208,7 +208,7 @@ def plot_brain(
                     f"falling back to method='slices' with the bg_img you "
                     "provided.",
                     UserWarning,
-                    stacklevel=find_stack_level(),
+                    stacklevel=_find_stack_level(),
                 )
                 method = "slices"
             else:
@@ -229,7 +229,7 @@ def plot_brain(
     # Resolve background image once for slices (template lookup is the same
     # across images sharing a mask).
     if method == "slices" and bg_img is None:
-        bg_img = get_bg_image(bd.mask.affine)
+        bg_img = _get_bg_image(bd.mask.affine)
 
     # Collect the matplotlib figure underlying each nilearn display, so the
     # return value has a standard `_repr_*_` path and is recognized by
@@ -244,9 +244,9 @@ def plot_brain(
         else:
             obj = sub
 
-        from .utils import resolve_threshold
+        from .utils import _resolve_threshold
 
-        threshold_use = resolve_threshold(threshold, np.abs(obj.data))
+        threshold_use = _resolve_threshold(threshold, np.abs(obj.data))
         if threshold_use is not None and threshold_use < 0:
             raise ValueError(
                 f"`threshold` is an absolute-value cutoff and must be >= 0 "
@@ -256,8 +256,8 @@ def plot_brain(
         displayed_data = obj.data
         if threshold_use is not None:
             displayed_data = displayed_data[np.abs(displayed_data) >= threshold_use]
-        cmap_use = cmap if cmap is not None else auto_select_colormap(displayed_data)
-        save_paths = prepare_save_paths(save, idx if multi else None) if save else None
+        cmap_use = cmap if cmap is not None else _auto_select_colormap(displayed_data)
+        save_paths = _prepare_save_paths(save, idx if multi else None) if save else None
 
         # A plot cannot show NaN/inf; nilearn zero-fills them itself but warns
         # every time, which is noise for ROI maps and tSNR (NaN outside parcels
@@ -437,7 +437,7 @@ def _plot_matplotlib(
     return fig
 
 
-def auto_select_colormap(data):
+def _auto_select_colormap(data):
     """Auto-select colormap based on data characteristics.
 
     Args:
@@ -466,7 +466,7 @@ def auto_select_colormap(data):
     return "RdBu_r"
 
 
-def prepare_save_paths(save, idx=None):
+def _prepare_save_paths(save, idx=None):
     """Prepare save paths for multiple plot outputs.
 
     Args:

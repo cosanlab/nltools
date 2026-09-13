@@ -16,7 +16,7 @@ The estimator-specific details referenced here are authoritative in
 `BrainData` is the stateful facade for masked brain arrays, their row-aligned
 metadata, and fitted analysis state. Its methods coordinate validation, copying,
 metadata, and result wrapping. Numerical and domain logic belongs in internal
-functions or the `Glm` and `Ridge` estimators.
+functions or the `_Glm` and `_Ridge` estimators.
 
 `BrainData` remains the return type of `fit`. There is no separate fitted-data
 wrapper. Model prediction and MVPA decoding continue to share the existing
@@ -167,7 +167,7 @@ mapping from feature-space names to matrices.
 
 Every model-specific argument uses a `glm_` or `ridge_` prefix. `random_state`
 retains its unprefixed name because both estimators accept it.
-`ridge_progress_bar` maps to `Ridge.progress_bar`; there is no GLM progress
+`ridge_progress_bar` maps to `_Ridge.progress_bar`; there is no GLM progress
 argument. Supplying a non-default option for the unselected estimator raises
 `ValueError`; an irrelevant option must never be silently accepted.
 
@@ -185,7 +185,7 @@ fitted copy.
 
 A successful GLM fit attaches only:
 
-- `model_`: the fitted `Glm`;
+- `model_`: the fitted `_Glm`;
 - `glm_betas`: one map per design column;
 - `glm_residual`: one row per training observation;
 - `glm_predicted`: one row per training observation; and
@@ -193,7 +193,7 @@ A successful GLM fit attaches only:
 
 A successful Ridge fit attaches only:
 
-- `model_`: the fitted `Ridge`;
+- `model_`: the fitted `_Ridge`;
 - `ridge_weights`: one map per feature;
 - `ridge_fitted_values`: one row per training observation; and
 - `ridge_r2`: one R-squared map.
@@ -245,7 +245,7 @@ runtime signature.
 `predict` resolves exactly one mode before doing any work:
 
 - An explicit `y=` requests MVPA decoding.
-- An explicit `X=` requests prediction from a fitted `Glm` or `Ridge`.
+- An explicit `X=` requests prediction from a fitted `_Glm` or `_Ridge`.
 - With neither argument and a fitted model, it returns an independent copy of
   the stored training predictions.
 - With neither argument, no fitted model, and exactly one `.Y` column, it runs
@@ -362,7 +362,7 @@ overrides it. The nltools-specific `"auto"` value is removed. Multimetric
 mappings are not accepted because `Predict.scores` contains one value per
 cross-validation fold.
 
-`cv` and `groups` apply only to MVPA. Prediction from a fitted `Glm` or `Ridge`
+`cv` and `groups` apply only to MVPA. Prediction from a fitted `_Glm` or `_Ridge`
 never constructs or evaluates cross-validation folds; it delegates directly to
 the fitted estimator. In MVPA, `groups` is optional. With a caller-supplied
 splitter it is passed to that splitter's `split()`, including splitters such as
@@ -469,7 +469,7 @@ dictionary with the same keys. A mapping is the only batch form; unnamed
 sequences of contrast definitions are invalid because a flat sequence already
 represents one numeric contrast.
 
-`BrainData` forwards contrast definitions to its fitted `Glm`. It does not parse
+`BrainData` forwards contrast definitions to its fitted `_Glm`. It does not parse
 expressions or implement contrast arithmetic or inference independently.
 
 With `inference=False`, one contrast returns an effect `BrainData`; a mapping
@@ -492,7 +492,7 @@ subject-level effect maps, with two-sided p-values by default. The shared
 permutation nulls, shapes and ownership. It does not use `ContrastResult`.
 
 A multi-regressor second-level analysis uses `fit(model="glm", ...)` with an
-OLS `Glm` and a second-level `DesignMatrix` containing one row per effect map.
+OLS `_Glm` and a second-level `DesignMatrix` containing one row per effect map.
 `compute_contrasts()` then tests the fitted second-level coefficients. This
 estimates variance across effect maps and does not propagate first-level effect
 variance.
@@ -550,11 +550,11 @@ Arguments are validated by mode before resampling:
 
 - A basic statistic does not require a fitted model and rejects `X`, `X_test`,
   and `device="gpu"`.
-- `"weights"` requires a fitted `Ridge` and explicit training features `X`. It
+- `"weights"` requires a fitted `_Ridge` and explicit training features `X`. It
   rejects `X_test`.
-- `"predict"` requires a fitted `Ridge`, explicit training features `X`, and
+- `"predict"` requires a fitted `_Ridge`, explicit training features `X`, and
   evaluation features `X_test`.
-- Both Ridge modes reject any fitted estimator other than `Ridge`.
+- Both Ridge modes reject any fitted estimator other than `_Ridge`.
 
 For Ridge, `X` must contain the training feature values in their original row
 order; it need not be the same Python object passed to `fit`. `device` accepts
@@ -589,7 +589,7 @@ A basic statistic returns one spatial map, so every summary has
 Ridge weights retain their feature axis. Every summary has shape
 `(n_features, n_voxels)`, and retained samples have shape
 `(n_samples, n_features, n_voxels)`. Banded features use the concatenated
-fitted feature order defined by `Ridge`; they do not introduce a different
+fitted feature order defined by `_Ridge`; they do not introduce a different
 return type.
 
 Ridge predictions retain the `X_test` row axis. Every summary has shape
@@ -698,7 +698,7 @@ other `BrainData` methods.
 ## Ridge bootstrap behavior
 
 Ridge bootstrap resamples the explicitly supplied training `X`; fitted objects
-do not retain a hidden copy. The fitted `Ridge` supplies `alpha_` and, for a
+do not retain a hidden copy. The fitted `_Ridge` supplies `alpha_` and, for a
 banded model, `feature_space_weights_`, but not the observations or features
 being resampled.
 

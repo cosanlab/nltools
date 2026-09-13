@@ -11,10 +11,10 @@ import pytest
 
 from nltools.plotting.adjacency import (
     _stacked_adjacency_matrix,
-    plot_between_label_distance,
-    plot_mean_label_distance,
-    plot_silhouette,
-    plot_stacked_adjacency,
+    _plot_between_label_distance,
+    _plot_mean_label_distance,
+    _plot_silhouette,
+    _plot_stacked_adjacency,
 )
 
 
@@ -40,7 +40,7 @@ def well_separated_distance():
 class TestPlotMeanLabelDistance:
     def test_returns_polars_long_format(self, well_separated_distance):
         distance, labels = well_separated_distance
-        out = plot_mean_label_distance(distance, labels, permutation_test=False)
+        out = _plot_mean_label_distance(distance, labels, permutation_test=False)
         assert isinstance(out, pl.DataFrame)
         assert set(out.columns) >= {"Distance", "Group", "Type"}
         # Within values should cluster near 0.1, between near 0.8
@@ -51,7 +51,7 @@ class TestPlotMeanLabelDistance:
 
     def test_with_permutation_returns_stats(self, well_separated_distance):
         distance, labels = well_separated_distance
-        out, stats = plot_mean_label_distance(
+        out, stats = _plot_mean_label_distance(
             distance, labels, permutation_test=True, n_permute=200
         )
         assert isinstance(out, pl.DataFrame)
@@ -62,7 +62,7 @@ class TestPlotMeanLabelDistance:
 class TestPlotBetweenLabelDistance:
     def test_returns_polars_and_within_is_small(self, well_separated_distance):
         distance, labels = well_separated_distance
-        long_df, within_mean = plot_between_label_distance(
+        long_df, within_mean = _plot_between_label_distance(
             distance, labels, permutation_test=False
         )
         assert isinstance(long_df, pl.DataFrame)
@@ -85,7 +85,7 @@ class TestPlotBetweenLabelDistance:
         key raised KeyError.
         """
         distance, labels = well_separated_distance
-        long_df, within_mean, mean_diff_df, p_df = plot_between_label_distance(
+        long_df, within_mean, mean_diff_df, p_df = _plot_between_label_distance(
             distance, labels, n_permute=100
         )
         assert set(mean_diff_df.columns) == {"label1", "label2", "mean_diff"}
@@ -103,14 +103,14 @@ class TestPlotSilhouette:
         self, well_separated_distance
     ):
         distance, labels = well_separated_distance
-        out = plot_silhouette(distance, labels, permutation_test=False)
+        out = _plot_silhouette(distance, labels, permutation_test=False)
         assert isinstance(out, pl.DataFrame)
         # Well-separated clusters should have mean silhouette > 0.5
         assert (out["mean_silhouette"] > 0.5).all()
 
     def test_with_permutation_adds_p_column(self, well_separated_distance):
         distance, labels = well_separated_distance
-        out = plot_silhouette(distance, labels, permutation_test=True, n_permute=200)
+        out = _plot_silhouette(distance, labels, permutation_test=True, n_permute=200)
         assert isinstance(out, pl.DataFrame)
         assert "p" in out.columns
 
@@ -122,7 +122,7 @@ class TestPlotStackedAdjacency:
         rng = np.random.default_rng(0)
         a1 = Adjacency(rng.random(15), matrix_type="similarity_flat")
         a2 = Adjacency(rng.random(15), matrix_type="similarity_flat")
-        ax = plot_stacked_adjacency(a1, a2)
+        ax = _plot_stacked_adjacency(a1, a2)
         assert ax is not None
 
     def test_consistent_triangle_mapping_across_normalize(self):
@@ -171,7 +171,7 @@ class TestPlotBetweenLabelDistanceFigureLeak:
         plt.close("all")
         fig, ax = plt.subplots(1)
         n_before = len(plt.get_fignums())
-        plot_between_label_distance(distance, labels, ax=ax, permutation_test=False)
+        _plot_between_label_distance(distance, labels, ax=ax, permutation_test=False)
         assert len(plt.get_fignums()) == n_before
         plt.close("all")
 

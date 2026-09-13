@@ -35,7 +35,7 @@ from nltools.algorithms.inference.isc import (
     _permute_isc_group_cpu_parallel,
     _bootstrap_isc_group_numpy,
     _bootstrap_isc_group_cpu_parallel,
-    isc_group_permutation_test,
+    _isc_group_permutation_test,
 )
 
 # =============================================================================
@@ -414,7 +414,7 @@ def test_isc_group_permutation_test_voxelwise():
     group1 = np.random.randn(50, 5, 5)  # Reduced from 100, 5, 10 for tier1 speed
     group2 = np.random.randn(50, 5, 5)  # Reduced from 100, 5, 10 for tier1 speed
 
-    result = isc_group_permutation_test(
+    result = _isc_group_permutation_test(
         group1,
         group2,
         n_permute=100,
@@ -435,7 +435,7 @@ def test_isc_group_worker_count_is_numerically_invisible():
     group1 = np.random.randn(50, 5)  # Reduced from 100, 5 for tier1 speed
     group2 = np.random.randn(50, 5)  # Reduced from 100, 5 for tier1 speed
 
-    result_serial = isc_group_permutation_test(
+    result_serial = _isc_group_permutation_test(
         group1,
         group2,
         n_permute=100,
@@ -444,7 +444,7 @@ def test_isc_group_worker_count_is_numerically_invisible():
         progress_bar=False,
     )
 
-    result_parallel = isc_group_permutation_test(
+    result_parallel = _isc_group_permutation_test(
         group1,
         group2,
         n_permute=100,
@@ -470,7 +470,7 @@ def test_isc_group_permutation_test_invalid_method():
     group2 = np.random.randn(100, 5)
 
     with pytest.raises(ValueError, match="method must be"):
-        isc_group_permutation_test(
+        _isc_group_permutation_test(
             group1, group2, method="invalid", n_permute=100, progress_bar=False
         )
 
@@ -569,7 +569,7 @@ class TestISCGroupStatisticalCorrectness:
                     random_state=seed,
                 )
 
-                result = isc_group_permutation_test(
+                result = _isc_group_permutation_test(
                     group1,
                     group2,
                     method=method,
@@ -610,7 +610,7 @@ class TestISCGroupStatisticalCorrectness:
         )
 
         # Compute ISC group difference
-        result = isc_group_permutation_test(
+        result = _isc_group_permutation_test(
             group1,
             group2,
             method="permute",
@@ -662,7 +662,7 @@ class TestISCGroupStatisticalCorrectness:
                 random_state=42,
             )
 
-            result = isc_group_permutation_test(
+            result = _isc_group_permutation_test(
                 group1,
                 group2,
                 method="permute",
@@ -714,7 +714,7 @@ class TestISCGroupStatisticalCorrectness:
             random_state=42,
         )
 
-        result = isc_group_permutation_test(
+        result = _isc_group_permutation_test(
             group1,
             group2,
             method="bootstrap",
@@ -775,7 +775,7 @@ class TestISCGroupStatisticalCorrectness:
             )
 
             # New implementation
-            result_new = isc_group_permutation_test(
+            result_new = _isc_group_permutation_test(
                 group1,
                 group2,
                 n_permute=1000,  # Increased from 500 for tier2 statistical correctness
@@ -914,7 +914,7 @@ def test_isc_group_bootstrap_ci_brackets_estimate():
     # group2: pure noise -> ISC ~ 0
     group2 = np.column_stack([rng.randn(n_tp) for _ in range(n_subs)])
 
-    result = isc_group_permutation_test(
+    result = _isc_group_permutation_test(
         group1,
         group2,
         n_permute=200,

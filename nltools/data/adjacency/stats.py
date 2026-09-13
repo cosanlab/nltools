@@ -6,7 +6,7 @@ Each function takes an Adjacency instance as its first argument (`adj`).
 import numpy as np
 
 
-def similarity(
+def _similarity(
     adj,
     data,
     plot=False,
@@ -59,7 +59,7 @@ def similarity(
         correlation_permutation_test,
         matrix_permutation_test,
     )
-    from nltools.plotting import plot_stacked_adjacency
+    from nltools.plotting import _plot_stacked_adjacency
 
     if nan_policy not in ("omit", "propagate", "raise"):
         raise ValueError(
@@ -136,7 +136,7 @@ def similarity(
 
     if adj.is_single_matrix:
         if plot:
-            plot_stacked_adjacency(adj, data)
+            _plot_stacked_adjacency(adj, data)
         arr1 = _convert_data_similarity(data1, permutation_method=method)
         arr2 = _convert_data_similarity(data2, permutation_method=method)
         arr1, arr2 = _handle_nans(arr1, arr2, nan_policy)
@@ -156,7 +156,7 @@ def similarity(
 
         _, a = plt.subplots(len(adj))
         for i in a:
-            plot_stacked_adjacency(adj, data, ax=i)
+            _plot_stacked_adjacency(adj, data, ax=i)
     results = []
     arr2_base = _convert_data_similarity(data2, permutation_method=method)
     for x in adj:
@@ -178,7 +178,7 @@ def similarity(
     return results
 
 
-def r_to_z(adj):
+def _r_to_z(adj):
     """Apply Fisher's r to z transformation to each element of the data object.
 
     Args:
@@ -194,7 +194,7 @@ def r_to_z(adj):
     return out
 
 
-def z_to_r(adj):
+def _z_to_r(adj):
     """Convert z score back into r value for each element of data object.
 
     Args:
@@ -210,7 +210,7 @@ def z_to_r(adj):
     return out
 
 
-def threshold(adj, *, upper=None, lower=None, binarize=False):
+def _threshold(adj, *, upper=None, lower=None, binarize=False):
     """Threshold an Adjacency instance.
 
     Provide upper and lower values or percentages to perform two-sided
@@ -247,7 +247,7 @@ def threshold(adj, *, upper=None, lower=None, binarize=False):
     return b
 
 
-def ttest(
+def _ttest(
     adj,
     *,
     popmean=0.0,
@@ -302,7 +302,7 @@ def ttest(
 
     from nltools.algorithms.inference.one_sample import _one_sample_statistics
 
-    from .state import common_labels, result
+    from .state import _common_labels, _result
 
     if adj.is_single_matrix or adj.data.shape[0] < 2:
         raise ValueError(
@@ -321,9 +321,9 @@ def ttest(
         random_state=random_state,
         progress_bar=progress_bar,
     )
-    labels = common_labels(adj)
+    labels = _common_labels(adj)
     results = {
-        key: result(adj, stats[key], labels=labels, Y=pl.DataFrame())
+        key: _result(adj, stats[key], labels=labels, Y=pl.DataFrame())
         for key in ("mean", "t", "z", "p")
     }
     if "null_dist" in stats:
@@ -386,7 +386,7 @@ def _label_distance_inputs(adj, labels):
     return distance, labels
 
 
-def plot_label_distance(  # nosemgrep: kwargs-internal-forwarding  # forwards to seaborn via plot_mean_label_distance
+def _plot_label_distance(  # nosemgrep: kwargs-internal-forwarding  # forwards to seaborn via _plot_mean_label_distance
     adj, labels=None, ax=None, *, permutation_test=False, n_permute=5000, **kwargs
 ):
     """Create a violin plot of within- and between-label distances.
@@ -407,10 +407,10 @@ def plot_label_distance(  # nosemgrep: kwargs-internal-forwarding  # forwards to
             `permutation_test=True`, where `stats` maps each group label to its
             permutation-test result.
     """
-    from nltools.plotting import plot_mean_label_distance
+    from nltools.plotting import _plot_mean_label_distance
 
     distance, labels = _label_distance_inputs(adj, labels)
-    return plot_mean_label_distance(
+    return _plot_mean_label_distance(
         distance,
         labels,
         ax=ax,
@@ -420,7 +420,7 @@ def plot_label_distance(  # nosemgrep: kwargs-internal-forwarding  # forwards to
     )
 
 
-def plot_between_label_distance(  # nosemgrep: kwargs-internal-forwarding  # forwards to seaborn via plot_between_label_distance
+def _plot_between_label_distance(  # nosemgrep: kwargs-internal-forwarding  # forwards to seaborn via plot_between_label_distance
     adj, *, labels=None, ax=None, permutation_test=True, n_permute=5000, **kwargs
 ):
     """Create a heatmap of the average distance between every pair of labels.
@@ -439,7 +439,7 @@ def plot_between_label_distance(  # nosemgrep: kwargs-internal-forwarding  # for
             permutation test, or `(long_df, within_mean_df, mean_diff_df, p_df)`
             with it.
     """
-    from nltools.plotting import plot_between_label_distance as _plot_between
+    from nltools.plotting import _plot_between_label_distance as _plot_between
 
     distance, labels = _label_distance_inputs(adj, labels)
     return _plot_between(
@@ -452,7 +452,7 @@ def plot_between_label_distance(  # nosemgrep: kwargs-internal-forwarding  # for
     )
 
 
-def stats_label_distance(
+def _stats_label_distance(
     adj, *, labels=None, n_permute=5000, n_jobs=-1, progress_bar=False
 ):
     """Calculate permutation tests on within and between label distance.
@@ -497,7 +497,7 @@ def stats_label_distance(
     return stats
 
 
-def plot_silhouette(
+def _plot_silhouette(
     adj,
     *,
     labels=None,
@@ -526,7 +526,7 @@ def plot_silhouette(
     """
     from copy import deepcopy
 
-    from nltools.plotting import plot_silhouette as _plot_silhouette
+    from nltools.plotting import _plot_silhouette as _plot_silhouette
 
     distance = adj.squareform()
 
@@ -547,7 +547,7 @@ def plot_silhouette(
     )
 
 
-def cluster_summary(adj, *, clusters=None, summary="mean", scope="within"):
+def _cluster_summary(adj, *, clusters=None, summary="mean", scope="within"):
     """Provide summaries of clusters within Adjacency matrices.
 
     Computes the mean/median of within- or between-cluster values. Requires a

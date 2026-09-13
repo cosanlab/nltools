@@ -18,8 +18,8 @@ this script walks every public (non-underscore) ``def`` in ``nltools/`` with
 
 The scope model mirrors ``.semgrep/rules.yml``: tests and the pipelines
 subsystem are path-excluded (``nltools/pipelines/`` forwards to its own
-dispatch layer). The alignment estimators (``SRM``, ``DetSRM``) are internal
-after 8g3b but still unprefixed, so they are checked directly —
+dispatch layer). The alignment estimators (``_SRM``, ``_DetSRM``) are internal,
+but their ``__init__`` is still checked —
 ``n_iter`` is that subsystem's own vocabulary (documented in the manifest's
 ``vocabulary:`` table), suppressed from the general ``n_iter`` ban via a
 per-alias ``banned_kwargs.<name>.exclude_paths`` entry rather than a

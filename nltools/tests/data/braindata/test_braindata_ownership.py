@@ -60,9 +60,9 @@ def test_fit_maps_predictions_and_numerics(brain, model):
     )
     weights = fitted.glm_betas if model == "glm" else fitted.ridge_weights
     np.testing.assert_allclose(weights.data, expected, atol=2e-6, rtol=2e-6)
-    from nltools.data.braindata.prediction import predict_timeseries
+    from nltools.data.braindata.prediction import _predict_timeseries
 
-    predicted = predict_timeseries(fitted)
+    predicted = _predict_timeseries(fitted)
     new = fitted.predict(
         X=DesignMatrix(x[:3], columns=design.columns) if model == "glm" else x[:3]
     )

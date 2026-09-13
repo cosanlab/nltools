@@ -5,14 +5,14 @@ title: Atlases & cluster reports
 Eleven parcellations ship with nltools, fetched from the `nltools/niftis` Hugging Face dataset on
 first use. [`list_atlases`](../api/tasks/atlases.md#nltools.datasets.list_atlases) names them;
 [`load_atlas`](../api/tasks/atlases.md#nltools.datasets.load_atlas) returns an
-`Atlas` record: the image, a polars table of labels, the
+atlas record: the image, a polars table of labels, the
 kind (`'deterministic'` or `'probabilistic'`), and the citation you owe the original authors.
 Probabilistic atlases (`harvard_oxford`, `juelich`) are 4-D, with one probability map per region;
 the rest are integer-labeled volumes.
 
 [`BrainData.cluster_report`](../api/data/brain_data.md#nltools.data.braindata.BrainData.cluster_report) answers what
 you found: it thresholds a statistic map, finds its clusters, and labels each peak against three
-atlases at once. It returns a `ClusterReport`
+atlases at once. It returns a `_ClusterReport`
 with `clusters` and `peaks` tables, the thresholded `stat_img`, a `plot()` for per-cluster figures,
 and `to_csv()`.
 
@@ -22,7 +22,7 @@ See what is available | [`list_atlases`](../api/tasks/atlases.md#nltools.dataset
 Load one | [`load_atlas`](../api/tasks/atlases.md#nltools.datasets.load_atlas)`(name)` | `.image`, `.labels`, `.kind`, `.citation`
 Label MNI coordinates | [`label_coords`](../api/tasks/atlases.md#nltools.datasets.label_coords) | `atlas=` takes one name or a sequence; `prob_threshold=` filters probabilistic hits
 Cluster table | [`BrainData.cluster_report`](../api/data/brain_data.md#nltools.data.braindata.BrainData.cluster_report) | `stat_threshold=`, `cluster_threshold=` (voxels), `min_distance=` (mm between peaks)
-Save or draw the report | `ClusterReport.to_csv()`, `ClusterReport.plot()` | `plot(output_dir=)` writes one figure per cluster
+Save or draw the report | `_ClusterReport.to_csv()`, `_ClusterReport.plot()` | `plot(output_dir=)` writes one figure per cluster
 Summarize per parcel | [`BrainData.extract_roi`](../api/data/brain_data.md#nltools.data.braindata.BrainData.extract_roi)`(mask, method='mean')` | `'median'` or `'pca'` (with `n_components=`); returns parcels × images
 Paint values back | [`roi_to_brain_from_atlas`](../api/tasks/atlases.md#nltools.mask.roi_to_brain_from_atlas), [`roi_to_brain`](../api/tasks/loading.md#nltools.mask.roi_to_brain) | The atlas version takes a labeled volume; `roi_to_brain` takes expanded binary masks
 Split a map into blobs | [`BrainData.regions`](../api/data/brain_data.md#nltools.data.braindata.BrainData.regions) | Connected-component decomposition of a thresholded map

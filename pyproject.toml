@@ -51,7 +51,7 @@ dependencies = [
     # (stats.binomtest, added in scipy 1.7.0).
     "scipy>=1.11.1",
     "seaborn>=0.13.2",
-    # Used by maybe_tqdm/make_progress_bar (nltools.utils) on the progress_bar=True
+    # Used by _maybe_tqdm/_make_progress_bar (nltools.utils) on the progress_bar=True
     # path; version matches the existing dev-group pin.
     "tqdm>=4.67.1",
 ]

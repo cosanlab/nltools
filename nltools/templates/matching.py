@@ -5,15 +5,15 @@ from dataclasses import dataclass
 
 import numpy as np
 
-from nltools.utils import ResamplingWarning, find_stack_level
+from nltools.utils import ResamplingWarning, _find_stack_level
 
 from .config import get_brainspace
-from .paths import resolve_paths
+from .paths import _resolve_paths
 from .registry import SUPPORTED_RESOLUTIONS, TEMPLATE_PRIORITY
 
 
 @dataclass(frozen=True)
-class TemplateMatch:
+class _TemplateMatch:
     """Result of matching a data affine to a template.
 
     Attributes:
@@ -27,7 +27,7 @@ class TemplateMatch:
     mask_path: str
 
 
-def detect_resolution(affine: np.ndarray) -> tuple[float, bool]:
+def _detect_resolution(affine: np.ndarray) -> tuple[float, bool]:
     """Detect voxel resolution (mm) and isotropy from a NIfTI affine.
 
     Voxels are treated as isotropic when the per-axis sizes agree to within
@@ -47,10 +47,10 @@ def detect_resolution(affine: np.ndarray) -> tuple[float, bool]:
     return resolution_mm, is_isotropic
 
 
-def match_resolution(
+def _match_resolution(
     affine: np.ndarray,
     warn_resample: bool = True,
-) -> TemplateMatch:
+) -> _TemplateMatch:
     """Find the best matching template for a given affine matrix.
 
     Searches available templates by priority and returns the one whose
@@ -63,12 +63,12 @@ def match_resolution(
             True.
 
     Returns:
-        TemplateMatch: The selected template, its resolution, and its mask path.
+        _TemplateMatch: The selected template, its resolution, and its mask path.
 
     Raises:
         ValueError: If detected resolution is outside a reasonable range.
     """
-    resolution_float, _ = detect_resolution(affine)
+    resolution_float, _ = _detect_resolution(affine)
     resolution = int(np.round(resolution_float))
 
     if resolution < 1 or resolution > 10:
@@ -101,19 +101,19 @@ def match_resolution(
                 "To keep the native resolution, pass mask= with a mask in the "
                 "data's own space.",
                 ResamplingWarning,
-                stacklevel=find_stack_level(),
+                stacklevel=_find_stack_level(),
             )
 
     assert best_template is not None and best_resolution is not None
-    paths = resolve_paths(best_template, best_resolution)
-    return TemplateMatch(
+    paths = _resolve_paths(best_template, best_resolution)
+    return _TemplateMatch(
         template=best_template,
         resolution=best_resolution,
         mask_path=paths["mask"],
     )
 
 
-def is_standard_space(affine: np.ndarray) -> tuple[bool, str | None]:
+def _is_standard_space(affine: np.ndarray) -> tuple[bool, str | None]:
     """Check whether an affine is compatible with our MNI templates.
 
     A "standard space" affine has isotropic voxels at one of the supported
@@ -131,7 +131,7 @@ def is_standard_space(affine: np.ndarray) -> tuple[bool, str | None]:
             `(False, reason)` with `reason` a one-line human-readable explanation
             suitable for embedding in an error message.
     """
-    res, is_isotropic = detect_resolution(affine)
+    res, is_isotropic = _detect_resolution(affine)
     if not is_isotropic:
         res_array = np.abs(np.diag(affine[:3, :3]))
         zooms = tuple(round(float(r), 2) for r in res_array)
@@ -150,7 +150,7 @@ def is_standard_space(affine: np.ndarray) -> tuple[bool, str | None]:
     return True, None
 
 
-def get_bg_image(affine: np.ndarray) -> str:
+def _get_bg_image(affine: np.ndarray) -> str:
     """Get a brain-extracted background image path matching a data resolution.
 
     Uses the current global brain space and finds the matching resolution from
@@ -168,7 +168,7 @@ def get_bg_image(affine: np.ndarray) -> str:
     """
     cfg = get_brainspace()
 
-    resolution_float, is_isotropic = detect_resolution(affine)
+    resolution_float, is_isotropic = _detect_resolution(affine)
     if not is_isotropic:
         raise ValueError(
             "Voxels are not isotropic and cannot be visualized in standard space"
@@ -179,5 +179,5 @@ def get_bg_image(affine: np.ndarray) -> str:
     if resolution not in SUPPORTED_RESOLUTIONS.get(cfg.template, []):
         return cfg.brain
 
-    paths = resolve_paths(cfg.template, resolution)
+    paths = _resolve_paths(cfg.template, resolution)
     return paths["brain"]

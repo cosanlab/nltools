@@ -1,6 +1,6 @@
 """General linear model estimator built on Nilearn's `run_glm`.
 
-`Glm` fits one run represented by a `(DesignMatrix, y)` pair. It knows nothing
+`_Glm` fits one run represented by a `(DesignMatrix, y)` pair. It knows nothing
 about `BrainData`, masks, NIfTI images, events, or multi-run orchestration: the
 caller supplies a precomputed design (including any intercept column) and a
 preprocessed response. Fitting delegates to `nilearn.glm.first_level.run_glm`
@@ -30,11 +30,11 @@ AR_NOISE_MODEL = re.compile(r"^ar[1-9][0-9]*$")
 
 
 @dataclass(frozen=True)
-class GlmFitState:
+class _GlmFitState:
     """Immutable record of one fitted Nilearn GLM, sufficient to compute contrasts.
 
     Nilearn's `RegressionResults` also hold the response, the whitened
-    response, the regression model, and the residuals. `Glm` extracts this
+    response, the regression model, and the residuals. `_Glm` extracts this
     much and discards those objects, so the retained state stays proportional
     to the design rather than to the data. Its arrays keep the dtypes Nilearn
     produced.
@@ -98,7 +98,7 @@ def _check_design_matrix(X: object, method: str) -> None:
 
     if not isinstance(X, DesignMatrix):
         raise TypeError(
-            f"Glm.{method} requires a DesignMatrix, got {type(X).__name__}. Raw "
+            f"_Glm.{method} requires a DesignMatrix, got {type(X).__name__}. Raw "
             "arrays and other DataFrame types cannot preserve the fitted "
             "coefficient-to-regressor relationship."
         )
@@ -109,7 +109,7 @@ def _extract_fit_state(
     results: dict,
     feature_names: tuple[str, ...],
     n_targets: int,
-) -> tuple[GlmFitState, np.ndarray]:
+) -> tuple[_GlmFitState, np.ndarray]:
     """Copy the compact fitted state and R-squared out of Nilearn's results.
 
     Args:
@@ -119,7 +119,7 @@ def _extract_fit_state(
         n_targets (int): Number of fitted targets.
 
     Returns:
-        tuple[GlmFitState, np.ndarray]: The retained state and the per-target
+        tuple[_GlmFitState, np.ndarray]: The retained state and the per-target
             `r_square` values copied from Nilearn.
     """
     first = next(iter(results.values()))
@@ -141,7 +141,7 @@ def _extract_fit_state(
             r_square[target_mask] = result.r_square
             covariances[label] = np.array(result.cov, copy=True)
 
-    state = GlmFitState(
+    state = _GlmFitState(
         feature_names=feature_names,
         labels=np.array(labels, copy=True),
         coefficients=coefficients,
@@ -193,7 +193,7 @@ def _resolve_contrast(contrast: object, feature_names: tuple[str, ...]) -> np.nd
     if weights.ndim != 1:
         raise ValueError(
             f"A contrast must be one-dimensional; got {weights.ndim} dimensions. "
-            "Glm does not compute F-contrasts."
+            "_Glm does not compute F-contrasts."
         )
     if weights.shape[0] != len(feature_names):
         raise ValueError(
@@ -208,12 +208,12 @@ def _resolve_contrast(contrast: object, feature_names: tuple[str, ...]) -> np.nd
     return weights
 
 
-def _contrast_effect(state: GlmFitState, weights: np.ndarray) -> np.ndarray:
+def _contrast_effect(state: _GlmFitState, weights: np.ndarray) -> np.ndarray:
     """Return the contrast effect `weights @ coefficients` as a new array."""
     return weights @ state.coefficients
 
 
-def _contrast_statistics(state: GlmFitState, weights: np.ndarray) -> dict[str, Any]:
+def _contrast_statistics(state: _GlmFitState, weights: np.ndarray) -> dict[str, Any]:
     """Compute one t-contrast and its inferential statistics from `state`.
 
     Effect and variance use the same matrix operations as Nilearn's functional
@@ -221,7 +221,7 @@ def _contrast_statistics(state: GlmFitState, weights: np.ndarray) -> dict[str, A
     public `Contrast`. Every returned array owns its data.
 
     Args:
-        state (GlmFitState): The retained fitted state.
+        state (_GlmFitState): The retained fitted state.
         weights (np.ndarray): A resolved float64 contrast vector.
 
     Returns:
@@ -254,12 +254,12 @@ def _contrast_statistics(state: GlmFitState, weights: np.ndarray) -> dict[str, A
     }
 
 
-class Glm:
+class _Glm:
     """General linear model over a precomputed design matrix and a response.
 
     Fits ordinary least squares or an autoregressive noise model with Nilearn's
     `run_glm`, then exposes coefficients, predictions, residuals, R-squared, and
-    contrasts. The model is `y = X @ beta + error`: `Glm` never adds or
+    contrasts. The model is `y = X @ beta + error`: `_Glm` never adds or
     estimates an intercept, so include an intercept column in `X` when the model
     needs one. Predictions and residuals are always in observation space, for
     autoregressive fits as well as OLS.
@@ -306,7 +306,7 @@ class Glm:
         ```python
         import numpy as np
         from nltools.data import DesignMatrix
-        from nltools.models import Glm
+        from nltools.models import _Glm
 
         n_samples = 100
         rng = np.random.default_rng(0)
@@ -320,7 +320,7 @@ class Glm:
         )
         y = rng.normal(size=(n_samples, 50))
 
-        model = Glm(noise_model="ar1").fit(design, y)
+        model = _Glm(noise_model="ar1").fit(design, y)
         effects = model.compute_contrasts("condition_a - condition_b")
         result = model.compute_contrasts("condition_a - condition_b", inference=True)
         result.statistic  # → t-statistic per target
@@ -343,7 +343,7 @@ class Glm:
         self.random_state = random_state
         self.is_fitted_ = False
 
-    def fit(self, X: DesignMatrix, y) -> Glm:
+    def fit(self, X: DesignMatrix, y) -> _Glm:
         """Fit the model to one design matrix and response.
 
         A one-dimensional `y` is expanded to a single column for Nilearn and the
@@ -357,7 +357,7 @@ class Glm:
                 `(n_samples, n_targets)`.
 
         Returns:
-            Glm: The fitted model, for method chaining.
+            _Glm: The fitted model, for method chaining.
 
         Raises:
             TypeError: If `X` is not a `DesignMatrix`.
@@ -499,7 +499,7 @@ class Glm:
         """
         if not self.is_fitted_:
             raise RuntimeError(
-                "Glm instance is not fitted yet. Call 'fit' with a DesignMatrix "
+                "_Glm instance is not fitted yet. Call 'fit' with a DesignMatrix "
                 "and a response before computing contrasts."
             )
         if not isinstance(inference, (bool, np.bool_)):

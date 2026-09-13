@@ -13,11 +13,11 @@ if TYPE_CHECKING:
     from sklearn.base import BaseEstimator
     from sklearn.model_selection import BaseCrossValidator
 
-    from nltools.data.atlases import Atlas, ClusterReport
+    from nltools.data.atlases import _Atlas, _ClusterReport
     from nltools.data.designmatrix import DesignMatrix
     from nltools.data.results import Predict
 
-from .utils import check_brain_data, coalesced_gc
+from .utils import _check_brain_data, _coalesced_gc
 
 
 class BrainData:
@@ -92,14 +92,14 @@ class BrainData:
         interpolation="auto",
     ):
         from .io import (
-            initialize_mask,
-            load_from_brain_data,
-            load_from_file,
-            load_from_h5,
-            load_from_list,
-            load_from_url,
+            _initialize_mask,
+            _load_from_brain_data,
+            _load_from_file,
+            _load_from_h5,
+            _load_from_list,
+            _load_from_url,
         )
-        from .validation import validate_data_type
+        from .validation import _validate_data_type
 
         # Initialize attributes
         self._h5_compression = h5_compression
@@ -116,24 +116,24 @@ class BrainData:
         self._labels = None
 
         # Initialize mask
-        initialize_mask(self, mask)
+        _initialize_mask(self, mask)
 
         # Initialize data based on type
-        data_type = validate_data_type(data)
+        data_type = _validate_data_type(data)
 
         if data_type == "none":
             self.data = np.array([])
         elif data_type == "brain_data":
-            load_from_brain_data(self, data, mask)
+            _load_from_brain_data(self, data, mask)
         elif data_type == "h5":
-            load_from_h5(self, data, mask)
+            _load_from_h5(self, data, mask)
             return
         elif data_type == "list":
-            load_from_list(self, data)
+            _load_from_list(self, data)
         elif data_type == "url":
-            load_from_url(self, data)
+            _load_from_url(self, data)
         elif data_type in ["file", "nibabel"]:
-            load_from_file(self, data)
+            _load_from_file(self, data)
         elif data_type == "array":
             # Raw numpy array path. Requires an explicit mask because without
             # one we can't map the flat voxel axis to 3D space. Accepts 1D
@@ -167,7 +167,7 @@ class BrainData:
 
         # Set X and Y. Invariant: .X and .Y are always polars DataFrames
         # (possibly empty). Assignment goes through the property setter,
-        # which pipes through validate_frame for pandas/numpy/csv ingress.
+        # which pipes through _validate_frame for pandas/numpy/csv ingress.
         if X is not None:
             self.X = X
         elif data_type == "brain_data" and hasattr(data, "X"):
@@ -188,9 +188,9 @@ class BrainData:
 
     def __add__(self, y):
         """Add to BrainData."""
-        from .utils import perform_arithmetic
+        from .utils import _perform_arithmetic
 
-        return perform_arithmetic(self, y, np.add, "add")
+        return _perform_arithmetic(self, y, np.add, "add")
 
     def __copy__(self):
         """Create an independent snapshot of all data and fitted state."""
@@ -238,21 +238,21 @@ class BrainData:
 
     def __iadd__(self, y):
         """In-place addition (+=)."""
-        from .utils import perform_arithmetic
+        from .utils import _perform_arithmetic
 
-        return perform_arithmetic(self, y, np.add, "add", inplace=True)
+        return _perform_arithmetic(self, y, np.add, "add", inplace=True)
 
     def __imul__(self, y):
         """In-place multiplication (*=)."""
-        from .utils import perform_arithmetic
+        from .utils import _perform_arithmetic
 
-        return perform_arithmetic(self, y, np.multiply, "multiply", inplace=True)
+        return _perform_arithmetic(self, y, np.multiply, "multiply", inplace=True)
 
     def __isub__(self, y):
         """In-place subtraction (-=)."""
-        from .utils import perform_arithmetic
+        from .utils import _perform_arithmetic
 
-        return perform_arithmetic(self, y, np.subtract, "subtract", inplace=True)
+        return _perform_arithmetic(self, y, np.subtract, "subtract", inplace=True)
 
     def __iter__(self):
         for x in range(len(self)):
@@ -260,25 +260,25 @@ class BrainData:
 
     def __itruediv__(self, y):
         """In-place true division (/=)."""
-        from .utils import perform_arithmetic
+        from .utils import _perform_arithmetic
 
         with np.errstate(invalid="ignore", divide="ignore"):
-            return perform_arithmetic(self, y, np.divide, "divide", inplace=True)
+            return _perform_arithmetic(self, y, np.divide, "divide", inplace=True)
 
     def __len__(self):
         return self.shape[0]
 
     def __mul__(self, y):
         """Multiply BrainData."""
-        from .utils import perform_arithmetic
+        from .utils import _perform_arithmetic
 
-        return perform_arithmetic(self, y, np.multiply, "multiply")
+        return _perform_arithmetic(self, y, np.multiply, "multiply")
 
     def __radd__(self, y):
         """Right add to BrainData."""
-        from .utils import perform_arithmetic
+        from .utils import _perform_arithmetic
 
-        return perform_arithmetic(self, y, np.add, "add")
+        return _perform_arithmetic(self, y, np.add, "add")
 
     def __repr__(self):
         mask_filename = self.mask.get_filename()
@@ -302,15 +302,15 @@ class BrainData:
 
     def __rmul__(self, y):
         """Right multiply BrainData."""
-        from .utils import perform_arithmetic
+        from .utils import _perform_arithmetic
 
-        return perform_arithmetic(self, y, np.multiply, "multiply")
+        return _perform_arithmetic(self, y, np.multiply, "multiply")
 
     def __rsub__(self, y):
         """Right subtract from BrainData."""
-        from .utils import perform_arithmetic
+        from .utils import _perform_arithmetic
 
-        return perform_arithmetic(self, y, np.subtract, "subtract", reverse=True)
+        return _perform_arithmetic(self, y, np.subtract, "subtract", reverse=True)
 
     def __setitem__(self, index, value):
         import polars as pl
@@ -348,16 +348,16 @@ class BrainData:
 
     def __sub__(self, y):
         """Subtract from BrainData."""
-        from .utils import perform_arithmetic
+        from .utils import _perform_arithmetic
 
-        return perform_arithmetic(self, y, np.subtract, "subtract")
+        return _perform_arithmetic(self, y, np.subtract, "subtract")
 
     def __truediv__(self, y):
         """Divide BrainData."""
-        from .utils import perform_arithmetic
+        from .utils import _perform_arithmetic
 
         with np.errstate(invalid="ignore", divide="ignore"):
-            return perform_arithmetic(self, y, np.divide, "divide")
+            return _perform_arithmetic(self, y, np.divide, "divide")
 
     # =========================================================================
     # Properties (alphabetical)
@@ -394,9 +394,9 @@ class BrainData:
 
     @X.setter
     def X(self, value):
-        from ..validation import validate_frame
+        from ..validation import _validate_frame
 
-        self._X = validate_frame(value, frame_type="X")
+        self._X = _validate_frame(value, frame_type="X")
 
     @property
     def Y(self):
@@ -405,15 +405,15 @@ class BrainData:
 
     @Y.setter
     def Y(self, value):
-        from ..validation import validate_frame
+        from ..validation import _validate_frame
 
-        self._Y = validate_frame(value, frame_type="Y")
+        self._Y = _validate_frame(value, frame_type="Y")
 
     # =========================================================================
     # Public methods (alphabetical)
     # =========================================================================
 
-    @coalesced_gc()
+    @_coalesced_gc()
     def align(
         self,
         target,
@@ -478,9 +478,9 @@ class BrainData:
             ```
         """
         if spatial_scale == "roi":
-            from .analysis import align_per_roi
+            from .analysis import _align_per_roi
 
-            return align_per_roi(
+            return _align_per_roi(
                 self, target, method=method, axis=axis, roi_mask=roi_mask
             )
         if spatial_scale != "whole_brain":
@@ -488,9 +488,9 @@ class BrainData:
                 f"spatial_scale must be one of {{'whole_brain', 'roi'}}, "
                 f"got {spatial_scale!r}"
             )
-        from .analysis import align
+        from .analysis import _align
 
-        return align(self, target, method=method, axis=axis)
+        return _align(self, target, method=method, axis=axis)
 
     def append(self, data, *, ignore_attrs=False):
         """Append data to BrainData instance.
@@ -508,10 +508,10 @@ class BrainData:
             ValueError: Metadata is present on only one input or has incompatible columns.
         """
         from .utils import _result_from_rows
-        from .validation import validate_append_shapes
+        from .validation import _validate_append_shapes
         import polars as pl
 
-        data = check_brain_data(data)
+        data = _check_brain_data(data)
         if self.is_empty:
             return _result_from_rows(
                 data,
@@ -519,7 +519,7 @@ class BrainData:
                 X=None if ignore_attrs else data.X,
                 Y=None if ignore_attrs else data.Y,
             )
-        validate_append_shapes(self.shape, data.shape)
+        _validate_append_shapes(self.shape, data.shape)
         frames = []
         for name in ("X", "Y"):
             left, right = getattr(self, name), getattr(data, name)
@@ -540,7 +540,7 @@ class BrainData:
             self, np.vstack([self.data, data.data]), X=frames[0], Y=frames[1]
         )
 
-    @coalesced_gc()
+    @_coalesced_gc()
     def apply_mask(self, mask):
         """Restrict the data to a mask's support, leaving the grid unchanged.
 
@@ -566,9 +566,9 @@ class BrainData:
                 affine differs from this object's.
             TypeError: If `mask` is not a BrainData, nibabel image, or file path.
         """
-        from .analysis import apply_mask
+        from .analysis import _apply_mask
 
-        return apply_mask(self, mask)
+        return _apply_mask(self, mask)
 
     def astype(self, dtype):
         """Cast BrainData.data as type.
@@ -624,7 +624,7 @@ class BrainData:
                 ``'mean'``, ``'median'``, ``'std'``, ``'sum'``, ``'min'``,
                 ``'max'`` — each the corresponding NumPy reduction over rows,
                 with ``'std'`` at ``ddof=0``. Model statistics (require a
-                fitted `Ridge`): ``'weights'`` or ``'predict'``.
+                fitted `_Ridge`): ``'weights'`` or ``'predict'``.
             X (np.ndarray | Mapping[str, np.ndarray] | None): Training features
                 in their original row order — a matrix for ordinary Ridge, a
                 mapping with exactly the fitted feature-space names for banded
@@ -668,7 +668,7 @@ class BrainData:
         Raises:
             ValueError: If `statistic` is unknown, a basic statistic is given
                 ``X``, ``X_test`` or ``device='gpu'``, a Ridge statistic is
-                missing its features, the fitted model is not a `Ridge`, an
+                missing its features, the fitted model is not a `_Ridge`, an
                 argument is out of range, or the retained output cannot fit the
                 memory budget.
 
@@ -687,9 +687,9 @@ class BrainData:
             stratified, or block resampling, so an autocorrelated fMRI time
             series must not be treated as IID rows.
         """
-        from .bootstrap import bootstrap
+        from .bootstrap import _bootstrap
 
-        return bootstrap(
+        return _bootstrap(
             self,
             statistic,
             X=X,
@@ -707,7 +707,7 @@ class BrainData:
     def compute_contrasts(self, contrasts, *, inference=False):
         """Compute contrasts on a fitted GLM.
 
-        Call after ``fit(model='glm', X=design)``. The fitted `Glm` owns
+        Call after ``fit(model='glm', X=design)``. The fitted `_Glm` owns
         contrast parsing and inference; this method forwards each definition
         unchanged and wraps the results as `BrainData` maps.
 
@@ -731,8 +731,8 @@ class BrainData:
 
         Raises:
             RuntimeError: If no model has been fitted.
-            ValueError: If the fitted model is not a `Glm`, or a contrast is
-                invalid (see `Glm.compute_contrasts`).
+            ValueError: If the fitted model is not a `_Glm`, or a contrast is
+                invalid (see `_Glm.compute_contrasts`).
 
         Examples:
             ```python
@@ -755,9 +755,9 @@ class BrainData:
             directional-contrast convention; negate the contrast to test the
             other direction.
         """
-        from .modeling import compute_contrasts
+        from .modeling import _compute_contrasts
 
-        return compute_contrasts(self, contrasts, inference=inference)
+        return _compute_contrasts(self, contrasts, inference=inference)
 
     def copy(self):
         """Create an independent snapshot of a BrainData instance.
@@ -784,7 +784,7 @@ class BrainData:
         out = _result_from_array(self, np.array([]), rows="clear")
         return out
 
-    @coalesced_gc()  # nosemgrep: kwargs-internal-forwarding  # forwards to the sklearn decomposition estimator
+    @_coalesced_gc()  # nosemgrep: kwargs-internal-forwarding  # forwards to the sklearn decomposition estimator
     def decompose(self, *, method="pca", axis="voxels", n_components=None, **kwargs):
         """Decompose BrainData object.
 
@@ -800,9 +800,9 @@ class BrainData:
         Returns:
             dict: A dictionary of decomposition parameters.
         """
-        from .analysis import decompose
+        from .analysis import _decompose
 
-        return decompose(
+        return _decompose(
             self,
             method=method,
             axis=axis,
@@ -819,11 +819,11 @@ class BrainData:
         Returns:
             BrainData: Detrended BrainData instance.
         """
-        from .analysis import detrend_data
+        from .analysis import _detrend_data
 
-        return detrend_data(self, method=method)
+        return _detrend_data(self, method=method)
 
-    @coalesced_gc()  # nosemgrep: kwargs-internal-forwarding  # forwards to scipy.spatial.distance.cdist via analysis.distance
+    @_coalesced_gc()  # nosemgrep: kwargs-internal-forwarding  # forwards to scipy.spatial.distance.cdist via analysis.distance
     def distance(  # nosemgrep: kwargs-internal-forwarding  # forwards to scipy.spatial.distance.cdist
         self,
         metric="euclidean",
@@ -859,9 +859,9 @@ class BrainData:
                 with the source mask for searchlights. Subset the mapping whenever
                 selecting matrices from the returned stack.
         """
-        from .analysis import distance
+        from .analysis import _distance
 
-        return distance(
+        return _distance(
             self,
             metric=metric,
             spatial_scale=spatial_scale,
@@ -870,7 +870,7 @@ class BrainData:
             **kwargs,
         )
 
-    @coalesced_gc()
+    @_coalesced_gc()
     def extract_roi(self, mask, method="mean", n_components=None):
         """Extract activity from mask or ROI atlas using NiftiLabelsMasker.
 
@@ -905,9 +905,9 @@ class BrainData:
             components = brain.extract_roi(mask, method='pca', n_components=5)
             ```
         """
-        from .analysis import extract_roi
+        from .analysis import _extract_roi
 
-        return extract_roi(self, mask, method=method, n_components=n_components)
+        return _extract_roi(self, mask, method=method, n_components=n_components)
 
     def filter(  # nosemgrep: kwargs-internal-forwarding  # forwards to nilearn.signal.clean
         self, *, sampling_freq=None, high_pass=None, low_pass=None, **kwargs
@@ -927,9 +927,9 @@ class BrainData:
         Returns:
             BrainData: Filtered BrainData instance.
         """
-        from .analysis import filter_data
+        from .analysis import _filter_data
 
-        return filter_data(
+        return _filter_data(
             self,
             sampling_freq=sampling_freq,
             high_pass=high_pass,
@@ -964,9 +964,9 @@ class BrainData:
                 colliding detections are bitwise identical, so only the retained
                 name differs.
         """
-        from .analysis import find_spikes_data
+        from .analysis import _find_spikes_data
 
-        return find_spikes_data(
+        return _find_spikes_data(
             self,
             global_spike_cutoff=global_spike_cutoff,
             diff_spike_cutoff=diff_spike_cutoff,
@@ -974,7 +974,7 @@ class BrainData:
             sampling_freq=sampling_freq,
         )
 
-    @coalesced_gc()  # nosemgrep: kwargs-internal-forwarding  # forwards model params to the nilearn/sklearn estimator via modeling.fit
+    @_coalesced_gc()  # nosemgrep: kwargs-internal-forwarding  # forwards model params to the nilearn/sklearn estimator via modeling.fit
     def fit(
         self,
         model="glm",
@@ -1077,9 +1077,9 @@ class BrainData:
             )
             ```
         """
-        from .modeling import fit
+        from .modeling import _fit
 
-        return fit(
+        return _fit(
             self,
             model=model,
             X=X,
@@ -1109,9 +1109,9 @@ class BrainData:
         Returns:
             float | np.ndarray | BrainData: Mean values.
         """
-        from .utils import apply_func
+        from .utils import _apply_func
 
-        return apply_func(self, np.mean, axis)
+        return _apply_func(self, np.mean, axis)
 
     def median(self, axis=0):
         """Get median of each voxel or image.
@@ -1123,9 +1123,9 @@ class BrainData:
         Returns:
             float | np.ndarray | BrainData: Median values.
         """
-        from .utils import apply_func
+        from .utils import _apply_func
 
-        return apply_func(self, np.median, axis)
+        return _apply_func(self, np.median, axis)
 
     def multivariate_similarity(self, images, tail=2):
         """Predict a BrainData spatial distribution from a linear combination.
@@ -1142,9 +1142,9 @@ class BrainData:
             dict: Regression statistics as BrainData instances, keyed
                 `'beta'`, `'t'`, `'p'`, `'df'`, `'residual'`.
         """
-        from .analysis import multivariate_similarity
+        from .analysis import _multivariate_similarity
 
-        return multivariate_similarity(self, images, tail=tail)
+        return _multivariate_similarity(self, images, tail=tail)
 
     def plot(  # nosemgrep: kwargs-internal-forwarding  # forwards to nilearn plotting functions
         self,
@@ -1201,9 +1201,9 @@ class BrainData:
                 data with `method` in `{"glass", "slices"}` (one per image for
                 glass; one per image-and-view pair for slices).
         """
-        from .plotting import plot_brain
+        from .plotting import _plot_brain
 
-        return plot_brain(
+        return _plot_brain(
             self,
             method=method,
             upper=upper,
@@ -1257,9 +1257,9 @@ class BrainData:
         Returns:
             matplotlib.figure.Figure: The rendered figure.
         """
-        from nltools.plotting import plot_flatmap
+        from nltools.plotting import _plot_flatmap
 
-        return plot_flatmap(
+        return _plot_flatmap(
             self,
             threshold=threshold,
             cmap=cmap,
@@ -1299,9 +1299,9 @@ class BrainData:
         Returns:
             matplotlib.figure.Figure: The rendered figure.
         """
-        from nltools.plotting import plot_surf
+        from nltools.plotting import _plot_surf
 
-        return plot_surf(
+        return _plot_surf(
             self,
             hemi=hemi,
             view=view,
@@ -1329,7 +1329,7 @@ class BrainData:
         symmetric: bool | Literal["auto"] = "auto",
         cmap: "str | None" = None,
         bg_img: "str | bool | None" = None,
-        atlas: "str | Atlas | None" = None,
+        atlas: "str | _Atlas | None" = None,
         opacity: float = 1.0,
         outline: float = 0.0,
         colorbar: bool = True,
@@ -1344,7 +1344,7 @@ class BrainData:
         colorbar, and optional nltools-atlas overlays. Static-built docs (plain
         Markdown) are not interactive; use `plot` there.
 
-        Returns a `NiivueViewer` widget. By default (``controls=True``) it
+        Returns a `_NiivueViewer` widget. By default (``controls=True``) it
         renders an in-widget threshold slider above the viewer; the window is
         reactive through the ``cal_min`` / ``cal_max`` traits. Pass
         ``controls=False`` to hide the slider (right-drag windowing still
@@ -1396,7 +1396,7 @@ class BrainData:
                 when the data is in standard space (else none); ``False``
                 disables the background; a path string uses that image.
             atlas: Atlas overlay — a registry name (e.g. ``"aal"``), a
-                loaded `Atlas`, or ``None``. Deterministic atlases
+                loaded atlas record, or ``None``. Deterministic atlases
                 only; probabilistic atlases raise.
             opacity: Stat-map (and filled-atlas) opacity in ``0..1``.
             outline: ``> 0`` draws atlas region boundaries of that width
@@ -1411,16 +1411,16 @@ class BrainData:
                 the canvas and ``is_colorbar`` overrides ``colorbar``.
 
         Returns:
-            NiivueViewer: An `anywidget.AnyWidget` whose threshold window is
+            _NiivueViewer: An `anywidget.AnyWidget` whose threshold window is
                 reactive via the `cal_min` and `cal_max` traits.
 
         Raises:
             TypeError: If ``autoscale`` is not a bool or ``symmetric`` is not
                 ``True``, ``False``, or ``"auto"``.
         """
-        from .viewer import build_viewer, compute_display_window
+        from .viewer import _build_viewer, _compute_display_window
 
-        window = compute_display_window(
+        window = _compute_display_window(
             self.data,
             autoscale=autoscale,
             threshold=threshold,
@@ -1429,7 +1429,7 @@ class BrainData:
             symmetric=symmetric,
         )
 
-        return build_viewer(
+        return _build_viewer(
             self,
             view=view,
             window=window,
@@ -1481,7 +1481,7 @@ class BrainData:
         progress_bar: bool = False,
     ) -> "Predict": ...
 
-    @coalesced_gc()
+    @_coalesced_gc()
     def predict(
         self,
         *,
@@ -1504,7 +1504,7 @@ class BrainData:
         Exactly one mode is resolved before any work happens:
 
         - an explicit ``y=`` runs MVPA decoding and returns a `Predict`;
-        - an explicit ``X=`` predicts from the fitted `Glm` or `Ridge` and
+        - an explicit ``X=`` predicts from the fitted `_Glm` or `_Ridge` and
           returns a new, independently owned `BrainData`;
         - with neither argument and a fitted model, an independent copy of the
           stored training predictions;
@@ -1520,14 +1520,14 @@ class BrainData:
         Labels travel with the data: ``y='name'`` picks a column of ``.Y``, and
         ``groups`` accepts a ``.Y`` column name the same way. With an explicit
         ``X=``, the estimator validates and aligns it: a `DesignMatrix` whose
-        column names `Glm.predict` matches to the fitted order, or, for a
-        banded `Ridge`, a mapping with exactly the fitted feature-space names
+        column names `_Glm.predict` matches to the fitted order, or, for a
+        banded `_Ridge`, a mapping with exactly the fitted feature-space names
         in any order.
 
         Args:
             X (DesignMatrix | array-like | Mapping, optional): Features for
                 fitted-model prediction, shape ``(n_samples, n_features)``, or a
-                mapping of feature-space names to matrices for a banded `Ridge`.
+                mapping of feature-space names to matrices for a banded `_Ridge`.
             y (array-like | str, optional): Labels (classification) or
                 continuous targets (regression), shape ``(n_samples,)``, or the
                 name of a ``.Y`` column. Must be one-dimensional with one value
@@ -1671,9 +1671,9 @@ class BrainData:
             predicted = brain.predict(X=new_features)
             ```
         """
-        from .prediction import predict
+        from .prediction import _predict
 
-        return predict(
+        return _predict(
             self,
             X=X,
             y=y,
@@ -1692,11 +1692,11 @@ class BrainData:
 
     def r_to_z(self):
         """Apply Fisher's r-to-z transformation to each data element."""
-        from .analysis import r_to_z
+        from .analysis import _r_to_z
 
-        return r_to_z(self)
+        return _r_to_z(self)
 
-    @coalesced_gc()
+    @_coalesced_gc()
     def regions(
         self,
         *,
@@ -1717,9 +1717,9 @@ class BrainData:
         Returns:
             BrainData: BrainData instance with extracted ROIs as data.
         """
-        from .analysis import regions
+        from .analysis import _regions
 
-        return regions(
+        return _regions(
             self,
             min_region_size=min_region_size,
             method=method,
@@ -1759,9 +1759,9 @@ class BrainData:
             on_atlas_grid = brain.resample(img=atlas_img)
             ```
         """
-        from .io import resample
+        from .io import _resample
 
-        return resample(
+        return _resample(
             self, img=img, resolution=resolution, interpolation=interpolation
         )
 
@@ -1782,11 +1782,11 @@ class BrainData:
         Returns:
             BrainData: New BrainData instance with scaled data.
         """
-        from .analysis import scale_data
+        from .analysis import _scale_data
 
-        return scale_data(self, scale_val, axis)
+        return _scale_data(self, scale_val, axis)
 
-    @coalesced_gc()
+    @_coalesced_gc()
     def similarity(self, data, *, metric="correlation"):
         """Calculate similarity to a single BrainData or nibabel image.
 
@@ -1799,9 +1799,9 @@ class BrainData:
         Returns:
             float or np.ndarray: Similarity value(s).
         """
-        from .analysis import similarity
+        from .analysis import _similarity
 
-        return similarity(self, data, metric=metric)
+        return _similarity(self, data, metric=metric)
 
     def smooth(self, fwhm):
         """Apply spatial smoothing using nilearn smooth_img().
@@ -1813,9 +1813,9 @@ class BrainData:
         Returns:
             BrainData: Copy with smoothed data.
         """
-        from .analysis import smooth
+        from .analysis import _smooth
 
-        return smooth(self, fwhm)
+        return _smooth(self, fwhm)
 
     def standardize(self, *, method="center", axis=0):
         """Standardize data by centering it, optionally scaling to unit variance.
@@ -1835,9 +1835,9 @@ class BrainData:
         Raises:
             ValueError: If `method` is neither ``'center'`` nor ``'zscore'``.
         """
-        from .analysis import standardize
+        from .analysis import _standardize
 
-        return standardize(self, method=method, axis=axis)
+        return _standardize(self, method=method, axis=axis)
 
     def std(self, axis=0):
         """Get standard deviation of each voxel or image.
@@ -1849,9 +1849,9 @@ class BrainData:
         Returns:
             float | np.ndarray | BrainData: Standard deviation values.
         """
-        from .utils import apply_func
+        from .utils import _apply_func
 
-        return apply_func(self, np.std, axis)
+        return _apply_func(self, np.std, axis)
 
     def sum(self, axis=0):
         """Get sum of each voxel or image.
@@ -1863,9 +1863,9 @@ class BrainData:
         Returns:
             float | np.ndarray | BrainData: Sum values.
         """
-        from .utils import apply_func
+        from .utils import _apply_func
 
-        return apply_func(self, np.sum, axis)
+        return _apply_func(self, np.sum, axis)
 
     def temporal_resample(self, *, sampling_freq=None, target=None, target_type="hz"):
         """Resample BrainData timeseries to a new target frequency or number of samples.
@@ -1879,13 +1879,13 @@ class BrainData:
         Returns:
             BrainData: Resampled BrainData instance.
         """
-        from .analysis import temporal_resample
+        from .analysis import _temporal_resample
 
-        return temporal_resample(
+        return _temporal_resample(
             self, sampling_freq=sampling_freq, target=target, target_type=target_type
         )
 
-    @coalesced_gc()
+    @_coalesced_gc()
     def threshold(
         self,
         *,
@@ -1909,9 +1909,9 @@ class BrainData:
         Returns:
             BrainData: Thresholded BrainData object.
         """
-        from .analysis import threshold_data
+        from .analysis import _threshold_data
 
-        return threshold_data(
+        return _threshold_data(
             self,
             upper=upper,
             lower=lower,
@@ -1926,9 +1926,9 @@ class BrainData:
         Returns:
             nibabel.Nifti1Image: Brain data as a NIfTI image.
         """
-        from .io import to_nifti
+        from .io import _to_nifti
 
-        return to_nifti(self)
+        return _to_nifti(self)
 
     def cluster_report(
         self,
@@ -1939,7 +1939,7 @@ class BrainData:
         min_distance: float = 8.0,
         atlas: str | Sequence[str] | None = None,
         prob_threshold: float = 5.0,
-    ) -> "ClusterReport":
+    ) -> "_ClusterReport":
         """Generate a cluster report with anatomical labels.
 
         Identifies surviving clusters in the stat map (after voxel + extent
@@ -1957,13 +1957,13 @@ class BrainData:
             prob_threshold: Drop probabilistic-atlas regions below this %.
 
         Returns:
-            ClusterReport: Report with `peaks` and `clusters` (polars DataFrames)
+            _ClusterReport: Report with `peaks` and `clusters` (polars DataFrames)
                 and `stat_img` (BrainData).
         """
-        from nltools.data.atlases import ClusterReport, cluster_report_data
+        from nltools.data.atlases import _ClusterReport, _cluster_report_data
         from nltools.data.atlases.registry import DEFAULT_ATLASES
 
-        peaks, clusters, thr = cluster_report_data(
+        peaks, clusters, thr = _cluster_report_data(
             self,
             stat_threshold=stat_threshold,
             cluster_threshold=cluster_threshold,
@@ -1972,7 +1972,7 @@ class BrainData:
             atlas=DEFAULT_ATLASES if atlas is None else atlas,
             prob_threshold=prob_threshold,
         )
-        return ClusterReport(peaks=peaks, clusters=clusters, stat_img=thr)
+        return _ClusterReport(peaks=peaks, clusters=clusters, stat_img=thr)
 
     def transform_pairwise(self):
         """Transform data into pairwise comparisons.
@@ -1980,9 +1980,9 @@ class BrainData:
         Returns:
             BrainData: BrainData instance transformed into pairwise comparisons
         """
-        from .analysis import transform_pairwise_data
+        from .analysis import _transform_pairwise_data
 
-        return transform_pairwise_data(self)
+        return _transform_pairwise_data(self)
 
     def ttest(
         self,
@@ -2055,9 +2055,9 @@ class BrainData:
             perm["null_dist"].shape  # → (5000, n_voxels)
             ```
         """
-        from .modeling import ttest
+        from .modeling import _ttest
 
-        return ttest(
+        return _ttest(
             self,
             popmean=popmean,
             permutation=permutation,
@@ -2097,9 +2097,9 @@ class BrainData:
         Returns:
             dict: NeuroVault collection information.
         """
-        from .io import upload_neurovault
+        from .io import _upload_neurovault
 
-        return upload_neurovault(
+        return _upload_neurovault(
             self,
             access_token=access_token,
             collection_name=collection_name,
@@ -2116,12 +2116,12 @@ class BrainData:
             file_name (str or Path): Output file path (.nii/.nii.gz for NIfTI,
                 .h5/.hdf5 for HDF5).
         """
-        from .io import write_brain_data
+        from .io import _write_brain_data
 
-        write_brain_data(self, file_name)
+        _write_brain_data(self, file_name)
 
     def z_to_r(self):
         """Convert z score back into r value for each element of data object."""
-        from .analysis import z_to_r
+        from .analysis import _z_to_r
 
-        return z_to_r(self)
+        return _z_to_r(self)

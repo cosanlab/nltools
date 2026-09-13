@@ -1,4 +1,4 @@
-"""`Glm` must fit and compute contrasts without emitting warnings.
+"""`_Glm` must fit and compute contrasts without emitting warnings.
 
 The estimator no longer builds a `FirstLevelModel` or a masker, so nilearn's
 mask-generation `RuntimeWarning` and its deprecated-accessor `FutureWarning`
@@ -9,14 +9,14 @@ import warnings
 
 import pytest
 
-from nltools.models import Glm
+from nltools.models import _Glm
 
 
 @pytest.mark.parametrize("noise_model", ["ols", "ar1", "ar2"])
 def test_fit_emits_no_warnings(glm_design, ar_targets, noise_model):
     with warnings.catch_warnings():
         warnings.simplefilter("error")
-        model = Glm(noise_model=noise_model, bins=3, random_state=0)
+        model = _Glm(noise_model=noise_model, bins=3, random_state=0)
         model.fit(glm_design, ar_targets)
     assert model.is_fitted_
 
@@ -49,7 +49,7 @@ def test_a_constant_target_fits_without_warning(glm_design, glm_targets):
 
     with warnings.catch_warnings():
         warnings.simplefilter("error")
-        model = Glm().fit(glm_design, targets)
+        model = _Glm().fit(glm_design, targets)
 
     assert not np.isfinite(model.r2_[0])
     assert np.isfinite(model.r2_[1:]).all()

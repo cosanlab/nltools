@@ -130,9 +130,9 @@ class TestDefaultStatColormap:
         ],
     )
     def test_uses_sign_of_finite_nonzero_values(self, data, expected):
-        from nltools.data.braindata.plotting import auto_select_colormap
+        from nltools.data.braindata.plotting import _auto_select_colormap
 
-        assert auto_select_colormap(data) == expected
+        assert _auto_select_colormap(data) == expected
 
     def test_plot_matplotlib_axis(self, minimal_brain_data):
         """Test plotting on existing matplotlib axes."""
@@ -204,7 +204,7 @@ def native_brain_data():
     """BrainData on a Miyawaki-shaped (anisotropic, native) affine.
 
     Used to exercise the standard-space plotting gate. Voxels (3.3, 3.6,
-    6.4) mm fail :func:`nltools.templates.is_standard_space`.
+    6.4) mm fail :func:`nltools.templates._is_standard_space`.
     """
     import nibabel as nib
 

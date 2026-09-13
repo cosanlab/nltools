@@ -4,9 +4,9 @@ import numpy as np
 import polars as pl
 from scipy.signal import hilbert
 
-from .isc import isc_permutation_test
+from .isc import _isc_permutation_test
 from .matrix import _compute_cross_correlation
-from .utils import maybe_tqdm
+from .utils import _maybe_tqdm
 
 from ..signal import (
     _butter_bandpass_filter,
@@ -125,7 +125,7 @@ def isc(
 
     # The engine speaks the same canonical vocabulary (summary=, metric=), so
     # this wrapper only maps n_samples -> n_permute.
-    return isc_permutation_test(
+    return _isc_permutation_test(
         data,
         n_permute=n_samples,  # Map n_samples -> n_permute
         summary=summary,
@@ -172,7 +172,7 @@ def isc_group(
     with itself, so those entries are set to NaN when `exclude_self_corr=True`.
     P-values use the percentile method (Hall & Wilson, 1991).
 
-    Runs on plain arrays; `isc_group_permutation_test` exposes the same engine
+    Runs on plain arrays; `_isc_group_permutation_test` exposes the same engine
     with leave-one-out ISC.
 
     Args:
@@ -214,7 +214,7 @@ def isc_group(
         Hall, P., & Wilson, S. R. (1991). Two guidelines for bootstrap
         hypothesis testing. Biometrics, 757-762.
     """
-    from .isc import isc_group_permutation_test
+    from .isc import _isc_group_permutation_test
 
     group1 = _as_ndarray(group1, name="group1")
     group2 = _as_ndarray(group2, name="group2")
@@ -230,7 +230,7 @@ def isc_group(
 
     # The engine speaks the same canonical vocabulary; only n_samples ->
     # n_permute is mapped here.
-    return isc_group_permutation_test(
+    return _isc_group_permutation_test(
         group1,
         group2,
         n_permute=n_samples,  # Map parameter name
@@ -307,7 +307,7 @@ def isfc(data, *, method="average", n_jobs=-1, random_state=None, progress_bar=F
     if n_jobs == 1:
         # Serial execution (for explicit serial control)
         sub_isfc = []
-        for target in maybe_tqdm(subjects, **progress_kwargs):
+        for target in _maybe_tqdm(subjects, **progress_kwargs):
             m1 = data_arrays[target]
             sub_mean = np.zeros(m1.shape)
             for y in (y for y in subjects if y != target):
@@ -329,7 +329,7 @@ def isfc(data, *, method="average", n_jobs=-1, random_state=None, progress_bar=F
         # Parallelize across subjects
         sub_isfc = Parallel(n_jobs=n_jobs)(
             delayed(_compute_one_subject_isfc)(target)
-            for target in maybe_tqdm(subjects, **progress_kwargs)
+            for target in _maybe_tqdm(subjects, **progress_kwargs)
         )
 
     return sub_isfc

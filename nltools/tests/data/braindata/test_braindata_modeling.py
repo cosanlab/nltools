@@ -36,14 +36,14 @@ class TestBrainDataModeling:
 
     def test_fit_predict_ridge_workflow(self, minimal_brain_data):
         """Test complete Ridge fit/predict workflow."""
-        from nltools.models import Ridge
+        from nltools.models import _Ridge
 
         X_train = np.random.randn(len(minimal_brain_data), 10)
         minimal_brain_data.fit(model="ridge", ridge_alpha=1.0, X=X_train)
 
         # Check model stored
         assert hasattr(minimal_brain_data, "model_")
-        assert isinstance(minimal_brain_data.model_, Ridge)
+        assert isinstance(minimal_brain_data.model_, _Ridge)
         assert minimal_brain_data.model_.is_fitted_
 
         # Check attributes set
@@ -65,7 +65,7 @@ class TestBrainDataModeling:
     def test_fit_predict_glm_workflow(self, minimal_brain_data):
         """Test complete GLM fit/predict workflow."""
         from nltools.data import DesignMatrix
-        from nltools.models import Glm
+        from nltools.models import _Glm
 
         design_matrix = DesignMatrix(
             {
@@ -76,7 +76,7 @@ class TestBrainDataModeling:
         minimal_brain_data.fit(model="glm", glm_noise_model="ols", X=design_matrix)
 
         assert hasattr(minimal_brain_data, "model_")
-        assert isinstance(minimal_brain_data.model_, Glm)
+        assert isinstance(minimal_brain_data.model_, _Glm)
         assert hasattr(minimal_brain_data, "glm_betas")
 
         predictions = minimal_brain_data.predict()
@@ -603,11 +603,11 @@ class TestWarnRankDeficient:
         _warn_if_rank_deficient(np.asarray(X, dtype=float))
 
     def test_warns_with_named_category(self):
-        from nltools.data.braindata.modeling import RankDeficientDesignWarning
+        from nltools.utils import DesignMatrixWarning
 
         rng = np.random.default_rng(0)
         a = rng.standard_normal(30)
-        with pytest.warns(RankDeficientDesignWarning, match="rank deficient"):
+        with pytest.warns(DesignMatrixWarning, match="rank deficient"):
             self._check(np.column_stack([np.ones(30), a, a]))
 
     def test_message_offers_the_three_fixes(self):
@@ -661,7 +661,7 @@ class TestWarnRankDeficient:
 
     def test_rank_deficient_design_warns_through_fit(self, minimal_brain_data):
         """Through fit(): a rank-deficient design raises the warning."""
-        from nltools.data.braindata.modeling import RankDeficientDesignWarning
+        from nltools.utils import DesignMatrixWarning
 
         n = len(minimal_brain_data)
         rng = np.random.default_rng(11)
@@ -672,7 +672,7 @@ class TestWarnRankDeficient:
         with warnings.catch_warnings(record=True) as caught:
             warnings.simplefilter("always")
             minimal_brain_data.fit(model="glm", X=design_matrix)
-        assert any(issubclass(w.category, RankDeficientDesignWarning) for w in caught)
+        assert any(issubclass(w.category, DesignMatrixWarning) for w in caught)
 
 
 class TestBrainDataTTest:
@@ -1144,12 +1144,12 @@ class TestGlmFacadeContract:
             minimal_brain_data.fit(model="glm", X=frame)
 
     def test_fit_attaches_only_the_documented_state(self, minimal_brain_data):
-        from nltools.models import Glm
+        from nltools.models import _Glm
 
         design = self._design(minimal_brain_data)
         minimal_brain_data.fit(model="glm", X=design)
 
-        assert isinstance(minimal_brain_data.model_, Glm)
+        assert isinstance(minimal_brain_data.model_, _Glm)
         assert minimal_brain_data.glm_betas.shape == (3, minimal_brain_data.shape[1])
         assert minimal_brain_data.glm_residual.shape == minimal_brain_data.shape
         assert minimal_brain_data.glm_predicted.shape == minimal_brain_data.shape
@@ -1172,12 +1172,12 @@ class TestGlmFacadeContract:
 
     def test_a_failed_fit_attaches_no_model(self, minimal_brain_data, monkeypatch):
         """`model_` is attached only once the estimator's own fit returns."""
-        from nltools.models import Glm
+        from nltools.models import _Glm
 
         def boom(self, X, y):
             raise RuntimeError("estimator blew up")
 
-        monkeypatch.setattr(Glm, "fit", boom)
+        monkeypatch.setattr(_Glm, "fit", boom)
         design = self._design(minimal_brain_data)
         with pytest.raises(RuntimeError, match="estimator blew up"):
             minimal_brain_data.fit(model="glm", X=design)
@@ -1387,11 +1387,11 @@ class TestGlmFacadeContract:
         import polars as pl
 
         from nltools.data.braindata.prediction import _resolve_stored_y
-        from nltools.models import Glm
+        from nltools.models import _Glm
 
         labels = np.arange(len(minimal_brain_data)) % 2
         minimal_brain_data.Y = pl.DataFrame({"label": labels})
-        minimal_brain_data.model_ = Glm()
+        minimal_brain_data.model_ = _Glm()
 
         np.testing.assert_array_equal(
             _resolve_stored_y(minimal_brain_data, None), labels
@@ -1604,12 +1604,12 @@ class TestRidgeFacadeContract:
         self, minimal_brain_data, monkeypatch
     ):
         """`model_` is attached only once the estimator's own fit returns."""
-        from nltools.models import Ridge
+        from nltools.models import _Ridge
 
         def boom(self, X, y):
             raise RuntimeError("estimator blew up")
 
-        monkeypatch.setattr(Ridge, "fit", boom)
+        monkeypatch.setattr(_Ridge, "fit", boom)
         with pytest.raises(RuntimeError, match="estimator blew up"):
             minimal_brain_data.fit(
                 model="ridge", X=self._features(minimal_brain_data), ridge_alpha=1.0
