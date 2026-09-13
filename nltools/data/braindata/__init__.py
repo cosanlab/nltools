@@ -910,7 +910,7 @@ class BrainData:
         Returns:
             float | np.ndarray: For a binary mask, a scalar (single image) or 1D
                 array (multiple images). For a labeled atlas, a 1D array (single
-                image), a 2D array of images x ROIs (multiple images), or the PCA
+                image), a 2D array of ROIs x images (multiple images), or the PCA
                 components array when ``method='pca'``.
 
         Raises:
