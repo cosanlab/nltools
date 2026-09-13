@@ -43,14 +43,14 @@ _MODE_INDEPENDENT_FIELDS = ("spatial_scale", "scoring")
 def _fold_mean(scores, axis=None):
     """Reduce fold scores to their cross-fold mean, ignoring failed folds.
 
-    `Predict.mean_score` and the ROI runner's painted `score_map` must report the
+    `PredictResult.mean_score` and the ROI runner's painted `score_map` must report the
     same number for the same parcel, so both call this one reduction.
     """
     return np.nanmean(scores, axis=axis)
 
 
 @dataclass(frozen=True)
-class Predict:
+class PredictResult:
     """Frozen structural record for `BrainData.predict` decoding results.
 
     ``spatial_scale`` is the discriminator: it decides which fields carry a
@@ -114,7 +114,7 @@ class Predict:
 
     Note:
         Encoding-model timeseries prediction (``bd.predict(X=...)``) returns a
-        `BrainData` directly rather than a `Predict` — the natural container
+        `BrainData` directly rather than a `PredictResult` — the natural container
         for a voxel timeseries.
     """
 
@@ -199,7 +199,7 @@ class Predict:
         """
         if "spatial_scale" not in state or set(state) - set(self.__dataclass_fields__):
             raise ValueError(
-                "This Predict was pickled by an older nltools and cannot be "
+                "This PredictResult was pickled by an older nltools and cannot be "
                 "restored: its field set predates the spatial_scale "
                 "discriminator. Clear the cache (for the tutorials, "
                 "`uv run poe tutorials-clean-cache`) and rerun."

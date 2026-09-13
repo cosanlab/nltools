@@ -485,14 +485,14 @@ cached prediction delegate to the fitted `_Glm` or `_Ridge`; collection code mus
 not reimplement matrix multiplication, add an intercept, or special-case one
 storage mode.
 
-MVPA returns a `PredictCollection` whose members are the validated `Predict`
+MVPA returns a `PredictCollection` whose members are the validated `PredictResult`
 results defined by the BrainData specification. Every member uses the
 collection call's `spatial_scale` and `scoring` arguments. Classifier results
 must have identical class labels in the same order. ROI results must also have
 identical `roi_labels` in the same order. The collection raises on a mismatch;
 it does not reorder labels after fitting.
 
-Every MVPA result remains fully in memory and retains the complete `Predict`
+Every MVPA result remains fully in memory and retains the complete `PredictResult`
 state, including the all-data fitted estimator for each member. MVPA has no
 cache bundles, estimator-stripping step, callable-scorer serialization, or
 public cache read path.
@@ -501,7 +501,7 @@ public cache read path.
 
 ```python
 PredictCollection(
-    results: tuple[Predict, ...],
+    results: tuple[PredictResult, ...],
     metadata: pl.DataFrame | None = None,
 )
 ```
@@ -511,14 +511,14 @@ exported from the package namespace. Users receive it from collection
 prediction. It must contain at least one result: empty collection prediction
 raises before fitting, and its derived properties require a common result mode.
 
-The constructor independently copies each input `Predict` into `results` in
+The constructor independently copies each input `PredictResult` into `results` in
 collection order. When present, `metadata` is an independent Polars clone with
 one row per result in the same order. Construction validates result modes,
 scoring specifications, class labels, ROI labels, masks, and metadata row count
 before creating the object.
 
 `PredictCollection` supports `len`, iteration, and integer indexing over
-`results`. Integer indexing and iteration return independently owned `Predict`
+`results`. Integer indexing and iteration return independently owned `PredictResult`
 snapshots rather than references to stored results. Freezing the outer result
 prevents attribute reassignment but does not make nested arrays and brain maps
 immutable. Its other attributes are derived properties:
@@ -555,7 +555,7 @@ empty. For multiclass `weight_maps`, every class-specific `BrainData` is
 independently owned and follows the same `.X` and `.Y` rules. No ad hoc
 member-metadata attribute is added to `BrainData`.
 
-The public name is `score_table`, not `scores`, because `Predict.scores`
+The public name is `score_table`, not `scores`, because `PredictResult.scores`
 already names the raw fold-level arrays. Cache paths are internal execution
 metadata and are not stored on `PredictCollection`. Cached and in-memory
 execution return the same result type and derived values.
@@ -563,7 +563,7 @@ execution return the same result type and derived values.
 ### Group MVPA
 
 `predict_group` runs one group-level MVPA analysis in which collection members
-are observations and returns one `Predict`:
+are observations and returns one `PredictResult`:
 
 ```python
 BrainCollection.predict_group(
@@ -578,7 +578,7 @@ BrainCollection.predict_group(
     radius_mm: float = 10.0,
     n_jobs: int = -1,
     progress_bar: bool = False,
-) -> Predict
+) -> PredictResult
 ```
 
 The method requires exactly one map per collection member. Each member's
@@ -595,20 +595,20 @@ collection member. A string names a collection-metadata column, which is read
 in collection order. Missing metadata, an unknown column, or a length mismatch
 raises before stacking or fitting.
 
-For whole-brain group MVPA, `Predict.predictions` and `Predict.cv_folds` have
+For whole-brain group MVPA, `PredictResult.predictions` and `PredictResult.cv_folds` have
 one value per collection member in collection order. `predict_group` does not
-mutate the collection or its members, and the returned `Predict` owns its arrays
+mutate the collection or its members, and the returned `PredictResult` owns its arrays
 and brain maps.
 
 `BrainCollection.predict(y=...)` runs a separate MVPA analysis within each
 member and returns a `PredictCollection`. `BrainCollection.predict_group(y=...)`
 instead treats members as observations in one group-level analysis and returns
-one `Predict`.
+one `PredictResult`.
 
 `predict_group` does not create group labels, choose a group-aware splitter, or
 run permutation tests. Callers pass `groups` and a compatible cross-validation
 splitter explicitly. The removed `model`, `standardize`, `n_permute`, and
-`random_state` arguments raise `TypeError`. `Predict` has no permutation-only
+`random_state` arguments raise `TypeError`. `PredictResult` has no permutation-only
 fields.
 
 ## GLM contrasts
@@ -896,12 +896,12 @@ Tests must establish:
   `n_jobs` and `progress_bar` behavior in both modes;
 - standard collection caching only for fitted-model prediction; uncached MVPA
   under `cache="auto"`; rejection of explicit boolean cache values in MVPA
-  mode; and complete in-memory `Predict` state, including all-data fitted
+  mode; and complete in-memory `PredictResult` state, including all-data fitted
   estimators, without cache bundles, estimator stripping, callable-scorer
   serialization, or a public cache read path;
 - strict nonempty `PredictCollection` construction in the internal results
   module, with no package-namespace export; independently copied stored results;
-  aligned, independently cloned Polars metadata; independently owned `Predict`
+  aligned, independently cloned Polars metadata; independently owned `PredictResult`
   snapshots from integer indexing and iteration; and derived whole-brain, ROI,
   and searchlight properties;
 - binary/regression and class-keyed multiclass weight-map stacking;

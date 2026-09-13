@@ -15,7 +15,7 @@ if TYPE_CHECKING:
 
     from nltools.data.atlases import _Atlas, _ClusterReport
     from nltools.data.designmatrix import DesignMatrix
-    from nltools.data.results import Predict
+    from nltools.data.results import PredictResult
 
 from .utils import _check_brain_data, _coalesced_gc
 
@@ -1507,7 +1507,7 @@ class BrainData:
         plot: bool = False,
         n_jobs: int = 1,
         progress_bar: bool = False,
-    ) -> "Predict": ...
+    ) -> "PredictResult": ...
 
     @_coalesced_gc()
     def predict(
@@ -1531,7 +1531,7 @@ class BrainData:
 
         Exactly one mode is resolved before any work happens:
 
-        - an explicit ``y=`` runs MVPA decoding and returns a `Predict`;
+        - an explicit ``y=`` runs MVPA decoding and returns a `PredictResult`;
         - an explicit ``X=`` predicts from the fitted `_Glm` or `_Ridge` and
           returns a new, independently owned `BrainData`;
         - with neither argument and a fitted model, an independent copy of the
@@ -1619,7 +1619,7 @@ class BrainData:
             radius (float): Searchlight sphere radius in millimeters; only
                 valid for ``spatial_scale='searchlight'``. Default ``10.0``.
             plot (bool): Draw the cross-validated figures as a side effect.
-                Default ``False``; the returned `Predict` is the same either
+                Default ``False``; the returned `PredictResult` is the same either
                 way. Regression draws predicted values against observed ones,
                 titled with the cross-validated Pearson *r*. Binary
                 classification draws the ROC of the out-of-fold decision values,
@@ -1635,7 +1635,7 @@ class BrainData:
             progress_bar (bool): Show a progress bar for searchlight and ROI.
 
         Returns:
-            Predict | BrainData: A `Predict` record for MVPA; a new `BrainData`
+            PredictResult | BrainData: A `PredictResult` record for MVPA; a new `BrainData`
                 holding the predicted timeseries for fitted-model prediction.
                 The record's ``spatial_scale`` says which of its fields carry
                 values: whole-brain fills ``predictions``, ``cv_folds``,

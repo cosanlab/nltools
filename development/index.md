@@ -118,7 +118,7 @@ public signature against in CI. The table below is rendered from it:
 | Retain resampled draws | `return_samples: bool = False` on `bootstrap` — keeps every replicate (bootstrap axis first); it changes retention only, never the interval |
 | Tail of test | `tail` (<code>2 &#124; 'two' &#124; 1 &#124; 'one'</code>; direction fixed by the test, never the data) |
 | Threshold pair | `lower`, `upper`, `binarize` (+ `threshold` where bidirectional) |
-| Draw result figures | `plot: bool = False` on `BrainData.predict` — draws the cross-validated regression scatter, or the binary-classification ROC and margin/probability figures, plus the weight map, as a side effect; the returned `Predict` is unchanged. `Adjacency.similarity(plot=)` carries the same meaning |
+| Draw result figures | `plot: bool = False` on `BrainData.predict` — draws the cross-validated regression scatter, or the binary-classification ROC and margin/probability figures, plus the weight map, as a side effect; the returned `PredictResult` is unchanged. `Adjacency.similarity(plot=)` carries the same meaning |
 | Display autoscaling | `autoscale: bool = True` (viewer display window; `False` = raw magnitude range) |
 | Display symmetry | <code>symmetric: bool &#124; 'auto' = 'auto'</code> (viewer positive/negative limbs) |
 | Plot axis | <code>ax: matplotlib.axes.Axes &#124; None = None</code> on the data-class plotters (`BrainData.plot`, `Adjacency.plot`, `DesignMatrix.plot`) and the Adjacency helper plots, following matplotlib and seaborn |

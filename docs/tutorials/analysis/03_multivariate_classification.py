@@ -149,7 +149,7 @@ def _(mo):
     mo.md(r"""
     ## Continuous decision values
 
-    `Predict.predictions` holds the out-of-fold *label* for every image — what
+    `PredictResult.predictions` holds the out-of-fold *label* for every image — what
     the classifier decided. Calibration and ROC analysis need the continuous
     quantity behind that decision: the distance from the separating hyperplane,
     or a probability.

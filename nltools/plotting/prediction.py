@@ -1,7 +1,7 @@
 """Model output visualization — ROC curves and the cross-validated decoding figures.
 
 Every function here takes arrays, not a result table: `BrainData.predict` returns a
-`Predict` record plus the row-aligned out-of-fold decision values that go with it,
+`PredictResult` record plus the row-aligned out-of-fold decision values that go with it,
 and these draw from those directly.
 """
 

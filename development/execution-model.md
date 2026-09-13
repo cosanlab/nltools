@@ -229,7 +229,7 @@ schema version stayed at 2 and pre-attr bundles remain readable.
 ## HDF5 predict bundle
 
 `predict(y=)` — per-subject decoding — is the one parallel op whose per-subject result
-is a `Predict` dataclass rather than an image, so it returns a `PredictCollection`
+is a `PredictResult` dataclass rather than an image, so it returns a `PredictCollection`
 (never a path-backed `BrainCollection`). When caching, each worker also writes a
 predict bundle holding the result's **ingredients**:
 
@@ -255,7 +255,7 @@ version-fragile and rarely used — refit from the stored spec on demand via
 rebuilt by hand). For
 consistency, the in-memory results of a caching run mirror the bundle
 (`estimator=None`); only uncached runs keep live estimators. `read_predict_bundle`
-rebuilds a `Predict` with `BrainData` maps on the embedded mask, and refuses fit
+rebuilds a `PredictResult` with `BrainData` maps on the embedded mask, and refuses fit
 bundles (`bundle_kind` check) with a pointer to the right reader.
 
 **On read:** `bundle_schema_version` mismatch raises with a clear migration message

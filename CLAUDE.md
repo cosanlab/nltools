@@ -25,7 +25,7 @@ nltools has a functional core wrapped in an imperative shell, and the two serve 
 
 **Layer one, for maintainers.** Internal modules hold the implementation as pure functions and frozen dataclasses; the facade classes delegate to them and carry no numerical or domain logic of their own. Internal modules are the only source of implementation. Their functions and classes are underscore-prefixed and documented only in their docstrings.
 
-**Layer two, for users.** The facade classes with their methods, plus a short designated list of standalone functions. Users are never expected to call an estimator, a delegate, or a helper directly; a return object (`Predict`, `BootstrapResult`, `ContrastResult`, `BrainSpaceConfig`) is data they read, not something they construct. A public-looking name does not make something user-facing; being listed here does.
+**Layer two, for users.** The facade classes with their methods, plus a short designated list of standalone functions. Users are never expected to call an estimator, a delegate, or a helper directly; a return object (`PredictResult`, `BootstrapResult`, `ContrastResult`, `BrainSpaceConfig`) is data they read, not something they construct. A public-looking name does not make something user-facing; being listed here does.
 
 Namespace | User-facing members
 --- | ---

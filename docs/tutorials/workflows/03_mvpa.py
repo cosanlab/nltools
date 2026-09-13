@@ -97,7 +97,7 @@ def _(mo):
         r"""
     ### Whole-brain
 
-    `BrainData.predict()` mirrors `.fit()`: one call, one frozen `Predict` result. `cv` scores generalization; `weight_map` is the classifier refit on all the data (the publishable map). For a linear SVM:
+    `BrainData.predict()` mirrors `.fit()`: one call, one frozen `PredictResult` result. `cv` scores generalization; `weight_map` is the classifier refit on all the data (the publishable map). For a linear SVM:
     """
     )
     return

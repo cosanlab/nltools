@@ -1,4 +1,4 @@
-"""Tests for the frozen structural `Predict` result record.
+"""Tests for the frozen structural `PredictResult` result record.
 
 The spec's shape table (`development/specs/braindata.md`, "Prediction and
 decoding") is the contract: one record class, a required ``spatial_scale``
@@ -11,7 +11,7 @@ import nibabel as nib
 import numpy as np
 import pytest
 
-from nltools.data import BrainData, Predict
+from nltools.data import BrainData, PredictResult
 
 
 N_SAMPLES, N_FOLDS, N_ROIS, N_VOXELS = 20, 4, 3, 125
@@ -72,7 +72,7 @@ def searchlight_fields(brain_map):
 
 class TestPredictFieldSet:
     def test_fields_match_the_spec_table(self):
-        assert [field.name for field in fields(Predict)] == [
+        assert [field.name for field in fields(PredictResult)] == [
             "spatial_scale",
             "scoring",
             "classes",
@@ -87,16 +87,16 @@ class TestPredictFieldSet:
 
     def test_spatial_scale_is_required(self):
         with pytest.raises(TypeError):
-            Predict()
+            PredictResult()
 
     def test_unknown_spatial_scale_is_rejected(self):
         with pytest.raises(ValueError, match="spatial_scale"):
-            Predict(spatial_scale="voxel", score_map=None)
+            PredictResult(spatial_scale="voxel", score_map=None)
 
 
 class TestWholeBrainConstruction:
     def test_construction(self, whole_brain_fields):
-        result = Predict(**whole_brain_fields)
+        result = PredictResult(**whole_brain_fields)
 
         assert result.spatial_scale == "whole_brain"
         assert result.scoring is None
@@ -110,13 +110,13 @@ class TestWholeBrainConstruction:
         assert result.score_map is None
 
     def test_regression_leaves_classes_none(self, whole_brain_fields):
-        result = Predict(**{**whole_brain_fields, "classes": None})
+        result = PredictResult(**{**whole_brain_fields, "classes": None})
         assert result.classes is None
 
 
 class TestRoiConstruction:
     def test_construction(self, roi_fields):
-        result = Predict(**roi_fields)
+        result = PredictResult(**roi_fields)
 
         assert result.spatial_scale == "roi"
         assert result.scoring == "accuracy"
@@ -131,22 +131,22 @@ class TestRoiConstruction:
     def test_weight_map_cannot_be_absent(self, roi_fields):
         """Every successful ROI result carries a map — there is no degraded path."""
         with pytest.raises(ValueError, match="weight_map.*roi"):
-            Predict(**{**roi_fields, "weight_map": None})
+            PredictResult(**{**roi_fields, "weight_map": None})
 
 
 class TestSearchlightConstruction:
     def test_weight_map_is_rejected(self, searchlight_fields, brain_map):
         with pytest.raises(ValueError, match="weight_map.*searchlight"):
-            Predict(**{**searchlight_fields, "weight_map": brain_map()})
+            PredictResult(**{**searchlight_fields, "weight_map": brain_map()})
 
     def test_score_map_is_required(self, searchlight_fields):
         with pytest.raises(ValueError, match="score_map.*searchlight"):
-            Predict(**{**searchlight_fields, "score_map": None})
+            PredictResult(**{**searchlight_fields, "score_map": None})
 
 
 class TestScoreSummaries:
     def test_whole_brain_summaries_derive_from_scores(self, whole_brain_fields):
-        result = Predict(**whole_brain_fields)
+        result = PredictResult(**whole_brain_fields)
 
         assert isinstance(result.mean_score, float)
         assert result.mean_score == pytest.approx(float(result.scores.mean()))
@@ -155,14 +155,14 @@ class TestScoreSummaries:
     def test_roi_summaries_ignore_failed_parcels(self, roi_fields):
         scores = np.array(roi_fields["scores"])
         scores[0, 0] = np.nan
-        result = Predict(**{**roi_fields, "scores": scores})
+        result = PredictResult(**{**roi_fields, "scores": scores})
 
         assert np.isfinite(result.mean_score).all()
         np.testing.assert_allclose(result.mean_score, np.nanmean(scores, axis=0))
 
     @pytest.mark.parametrize("summary", ["mean_score"])
     def test_searchlight_summaries_raise(self, summary, searchlight_fields):
-        result = Predict(**searchlight_fields)
+        result = PredictResult(**searchlight_fields)
 
         with pytest.raises(AttributeError, match="score_map"):
             getattr(result, summary)
@@ -171,14 +171,14 @@ class TestScoreSummaries:
 class TestPredictOwnership:
     def test_arrays_are_copied(self, whole_brain_fields):
         scores = np.array([0.1, 0.2, 0.3, 0.4])
-        result = Predict(**{**whole_brain_fields, "scores": scores})
+        result = PredictResult(**{**whole_brain_fields, "scores": scores})
 
         result.scores[0] = 9.9
         assert scores[0] == 0.1
 
     def test_maps_are_copied(self, whole_brain_fields, brain_map):
         weight_map = brain_map()
-        result = Predict(**{**whole_brain_fields, "weight_map": weight_map})
+        result = PredictResult(**{**whole_brain_fields, "weight_map": weight_map})
 
         assert result.weight_map is not weight_map
         result.weight_map.data[0] = 9.9
@@ -191,7 +191,7 @@ class TestPredictOwnership:
         y = np.array([0, 0, 1, 1])
         estimator = LinearSVC().fit(X, y)
 
-        result = Predict(**{**whole_brain_fields, "estimator": estimator})
+        result = PredictResult(**{**whole_brain_fields, "estimator": estimator})
 
         assert result.estimator is not estimator
         np.testing.assert_array_equal(result.estimator.predict(X), y)
@@ -199,6 +199,6 @@ class TestPredictOwnership:
 
 class TestPredictFrozenBindings:
     def test_cannot_modify_field(self, whole_brain_fields):
-        result = Predict(**whole_brain_fields)
+        result = PredictResult(**whole_brain_fields)
         with pytest.raises(FrozenInstanceError):
             result.scores = np.zeros(N_FOLDS)

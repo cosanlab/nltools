@@ -44,7 +44,7 @@ apply `BrainData` methods per subject and stack the results with
 | GLM | `nltools.stats.regress(X, Y, mode=…)` | `nltools.algorithms.regress(X, Y, *, stats=…, tail=…)` | OLS was the only working mode; robust/ARMA are gone |
 | GLM | `brain.randomise(...)` | `brain.ttest(permutation=True)` | Voxelwise permutation on the entry point that already existed |
 | GLM | `adjacency.regress(X, mode='ols')` | `adjacency.regress(X)` | Same removal as the standalone `regress`; `tail` is keyword-only |
-| Prediction | `brain.predict(algorithm='svm', cv_dict=…)` → dict | `brain.predict(y=…, estimator=…, cv=…)` → `Predict` | Frozen record with `weight_map`, `scores`, `predictions` |
+| Prediction | `brain.predict(algorithm='svm', cv_dict=…)` → dict | `brain.predict(y=…, estimator=…, cv=…)` → `PredictResult` | Frozen record with `weight_map`, `scores`, `predictions` |
 | Prediction | `brain.predict_multi(...)` | `brain.predict(spatial_scale='roi'\|'searchlight')` | One entry point, three spatial scales |
 | Prediction | `set_cv(Y, cv_dict)` | `cv=<int>` or an sklearn splitter, plus `groups=` | Removed; an int is that many unshuffled stratified folds |
 | Prediction | `algorithm='svm'`, `'logistic'`, `'svr'` | `estimator='linear_svc'`, `'logistic_regression'`, `'linear_svr'` | Abbreviations are rejected by name; `linear`, `lassopcr` and the `*CV` variants are gone |
@@ -254,7 +254,7 @@ print(betas.shape, df[0])
 ### Prediction
 
 `predict` takes the labels, the estimator and the cross-validation scheme as
-three separate keywords and returns a frozen `Predict` record. There is no
+three separate keywords and returns a frozen `PredictResult` record. There is no
 `cv_dict` and no `set_cv`: pass an integer (that many unshuffled stratified
 folds), or any sklearn splitter, plus `groups=` when folds must respect subjects.
 

@@ -31,7 +31,7 @@ def _(mo):
     fitted on.
 
     `BrainData.predict` runs that whole loop — folds, fits, scores, and a final
-    fit on everything — and hands back one frozen `Predict` record. This tutorial
+    fit on everything — and hands back one frozen `PredictResult` record. This tutorial
     predicts pain intensity from 84 images of 28 subjects.
     """)
     return

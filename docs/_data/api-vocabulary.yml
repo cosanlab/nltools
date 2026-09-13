@@ -106,7 +106,7 @@ vocabulary:
     index_md: "`lower`, `upper`, `binarize` (+ `threshold` where bidirectional)"
   - concept: "Draw result figures"
     kwarg: "plot"
-    index_md: "`plot: bool = False` on `BrainData.predict` — draws the cross-validated regression scatter, or the binary-classification ROC and margin/probability figures, plus the weight map, as a side effect; the returned `Predict` is unchanged. `Adjacency.similarity(plot=)` carries the same meaning"
+    index_md: "`plot: bool = False` on `BrainData.predict` — draws the cross-validated regression scatter, or the binary-classification ROC and margin/probability figures, plus the weight map, as a side effect; the returned `PredictResult` is unchanged. `Adjacency.similarity(plot=)` carries the same meaning"
   - concept: "Display autoscaling"
     kwarg: "autoscale"
     index_md: "`autoscale: bool = True` (viewer display window; `False` = raw magnitude range)"
