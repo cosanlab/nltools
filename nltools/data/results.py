@@ -325,6 +325,13 @@ class FitResult:
             for a GLM.
         cv (BaseCrossValidator | None): Ridge only: the cross-validator alpha
             selection resolved to. `None` for a GLM and for a fixed-alpha fit.
+
+    Note:
+        A record restored from HDF5 has no estimator, so it serves what it
+        stored and refuses the rest: the no-argument `predict()` still returns
+        `predicted` and a contrast effect is still a linear combination of
+        `betas`, while `predict(X=...)`, `bootstrap` and
+        `compute_contrasts(inference=True)` ask for a refit from `design`.
     """
 
     kind: str
