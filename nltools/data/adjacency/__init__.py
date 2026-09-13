@@ -613,6 +613,13 @@ class Adjacency:
             dict | list[dict]: A correlation result dict with keys
                 'correlation' and 'p' for a single matrix, or a list of these
                 dicts for a stack.
+
+        Note:
+            `metric` and `method` are easy to mix up. `metric` is the
+            correlation used to compare the two matrices. `method` is the
+            permutation scheme: `'2d'` shuffles rows and columns together (the
+            Mantel test, the right null for a symmetric RDM), `'1d'` shuffles
+            the vectorized entries, and None skips the test entirely.
         """
         from .stats import _similarity
 

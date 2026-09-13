@@ -105,6 +105,14 @@ def isc(
             `n_voxels` for 3D — and, when `return_null=True`, `'null_dist'`
             (np.ndarray).
 
+    Note:
+        `exclude_self_corr=True` (the default) sets a subject's correlation
+        with itself to NaN when the bootstrap draws that subject twice;
+        turning it off inflates ISC. Resamples are counted with `n_samples`
+        here, for the surrogate methods as well as the bootstrap —
+        `n_permute` belongs to the permutation tests in `nltools.algorithms`
+        and is not accepted by this function.
+
     References:
         Chen, G., Shin, Y. W., Taylor, P. A., Glen, D. R., Reynolds, R. C.,
         Israel, R. B., & Cox, R. W. (2016). Untangling the relatedness among

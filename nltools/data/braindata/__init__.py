@@ -76,6 +76,14 @@ class BrainData:
         is_empty (bool): Whether ``data`` holds no elements.
         shape (tuple[int, ...]): Images-by-voxels shape of ``data``.
         size (int): Total number of elements in ``data`` (numpy convention).
+
+    Note:
+        The mask decides the grid. With no ``mask``, nltools uses the bundled
+        MNI template at the brain space's current resolution; data on a grid no
+        bundled template matches — 4 mm, say — is resampled to the closest
+        bundled 1/2/3 mm template and a `ResamplingWarning` names the fallback.
+        To keep the native resolution, pass ``mask`` with a mask in the data's
+        own space.
     """
 
     def __init__(
@@ -686,6 +694,14 @@ class BrainData:
             interval to be meaningful; it implements no grouped, clustered,
             stratified, or block resampling, so an autocorrelated fMRI time
             series must not be treated as IID rows.
+
+        Note:
+            Whatever the run will hold is checked *before* it resamples: if it
+            does not fit, `bootstrap` says so and names the
+            ``memory_budget_gb`` override, and it never quietly shrinks the
+            run. A whole-brain 95% interval at ``n_samples=5000`` needs roughly
+            0.5 GB for the retained tail; ``return_samples=True`` keeps every
+            draw and costs the full ``n_samples x output_size``.
         """
         from .bootstrap import _bootstrap
 
@@ -878,7 +894,10 @@ class BrainData:
         region, extracting from every ROI at once). Unlike `apply_mask`, this
         is an extraction convenience: `mask` is resampled onto this object's
         own grid with nearest-neighbor interpolation before extracting, so it
-        need not already share this object's grid.
+        need not already share this object's grid. That is a grid change by
+        header affine, not a spatial normalization, so an atlas's parcel
+        boundaries are approximate unless the data are already in the atlas's
+        space.
 
         Args:
             mask (BrainData | Nifti1Image | str | Path): Binary mask or labeled
@@ -1066,6 +1085,14 @@ class BrainData:
             ``compute_contrasts(..., inference=True)``, which uses the full
             per-voxel parameter covariance and is therefore correct for
             contrasts spanning several regressors.
+
+        Note:
+            A rank-deficient design fires `DesignMatrixWarning`. It describes
+            your design, not a bug in nltools: a duplicated regressor, an
+            intercept added twice, a condition that never occurs in this run.
+            The fit falls back to a pseudo-inverse, so contrasts touching the
+            dependent columns are not interpretable. Fix the design —
+            ``DesignMatrix.clean()`` handles the common case.
 
         Examples:
             ```python
@@ -1640,6 +1667,22 @@ class BrainData:
             TypeError: On a removed keyword, an `estimator` that is neither a
                 shortcut name nor an object with `fit`/`predict`, or a `cv`
                 that is neither `None`, an int, nor a splitter.
+
+        Note:
+            ``weight_map`` is the estimator refit on every observation after
+            cross-validation — the map you publish. Every successful
+            whole-brain or ROI result carries one; a pipeline that cannot
+            produce one raises instead of returning ``None``. Fold-specific
+            coefficient maps are deliberately absent: fits on overlapping
+            training folds are not independent uncertainty samples.
+
+        Note:
+            ``cv=None`` and an integer ``cv`` do not shuffle, so the folds are
+            reproducible across calls. They are stratified rather than
+            contiguous, so rows ordered by condition or by outcome no longer
+            make degenerate folds. Pass an explicit
+            ``KFold(n_splits=5, shuffle=True, random_state=0)`` if you want a
+            shuffled split anyway.
 
         Examples:
             Whole-brain decoding:
