@@ -94,7 +94,7 @@ class TestDesignMatrixDiagnostics:
             {
                 "a": [1, 2, 3, 4],
                 "b": [1.01, 2.01, 3.01, 4.01],  # r ≈ 1.0 with 'a'
-                "c": [4, 3, 2, 1],  # Uncorrelated with a, b
+                "c": [4, 1, 3, 2],  # Uncorrelated with a, b (r ≈ -0.4)
             },
             sampling_freq=1,
         )
@@ -144,6 +144,30 @@ class TestDesignMatrixDiagnostics:
 
         # Should successfully compute correlations after filling
         assert dm_clean.shape[0] == 4, "All rows should be preserved"
+
+    def test_clean_drops_every_duplicate_of_an_already_kept_column(self):
+        """
+        .clean() drops all later duplicates of a column, not just the first one.
+
+        Expected behavior:
+        - Once a column is kept, every other column correlated with it above
+          threshold is dropped, including ones only checked after the first drop
+
+        Regression test for #521: a third column correlated with an
+        already-kept column used to survive because the loop stopped
+        considering the kept column as a source of further drops.
+        """
+        x = np.arange(10.0)
+        dm = DesignMatrix(
+            {"a": x, "b": x + 1e-6, "c": x + 2e-6},
+            sampling_freq=1,
+        )
+
+        dm_clean = dm.clean()
+
+        assert list(dm_clean.columns) == ["a"], (
+            "Only the first instance should be kept; both duplicates dropped"
+        )
 
 
 # ============================================================================
