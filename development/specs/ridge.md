@@ -32,8 +32,10 @@ It does not accept `scale` or `standardize`; callers compose the corresponding
 
 The fitted `BrainData` does not retain the training features as `X_`; the fit
 record's `design` holds them. No-argument prediction returns an independent copy
-of `model.predicted`. Ridge coefficient and prediction bootstraps require the
-training `X` explicitly; the fitted model supplies its selected `alpha_`.
+of `model.predicted`. Ridge coefficient and prediction bootstraps still require
+the training `X` explicitly rather than reading `model.design`: the caller
+states the rows and, for a banded fit, the feature spaces being resampled. The
+fitted model supplies its selected `alpha_`.
 
 Ridge bootstraps hold the fitted model's selected hyperparameters fixed. An
 ordinary Ridge bootstrap holds `alpha_` fixed. A banded Ridge bootstrap holds

@@ -103,9 +103,10 @@ def _bootstrap(
 
     Note:
         This is an IID row bootstrap: rows must be exchangeable for the
-        interval to mean anything. Fitting retains no hidden copy of the
-        training features, so omitting `X` raises even when the same features
-        were supplied to `fit`.
+        interval to mean anything. Omitting `X` raises even though `fit`
+        recorded its design on `bd.model`: the caller states the rows and the
+        banded feature structure being resampled rather than having them
+        assumed.
     """
     from nltools.algorithms.inference.bootstrap import (
         _bootstrap_simple_cpu_parallel,
@@ -337,9 +338,10 @@ def _training_feature_spaces(model, X, statistic, n_obs):
     """
     if X is None:
         raise ValueError(
-            f"bootstrap('{statistic}') requires the training features as X=. "
-            f"Fitting keeps no copy of them, so pass the same features you "
-            f"passed to fit()."
+            f"bootstrap('{statistic}') requires the training features as X=, "
+            f"stating the rows and feature structure to resample rather than "
+            f"assuming them. Pass the same features you passed to fit() — "
+            f"data.model.design is what fit recorded."
         )
     spaces = model._aligned_feature_spaces(X)
     rows = spaces[0].shape[0]

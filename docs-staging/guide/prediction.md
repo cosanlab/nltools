@@ -159,8 +159,9 @@ brain.predict()                    # an owned copy of brain.model.predicted
 brain.model.write("derivatives")   # every map as NIfTI, the design as CSV
 ```
 
-Fitting keeps no copy of `X`, so a coefficient or prediction bootstrap takes the training features
-explicitly and holds the selected hyperparameters fixed across replicates:
+A coefficient or prediction bootstrap takes the training features explicitly — the caller states the
+rows and the banded feature structure being resampled, rather than having them assumed from
+`brain.model.design` — and holds the selected hyperparameters fixed across replicates:
 
 ```python
 boot = brain.bootstrap("weights", X=X, n_samples=1000)
