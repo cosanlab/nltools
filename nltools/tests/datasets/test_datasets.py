@@ -142,7 +142,7 @@ class TestLoadHaxbyExample:
     def test_return_shape(self):
         from nltools.datasets import load_haxby_example
 
-        brain_data, dms = load_haxby_example()
+        brain_data, dms = load_haxby_example(space="grid")
         assert isinstance(brain_data, list) and isinstance(dms, list)
         assert len(brain_data) == 1 and len(dms) == 1
         assert isinstance(brain_data[0], BrainData)
@@ -152,7 +152,7 @@ class TestLoadHaxbyExample:
     def test_design_matrix_has_haxby_conditions(self):
         from nltools.datasets import load_haxby_example
 
-        _, dms = load_haxby_example()
+        _, dms = load_haxby_example(space="grid")
         cols = set(dms[0].columns)
         for cond in (
             "face",
@@ -171,6 +171,91 @@ class TestLoadHaxbyExample:
         import numpy as np
         from nltools.datasets import load_haxby_example
 
-        bd1, _ = load_haxby_example(random_state=0)
-        bd2, _ = load_haxby_example(random_state=0)
+        bd1, _ = load_haxby_example(random_state=0, space="grid")
+        bd2, _ = load_haxby_example(random_state=0, space="grid")
         np.testing.assert_array_equal(bd1[0].data, bd2[0].data)
+
+    def test_default_space_is_the_3mm_mni_grid(self):
+        """The default data live on the package's 3 mm MNI mask."""
+        import numpy as np
+        import nibabel as nib
+        from nltools.datasets import load_haxby_example
+        from nltools.templates import BrainSpaceConfig
+
+        template_mask = nib.load(
+            BrainSpaceConfig(template="default", resolution=3).mask
+        )
+        n_voxels = int((np.asarray(template_mask.dataobj) > 0).sum())
+
+        brain_data, _ = load_haxby_example()
+        data = brain_data[0]
+        assert data.mask.shape == template_mask.shape
+        np.testing.assert_array_equal(data.mask.affine, template_mask.affine)
+        assert data.shape == (72, n_voxels)
+
+    def test_grid_space_keeps_the_tiny_volume(self):
+        """`space='grid'` still returns the 500-voxel synthetic volume."""
+        from nltools.datasets import load_haxby_example
+
+        brain_data, _ = load_haxby_example(space="grid")
+        assert brain_data[0].shape == (72, 500)
+
+    def test_labels_align_with_the_design_matrix(self):
+        """Each condition's `.Y` label sits on the peak of its own regressor."""
+        import numpy as np
+        from nltools.datasets import load_haxby_example
+
+        brain_data, dms = load_haxby_example(space="grid")
+        data, dm = brain_data[0], dms[0]
+        labels = data.Y["condition"].to_numpy()
+        assert len(labels) == data.shape[0]
+        for condition in ("face", "house", "cat", "scrambledpix"):
+            peak_tr = int(np.argmax(np.asarray(dm[f"{condition}_c0"])))
+            assert labels[peak_tr] == condition
+
+    def test_glass_brain_plot_runs(self):
+        """The data are standard-space enough for a glass brain."""
+        import matplotlib.pyplot as plt
+        from nltools.datasets import load_haxby_example
+
+        brain_data, _ = load_haxby_example()
+        brain_data[0].mean().plot(method="glass")
+        plt.close("all")
+
+    @pytest.mark.slow
+    def test_contrast_peak_lands_in_the_face_sphere(self):
+        """A face > house contrast peaks inside the simulated face ROI."""
+        import numpy as np
+        from nibabel.affines import apply_affine
+        from nltools.datasets import load_haxby_example
+        from nltools.data.simulator.haxby import _ROI_CENTERS_MNI, _ROI_RADIUS_MM
+
+        brain_data, dms = load_haxby_example()
+        data = brain_data[0]
+        data.fit("glm", X=dms[0])
+        contrast = data.compute_contrasts("face_c0 - house_c0")
+
+        img = contrast.to_nifti()
+        volume = img.get_fdata()
+        peak_ijk = np.unravel_index(int(np.argmax(volume)), volume.shape)
+        peak_mm = apply_affine(img.affine, peak_ijk)
+        distance = np.linalg.norm(peak_mm - np.array(_ROI_CENTERS_MNI["face"]))
+        assert distance <= _ROI_RADIUS_MM
+
+    @pytest.mark.slow
+    def test_face_vs_house_decoding_is_above_chance_but_not_perfect(self):
+        """Decoding inside the response spheres beats chance without hitting 1.0."""
+        from nltools.datasets import load_haxby_example
+        from nltools.data.simulator.haxby import _ROI_CENTERS_MNI, _ROI_RADIUS_MM
+        from nltools.mask import create_sphere
+
+        brain_data, _ = load_haxby_example()
+        data = brain_data[0]
+        ventral_temporal = create_sphere(
+            [list(_ROI_CENTERS_MNI["face"]), list(_ROI_CENTERS_MNI["house"])],
+            radius=_ROI_RADIUS_MM,
+            mask=data.mask,
+        )
+        trs = data[data.Y["condition"].is_in(["face", "house"])]
+        result = trs.apply_mask(ventral_temporal).predict(y="condition", cv=3)
+        assert 0.6 <= result.mean_score < 1.0
