@@ -636,9 +636,11 @@ class BrainData:
         together with ``self.data``, using the same row indices for every
         feature space, and refits with the fitted model's selected ``alpha_``
         — and, for a banded model, its ``feature_space_weights_`` — held fixed.
-        It never reruns cross-validation or the banded random search. Fitting
-        keeps no hidden copy of the training features, so ``X`` is required
-        even when the same features were passed to `fit`.
+        It never reruns cross-validation or the banded random search. ``X``
+        is required even though `fit` recorded its design on ``self.model``:
+        the resampling is over your rows in your order, and for a banded model
+        over your feature spaces in theirs, so the features come in explicitly
+        rather than being assumed from the record.
 
         Args:
             statistic (str): Statistic to bootstrap. Basic aggregates:
