@@ -1,62 +1,51 @@
 ---
-title: nltools.algorithms (A–Z index)
+title: nltools.algorithms
 ---
 
-# nltools.algorithms (A–Z index)
+# nltools.algorithms
 
-Every user-facing function of `nltools.algorithms`, alphabetically, with the page that documents it. The *Functions by task* pages group the same objects by what they are for.
-
-::: nltools.algorithms
-    options:
-      show_root_heading: false
-      show_root_toc_entry: false
-      members: false
-      summary: false
-
-Name | Documented under
----- | ----------------
-[`align`][nltools.algorithms.align] | [Functional alignment](tasks/alignment.md)
-[`align_states`][nltools.algorithms.align_states] | [Functional alignment](tasks/alignment.md)
-[`calc_bpm`][nltools.algorithms.calc_bpm] | [Preprocessing & signal](tasks/preprocessing.md)
-[`check_gpu_available`][nltools.algorithms.check_gpu_available] | [GPU availability](#gpu-availability)
-[`circle_shift`][nltools.algorithms.circle_shift] | [Statistics & inference](tasks/inference.md)
-[`compute_searchlight_neighborhoods`][nltools.algorithms.neighborhoods.compute_searchlight_neighborhoods] | [Searchlight neighborhoods](neighborhoods.md)
-[`compute_similarity`][nltools.algorithms.compute_similarity] | [Similarity & RSA](tasks/similarity.md)
-[`correlation_permutation_test`][nltools.algorithms.correlation_permutation_test] | [Similarity & RSA](tasks/similarity.md)
-[`distance_correlation`][nltools.algorithms.distance_correlation] | [Similarity & RSA](tasks/similarity.md)
-[`downsample`][nltools.algorithms.downsample] | [Preprocessing & signal](tasks/preprocessing.md)
-[`fdr`][nltools.algorithms.fdr] | [Statistics & inference](tasks/inference.md)
-[`find_spikes`][nltools.algorithms.find_spikes] | [Preprocessing & signal](tasks/preprocessing.md)
-[`fisher_r_to_z`][nltools.algorithms.fisher_r_to_z] | [Similarity & RSA](tasks/similarity.md)
-[`fisher_z_to_r`][nltools.algorithms.fisher_z_to_r] | [Similarity & RSA](tasks/similarity.md)
-[`holm_bonf`][nltools.algorithms.holm_bonf] | [Statistics & inference](tasks/inference.md)
-[`isc`][nltools.algorithms.isc] | [Intersubject correlation](tasks/intersubject.md)
-[`isc_group`][nltools.algorithms.isc_group] | [Intersubject correlation](tasks/intersubject.md)
-[`isfc`][nltools.algorithms.isfc] | [Intersubject correlation](tasks/intersubject.md)
-[`isps`][nltools.algorithms.isps] | [Intersubject correlation](tasks/intersubject.md)
-[`make_cosine_basis`][nltools.algorithms.make_cosine_basis] | [Preprocessing & signal](tasks/preprocessing.md)
-[`matrix_permutation_test`][nltools.algorithms.matrix_permutation_test] | [Similarity & RSA](tasks/similarity.md)
-[`multi_threshold`][nltools.algorithms.multi_threshold] | [Statistics & inference](tasks/inference.md)
-[`one_sample_permutation_test`][nltools.algorithms.one_sample_permutation_test] | [Statistics & inference](tasks/inference.md)
-[`phase_randomize`][nltools.algorithms.phase_randomize] | [Statistics & inference](tasks/inference.md)
-[`procrustes`][nltools.algorithms.alignment.procrustes.procrustes] | [Functional alignment](tasks/alignment.md)
-[`procrustes_distance`][nltools.algorithms.procrustes_distance] | [Functional alignment](tasks/alignment.md)
-[`regress`][nltools.algorithms.regress] | [Design matrices, HRF & GLM](tasks/design-and-glm.md)
-[`threshold`][nltools.algorithms.threshold] | [Statistics & inference](tasks/inference.md)
-[`transform_pairwise`][nltools.algorithms.transform_pairwise] | [Similarity & RSA](tasks/similarity.md)
-[`trim`][nltools.algorithms.trim] | [Preprocessing & signal](tasks/preprocessing.md)
-[`two_sample_permutation_test`][nltools.algorithms.two_sample_permutation_test] | [Statistics & inference](tasks/inference.md)
-[`upsample`][nltools.algorithms.upsample] | [Preprocessing & signal](tasks/preprocessing.md)
-[`winsorize`][nltools.algorithms.winsorize] | [Preprocessing & signal](tasks/preprocessing.md)
-[`zscore`][nltools.algorithms.zscore] | [Preprocessing & signal](tasks/preprocessing.md)
-
-## GPU availability
+The statistical functions that operate on arrays and dataframes rather than on a
+data class: corrections, outlier and signal handling, similarity, permutation
+and bootstrap inference, intersubject measures, functional alignment, searchlight
+neighborhoods, and the GPU check.
 
 ::: nltools.algorithms
     options:
       show_root_heading: false
       show_root_toc_entry: false
-      show_category_heading: false
-      heading_level: 3
+      heading_level: 2
       members:
+        - align
+        - align_states
+        - calc_bpm
         - check_gpu_available
+        - circle_shift
+        - compute_searchlight_neighborhoods
+        - compute_similarity
+        - correlation_permutation_test
+        - distance_correlation
+        - downsample
+        - fdr
+        - find_spikes
+        - fisher_r_to_z
+        - fisher_z_to_r
+        - holm_bonf
+        - isc
+        - isc_group
+        - isfc
+        - isps
+        - make_cosine_basis
+        - matrix_permutation_test
+        - multi_threshold
+        - one_sample_permutation_test
+        - phase_randomize
+        - procrustes
+        - procrustes_distance
+        - regress
+        - threshold
+        - transform_pairwise
+        - trim
+        - two_sample_permutation_test
+        - upsample
+        - winsorize
+        - zscore

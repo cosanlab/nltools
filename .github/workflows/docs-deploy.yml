@@ -1,11 +1,11 @@
 name: Docs
 
-# Build + EXECUTE the docs site and deploy it to https://nltools.org on every push
-# to master, on every `v*` release tag (same trigger as release.yml), and on a
+# Build the docs site and deploy it to https://nltools.org on every push to
+# master, on every `v*` release tag (same trigger as release.yml), and on a
 # manual run. The site tracks master deliberately — docs run ahead of the PyPI
 # release so the merged API can be dogfooded (e.g. a GitHub install) and patched
-# before `poe release`. Executing every tutorial cell is also a test layer: a
-# notebook that fails to run, or that warns, fails the build before deploy.
+# before `poe release`. The tutorials are out of the site until #503 restores
+# them; once they are back, executing their cells is a test layer again.
 #
 # nltools.org is a custom domain served from the site root, which is what
 # `site_url` in zensical.toml names. A fork deploying to a project page points
@@ -64,12 +64,10 @@ jobs:
           restore-keys: |
             hf-cache-${{ runner.os }}-
 
-      # Regenerate sources (vocabulary tables, tutorial pages), then build the
-      # site, executing every tutorial cell. A fresh checkout is already cold (no
-      # zensical cache, no tutorial joblib caches); docs-build-fresh makes that
-      # explicit so a local `uv run poe docs-build-fresh` reproduces exactly this
-      # build, including the tutorial stderr gate.
-      - name: Build + execute docs
+      # Regenerate the vocabulary tables, then build the site. A fresh checkout is
+      # already cold (no zensical cache, no tutorial joblib caches);
+      # docs-build-fresh makes that explicit so a local run reproduces this build.
+      - name: Build docs
         env:
           HF_HUB_ETAG_TIMEOUT: "30"
         run: uv run poe docs-build-fresh

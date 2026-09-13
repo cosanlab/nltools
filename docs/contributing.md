@@ -26,15 +26,15 @@ Run linting: `uv run ruff check`
 
 Fix linting: `uv run ruff check --fix`
 
-Regenerate the generated docs sources (vocabulary tables, tutorial pages): `uv run poe docs-generate`
+Regenerate the generated docs sources (the API vocabulary tables): `uv run poe docs-generate`
 
-Build the site: `uv run poe docs-build` — a strict build into `site/` from the repo root. Every run re-executes every tutorial cell to produce its outputs, reusing the cached fits, and fails on a broken internal link, a cell that raises, or a cell that writes to stderr
+Build the site: `uv run poe docs-build` — a strict build into `site/` that fails on a broken internal link or a missing cross-reference
 
-Preview the site with live reload: `uv run poe docs-serve` — a tutorial executes only when its cells changed since the last build recorded its outputs under `.tutorial-cache/pages/`, so a config or prose edit rebuilds in seconds. After a library change the recorded outputs are stale: run `docs-build`, or `DOCS_EXEC=all uv run poe docs-serve`
+Preview the site with live reload: `uv run poe docs-serve`
 
-Build the site cold, as CI does: `uv run poe docs-build-fresh` — the same build with the tutorials' fit caches and recorded outputs dropped first, so every fit really recomputes
+Build the site cold, as CI does: `uv run poe docs-build-fresh` — the same build with the tutorials' fit caches dropped first
 
-Edit a tutorial: `uv run marimo edit docs/tutorials/<group>/<notebook>.py`, then `uv run poe docs-generate` to re-render its page
+Edit a tutorial notebook: `uv run marimo edit docs/tutorials/<group>/<notebook>.py`. The tutorial pages are out of the site until #503 restores them
 
 Generate changelog: `uv run poe changelog`
 
@@ -46,8 +46,8 @@ Build package locally: `uv build`
 
 ## Documentation
 
-Pages under `docs/api/` are hand-written: frontmatter, prose, and `::: dotted.path` directives that mkdocstrings renders at build time. Add a public object to the page that fits it — and to the `nltools.algorithms` A-Z index when it is an algorithm — then add any new page to the `nav` in `zensical.toml`. `uv run poe lint-api` fails when an export has no home, has two, or a directive names something that does not exist.
+Pages under `docs/api/` are hand-written: frontmatter, prose, and `::: dotted.path` directives that mkdocstrings renders at build time. There is one page per user-facing namespace, and each page's `members:` list mirrors the API table in `CLAUDE.md`. Add a new user-facing object to its namespace's page, and add a new page to the `nav` in `zensical.toml`. The strict build is the only check on these pages: a directive naming something that does not exist fails it.
 
-The `.md` beside each tutorial notebook is a build artifact: `docs-generate` writes it from the `.py`, and it is git-ignored. Edit the notebook. `docs-build` executes each page's cells while it builds, so the outputs on the page are the ones that code produced; `docs-serve` replays the outputs it recorded for a page whose cells did not change.
+The site is currently the home page, the migration guide, the Reference and the Development pages. The tutorial notebooks stay under `docs/tutorials/` and the User Guide pages under `docs-staging/guide/`; #503 and #505 bring them back into the nav one page at a time. When a tutorial returns, `docs-generate` writes its `.md` beside the `.py` again (a git-ignored build artifact) and `markdown-exec` executes its cells during the build.
 
-To link into the API from a guide page, use the object's full dotted path as the anchor — `[BrainData.predict](api/data/brain_data.md#nltools.data.braindata.BrainData.predict)` — because mkdocstrings gives every heading it emits `id="<full dotted path>"`, never a slug of the displayed name.
+To link into the API from another page, use the object's full dotted path as the anchor — `[BrainData.predict](api/data/brain_data.md#nltools.data.braindata.BrainData.predict)` — because mkdocstrings gives every heading it emits `id="<full dotted path>"`, never a slug of the displayed name.

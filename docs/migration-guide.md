@@ -554,7 +554,7 @@ The in-browser stack — the marimo WASM tutorial pages and the library's Pyodid
 - `nltools.datasets.PAIN_RESOURCES`, `nltools.datasets.EMOTION_METADATA`, and `nltools.datasets.emotion_resources`
 - the `docs-wasm` / `test-pyodide` poe tasks, the pyodide CI job, and the node-based Pyodide smoke tests
 
-Tutorials are now plain marimo `.py` notebooks (PEP 723 header: `marimo` + `nltools`) meant for local editing (`uvx marimo edit --sandbox <nb>.py`) or [molab](https://molab.marimo.io); the docs site renders executed previews of them.
+Tutorials are now plain marimo `.py` notebooks (PEP 723 header: `marimo` + `nltools`) meant for local editing (`uvx marimo edit --sandbox <nb>.py`) or [molab](https://molab.marimo.io). They live under [`docs/tutorials/`](https://github.com/cosanlab/nltools/tree/master/docs/tutorials) in the repository; their pages return to this site over the 0.6.0 releases.
 
 ### `nltools.stats` removed — everything lives in `nltools.algorithms` {#stats-module-removed}
 
@@ -2185,7 +2185,7 @@ The [collection specification](development/specs/braincollection.md) and
 [execution design](development/execution-model.md) preserve the deferred work.
 
 For 0.6.0, apply `BrainData` methods to each subject and concatenate the resulting
-maps for group analysis, as shown in the [GLM workflow](tutorials/workflows/01_glm.md).
+maps for group analysis with [`concatenate`](api/nltools.md).
 BrainData decoding, ROI/searchlight analyses, Glm/Ridge, alignment, permutation
 and bootstrap inference, and shared BrainData/DesignMatrix/Adjacency HDF5
 persistence remain supported.
@@ -2536,8 +2536,8 @@ Future migration guidance will follow the APIs available in those releases.
 
 ## Getting Help
 
-- **API Documentation**: Check updated API docs for each class/method
-- **Tutorials**: See rewritten tutorials for v0.6.0 patterns
+- **API Documentation**: One [Reference](api/nltools.md) page per namespace, with every method's current signature
+- **Tutorials**: Run the marimo notebooks under `docs/tutorials/` in the repository for v0.6.0 patterns
 - **GitHub Issues**: Report migration problems or unclear docs
 
 ---

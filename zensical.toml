@@ -8,65 +8,31 @@ docs_dir = "docs"
 site_dir = "site"
 repo_url = "https://github.com/cosanlab/nltools"
 extra_css = ["_static/custom.css"]
-# The tutorial pages execute through `scripts/docs_show.py`, so editing the
-# formatter must rebuild them under `zensical serve` the way editing a page does.
-watch = ["scripts/docs_show.py"]
 
 nav = [
   { "Home" = "index.md" },
   { "Migrating from v0.5" = "migration-guide.md" },
-  # Old tutorials ported from 0.5.x
-  { "Tutorials" = [
-    { "Overview" = "tutorials/index.md" },
-    { "Basics" = [
-      "tutorials/basics/01_brain_data.md",
-      "tutorials/basics/02_design_matrix.md",
-      "tutorials/basics/03_adjacency.md",
-    ] },
-    { "Data operations" = [
-      "tutorials/data-operations/01_download.md",
-      "tutorials/data-operations/02_masking.md",
-      "tutorials/data-operations/03_brain_space.md",
-      "tutorials/data-operations/04_neurovault.md",
-      "tutorials/data-operations/05_design_matrix.md",
-      "tutorials/data-operations/06_adjacency.md",
-    ] },
-  ] },
-  # Hand-written task pages, one per task, mirroring "Functions by task" below.
-  { "User Guide" = [
-    { "Overview" = "guide/index.md" },
-    "guide/loading.md",
-    "guide/design-and-glm.md",
-    "guide/prediction.md",
-    "guide/similarity-and-rsa.md",
-    "guide/alignment.md",
-    "guide/statistics-and-inference.md",
-    "guide/intersubject.md",
-    "guide/plotting.md",
-    "guide/atlases.md",
-    { "Analysis" = [
-      "tutorials/analysis/01_univariate_regression.md",
-      "tutorials/analysis/02_multivariate_prediction.md",
-      "tutorials/analysis/03_multivariate_classification.md",
-      "tutorials/analysis/04_similarity.md",
-      "tutorials/analysis/05_hyperalignment.md",
-      "tutorials/analysis/06_decomposition.md",
-    ] },
-    { "Workflows" = [
-      "tutorials/workflows/01_glm.md",
-      "tutorials/workflows/02_encoding.md",
-      "tutorials/workflows/03_mvpa.md",
-      "tutorials/workflows/04_isc.md",
-    ] },
-  ] },
-  # Auto-generated API reference
+  # One page per user-facing namespace, rendered by mkdocstrings from docs/api/.
+  # The tutorial and User Guide pages are parked under docs-staging/ until #503
+  # and #505 bring them back one at a time.
   { "Reference" = [
-    { "Adjacency" = "api/data/adjacency.md"},
-    { "BrainData" = "api/data/brain_data.md"},
-    { "DesignMatrix" = "api/data/design_matrix.md"},
-    { "ROC" = "api/data/roc.md"},
-    { "Simulator" = "api/data/simulator.md"},
+    { "nltools" = "api/nltools.md" },
+    { "nltools.data" = [
+      "api/data/brain_data.md",
+      "api/data/adjacency.md",
+      "api/data/design_matrix.md",
+      "api/data/roc.md",
+      "api/data/simulator.md",
+      "api/data/results.md",
     ] },
+    { "nltools.algorithms" = "api/algorithms.md" },
+    { "nltools.io" = "api/io.md" },
+    { "nltools.datasets" = "api/datasets.md" },
+    { "nltools.mask" = "api/mask.md" },
+    { "nltools.cross_validation" = "api/cross_validation.md" },
+    { "nltools.plotting" = "api/plotting.md" },
+    { "nltools.utils" = "api/utils.md" },
+  ] },
   { "Development" = [
     "contributing.md",
     "changelog.md",
@@ -79,9 +45,9 @@ nav = [
 invalid_links = true
 invalid_link_anchors = true
 
-# markdown-exec runs the `python exec="on"` fences on the tutorial pages while the
-# site builds. Restricted to Python so an ordinary ```bash or ```md fence on any
-# other page keeps going through the normal highlighter.
+# markdown-exec runs the `python exec="on"` fence on the home page, which reads
+# the installed package version. Restricted to Python so an ordinary ```bash or
+# ```md fence on any other page keeps going through the normal highlighter.
 [project.plugins.markdown-exec]
 languages = ["python"]
 
