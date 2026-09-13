@@ -723,9 +723,9 @@ decoding weight maps.
 
 ## Persistence
 
-Public `BrainData.write` persists the data container, not a fitted-object
-snapshot. Writing a fitted object is allowed, but loading the result always
-produces an unfitted `BrainData`.
+Public `BrainData.write` persists the data container, and for HDF5 the fit
+record alongside it. Writing a fitted object to NIfTI is allowed and stores no
+fit.
 
 NIfTI output is an image export containing the data and spatial geometry. It
 does not retain row metadata. HDF5 output is portable `BrainData` persistence
@@ -734,12 +734,25 @@ file-backed, HDF5 retains only the basename of its filename, never the parent
 path. The reconstructed in-memory mask reports that basename from
 `get_filename()`; a mask created in memory continues to report `None`. Embedded
 mask data and geometry are authoritative, and no operation reopens the retained
-basename. NIfTI stores no fit. HDF5 stores the fit record's maps, its design and its
-kind in a `model` group, so a load restores `data.model` with its `_estimator`
-`None`: every map reads back and a contrast effect, a linear combination of the
-betas, still computes, while inference, `predict(X=...)` and `bootstrap` raise
-and name the one-line refit from `data.model.design`. Neither format stores
-result records, masker caches, or execution settings.
+basename. NIfTI stores no fit. HDF5 stores the fit record's maps, its design and
+its kind in a `model` group, so a load restores `data.model` with its
+`_estimator` `None`: every map reads back and a contrast effect, a linear
+combination of the betas, still computes, while inference, `predict(X=...)` and
+`bootstrap` raise and name the one-line refit from `data.model.design`. A banded
+design's feature-space order is written as an attribute on the group, because
+h5py iterates members by name and the coefficient blocks follow the fitted
+order. Neither format stores result records, masker caches, or execution
+settings.
+
+The fitted estimator itself is not persisted. Storing it — joblib bytes in a
+`model/estimator` dataset, versioned so a stale pickle is rejected rather than
+silently misread — is what would let a reloaded fit predict, run inference and
+bootstrap; ridge's resolved `cv` splitter would travel with it. Tracked as issue
+#534.
+
+Reading the fit is guarded, not sniffed: a file with no `model` group loads
+unfitted, so an HDF5 file written before the record existed still reads back
+exactly as it did.
 
 The HDF5 input boundary reads only the current layout; it recognizes a file
 written by nltools 0.5.1 or earlier and raises, directing the user to export

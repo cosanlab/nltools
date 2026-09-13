@@ -259,18 +259,6 @@ _FIT_MAP_ROWS = {
     "alpha": "clear",
 }
 
-#: Extension point: persisting the fitted estimator itself. A file stores the
-#: maps, the design and the kind, which is enough for effect-only contrasts and
-#: for reading any map back, but not enough to predict on new data, run
-#: inference, or bootstrap. Serializing a fitted `_Glm` or `_Ridge` — joblib
-#: bytes in a `model/estimator` dataset, versioned so a stale pickle is rejected
-#: rather than silently misread — is the work that would lift that limit, and
-#: `_read_fit_record` would then fill the record's estimator field instead of
-#: leaving it None. Ridge's resolved `cv` splitter travels with the estimator
-#: for the same reason, so it is not stored either.
-_FIT_ESTIMATOR_NOT_PERSISTED = True
-
-
 def _write_fit_record(h5_file, fit, compression):
     """Store a `FitResult`'s maps, design and kind in a `model` group.
 
@@ -286,6 +274,14 @@ def _write_fit_record(h5_file, fit, compression):
 
     group = h5_file.create_group("model")
     group.attrs["kind"] = fit.kind
+    # The fitted estimator itself is where a `model/estimator` dataset would go
+    # (issue #534). What is stored here is enough to read any map back and to
+    # take a contrast effect, but not to predict on new data, run inference or
+    # bootstrap; lifting that means joblib bytes versioned so a stale pickle is
+    # rejected rather than silently misread, after which `_read_fit_record`
+    # would fill the record's estimator field instead of leaving it None.
+    # Ridge's resolved `cv` splitter travels with the estimator, so it is not
+    # stored either.
     for name in _FIT_MAP_ROWS:
         brain_map = getattr(fit, name)
         if brain_map is not None:
