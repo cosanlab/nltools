@@ -28,7 +28,7 @@ Object | Plot | Notes
 `Adjacency` structure | [`plot_mds`](../api/data/adjacency.md#nltools.data.adjacency.Adjacency.plot_mds), [`plot_silhouette`](../api/data/adjacency.md#nltools.data.adjacency.Adjacency.plot_silhouette), [`plot_label_distance`](../api/data/adjacency.md#nltools.data.adjacency.Adjacency.plot_label_distance), [`plot_between_label_distance`](../api/data/adjacency.md#nltools.data.adjacency.Adjacency.plot_between_label_distance) | All take `labels=`, one per node
 Two matrices at once | [`similarity`](../api/data/adjacency.md#nltools.data.adjacency.Adjacency.similarity)`(plot=True)` | See [Similarity & RSA](similarity-and-rsa.md)
 Decoding figures | [`predict`](../api/data/brain_data.md#nltools.data.braindata.BrainData.predict)`(plot=True)` | The cross-validated scatter, or the ROC plus margin/probability figures, plus the weight map
-`Predict` result | [`Roc`](../api/tasks/prediction.md#nltools.data.roc.Roc)`.plot()` / `.summary()` | Build it from the decision values of a binary decode
+`PredictResult` | [`Roc`](../api/tasks/prediction.md#nltools.data.roc.Roc)`.plot()` / `.summary()` | Build it from the decision values of a binary decode
 `decompose` output | [`component_viewer`](../api/tasks/plotting.md#nltools.plotting.component_viewer) | ipywidgets; live kernel only
 
 ## Volumes

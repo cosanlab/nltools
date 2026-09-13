@@ -4,7 +4,7 @@ title: "Prediction: encoding & decoding"
 
 [`BrainData.predict`](../api/data/brain_data.md#nltools.data.braindata.BrainData.predict) is decoding: predict a
 per-image label or value `y` from voxel patterns, cross-validated. One call returns a frozen
-[`Predict`](../api/data/results.md#nltools.data.results.Predict) result whose `spatial_scale` field
+[`PredictResult`](../api/data/results.md#nltools.data.results.PredictResult) whose `spatial_scale` field
 says which of its fields carry values. Encoding runs the other way, predicting voxel timeseries
 from stimulus features, and is a ridge problem. Use
 [`BrainData.fit`](../api/data/brain_data.md#nltools.data.braindata.BrainData.fit)`(model='ridge')`.
@@ -17,7 +17,7 @@ per-voxel map. It is the slow one, so cache the result.
 
 ## What comes back
 
-Every field exists on every `Predict`; `None` means the field does not apply to the scale you
+Every field exists on every `PredictResult`; `None` means the field does not apply to the scale you
 asked for. Constructing a mixed combination is impossible — the record validates itself.
 
 Field | `'whole_brain'` | `'roi'` | `'searchlight'`
