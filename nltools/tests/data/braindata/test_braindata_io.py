@@ -157,8 +157,8 @@ class TestBrainDataIO:
         assert loaded.mask.get_filename() == "mask.nii.gz"
         np.testing.assert_allclose(loaded.mask.get_fdata(), mask.get_fdata())
 
-    def test_h5_round_trip_of_a_fitted_object_loads_back_unfitted(self, tmp_path):
-        """Writing a fitted object is allowed; the load carries no fit."""
+    def test_h5_round_trip_of_a_fitted_object_restores_the_fit(self, tmp_path):
+        """The fit travels with the data: its maps, its design and its kind."""
         affine = np.eye(4) * 2
         affine[3, 3] = 1
         mask = nib.Nifti1Image(np.ones((4, 4, 4), dtype=np.int8), affine)
@@ -167,15 +167,28 @@ class TestBrainDataIO:
         X = pl.DataFrame({"intercept": [1.0] * 6, "cond": [0.0, 1.0] * 3})
         bd = BrainData(nib.Nifti1Image(vol, affine), mask=mask, X=X)
         bd.fit(model="ridge", X=X.to_numpy(), ridge_alpha=1.0)
-        assert bd.model is not None
 
         path = str(tmp_path / "fitted.h5")
         bd.write(path)
         loaded = BrainData(path)
 
-        assert loaded.model is None
+        assert loaded.model.kind == "ridge"
+        np.testing.assert_allclose(loaded.model.betas.data, bd.model.betas.data)
+        assert loaded.model.predicted.X.equals(bd.X)
         np.testing.assert_allclose(np.asarray(loaded.data), np.asarray(bd.data))
         assert loaded.X.equals(bd.X)
+
+    def test_h5_round_trip_of_an_unfitted_object_stores_no_fit(self, tmp_path):
+        """No fit, no `model` group: an unfitted object writes what it always did."""
+        mask = nib.Nifti1Image(np.ones((4, 4, 4), dtype=np.int8), np.eye(4))
+        rng = np.random.default_rng(6)
+        vol = rng.standard_normal((4, 4, 4, 3)).astype(np.float32)
+        bd = BrainData(nib.Nifti1Image(vol, np.eye(4)), mask=mask)
+
+        path = str(tmp_path / "plain.h5")
+        bd.write(path)
+
+        assert BrainData(path).model is None
 
     def test_write_nifti_does_not_retain_row_metadata(self, tmp_path):
         """NIfTI is an image export: data and geometry only."""

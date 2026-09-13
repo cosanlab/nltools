@@ -174,3 +174,139 @@ class TestContrastResultWrite:
         )
         with pytest.raises(TypeError, match="brain"):
             result.write("nowhere")
+
+
+class TestFitRecordRoundTripsThroughH5:
+    """A `.h5` keeps the maps, the design and the kind — not the estimator."""
+
+    def test_glm_fit_is_restored_without_its_estimator(self, fitted_glm, tmp_path):
+        from nltools.data import BrainData
+
+        path = str(tmp_path / "fitted.h5")
+        fitted_glm.write(path)
+
+        loaded = BrainData(path)
+
+        assert loaded.model.kind == "glm"
+        assert loaded.model._estimator is None
+        assert list(loaded.model.design.columns) == ["intercept", "cond"]
+        for name in ("betas", "predicted", "residual", "r2"):
+            np.testing.assert_allclose(
+                getattr(loaded.model, name).data,
+                getattr(fitted_glm.model, name).data,
+                atol=1e-6,
+            )
+
+    def test_ridge_fit_keeps_its_alpha_and_feature_matrix(
+        self, minimal_brain_data, tmp_path
+    ):
+        from nltools.data import BrainData
+
+        X = np.random.default_rng(4).normal(size=(len(minimal_brain_data), 3))
+        minimal_brain_data.fit(model="ridge", X=X, ridge_alpha=1.0)
+        path = str(tmp_path / "ridge.h5")
+        minimal_brain_data.write(path)
+
+        loaded = BrainData(path)
+
+        assert loaded.model.kind == "ridge"
+        np.testing.assert_allclose(loaded.model.design, X)
+        np.testing.assert_allclose(
+            loaded.model.alpha.data, minimal_brain_data.model.alpha.data
+        )
+
+    def test_effect_contrasts_come_from_the_stored_betas(self, fitted_glm, tmp_path):
+        from nltools.data import BrainData
+
+        path = str(tmp_path / "fitted.h5")
+        expected = fitted_glm.compute_contrasts("intercept - cond")
+        fitted_glm.write(path)
+
+        effect = BrainData(path).compute_contrasts("intercept - cond")
+
+        np.testing.assert_allclose(effect.data, expected.data, atol=1e-6)
+
+    def test_a_mapping_of_contrasts_works_too(self, fitted_glm, tmp_path):
+        from nltools.data import BrainData
+
+        path = str(tmp_path / "fitted.h5")
+        fitted_glm.write(path)
+
+        effects = BrainData(path).compute_contrasts({"c": [1.0, -1.0]})
+
+        assert set(effects) == {"c"}
+        np.testing.assert_allclose(
+            effects["c"].data,
+            np.array([1.0, -1.0]) @ fitted_glm.model.betas.data,
+            atol=1e-6,
+        )
+
+    def test_inference_asks_for_a_refit(self, fitted_glm, tmp_path):
+        from nltools.data import BrainData
+
+        path = str(tmp_path / "fitted.h5")
+        fitted_glm.write(path)
+
+        with pytest.raises(RuntimeError, match=r"X=data\.model\.design"):
+            BrainData(path).compute_contrasts("intercept - cond", inference=True)
+
+    def test_predict_on_new_data_asks_for_a_refit(self, fitted_glm, tmp_path):
+        from nltools.data import BrainData
+
+        path = str(tmp_path / "fitted.h5")
+        fitted_glm.write(path)
+        loaded = BrainData(path)
+
+        with pytest.raises(ValueError, match=r"X=data\.model\.design"):
+            loaded.predict(X=loaded.model.design)
+
+    def test_predict_with_no_arguments_serves_the_stored_map(
+        self, fitted_glm, tmp_path
+    ):
+        from nltools.data import BrainData
+
+        path = str(tmp_path / "fitted.h5")
+        fitted_glm.write(path)
+
+        predicted = BrainData(path).predict()
+
+        np.testing.assert_allclose(
+            predicted.data, fitted_glm.model.predicted.data, atol=1e-6
+        )
+
+    def test_bootstrap_asks_for_a_refit(self, minimal_brain_data, tmp_path):
+        from nltools.data import BrainData
+
+        X = np.random.default_rng(5).normal(size=(len(minimal_brain_data), 3))
+        minimal_brain_data.fit(model="ridge", X=X, ridge_alpha=1.0)
+        path = str(tmp_path / "ridge.h5")
+        minimal_brain_data.write(path)
+
+        with pytest.raises(ValueError, match=r"X=data\.model\.design"):
+            BrainData(path).bootstrap("weights", X=X, n_samples=5)
+
+    def test_banded_ridge_keeps_its_named_feature_spaces(
+        self, minimal_brain_data, tmp_path
+    ):
+        from nltools.data import BrainData
+
+        rng = np.random.default_rng(6)
+        spaces = {
+            "a": rng.normal(size=(len(minimal_brain_data), 3)),
+            "b": rng.normal(size=(len(minimal_brain_data), 2)),
+        }
+        minimal_brain_data.fit(
+            model="ridge",
+            X=spaces,
+            ridge_alpha=[1.0, 10.0],
+            ridge_cv=3,
+            ridge_search_iterations=4,
+            random_state=0,
+        )
+        path = str(tmp_path / "banded.h5")
+        minimal_brain_data.write(path)
+
+        restored = BrainData(path).model.design
+
+        assert set(restored) == {"a", "b"}
+        np.testing.assert_allclose(restored["a"], spaces["a"])

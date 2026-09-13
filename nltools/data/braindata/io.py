@@ -558,6 +558,12 @@ def _load_from_h5(bd, file_path, mask):
             stacklevel=_find_stack_level(),
         )
 
+    # Last, so the rebuilt maps sit on the mask and row metadata just installed.
+    if h5_data.get("model") is not None:
+        from .modeling import _fit_result_from_storage
+
+        bd.model = _fit_result_from_storage(bd, h5_data["model"])
+
 
 def _load_from_url(bd, url):
     """Load data from URL.

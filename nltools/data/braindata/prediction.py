@@ -236,14 +236,19 @@ def _predict_timeseries(bd, *, X=None):
     `.standardize()`, etc.). MVPA decoding (``y=`` mode) returns ``PredictResult``.
 
     With no ``X``, the fitted model returns an independent copy of
-    ``bd.model.predicted`` and keeps its row metadata. The record retains no
+    ``bd.model.predicted`` and keeps its row metadata — which a fit restored
+    from HDF5 can serve too, since the map is stored. The record retains no
     training features, so a no-argument call never refits or re-multiplies.
     With an
     explicit ``X``, structural validation and alignment belong to the
     estimator's own ``predict`` — named design columns for `_Glm`, named feature
     spaces for a banded `_Ridge` — and the result clears the source row metadata.
     """
-    from .utils import _NO_FIT_EXPLANATION, _result_from_array
+    from .utils import (
+        _NO_FIT_EXPLANATION,
+        _restored_fit_message,
+        _result_from_array,
+    )
 
     fit = bd.model
     if fit is None:
@@ -254,6 +259,8 @@ def _predict_timeseries(bd, *, X=None):
         )
 
     if X is not None:
+        if fit._estimator is None:
+            raise ValueError(_restored_fit_message("predict(X=...)"))
         return _result_from_array(bd, fit._estimator.predict(X), rows="clear")
 
     return _result_from_array(bd, fit.predicted.data, rows="preserve")

@@ -170,6 +170,20 @@ _NO_FIT_EXPLANATION = (
 )
 
 
+def _restored_fit_message(operation):
+    """Say what a restored fit cannot do, and give the one-line refit.
+
+    An HDF5 file stores the maps, the design and the kind — enough to read any
+    map back and to take a contrast effect, which is a linear combination of
+    the betas — but not the fitted estimator itself.
+    """
+    return (
+        f"{operation} needs the fitted model itself, which an HDF5 file does "
+        f"not store: it keeps the maps, the design and the kind. Refit with "
+        f"data.fit(model=data.model.kind, X=data.model.design), then ask again."
+    )
+
+
 def _clear_fit_state(bd):
     """Drop the fit invalidated by changing a BrainData object's data."""
     bd.model = None
