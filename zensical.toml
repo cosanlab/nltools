@@ -20,6 +20,7 @@ nav = [
   { "Tutorials" = [
     { "Working with BrainData" = "tutorials/data-operations/01_brain_data.md" },
     { "Working with DesignMatrix" = "tutorials/data-operations/02_design_matrix.md" },
+    { "Working with Adjacency" = "tutorials/data-operations/03_adjacency.md" },
   ] },
   # One page per user-facing namespace, rendered by mkdocstrings from docs/api/.
   # The User Guide pages are parked under docs-staging/.

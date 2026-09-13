@@ -58,6 +58,7 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 TUTORIAL_GLOBS = [
     "docs/tutorials/data-operations/01_brain_data.py",
     "docs/tutorials/data-operations/02_design_matrix.py",
+    "docs/tutorials/data-operations/03_adjacency.py",
 ]
 
 # Where the source notebooks live on GitHub. The docs site deploys from `master`,
