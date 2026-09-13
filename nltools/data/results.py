@@ -349,3 +349,31 @@ class FitResult:
             value = getattr(self, name)
             if value is not None:
                 object.__setattr__(self, name, deepcopy(value))
+
+    def write(self, directory, prefix=None) -> list:
+        """Write the fit to `directory` as NIfTI maps, a design CSV and a sidecar.
+
+        The whole "fit, then save" workflow in one call. Each map becomes
+        `<prefix>_betas.nii.gz`, `_predicted`, `_residual`, `_r2` and — for
+        ridge — `_alpha`; the design becomes `<prefix>_design.csv` (one
+        `_design-<space>.csv` per feature space for a banded ridge); and
+        `<prefix>_fit.json` records the kind of fit and the design's column
+        names. Nothing here is BIDS.
+
+        Args:
+            directory (str | Path): Where to write. Created if it does not exist.
+            prefix (str | None): Prepended to every filename as `<prefix>_`.
+                Default None writes the bare names.
+
+        Returns:
+            list[Path]: Every file written.
+
+        Examples:
+            ```python
+            data.fit(model="glm", X=design)
+            data.model.write("derivatives/sub-01", prefix="sub-01_task-rest")
+            ```
+        """
+        from .results_io import _write_fit
+
+        return _write_fit(self, directory, prefix)
