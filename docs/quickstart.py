@@ -273,8 +273,8 @@ def _(mo):
     regression to keep the fit from blowing up. Here 100 random features, the first
     ten of which drive the sphere, and two runs of the same experiment so the model
     can be scored on data it never saw. `ridge_cv` picks the penalty by
-    cross-validation, one per voxel, and the fit leaves `ridge_weights` on the
-    object, one map per feature:
+    cross-validation, one per voxel, and the whole fit lands on `.model`: one
+    weight map per feature in `betas`, and the chosen penalty in `alpha`:
     """)
     return
 
@@ -299,7 +299,8 @@ def _(Simulator, np):
         random_state=0,
     )
 
-    print(run1.ridge_weights)
+    print(run1.model.betas)
+    print(f"penalty per voxel: {np.unique(run1.model.alpha.data)}")
     return features, rng, run1, run2
 
 
@@ -325,7 +326,7 @@ def _(features, np, run1, run2):
         norms = np.sqrt((observed**2).sum(axis=0) * (predicted**2).sum(axis=0))
         return (observed * predicted).sum(axis=0) / norms
 
-    encoding_scores = voxel_correlation(run2.data, features @ run1.ridge_weights.data)
+    encoding_scores = voxel_correlation(run2.data, features @ run1.model.betas.data)
     score_map = BrainData(encoding_scores[None, :], mask=run2.mask)
 
     score_map.plot(title="Held-out prediction, r per voxel")
@@ -346,7 +347,7 @@ def _(mo):
 @app.cell
 def _(encoding_scores, features, rng, run1, run2, voxel_correlation):
     shuffled = rng.permutation(features, axis=0)
-    chance_scores = voxel_correlation(run2.data, shuffled @ run1.ridge_weights.data)
+    chance_scores = voxel_correlation(run2.data, shuffled @ run1.model.betas.data)
 
     for name, r in (("features", encoding_scores), ("shuffled", chance_scores)):
         print(f"{name:>9}: best r {r.max():.2f}, {(r > 0.6).sum()} voxels above 0.6")

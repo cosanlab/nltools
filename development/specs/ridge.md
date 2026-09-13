@@ -30,11 +30,10 @@ The `BrainData.fit(model="ridge", ...)` facade follows the same ownership rule.
 It does not accept `scale` or `standardize`; callers compose the corresponding
 `BrainData` methods before fitting.
 
-The fitted `BrainData` does not retain the training features as `X_`.
-No-argument prediction returns an independent copy of
-`ridge_fitted_values`. Ridge coefficient and prediction bootstraps require the
-training `X` explicitly; the fitted model supplies its selected `alpha_` but
-does not retain a duplicate of the feature matrix.
+The fitted `BrainData` does not retain the training features as `X_`; the fit
+record's `design` holds them. No-argument prediction returns an independent copy
+of `model.predicted`. Ridge coefficient and prediction bootstraps require the
+training `X` explicitly; the fitted model supplies its selected `alpha_`.
 
 Ridge bootstraps hold the fitted model's selected hyperparameters fixed. An
 ordinary Ridge bootstrap holds `alpha_` fixed. A banded Ridge bootstrap holds
@@ -44,11 +43,14 @@ cross-validation or the banded random search within each resample.
 
 `BrainData.fit` does not create a separate `cv_results_` dictionary or run a
 second cross-validation pass for held-out predictions. `_Ridge.alpha_` and
-`_Ridge.cv_scores_` are the only alpha-selection results. The facade stores
-`ridge_weights`, `ridge_fitted_values`, and `ridge_r2` as independently owned
-`BrainData` results. `ridge_r2` is the full-data, per-target value returned by
-`_Ridge.score`; the facade does not use the ambiguous name `ridge_scores`, which
-could be confused with the negative-MSE selection values in `cv_scores_`.
+`_Ridge.cv_scores_` are the only alpha-selection results. The facade records
+`betas`, `predicted`, `residual`, `r2` and `alpha` on `BrainData.model` as
+independently owned `BrainData` maps. `r2` is the full-data, per-target value
+returned by `_Ridge.score`; the facade does not use the ambiguous name
+`ridge_scores`, which could be confused with the negative-MSE selection values
+in `cv_scores_`. `alpha` broadcasts `_Ridge.alpha_` to one value per voxel
+whether the selection was per voxel or shared, and `cv` records the resolved
+cross-validator.
 Every attached or returned `BrainData` follows the ownership contract in
 `braindata.md`, including independent mask and masker state.
 
@@ -384,7 +386,7 @@ with the same row indices. `X_test` may have any row count but must preserve the
 fitted feature structure.
 
 Weight summaries use the same concatenated feature order as `coef_` and
-`ridge_weights`; banded bootstraps do not introduce a second return grammar.
+`model.betas`; banded bootstraps do not introduce a second return grammar.
 Prediction summaries use the test-observation order. When samples are retained,
 the bootstrap axis precedes the ordinary result dimensions.
 

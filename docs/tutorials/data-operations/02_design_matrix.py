@@ -464,8 +464,9 @@ def _(mo):
     A finished design meets the data in `BrainData.fit`. The 22-TR run below is
     simulated — a sphere whose signal follows the `face_A` regressor, plus noise
     — so the design and the data belong to each other. `fit(model='glm',
-    X=design)` attaches `glm_betas`, one map per design column in column order,
-    alongside `glm_predicted`, `glm_residual` and `glm_r2`. `compute_contrasts`
+    X=design)` leaves a `FitResult` on `.model`: `betas`, one map per design
+    column in column order, alongside `predicted`, `residual`, `r2` and the
+    design itself. `compute_contrasts`
     takes a string naming design columns and returns the effect map;
     `inference=True` returns a `ContrastResult` carrying the t, z and one-sided
     p maps alongside it. The univariate GLM tutorial takes a real dataset
@@ -484,7 +485,7 @@ def _(single_run):
     brain.fit(model="glm", X=single_run)
 
     print(brain)
-    print(f"{brain.glm_betas.shape[0]} beta maps for {single_run.shape[1]} columns")
+    print(f"{brain.model.betas.shape[0]} beta maps for {single_run.shape[1]} columns")
     return (brain,)
 
 

@@ -129,7 +129,7 @@ variance(whitened_design @ coef_) / variance(whitened_y)
 
 For OLS the whitening operation is the identity; with an intercept this equals
 conventional R-squared. For autoregressive models it is a pseudo-R-squared in
-the whitened space. The public name remains `r2_`, and `BrainData.glm_r2`
+the whitened space. The public name remains `r2_`, and `BrainData.model.r2`
 wraps the same values, but their docstrings must state these semantics. nltools
 must not independently recompute this quantity from predictions or residuals.
 
@@ -283,18 +283,19 @@ mapping, or an unnamed sequence of contrast definitions is invalid.
 
 ## BrainData boundary
 
-`BrainData.fit(model="glm", ...)` constructs and retains a fitted `_Glm` in
-`model_`. The facade requires a precomputed `DesignMatrix`, delegates numerical
-fitting to `_Glm`, and stores `glm_betas`, `glm_residual`, `glm_predicted`, and
-`glm_r2` as `BrainData` results. Fitting does not compute or store eager
-`glm_t`, `glm_p`, or `glm_se` maps.
+`BrainData.fit(model="glm", ...)` constructs a fitted `_Glm` and records it,
+with its results, in the `FitResult` on `BrainData.model`. The facade requires a
+precomputed `DesignMatrix`, delegates numerical fitting to `_Glm`, and stores
+the record's `betas`, `residual`, `predicted`, and `r2` as `BrainData` maps.
+Fitting does not compute or store eager `glm_t`, `glm_p`, or `glm_se` maps.
 Every attached or returned `BrainData` follows the ownership contract in
 `braindata.md`, including independent mask and masker state.
 
 The fitted `BrainData` does not retain the training input as `X_` or
-`design_matrix`. Feature names and contrast state belong to `model_`.
-No-argument prediction returns an independent copy of `glm_predicted`, so it
-does not require the original design matrix.
+`design_matrix`; the record's `design` is the design it was fit on. Feature
+names and contrast state belong to the record's `_estimator`. No-argument
+prediction returns an independent copy of `model.predicted`, so it does not
+require the original design matrix.
 
 The facade does not preprocess the response during fitting. `scale` and
 `standardize` are not fit arguments; callers compose the corresponding
@@ -306,7 +307,7 @@ space.
 forms and exposes the same `inference=False` control. The default returns an
 effect `BrainData` for one contrast or a keyed dictionary of `BrainData`
 effects for a mapping. For a numeric vector, each result is equivalent to
-`contrast @ glm_betas.data`; for a string, it provides the convenient named
+`contrast @ model.betas.data`; for a string, it provides the convenient named
 contrast syntax unavailable through arithmetic. With `inference=True`, it
 returns `ContrastResult[BrainData]` for one contrast or a keyed dictionary of
 those results for a mapping. `BrainData` forwards each original contrast

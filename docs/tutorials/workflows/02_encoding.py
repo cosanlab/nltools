@@ -158,7 +158,7 @@ def _(mo):
         r"""
     ### Fit ridge: in-sample vs. held-out
 
-    Standard encoding preprocessing: z-score each voxel explicitly, since `fit` never preprocesses the response and ridge fits no intercept. A fixed-α fit with no CV gives `ridge_r2` — an *in-sample* R², which is optimistically biased.
+    Standard encoding preprocessing: z-score each voxel explicitly, since `fit` never preprocesses the response and ridge fits no intercept. The fit lands on `.model`, and a fixed-α fit with no CV makes its `r2` an *in-sample* R², which is optimistically biased.
     """
     )
     return
@@ -172,7 +172,7 @@ def _(X_fir, bold):
     # depends on it by name rather than on `bold` having been mutated.
     bold_z = bold.standardize(method="zscore")
     bold_z.fit(model="ridge", X=X_fir, ridge_alpha=1.0)
-    in_sample = bold_z.ridge_r2.data.ravel()
+    in_sample = bold_z.model.r2.data.ravel()
     print(f"in-sample R²  — mean {in_sample.mean():.3f}  max {in_sample.max():.3f}")
     return (bold_z,)
 
@@ -207,7 +207,12 @@ def _(X_fir, bold_z, np):
         )
     )
     held_out = bold_z[test].standardize(method="zscore")
-    held_out_r2 = trained.model_.score(X_fir[test], held_out.data)
+    # R² per voxel from the facade's own prediction: one minus the residual sum
+    # of squares over the total, which is what a `score` method would return.
+    predicted = trained.predict(X=X_fir[test]).data
+    residual_ss = ((held_out.data - predicted) ** 2).sum(axis=0)
+    total_ss = ((held_out.data - held_out.data.mean(axis=0)) ** 2).sum(axis=0)
+    held_out_r2 = 1.0 - residual_ss / total_ss
     print(
         f"held-out R²  — median {np.median(held_out_r2):.3f}  "
         f"max {held_out_r2.max():.3f}"
@@ -221,7 +226,7 @@ def _(X_fir, bold_z, np):
 
 @app.cell
 def _(DATASET, bold_z, held_out_r2, np):
-    held_out_map = bold_z.ridge_r2.copy()
+    held_out_map = bold_z.model.r2.copy()
     # Most voxels do not track the stimulus at all, so their held-out R² is
     # negative. Floor the map at zero and let the threshold hide the rest —
     # a diverging map here would be a wall of colour with no signal in it.
@@ -250,7 +255,7 @@ def _(mo):
 
 @app.cell
 def _(ALPHAS, np, plt, trained):
-    best_alpha = np.asarray(trained.model_.alpha_).ravel()
+    best_alpha = trained.model.alpha.data.ravel()
     # One bin per grid value, edges at the midpoints between neighbouring alphas.
     log_grid = np.log10(ALPHAS)
     step = log_grid[1] - log_grid[0]
@@ -275,7 +280,7 @@ def _(mo):
     | Features | FIR lag bank (learn the HRF, don't assume it) | `lag_features(stim, [1, 2, 3])` |
     | In-sample fit | Fixed-α ridge → optimistic R² | `bold_z.fit(model="ridge", X=, ridge_alpha=1.0)` |
     | Honest fit | Per-voxel α via CV, scored on a held-out run | `bold_z[train].fit(model="ridge", X=, ridge_alpha=ALPHAS, ridge_cv=KFold(5), inplace=False)` |
-    | Inspect | Held-out R² map + selected α per voxel | `trained.model_.score(X_test, Y_test)`, `trained.model_.alpha_` |
+    | Inspect | Held-out R² map + selected α per voxel | `trained.predict(X=X_test)`, `trained.model.alpha` |
 
     **Next steps**
 
