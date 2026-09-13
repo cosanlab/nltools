@@ -75,7 +75,7 @@ apply `BrainData` methods per subject and stack the results with
 | Plotting | `plot_brain`, `plot_t_brain`, `plot_interactive_brain` | Removed | `BrainData.plot(method='glass'\|'mni'\|'full')` and `BrainData.iplot` |
 | Plotting | `roc_plot`, `scatterplot`, `probability_plot`, `dist_from_hyperplane_plot` | `Roc.plot()`, `BrainData.predict(plot=True)` | Drawn by the object that holds the results |
 | Plotting | `plot_mean_label_distance`, `plot_between_label_distance`, `plot_silhouette` | `Adjacency.plot_label_distance` and friends | Methods on `Adjacency` |
-| Plotting | `plot_stacked_adjacency` | Removed, no successor | Plot the two matrices side by side |
+| Plotting | `plot_stacked_adjacency(a1, a2)` | `a1.plot_stacked(a2)` | A method on `Adjacency`; each triangle keeps its own scale instead of being normalized onto a shared one |
 | Plotting | `brain.iplot(threshold=0, surface=…)` | `brain.iplot(view=…, threshold=…, atlas=…)` | Rebuilt on niivue |
 | Plotting | Glass brains hid a percentile of voxels (nilearn's `threshold='auto'`) | `brain.plot(method='glass')` draws every voxel | The colorbar keeps its 0 tick; pass `threshold=` for a cutoff |
 | Plotting | `adjacency.plot()` drew every matrix on a sequential ramp | Matrices whose off-diagonal values cross zero use `RdBu_r`, centered at 0 with symmetric limits | One-signed matrices are unchanged; `cmap`, `center`, `vmin`, `vmax` still win |
@@ -449,7 +449,8 @@ CSV under 0.5.1 first, then read them back in 0.6.0.
 | `set_cv` | Pass `cv=<int>` or an sklearn splitter to `BrainData.predict`, with `groups=` when folds must hold out subjects |
 | `Roc(threshold_type=…)` | `Roc(method=…)`, keyword-only |
 | `plot_brain`, `plot_t_brain` | `BrainData.plot(method='glass'\|'mni'\|'full')`; run the t-test yourself with `BrainData.ttest` |
-| `plot_interactive_brain`, `plot_stacked_adjacency` | Removed, no successor — `BrainData.iplot`, and plot two `Adjacency` objects separately |
+| `plot_interactive_brain` | Removed, no successor — `BrainData.iplot` |
+| `plot_stacked_adjacency` | `Adjacency.plot_stacked(other, ...)` — the same two triangles, plus titles, node labels and a per-triangle color scale |
 | `fetch_pain(data_dir=…, resume=…, verbose=1)` | `fetch_pain(verbose=0)` — caching is internal |
 | `Brain_Data.icc()`, `compute_icc` | Removed, no successor — `pingouin.intraclass_corr` on `brain.data` |
 | `double_center`, `u_center` | Removed — internal steps of `nltools.algorithms.distance_correlation` |
