@@ -38,8 +38,9 @@ def _(mo):
     ### Working with neuroimaging data
 
     Start by choosing the grid every image will live on. `set_brainspace` sets it
-    for the session; 3 mm keeps this page small enough for a browser tab, where
-    the same run at 2 mm would be four million voxels per image.
+    for the session, and 3 mm is what keeps this page inside a browser tab: the
+    mask holds 71,020 voxels, against the 238,955 every image would carry at the
+    2 mm default.
     """)
     return
 
@@ -175,8 +176,9 @@ def _(neural):
 def _(mo):
     mo.md(r"""
     Six images make 6 × 6 = 36 cells, but only 15 of them are distinct pairs, and
-    that is what an `Adjacency` stores. The heatmap is darkest for pairs drawn at
-    the same level and brightest for the 1-versus-3 pairs.
+    that is all an `Adjacency` stores — hence the empty diagonal in the heatmap.
+    The palest cells are the 1-versus-3 pairs, furthest apart; the deepest red are
+    the pairs drawn at the same level.
 
     ## Common analysis workflows
 
@@ -190,7 +192,8 @@ def _(mo):
 
     Fitting a GLM is `fit(model="glm", X=design)`, and `compute_contrasts` asks it a
     question. Here one subject's run is simulated so that the sphere follows the
-    `faces` regressor, which the contrast should recover:
+    `faces` regressor, with noise a fifth of its amplitude, and the contrast should
+    recover it:
     """)
     return
 
@@ -198,7 +201,7 @@ def _(mo):
 @app.cell
 def _(Simulator, convolved):
     run = Simulator(random_state=1).create_data(
-        convolved["faces_c0"].to_list(), 1.0, radius=10, center=[0, -18, 18]
+        convolved["faces_c0"].to_list(), 0.2, radius=10, center=[0, -18, 18]
     )
     run.fit(model="glm", X=convolved)
 
@@ -213,7 +216,8 @@ def _(mo):
     asked of it: how much more of this voxel's timecourse is explained by faces than
     by houses. One subject's answer is not a result, though — the map a paper reports
     is a test across subjects. Simulate five of them, stack their contrast maps with
-    `concatenate`, and `ttest` gives the voxelwise one-sample test:
+    `concatenate`, and `ttest` gives the voxelwise one-sample test. `threshold` then
+    keeps the voxels whose p-value clears a cutoff:
     """)
     return
 
@@ -221,12 +225,13 @@ def _(mo):
 @app.cell
 def _(Simulator, convolved):
     from nltools import concatenate
+    from nltools.algorithms import threshold
 
     group = concatenate(
         [
             Simulator(random_state=subject)
             .create_data(
-                convolved["faces_c0"].to_list(), 1.0, radius=10, center=[0, -18, 18]
+                convolved["faces_c0"].to_list(), 0.2, radius=10, center=[0, -18, 18]
             )
             .fit(model="glm", X=convolved)
             .compute_contrasts("faces_c0 - houses_c0")
@@ -235,15 +240,15 @@ def _(Simulator, convolved):
     )
     group_t = group.ttest()
 
-    group_t["t"].threshold(upper=3.0, lower=-3.0).plot(title="group t, |t| > 3")
+    threshold(group_t["t"], group_t["p"], thr=0.001).plot(title="group t, p < 0.001")
     return
 
 
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    `ttest` returns the `mean`, `t`, `z` and `p` maps as separate images, so
-    thresholding is ordinary indexing and arithmetic on those images.
+    `ttest` returns the `mean`, `t`, `z` and `p` maps as separate images, so anything
+    else you want to do with them is ordinary indexing and arithmetic.
 
     See [Working with BrainData](tutorials/data-operations/01_brain_data.md) for
     loading, masking and transforming images, and
