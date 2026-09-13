@@ -17,6 +17,8 @@ from typing import TYPE_CHECKING
 import numpy as np
 import polars as pl
 
+from nltools.utils import _HORIZONTAL_CONCAT
+
 from ..ownership import _copy_frame
 from .utils import (
     _copy_with,
@@ -849,7 +851,7 @@ class DesignMatrix:
         )
 
         if confound_df.shape[1] > 0:
-            combined_df = pl.concat([new_data_df, confound_df], how="horizontal_extend")
+            combined_df = pl.concat([new_data_df, confound_df], how=_HORIZONTAL_CONCAT)
         else:
             combined_df = new_data_df
 

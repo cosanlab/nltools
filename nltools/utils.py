@@ -6,6 +6,25 @@ import contextlib
 import inspect
 from os.path import dirname, join, sep as pathsep
 
+import polars as pl
+
+
+# ---------------------------------------------------------------------------
+# polars compatibility
+# ---------------------------------------------------------------------------
+
+# polars 1.42.1 renamed the classic equal-height horizontal concat to
+# ``horizontal_extend`` and deprecated the old ``horizontal`` spelling, which
+# will start padding to the tallest frame in the next breaking release. Below
+# 1.42.1 only ``horizontal`` exists. Every nltools call site concatenates
+# frames of equal height, so the two names are interchangeable there, and
+# picking by version lets the package run on the polars 1.33.1 that Pyodide
+# bundles as well as on current releases.
+_POLARS_VERSION = tuple(int(part) for part in pl.__version__.split(".")[:3])
+_HORIZONTAL_CONCAT = (
+    "horizontal_extend" if _POLARS_VERSION >= (1, 42, 1) else "horizontal"
+)
+
 
 # ---------------------------------------------------------------------------
 # Warnings: attribution and library-wide categories

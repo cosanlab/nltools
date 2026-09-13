@@ -13,6 +13,8 @@ from typing import TYPE_CHECKING
 
 import polars as pl
 
+from nltools.utils import _HORIZONTAL_CONCAT
+
 from .utils import (
     RESERVED_PREFIX,
     _copy_with,
@@ -253,10 +255,10 @@ def _append_horizontal(
     # Only duplication introduced by this append is checked — the base's
     # pre-existing state is the user's business, not this operation's.
 
-    # Heights were validated above, so 'horizontal_extend' (the stable name
-    # polars >= 1.42.1 gives the classic horizontal concat) never pads.
+    # Heights were validated above, so the classic horizontal concat (whichever
+    # name the installed polars gives it) never pads.
     dfs_to_stack = [dm.data] + [elem.data for elem in to_append]
-    new_df = pl.concat(dfs_to_stack, how="horizontal_extend")
+    new_df = pl.concat(dfs_to_stack, how=_HORIZONTAL_CONCAT)
 
     # Fill NaN if requested
     if fill_na is not None:
