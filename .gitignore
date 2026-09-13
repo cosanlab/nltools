@@ -1,7 +1,6 @@
 # Python Related #
 ###################
 *.pyc
-docs/_build
 *.log
 *.egg*
 build/
