@@ -1352,10 +1352,15 @@ class BrainData:
 
         Thresholding uses positive and negative display limbs. ``cal_min`` is
         the magnitude floor and ``cal_max`` the positive saturation point;
-        niivue receives the negative endpoints explicitly. By default, mixed
-        maps use symmetric limbs while each sign in a one-sided map determines
-        its own ceiling. The window is computed in Python, and the two controls
-        show the shared floor and positive-limb ceiling.
+        niivue receives the negative endpoints explicitly. Both are
+        **magnitudes**, and the floor is always strictly positive — a floor of
+        zero would admit every zero-valued voxel (everything outside the mask)
+        and paint the whole volume — so ``lower`` / ``threshold`` values at or
+        below zero are taken as their magnitude and raised to the slider's
+        smallest step. By default, mixed maps use symmetric limbs while each
+        sign in a one-sided map determines its own ceiling. The window is
+        computed in Python, and the two controls show the shared floor and
+        positive-limb ceiling.
 
         Args:
             view: ``"ortho"`` (default), ``"axial"``, ``"coronal"``,
@@ -1365,18 +1370,20 @@ class BrainData:
             threshold: Convenience symmetric magnitude floor (→ ``cal_min``).
                 Accepts a percentile string (``"95%"``) resolved over the
                 finite nonzero magnitudes, consistent with `threshold`.
-            lower: Window floor (→ ``cal_min``). Overrides ``threshold``.
-                Accepts a percentile string.
-            upper: Window ceiling (→ ``cal_max``). Overrides ``threshold``.
-                Accepts a percentile string.
+            lower: Window floor as a magnitude (→ ``cal_min``). Overrides
+                ``threshold``. Accepts a percentile string. A value at or
+                below zero is raised to the slider's smallest step.
+            upper: Window ceiling as a magnitude (→ ``cal_max``). Overrides
+                ``threshold``. Accepts a percentile string.
             autoscale: Robust default window for the edges not set above.
                 ``True`` (default): ceiling at the 98th percentile of the
                 finite nonzero magnitudes — a couple of outlier voxels no
                 longer wash out the whole map — and an epsilon floor, never
                 above the smallest nonzero magnitude, so zeros render
                 transparent and every real voxel stays visible (threshold up
-                from there). ``False``: the raw magnitude range from zero to
-                the largest absolute value. For a custom percentile window pass
+                from there). ``False``: the raw magnitude range, from one
+                slider step above zero to the largest absolute value. For a
+                custom percentile window pass
                 ``lower``/``upper`` (e.g. ``lower="60%", upper="98%"``).
             symmetric: ``"auto"`` (default) mirrors mixed-signed maps but lets
                 each sign in a one-sided map determine its own ceiling. ``True``

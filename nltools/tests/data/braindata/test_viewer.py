@@ -70,11 +70,16 @@ class TestComputeDisplayWindow:
         assert window.cal_min == pytest.approx(float(np.percentile(magnitudes, 10)))
         assert window.cal_max == pytest.approx(float(np.percentile(magnitudes, 90)))
 
-    def test_numeric_specs_pass_through_unchanged(self):
+    def test_numeric_specs_are_taken_as_magnitudes(self):
+        """The window is mirrored onto the negative limb, so an edge's sign is moot.
+
+        `lower=-1.0` means |v| >= 1 — never "everything above -1", which would
+        admit every zero voxel outside the mask and paint the whole volume.
+        """
         window = compute_display_window(
             np.array([-3.0, 0.0, 1.0, 4.0]), lower=-1.0, upper=2.0
         )
-        assert (window.cal_min, window.cal_max) == (-1.0, 2.0)
+        assert (window.cal_min, window.cal_max) == (1.0, 2.0)
 
     def test_default_floor_never_hides_a_nonzero_voxel(self):
         """The autoscale floor sits at or below the smallest nonzero magnitude.
@@ -100,6 +105,31 @@ class TestComputeDisplayWindow:
         for bad in [(60, 98), None, "98%", 98]:
             with pytest.raises(TypeError, match="autoscale"):
                 compute_display_window(data, autoscale=bad)
+
+    def test_the_slider_bound_never_exceeds_the_resolved_floor(self):
+        """``viewer.js`` clamps the applied floor to this bound.
+
+        The frontend takes ``slider_bounds['min']`` as its floor epsilon, so a
+        bound above the resolved ``cal_min`` would raise the rendered floor
+        above the window Python resolved — #479's regression, from the browser.
+        """
+        rng = np.random.default_rng(0)
+        data = rng.standard_normal(2000)
+        data[::7] = 0.0
+
+        window = compute_display_window(data)
+
+        assert 0.0 < window.slider_min <= window.cal_min
+
+    def test_a_one_sided_limb_never_inverts_the_window(self):
+        """A per-limb percentile ceiling must not land below an explicit floor."""
+        data = np.concatenate([np.linspace(0.1, 7.0, 200), np.array([9.0])])
+
+        window = compute_display_window(data, threshold=8.5, symmetric=False)
+
+        assert window.cal_max >= window.cal_min
+        assert window.slider_value_high >= window.slider_value_low
+        assert window.cal_min_neg <= window.cal_max_neg
 
     def test_default_floor_stays_above_zero_for_ordinary_maps(self):
         """The floor is still a positive epsilon so exact zeros stay transparent."""
@@ -132,19 +162,30 @@ class TestBuildViewerRequiresWindow:
 class TestDisplayWindowSliderBounds:
     """The slider fields of `DisplayWindow` span the data and the window."""
 
-    def test_bounds_span_finite_data(self):
-        window = compute_display_window([-3.0, 0.0, 4.0], lower=-3.0, upper=4.0)
-        assert window.slider_min == pytest.approx(-3.0)
-        assert window.slider_max == pytest.approx(4.0)
-        assert window.slider_value_low == pytest.approx(-3.0)
+    def test_bounds_are_a_magnitude_window_with_a_positive_floor(self):
+        window = compute_display_window([-3.0, 0.0, 4.0], lower=1.0, upper=4.0)
+        assert window.slider_max == pytest.approx(4.0)  # max |v|
+        assert window.slider_step == pytest.approx(4.0 / 200.0)
+        assert window.slider_min > 0.0  # never zero
+        assert window.slider_value_low == pytest.approx(1.0)
         assert window.slider_value_high == pytest.approx(4.0)
-        assert window.slider_step == pytest.approx(7.0 / 200.0)
+
+    def test_negative_dominated_data_sets_the_ceiling_by_magnitude(self):
+        window = compute_display_window([-9.0, 0.0, 4.0])
+        assert window.slider_max == pytest.approx(9.0)
+        assert window.slider_min > 0.0
+
+    def test_a_zero_floor_is_raised_above_zero(self):
+        """A floor of zero painted the whole volume box in the negative colormap."""
+        window = compute_display_window([-3.0, 4.0], lower=0.0)
+        assert window.slider_value_low == pytest.approx(window.slider_min)
+        assert window.slider_value_low > 0.0
 
     def test_ignores_nonfinite(self):
         window = compute_display_window(
             [np.nan, -2.0, np.inf, 5.0], lower=0.0, upper=1.0
         )
-        assert window.slider_min == pytest.approx(-2.0)
+        assert window.slider_min > 0.0
         assert window.slider_max == pytest.approx(5.0)
 
     def test_requested_window_sets_handles(self):
@@ -153,24 +194,29 @@ class TestDisplayWindowSliderBounds:
         assert window.slider_value_high == pytest.approx(3.0)
 
     def test_requested_window_widens_bounds(self):
-        # A window outside the data range widens the bounds so the handles land
+        # A ceiling beyond the data range widens the bounds so the handles land
         # exactly where requested rather than being clamped to the extremes.
-        window = compute_display_window([-3.0, 4.0], lower=-99.0, upper=99.0)
-        assert window.slider_min == pytest.approx(-99.0)
+        window = compute_display_window([-3.0, 4.0], lower=1.0, upper=99.0)
         assert window.slider_max == pytest.approx(99.0)
-        assert window.slider_value_low == pytest.approx(-99.0)
+        assert window.slider_value_low == pytest.approx(1.0)
         assert window.slider_value_high == pytest.approx(99.0)
+        assert 0.0 < window.slider_min < window.slider_value_low
 
     def test_empty_data_falls_back(self):
         window = compute_display_window([])
-        assert (window.slider_min, window.slider_max) == (0.0, 1.0)
+        assert window.slider_max == pytest.approx(1.0)
+        assert window.slider_min > 0.0
         assert window.slider_step > 0
 
-    def test_constant_data_widens_upper_bound(self):
+    def test_all_zero_data_falls_back(self):
+        window = compute_display_window([0.0, 0.0, 0.0])
+        assert window.slider_max == pytest.approx(1.0)
+        assert window.slider_min > 0.0
+
+    def test_constant_data(self):
         window = compute_display_window([2.0, 2.0, 2.0], lower=2.0, upper=2.0)
-        assert window.slider_min == pytest.approx(2.0)
-        # lo + 1 so the range is non-degenerate
-        assert window.slider_max == pytest.approx(3.0)
+        assert window.slider_max == pytest.approx(2.0)
+        assert 0.0 < window.slider_min < window.slider_max
 
 
 class TestResolveBackground:

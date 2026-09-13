@@ -123,9 +123,16 @@ class TestThreshold:
         assert v.cal_max is not None and v.cal_max > 0
 
     def test_lower_upper_set_window(self, minimal_brain_data):
-        v = minimal_brain_data[0].iplot(bg_img=False, lower=-1.0, upper=2.0)
-        assert v.cal_min == pytest.approx(-1.0)
+        v = minimal_brain_data[0].iplot(bg_img=False, lower=1.0, upper=2.0)
+        assert v.cal_min == pytest.approx(1.0)
         assert v.cal_max == pytest.approx(2.0)
+
+    def test_negative_lower_is_a_magnitude(self, minimal_brain_data):
+        # The window is mirrored onto the negative limb, so a negative floor
+        # means |v| >= 1 — never "everything above -1", which would include
+        # every zero voxel outside the mask and paint the whole volume.
+        v = minimal_brain_data[0].iplot(bg_img=False, lower=-1.0, upper=2.0)
+        assert v.cal_min == pytest.approx(1.0)
 
     def test_lower_upper_take_precedence_over_threshold(self, minimal_brain_data):
         v = minimal_brain_data[0].iplot(bg_img=False, threshold=2.3, upper=4.0)
@@ -182,11 +189,18 @@ class TestColorbar:
 
 
 class TestControls:
-    def test_slider_bounds_span_data(self, minimal_brain_data):
+    def test_slider_bounds_are_a_positive_magnitude_window(self, minimal_brain_data):
         v = minimal_brain_data[0].iplot(bg_img=False)
         data = minimal_brain_data[0].data
-        assert v.slider_bounds["min"] == pytest.approx(float(np.nanmin(data)))
-        assert v.slider_bounds["max"] == pytest.approx(float(np.nanmax(data)))
+        assert v.slider_bounds["min"] > 0  # the floor can never reach zero
+        assert v.slider_bounds["max"] == pytest.approx(float(np.nanmax(np.abs(data))))
+
+    def test_zero_threshold_is_raised_above_zero(self, minimal_brain_data):
+        # iplot(threshold=0) used to paint the whole volume box: every zero
+        # voxel outside the mask passed the window.
+        v = minimal_brain_data[0].iplot(bg_img=False, threshold=0.0)
+        assert v.cal_min == pytest.approx(v.slider_bounds["min"])
+        assert v.cal_min > 0
 
     def test_cal_window_is_reactive_trait(self, minimal_brain_data):
         # The frontend slider writes cal_min/cal_max; Python can set them too.
@@ -196,8 +210,8 @@ class TestControls:
         assert v.cal_max == pytest.approx(3.0)
 
     def test_slider_initial_value_matches_threshold(self, minimal_brain_data):
-        v = minimal_brain_data[0].iplot(bg_img=False, lower=-1.0, upper=2.0)
-        assert v.slider_bounds["value_low"] == pytest.approx(-1.0)
+        v = minimal_brain_data[0].iplot(bg_img=False, lower=1.0, upper=2.0)
+        assert v.slider_bounds["value_low"] == pytest.approx(1.0)
         assert v.slider_bounds["value_high"] == pytest.approx(2.0)
 
 
@@ -290,7 +304,9 @@ class TestAutoscale:
     def test_autoscale_false_uses_extremes_explicitly(self):
         bd = _sparse_bd()
         v = bd.iplot(bg_img=False, autoscale=False)
-        assert v.cal_min == 0.0
+        # The raw range starts one slider step above zero, never at zero.
+        assert v.cal_min == pytest.approx(v.slider_bounds["min"])
+        assert v.cal_min > 0.0
         assert v.cal_max == pytest.approx(float(np.abs(bd.data).max()))
 
     def test_percentile_window_comes_from_lower_and_upper(self):
