@@ -47,3 +47,33 @@ class ContrastResult(Generic[Payload]):
     z_score: Payload
     p_value: Payload
     degrees_of_freedom: float | np.ndarray
+
+    def write(self, directory, prefix=None) -> list:
+        """Write the contrast to `directory` as NIfTI maps and a sidecar.
+
+        The whole "fit, contrast, then save" workflow in one call. Each map
+        becomes `<prefix>_effect.nii.gz`, `_variance`, `_se`, `_t`, `_z` and
+        `_p`, and `<prefix>_contrast.json` records the degrees of freedom.
+        Nothing here is BIDS.
+
+        Args:
+            directory (str | Path): Where to write. Created if it does not exist.
+            prefix (str | None): Prepended to every filename as `<prefix>_`.
+                Default None writes the bare names.
+
+        Returns:
+            list[Path]: Every file written.
+
+        Raises:
+            TypeError: If the payloads are bare arrays rather than brain maps,
+                which only a contrast computed outside `BrainData` can be.
+
+        Examples:
+            ```python
+            result = data.compute_contrasts("a - b", inference=True)
+            result.write("derivatives/contrasts", prefix="a-gt-b")
+            ```
+        """
+        from nltools.data.results_io import _write_contrast
+
+        return _write_contrast(self, directory, prefix)

@@ -146,6 +146,12 @@ vocabulary:
   - concept: "Contrast inference toggle"
     kwarg: "inference"
     index_md: "`inference: bool = False` on `compute_contrasts` — the effect alone by default (what a second-level model consumes); `True` returns the full `ContrastResult`"
+  - concept: "Result export directory"
+    kwarg: "directory"
+    index_md: "`directory` on `FitResult.write` and `ContrastResult.write` — a folder the record fills with one NIfTI per map plus a design CSV and a JSON sidecar, created when it does not exist. `BrainData.write` and `DesignMatrix.write` keep `file_name` because each writes exactly one file"
+  - concept: "Exported filename prefix"
+    kwarg: "prefix"
+    index_md: "`prefix: str | None = None` on `FitResult.write` and `ContrastResult.write` — prepended to every written name as `<prefix>_`; `None` writes the bare names"
 
 # Deliberate deviations from the table. Each entry names the module `path`
 # (prefix-matched, like exclude_paths), function, and kwarg it exempts — the

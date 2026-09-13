@@ -62,3 +62,115 @@ def test_estimator_is_held_as_given(maps):
     estimator = object()
     record = FitResult(kind="glm", design=None, _estimator=estimator, **maps)
     assert record._estimator is estimator
+
+
+@pytest.fixture
+def fitted_glm(minimal_brain_data):
+    n = len(minimal_brain_data)
+    design = DesignMatrix(
+        {"intercept": np.ones(n), "cond": np.random.default_rng(0).normal(size=n)}
+    )
+    return minimal_brain_data.fit(model="glm", X=design)
+
+
+class TestFitResultWrite:
+    """`FitResult.write` puts the maps, the design and a sidecar in one directory."""
+
+    def test_writes_every_glm_map_the_design_and_a_sidecar(self, fitted_glm, tmp_path):
+        import json
+
+        written = fitted_glm.model.write(tmp_path / "out", prefix="sub-01")
+
+        names = sorted(path.name for path in written)
+        assert names == [
+            "sub-01_betas.nii.gz",
+            "sub-01_design.csv",
+            "sub-01_fit.json",
+            "sub-01_predicted.nii.gz",
+            "sub-01_r2.nii.gz",
+            "sub-01_residual.nii.gz",
+        ]
+        assert all(path.exists() for path in written)
+        sidecar = json.loads((tmp_path / "out" / "sub-01_fit.json").read_text())
+        assert sidecar["kind"] == "glm"
+        assert sidecar["columns"] == ["intercept", "cond"]
+
+    def test_ridge_also_writes_the_selected_alpha(self, minimal_brain_data, tmp_path):
+        X = np.random.default_rng(1).normal(size=(len(minimal_brain_data), 3))
+        minimal_brain_data.fit(model="ridge", X=X, ridge_alpha=1.0)
+
+        written = minimal_brain_data.model.write(tmp_path)
+
+        assert (tmp_path / "alpha.nii.gz") in written
+        assert (tmp_path / "design.csv").exists()
+
+    def test_banded_ridge_writes_one_design_per_feature_space(
+        self, minimal_brain_data, tmp_path
+    ):
+        rng = np.random.default_rng(2)
+        spaces = {
+            "a": rng.normal(size=(len(minimal_brain_data), 3)),
+            "b": rng.normal(size=(len(minimal_brain_data), 2)),
+        }
+        minimal_brain_data.fit(
+            model="ridge",
+            X=spaces,
+            ridge_alpha=[1.0, 10.0],
+            ridge_cv=3,
+            ridge_search_iterations=4,
+            random_state=0,
+        )
+
+        minimal_brain_data.model.write(tmp_path)
+
+        assert (tmp_path / "design-a.csv").exists()
+        assert (tmp_path / "design-b.csv").exists()
+
+    def test_the_written_map_reloads_as_the_same_numbers(self, fitted_glm, tmp_path):
+        from nltools.data import BrainData
+
+        fitted_glm.model.write(tmp_path)
+
+        reloaded = BrainData(tmp_path / "betas.nii.gz", mask=fitted_glm.mask)
+        np.testing.assert_allclose(
+            reloaded.data, fitted_glm.model.betas.data, atol=1e-5
+        )
+
+
+class TestContrastResultWrite:
+    """`ContrastResult.write` uses the same layout with contrast suffixes."""
+
+    def test_writes_every_statistic_and_a_sidecar(self, fitted_glm, tmp_path):
+        import json
+
+        result = fitted_glm.compute_contrasts("intercept - cond", inference=True)
+
+        written = result.write(tmp_path / "c", prefix="stim")
+
+        assert sorted(path.name for path in written) == [
+            "stim_contrast.json",
+            "stim_effect.nii.gz",
+            "stim_p.nii.gz",
+            "stim_se.nii.gz",
+            "stim_t.nii.gz",
+            "stim_variance.nii.gz",
+            "stim_z.nii.gz",
+        ]
+        sidecar = json.loads((tmp_path / "c" / "stim_contrast.json").read_text())
+        assert sidecar["kind"] == "contrast"
+        assert sidecar["degrees_of_freedom"] == pytest.approx(result.degrees_of_freedom)
+
+    def test_a_non_brain_contrast_says_so(self):
+        from nltools.models.results import ContrastResult
+
+        result = ContrastResult(
+            effect=np.zeros(3),
+            variance=np.zeros(3),
+            standard_error=np.zeros(3),
+            statistic=np.zeros(3),
+            z_score=np.zeros(3),
+            p_value=np.zeros(3),
+            degrees_of_freedom=7.0,
+        )
+        with pytest.raises(TypeError, match="brain"):
+            result.write("nowhere")
