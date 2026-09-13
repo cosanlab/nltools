@@ -37,8 +37,9 @@ def _(mo):
     ### Working with neuroimaging data
 
     Start by choosing the grid every image lives on. `set_brainspace` sets it for
-    the session, and 3 mm is what keeps this page inside a browser tab: 71,020
-    voxels in the mask, against 238,955 at the 2 mm default.
+    the session, and 3 mm is the grid the example dataset below is built on:
+    71,020 voxels in the mask, against 238,955 at the 2 mm default, which is what
+    keeps this page inside a browser tab.
     """)
     return
 
@@ -56,46 +57,34 @@ def _():
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    `BrainData` is the object almost every analysis starts from: images by voxels,
-    one row per image and one column per voxel inside the mask. `Simulator` fills it
-    with synthetic images — a sphere of signal scaled to each level, plus Gaussian
-    noise. `reps=2` repeats the three levels, and `.Y` holds the level each image
-    was drawn at:
+    `load_haxby_example` returns a whole experiment with nothing to download: the
+    eight object conditions of the Haxby task in a randomized block design,
+    simulated on the MNI template with responses in the ventral-stream regions
+    each category drives. It hands back one `BrainData` per run — images by
+    voxels, one row per TR — and the `DesignMatrix` that generated it. For real
+    data, [`nltools.datasets`](api/datasets.md) has the fetchers.
     """)
     return
 
 
 @app.cell
 def _():
-    from nltools.data import Simulator
+    from nltools.datasets import load_haxby_example
 
-    sim = Simulator(random_state=0)
-    data = sim.create_data([1, 2, 3], sigma=1, reps=2, center=[0, -18, 18])
+    brains, design_matrices = load_haxby_example()
+    data, design = brains[0], design_matrices[0]
 
     print(data)
-    print(f"levels: {data.Y['y'].to_list()}")
-    return Simulator, data, sim
+    print(data.Y["condition"].value_counts().sort("condition"))
+    return data, design, load_haxby_example
 
 
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    `mean()` averages across images, one value per voxel, and `plot()` draws the
-    result — the signal sphere should be the only thing left standing:
-    """)
-    return
-
-
-@app.cell
-def _(data):
-    data.mean().plot(title="Mean of the six simulated images")
-    return
-
-
-@app.cell(hide_code=True)
-def _(mo):
-    mo.md(r"""
-    `iplot()` draws the same map in an interactive [niivue](https://niivue.com)
+    `.Y` carries the condition of every TR, so ordinary indexing pulls one
+    condition out and `mean()` averages it — face blocks minus rest is the response
+    to faces. `iplot()` draws it in an interactive [niivue](https://niivue.com)
     viewer: run the cell below, then drag the sliders to rewindow the map and
     scroll a panel to move through slices.
     """)
@@ -104,7 +93,10 @@ def _(mo):
 
 @app.cell
 def _(data):
-    data.mean().iplot(threshold="95%")
+    faces = data[data.Y["condition"] == "face"].mean()
+    baseline = data[data.Y["condition"] == "rest"].mean()
+
+    (faces - baseline).iplot(threshold="95%")
     return
 
 
@@ -118,33 +110,21 @@ def _(mo):
 
     A `DesignMatrix` is a dataframe that knows it describes a timeseries: it carries
     a sampling frequency, and `convolve` applies a hemodynamic response function to
-    the task regressors, renaming each one `<column>_c0`. Here is a 60-TR run with
-    two conditions alternating:
+    the task regressors, renaming each one `<column>_c0`. The example's design comes
+    back convolved — eight condition regressors and an intercept over 72 TRs:
     """)
     return
 
 
 @app.cell
-def _():
-    import numpy as np
-
-    from nltools.data import DesignMatrix
-
-    faces = np.zeros(60)
-    faces[[4, 5, 24, 25, 44, 45]] = 1
-    houses = np.zeros(60)
-    houses[[14, 15, 34, 35, 54, 55]] = 1
-
-    design = DesignMatrix({"faces": faces, "houses": houses}, TR=2.0)
-    convolved = design.convolve()
-
-    print(convolved)
-    return convolved, np
+def _(design):
+    print(design)
+    return
 
 
 @app.cell
-def _(convolved):
-    convolved.plot()
+def _(design):
+    design.plot()
     return
 
 
@@ -158,26 +138,44 @@ def _(mo):
 
     `Adjacency` holds a square matrix over a set of nodes — a correlation matrix, a
     distance matrix, a network. `BrainData.distance` makes one out of images, and it
-    is worth doing inside a region: over 71,020 voxels, two noisy images mostly
-    differ by noise. `create_sphere` draws a region in MNI millimetres and
-    `apply_mask` keeps the voxels inside it — here, the sphere the simulator put the
-    signal in. These images differ in how strongly that sphere responds, not in the
-    shape of the pattern across it — the difference euclidean distance sees:
+    is worth doing inside a region: over 71,020 voxels, two patterns mostly differ
+    by noise. `create_sphere` draws regions in MNI millimetres and `apply_mask`
+    keeps the voxels inside them — here the eight ventral-stream spheres the example
+    responds in. Correlation distance compares the shape of a pattern rather than
+    its size, and shape is where a condition's identity lives:
     """)
     return
 
 
 @app.cell
 def _(data):
+    from nltools import concatenate
+    from nltools.data import Adjacency
     from nltools.mask import create_sphere
 
-    region = create_sphere([0, -18, 18], radius=10)
-    patterns = data.apply_mask(region)
-    neural = patterns.distance(metric="euclidean")
+    ventral_stream = {
+        "face": [40, -50, -20],  # right fusiform face area
+        "cat": [-40, -50, -20],  # left fusiform
+        "bottle": [46, -78, -6],  # right lateral occipital
+        "scissors": [-46, -78, -6],  # left lateral occipital
+        "shoe": [36, -66, -16],  # right posterior fusiform
+        "chair": [-36, -66, -16],  # left posterior fusiform
+        "house": [-26, -44, -10],  # left parahippocampal place area
+        "scrambledpix": [0, -88, 2],  # early visual cortex
+    }
+    ventral_temporal = create_sphere(
+        list(ventral_stream.values()), radius=8, mask=data.mask
+    )
+    patterns = concatenate(
+        [data[data.Y["condition"] == name].mean() for name in ventral_stream]
+    ).apply_mask(ventral_temporal)
+    neural = Adjacency(
+        patterns.distance(metric="correlation"), labels=list(ventral_stream)
+    )
 
     print(patterns)
     print(neural)
-    return neural, patterns, region
+    return Adjacency, concatenate, neural, ventral_temporal
 
 
 @app.cell
@@ -189,10 +187,11 @@ def _(neural):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    Six images make 36 cells, but only 15 distinct pairs, and that is all an
-    `Adjacency` stores; the plot fills the diagonal back in with the zero every image
-    has with itself. The palest cells are the 1-versus-3 pairs, furthest apart; the
-    darkest off the diagonal are the pairs drawn at the same level.
+    Eight conditions make 28 distinct pairs, and that is all an `Adjacency` stores;
+    the plot fills the diagonal back in with the zero every pattern has with itself.
+    The dark cells are the within-category pairs — face with cat, and the four
+    man-made objects with each other — while houses and scrambled pictures have no
+    close partner.
 
     More in [Working with Adjacency](tutorials/data-operations/03_adjacency.md),
     which covers thresholds, Fisher z, stacking subjects, regression and graphs.
@@ -201,28 +200,25 @@ def _(mo):
 
     Those three objects are all you need. A design fits to data and answers a
     question about conditions; features fit to data and answer a question about
-    prediction; data become distances and answer a question about geometry. Each
-    workflow below is one short example on simulated data, with the permutation and
-    bootstrap tests cut to 200 resamples from their default 5,000 so that every cell
-    finishes in about a second.
+    prediction; data become distances and answer a question about geometry. Every
+    permutation and bootstrap test below is cut to 200 resamples from its default
+    5,000 so that each cell finishes in about a second.
 
     ### Mapping neural responses
 
     Fitting a GLM is `fit(model="glm", X=design)`, and `compute_contrasts` asks it a
-    question. Here one run is simulated so that the sphere follows the `faces`
-    regressor, and the contrast should recover it:
+    question — here, how much more each voxel responds to faces than to houses:
     """)
     return
 
 
 @app.cell
-def _(Simulator, convolved):
-    run = Simulator(random_state=1).create_data(
-        convolved["faces_c0"].to_list(), 0.2, radius=10, center=[0, -18, 18]
-    )
-    run.fit(model="glm", X=convolved)
+def _(data, design):
+    data.fit(model="glm", X=design)
 
-    run.compute_contrasts("faces_c0 - houses_c0").plot(title="faces - houses, one run")
+    data.compute_contrasts("face_c0 - house_c0").plot(
+        title="faces - houses, one subject"
+    )
     return
 
 
@@ -230,35 +226,37 @@ def _(Simulator, convolved):
 def _(mo):
     mo.md(r"""
     A beta map is the model's answer at every voxel and the contrast is the question
-    asked of it: how much more this voxel responds to faces than to houses. One
-    subject is not a result, though — the map a paper reports is a test across
-    subjects. Simulate five, stack their contrast maps with `concatenate`, and
-    `ttest` gives the voxelwise one-sample test; `threshold` zeroes every voxel whose
-    p-value misses a cutoff:
+    asked of it. One subject is not a result, though — the map a paper reports is a
+    test across subjects. Load five, each a fresh draw of the same experiment, stack
+    their contrast maps with `concatenate`, and `ttest` gives the voxelwise
+    one-sample test; `threshold` zeroes every voxel whose p-value misses a cutoff:
     """)
     return
 
 
 @app.cell
-def _(Simulator, convolved):
-    from nltools import concatenate
+def _(concatenate, load_haxby_example):
     from nltools.algorithms import threshold
+
+    subjects = []
+    subject_designs = []
+    for seed in range(1, 6):
+        subject_brains, subject_design_matrices = load_haxby_example(random_state=seed)
+        subjects.append(subject_brains[0])
+        subject_designs.append(subject_design_matrices[0])
 
     group = concatenate(
         [
-            Simulator(random_state=subject)
-            .create_data(
-                convolved["faces_c0"].to_list(), 0.2, radius=10, center=[0, -18, 18]
+            subject.fit(model="glm", X=subject_design).compute_contrasts(
+                "face_c0 - house_c0"
             )
-            .fit(model="glm", X=convolved)
-            .compute_contrasts("faces_c0 - houses_c0")
-            for subject in range(2, 7)
+            for subject, subject_design in zip(subjects, subject_designs)
         ]
     )
     group_t = group.ttest()
 
     threshold(group_t["t"], group_t["p"], thr=0.001).plot(title="group t, p < 0.001")
-    return
+    return (subjects,)
 
 
 @app.cell(hide_code=True)
@@ -268,90 +266,68 @@ def _(mo):
 
     ### Predicting neural responses
 
-    An encoding model turns the same equation around: instead of a handful of task
-    regressors, a feature matrix with more columns than timepoints, and ridge
-    regression to keep the fit from blowing up. Here 100 random features, the first
-    ten of which drive the sphere, and two runs of the same experiment so the model
-    can be scored on data it never saw. `ridge_cv` picks the penalty by
-    cross-validation, one per voxel, and the whole fit lands on `.model`: one
-    weight map per feature in `betas`, and the chosen penalty in `alpha`:
+    An encoding model turns the same equation around: features go in, and the model
+    is judged on data it never saw. Ridge regression is the usual estimator, because
+    it stays stable when the features are correlated or outnumber the timepoints.
+    Here two runs of the experiment, one to train on and one held out, each z-scored
+    so every voxel is on the same scale, and each run's own design as its features.
+    `ridge_cv` picks the penalty by cross-validation, one per voxel, and the whole
+    fit lands on `.model`: one weight map per feature in `betas`, the chosen penalty
+    in `alpha`, the variance explained in `r2`:
     """)
     return
 
 
 @app.cell
-def _(Simulator, np):
-    rng = np.random.default_rng(0)
-    features = rng.standard_normal((60, 100))
-    signal = features[:, :10].sum(axis=1).tolist()
+def _(load_haxby_example):
+    import numpy as np
 
-    run1 = Simulator(random_state=7).create_data(
-        signal, 1.0, radius=10, center=[0, -18, 18]
-    )
-    run2 = Simulator(random_state=8).create_data(
-        signal, 1.0, radius=10, center=[0, -18, 18]
-    )
-    run1.fit(
+    runs, run_designs = load_haxby_example(n_runs=2)
+    train = runs[0].standardize(method="zscore")
+    held_out = runs[1].standardize(method="zscore")
+    train.fit(
         model="ridge",
-        X=features,
-        ridge_alpha=[0.1, 1, 10, 100],
+        X=run_designs[0],
+        ridge_alpha=[1, 10, 100, 1000],
         ridge_cv=5,
         random_state=0,
     )
 
-    print(run1.model.betas)
-    print(f"penalty per voxel: {np.unique(run1.model.alpha.data)}")
-    return features, rng, run1, run2
+    print(train.model.betas)
+    print(f"penalty per voxel: {np.unique(train.model.alpha.data)}")
+    print(f"best training r2: {train.model.r2.data.max():.2f}")
+    return held_out, np, run_designs, train
 
 
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    With one weight map per feature, predicting the second run is a matrix
-    product. Correlating that prediction with what the
-    second run actually did, voxel by voxel, gives a performance map: not how much
-    this voxel responds, but how well the model accounts for it:
+    Applying those weights to the held-out run's design predicts its timecourse.
+    Correlating that prediction with what the run actually did, voxel by voxel,
+    gives a performance map: not how much a voxel responds, but how well the model
+    accounts for it:
     """)
     return
 
 
 @app.cell
-def _(features, np, run1, run2):
+def _(held_out, np, run_designs, train):
     from nltools.data import BrainData
 
     def voxel_correlation(observed, predicted):
-        """Correlate two runs of the same voxels, one voxel at a time."""
-        observed = observed - observed.mean(axis=0)
-        predicted = predicted - predicted.mean(axis=0)
-        norms = np.sqrt((observed**2).sum(axis=0) * (predicted**2).sum(axis=0))
-        return (observed * predicted).sum(axis=0) / norms
+        """Correlate two arrays over the same voxels, one voxel at a time."""
+        observed = (observed - observed.mean(axis=0)) / observed.std(axis=0)
+        predicted = (predicted - predicted.mean(axis=0)) / predicted.std(axis=0)
+        return (observed * predicted).mean(axis=0)
 
-    encoding_scores = voxel_correlation(run2.data, features @ run1.model.betas.data)
-    score_map = BrainData(encoding_scores[None, :], mask=run2.mask)
+    encoding_scores = voxel_correlation(
+        held_out.data, train.predict(X=run_designs[1]).data
+    )
 
-    score_map.plot(title="Held-out prediction, r per voxel")
-    return BrainData, encoding_scores, voxel_correlation
-
-
-@app.cell(hide_code=True)
-def _(mo):
-    mo.md(r"""
-    A performance map is what you compare across models, the way a beta map is what
-    you compare across conditions. Scoring the same weights against features whose
-    timing has been shuffled says how much of the map above is the model rather than
-    the noise floor:
-    """)
-    return
-
-
-@app.cell
-def _(encoding_scores, features, rng, run1, run2, voxel_correlation):
-    shuffled = rng.permutation(features, axis=0)
-    chance_scores = voxel_correlation(run2.data, shuffled @ run1.model.betas.data)
-
-    for name, r in (("features", encoding_scores), ("shuffled", chance_scores)):
-        print(f"{name:>9}: best r {r.max():.2f}, {(r > 0.6).sum()} voxels above 0.6")
-    return
+    BrainData(encoding_scores[None, :], mask=held_out.mask).plot(
+        title="Held-out run, r per voxel"
+    )
+    return BrainData, voxel_correlation
 
 
 @app.cell(hide_code=True)
@@ -364,40 +340,53 @@ def _(mo):
     they should be. Both sides are an `Adjacency`, and `similarity` correlates them
     — Spearman by default — with a permutation test that shuffles rows and columns
     together. The neural side is the distance matrix from the basics section; the
-    model side says two images are far apart when their levels are:
+    model side says two conditions are far apart when they belong to different
+    categories:
     """)
     return
 
 
 @app.cell
-def _(data, neural, np):
-    from nltools.data import Adjacency
-
-    levels = np.array(data.Y["y"].to_list())
+def _(Adjacency, neural, np):
+    categories = np.array(["animate"] * 2 + ["object"] * 4 + ["scene", "control"])
     model_rdm = Adjacency(
-        np.abs(levels[:, None] - levels[None, :]), matrix_type="distance"
+        (categories[:, None] != categories[None, :]).astype(float),
+        matrix_type="distance",
+        labels=neural.labels,
     )
     rsa = neural.similarity(model_rdm, n_permute=200, random_state=0, n_jobs=1)
 
     print(f"rho = {rsa['correlation']:.2f}, p = {rsa['p']:.3f} (200 permutations)")
-    return (Adjacency,)
+    return (model_rdm,)
+
+
+@app.cell
+def _(model_rdm, neural):
+    neural.plot_stacked(
+        model_rdm, upper_title="Correlation distance", lower_title="Category model"
+    )
+    return
 
 
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
+    `plot_stacked` puts the two matrices in one square, the measured geometry above
+    the diagonal and the model below it.
+
     Decoding asks the same region the opposite question: given the pattern, which
     condition was it? `predict` cross-validates a classifier over images and reports
-    the accuracy per fold. Twenty images at two levels, five folds:
+    the accuracy per fold. Twelve face and house TRs, three folds:
     """)
     return
 
 
 @app.cell
-def _(region, sim):
-    two_levels = sim.create_data([1, 2], sigma=3, reps=10, center=[0, -18, 18])
-    decoded = two_levels.apply_mask(region).predict(
-        y="y", estimator="linear_svc", cv=5
+def _(data, ventral_temporal):
+    decoded = (
+        data[data.Y["condition"].is_in(["face", "house"])]
+        .apply_mask(ventral_temporal)
+        .predict(y="condition", estimator="linear_svc", cv=3)
     )
 
     print(f"accuracy {decoded.mean_score:.2f}, per fold {decoded.scores}")
@@ -406,74 +395,114 @@ def _(region, sim):
 
 @app.cell
 def _(decoded):
-    decoded.weight_map.plot(title="Classifier weights")
+    decoded.weight_map.plot(title="Classifier weights, faces vs houses")
     return
 
 
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    The weight map is the pattern the classifier leaned on, refit on all twenty
-    images.
+    The weight map is the pattern the classifier leaned on, refit on all twelve TRs.
+    Decoding runs inside a region because that is where the information is: one run
+    labels twelve TRs against 71,020 voxels, and a whole-brain classifier fitted to
+    that lands anywhere between chance and this, depending on the noise. Masking to
+    ventral temporal cortex first is how the real Haxby dataset is analyzed too.
 
     ### Analyzing intersubject similarity
 
     Intersubject correlation asks how much of a response is shared: with everyone
     watching the same thing, the part of one subject's timecourse that another
-    subject also shows is the part the stimulus drove. `isc` correlates every pair of
-    columns in an observations-by-subjects array and bootstraps subjects for the
-    p-value of the median. These five carry the same two signals, mixed differently
-    in each:
+    subject also shows is the part the stimulus drove. `extract_roi` averages each
+    subject's timecourse inside every parcel of a 50-region atlas, `isc` correlates
+    every pair of subjects one parcel at a time and bootstraps subjects for the
+    p-value, and `roi_to_brain` paints the answer back onto the brain. Each
+    simulated subject saw the blocks in a different order, so the TRs are lined up
+    by condition first:
     """)
     return
 
 
 @app.cell
-def _(np):
+def _(BrainData, np, subjects):
     from nltools.algorithms import isc
+    from nltools.mask import expand_mask, roi_to_brain
+    from nltools.templates import fetch_resource
 
-    noise = np.random.default_rng(1).standard_normal((60, 5))
-    clock = np.linspace(0, 6 * np.pi, 60)
-    mixture = np.array([0.0, 0.25, 0.5, 0.75, 1.0])
-    timeseries = np.column_stack(
-        [
-            (1 - m) * np.sin(clock) + m * np.cos(2 * clock) + 0.5 * noise[:, i]
-            for i, m in enumerate(mixture)
-        ]
+    parcellation = BrainData(
+        fetch_resource("masks/default/3mm-MNI152-2009fsl-k50.nii.gz")
     )
-    isc_result = isc(timeseries, n_samples=200, random_state=0, n_jobs=1)
+
+    def time_locked(subject):
+        """Reorder one subject's TRs into the sequence every subject shares."""
+        order = subject.Y.with_row_index().sort(["condition", "index"])["index"]
+        return subject[order.to_numpy()]
+
+    parcel_timeseries = np.stack(
+        [time_locked(subject).extract_roi(parcellation).T for subject in subjects],
+        axis=1,
+    )
+    isc_result = isc(parcel_timeseries, n_samples=200, random_state=0, n_jobs=1)
 
     print(
-        f"median ISC {isc_result['isc']:.2f}, "
-        f"p = {isc_result['p'].item():.3f} (200 bootstraps)"
+        f"best parcel: ISC {isc_result['isc'].max():.2f}, "
+        f"{(isc_result['p'] < 0.05).sum()} of 50 parcels at p < 0.05 (200 bootstraps)"
     )
-    return mixture, timeseries
+    return expand_mask, isc_result, parcellation, roi_to_brain, time_locked
+
+
+@app.cell
+def _(expand_mask, isc_result, parcellation, roi_to_brain):
+    roi_to_brain(isc_result["isc"], expand_mask(parcellation)).plot(
+        title="Intersubject correlation, per parcel"
+    )
+    return
 
 
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
     Intersubject RSA is the previous section's analysis with people as the items: a
-    matrix of how similar each pair of subjects' timecourses are, against a matrix of
-    how far apart their behavioural scores are. Subjects whose responses mix the two
-    signals alike should also score alike:
+    matrix of how similar each pair of subjects' responses are, against a matrix of
+    how far apart their behavioural scores are. Here each subject's ventral-temporal
+    response is a different blend of a face-driven and a house-driven profile, and
+    their score on a face-recognition task tracks the blend:
     """)
     return
 
 
 @app.cell
-def _(Adjacency, mixture, np, timeseries):
-    subject_similarity = Adjacency(np.corrcoef(timeseries.T), matrix_type="similarity")
-    behaviour_scores = 40 + 20 * mixture
+def _(Adjacency, np, subjects, ventral_temporal):
+    blend = np.linspace(0, 1, len(subjects))
+
+    def blended_response(subject, weight):
+        """One subject's ventral-temporal response, blended from faces toward houses."""
+        rest = subject[subject.Y["condition"] == "rest"].mean()
+        to_faces = subject[subject.Y["condition"] == "face"].mean() - rest
+        to_houses = subject[subject.Y["condition"] == "house"].mean() - rest
+        blended = to_faces * (1 - weight) + to_houses * weight
+        return blended.apply_mask(ventral_temporal).data
+
+    profiles = [blended_response(s, w) for s, w in zip(subjects, blend)]
+    neural_similarity = Adjacency(np.corrcoef(profiles), matrix_type="similarity")
+    scores = 100 - 40 * blend
     behaviour = Adjacency(
-        np.abs(behaviour_scores[:, None] - behaviour_scores[None, :]),
-        matrix_type="distance",
+        np.abs(scores[:, None] - scores[None, :]), matrix_type="distance"
     )
-    isrsa = subject_similarity.similarity(
+    isrsa = neural_similarity.similarity(
         behaviour, n_permute=200, random_state=0, n_jobs=1
     )
 
     print(f"rho = {isrsa['correlation']:.2f}, p = {isrsa['p']:.3f} (200 permutations)")
+    return behaviour, neural_similarity
+
+
+@app.cell
+def _(behaviour, neural_similarity):
+    neural_similarity.plot_stacked(
+        behaviour,
+        upper_title="Response similarity",
+        lower_title="Face-recognition score distance",
+    )
     return
 
 
@@ -487,32 +516,39 @@ def _(mo):
 
     Two people watching the same film share the response, not the anatomy it sits in:
     the same information can live in different voxels, and functional alignment finds
-    the transformation between them. Here the second subject is the first one's data
-    with its voxels shuffled — nothing lost, only moved:
+    the transformation between them. Here the second subject is the first one's
+    ventral-temporal data with its voxels shuffled — nothing lost, only moved:
     """)
     return
 
 
 @app.cell
-def _(BrainData, np, patterns, region, voxel_correlation):
-    voxels = patterns.shape[1]
-    shuffle_rng = np.random.default_rng(2)
-    responses = shuffle_rng.standard_normal((40, 5))
-    tuning = shuffle_rng.standard_normal((5, voxels))
-    order = shuffle_rng.permutation(voxels)
+def _(BrainData, np, subjects, time_locked, ventral_temporal, voxel_correlation):
+    target = time_locked(subjects[0]).apply_mask(ventral_temporal)
+    shuffle = np.random.default_rng(0).permutation(target.shape[1])
+    scrambled = BrainData(target.data[:, shuffle], mask=ventral_temporal)
+    aligned = scrambled.align(target, method="procrustes")["transformed"]
 
-    sub1 = BrainData(
-        responses @ tuning + 0.5 * shuffle_rng.standard_normal((40, voxels)),
-        mask=region,
-    )
-    sub2 = BrainData(sub1.data[:, order], mask=region)
-    aligned = sub2.align(sub1, method="procrustes")
+    print(f"before: r = {voxel_correlation(target.data, scrambled.data).mean():.2f}")
+    print(f"after:  r = {voxel_correlation(target.data, aligned.data).mean():.2f}")
+    return aligned, scrambled, target
 
-    print(f"before: r = {voxel_correlation(sub1.data, sub2.data).mean():.2f}")
-    print(
-        "after:  r = "
-        f"{voxel_correlation(sub1.data, aligned['transformed'].data).mean():.2f}"
-    )
+
+@app.cell
+def _(aligned, scrambled, target):
+    import matplotlib.pyplot as plt
+
+    _panels = {
+        "subject 1 (target)": target,
+        "subject 2, voxels shuffled": scrambled,
+        "subject 2, after procrustes": aligned,
+    }
+    _fig, _axes = plt.subplots(1, 3, figsize=(9, 3), sharey=True)
+    for _ax, (_label, _image) in zip(_axes, _panels.items()):
+        _ax.imshow(_image.data[:, :40], aspect="auto", cmap="RdBu_r")
+        _ax.set(title=_label, xlabel="voxel")
+    _axes[0].set_ylabel("TR")
+    _fig.tight_layout()
     return
 
 
