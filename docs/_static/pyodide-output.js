@@ -1,10 +1,10 @@
-// Baked output, figures and HTML in zensical's ```pyodide fences.
+// Baked output, figures, HTML and widgets in zensical's ```pyodide fences.
 //
 // Two jobs. On page load, every fence is filled with the output its build-time
 // twin produced, so the page reads as finished before anything runs; the first
 // Run on a fence clears that and the live output takes over. While a fence runs,
-// its value is rendered as HTML rather than text, so figures and rich reprs
-// survive.
+// its value is rendered the way a notebook would render it, so figures, rich
+// reprs and anywidget viewers survive instead of collapsing to text.
 //
 // The seam, and how to re-check it when zensical updates
 // -----------------------------------------------------
@@ -86,7 +86,122 @@ def _nltools_docs_html(value):
             fragments.append('<div class="pyodide-html">' + html + "</div>")
 
     return fragments
+
+
+def _nltools_docs_widget(value):
+    """Describe an anywidget for the browser as esm/css/traits, or None.
+
+    An anywidget carries its frontend in _esm (an ES module, as a string) and
+    its state in the traits tagged sync=True. Everything the frontend reads
+    goes across here: bytes as a Uint8Array, dicts and lists as plain
+    JavaScript objects and arrays. The underscored traits are anywidget's and
+    ipywidgets' own plumbing and "layout" is another widget, so neither
+    crosses.
+    """
+    import js
+    from pyodide.ffi import to_js
+
+    esm = getattr(value, "_esm", None)
+    traits = getattr(value, "traits", None)
+    if not isinstance(esm, str) or not callable(traits):
+        return None
+
+    state = {}
+    for name in traits(sync=True):
+        if name.startswith("_"):
+            continue
+        trait = getattr(value, name, None)
+        if hasattr(trait, "traits"):
+            continue
+        if isinstance(trait, (bytes, bytearray)):
+            buffer = js.Uint8Array.new(len(trait))
+            if len(trait):
+                buffer.assign(trait)
+            trait = buffer
+        state[name] = trait
+
+    css = getattr(value, "_css", None)
+    return to_js(
+        {"esm": esm, "css": css if isinstance(css, str) else None, "traits": state},
+        dict_converter=js.Object.fromEntries,
+    )
 `;
+
+  // What a widget's `render` handed back, against the output element it drew
+  // into. A fence has no view lifecycle to hang that teardown off, so it is run
+  // the next time the same cell runs: without it every Run on a viewer cell
+  // strands another WebGL context, and browsers cap how many a page may hold.
+  const teardowns = new WeakMap();
+
+  const tearDownWidget = (output) => {
+    const teardown = teardowns.get(output);
+    if (!teardown) return;
+    teardowns.delete(output);
+    try {
+      teardown();
+    } catch (error) {
+      // A widget's own teardown failing is its business, not the page's.
+      console.warn("widget teardown failed", error);
+    }
+  };
+
+  // Render one anywidget into a cell's output.
+  //
+  // A notebook host gives a widget's frontend a live connection to the kernel;
+  // a Pyodide fence has nowhere to send a change back to, because the cell's
+  // value is gone by the time the reader touches the widget. So the state
+  // crosses once, as a snapshot, and this shim stands in for the model: `set`
+  // updates the snapshot and fires the frontend's own `change:` listeners, so
+  // a widget that drives itself through its model (as anywidget's documented
+  // API has it) stays interactive, and `save_changes` has nothing to do.
+  const renderWidget = async (widget, output) => {
+    const state = widget.traits;
+    const listeners = new Map();
+    const model = {
+      get: (name) => state[name] ?? null,
+      set: (name, value) => {
+        state[name] = value;
+        for (const callback of listeners.get(`change:${name}`) ?? []) callback();
+      },
+      on: (event, callback) => {
+        if (!listeners.has(event)) listeners.set(event, []);
+        listeners.get(event).push(callback);
+      },
+      off: (event, callback) => {
+        const bucket = listeners.get(event) ?? [];
+        listeners.set(event, callback ? bucket.filter((c) => c !== callback) : []);
+      },
+      save_changes: () => {},
+      send: () => {},
+    };
+
+    if (widget.css) {
+      const style = document.createElement("style");
+      style.textContent = widget.css;
+      output.appendChild(style);
+    }
+    const el = document.createElement("div");
+    el.className = "pyodide-widget";
+    output.appendChild(el);
+
+    // `_esm` is source, not a file: a Blob URL is what gives the browser
+    // something to `import`, and it can be revoked as soon as that resolves.
+    const url = URL.createObjectURL(
+      new Blob([widget.esm], { type: "text/javascript" }),
+    );
+    let module;
+    try {
+      module = await import(url);
+    } finally {
+      URL.revokeObjectURL(url);
+    }
+    const render = module.default?.render ?? module.render;
+    if (typeof render !== "function") {
+      throw new Error("widget module exports no render()");
+    }
+    const teardown = await render({ model, el });
+    if (typeof teardown === "function") teardowns.set(output, teardown);
+  };
 
   // Which block is running. Zensical's Run handler and its Ctrl-Enter binding
   // both go through a click on the Run control, and this capture-phase
@@ -111,6 +226,7 @@ def _nltools_docs_html(value):
     const pyodide = await loadPyodide(options);
     const runPython = pyodide.runPythonAsync.bind(pyodide);
     let render = null;
+    let describeWidget = null;
 
     pyodide.runPythonAsync = async (code, runOptions) => {
       const output = runningBlock?.querySelector("[id$='--output']");
@@ -118,6 +234,7 @@ def _nltools_docs_html(value):
 
       // Zensical clears the output only on the very first run of a block; its
       // stdout writer replaces the text but not the nodes appended below.
+      tearDownWidget(output);
       output.textContent = "";
 
       let value;
@@ -132,13 +249,31 @@ def _nltools_docs_html(value):
       if (render === null) {
         await runPython(RENDERER);
         render = pyodide.globals.get("_nltools_docs_html");
+        describeWidget = pyodide.globals.get("_nltools_docs_widget");
       }
       const rendered = render(isPythonObject(value) ? value : null);
       const fragments = rendered.toJs();
       rendered.destroy();
       for (const fragment of fragments) output.insertAdjacentHTML("beforeend", fragment);
 
-      if (fragments.length === 0 && value !== undefined && value !== null) {
+      let shown = fragments.length > 0;
+      if (!shown && isPythonObject(value)) {
+        // A widget has no `_repr_html_` to fall back on, so it is checked for
+        // here, between the HTML fragments and the plain-text repr. Anything
+        // that goes wrong is reported in the cell rather than thrown: a broken
+        // widget must not take the rest of the page's Run handling with it.
+        try {
+          const widget = describeWidget(value);
+          if (widget) {
+            shown = true;
+            await renderWidget(widget, output);
+          }
+        } catch (error) {
+          shown = true;
+          output.appendChild(document.createTextNode(`${error}\n`));
+        }
+      }
+      if (!shown && value !== undefined && value !== null) {
         output.appendChild(document.createTextNode(`${String(value)}\n`));
       }
       if (isPythonObject(value)) value.destroy();

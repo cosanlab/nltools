@@ -4,7 +4,8 @@ markdown-exec renders only what a cell prints. This module swaps in a ``python``
 formatter that behaves like a notebook cell instead:
 
 - the value of the cell's final expression is displayed (DataFrames, models, and
-  anything else with ``_repr_html_`` as HTML; other values as text)
+  anything else with ``_repr_html_`` as HTML; an anywidget as a placeholder,
+  since the build has no live kernel; other values as text)
 - every matplotlib figure the cell created is rendered as inline SVG at the end
   of the cell, then closed (what the inline backend does)
 - ``print`` output appears in order, in a preformatted block — including
@@ -440,10 +441,17 @@ class Cell:
 
 
 def render(obj: Any) -> str:
-    """Return an HTML fragment for `obj`."""
+    """Return an HTML fragment for `obj`.
+
+    An anywidget (`_esm` holds its frontend) has no static form: the build
+    stands a placeholder in for it, and on a live page the reader's own Run
+    replaces that with the widget itself.
+    """
     repr_html = getattr(obj, "_repr_html_", None)
     if callable(repr_html):
         return f'<div class="cell-output">{repr_html()}</div>'
+    if isinstance(getattr(obj, "_esm", None), str):
+        return '<pre class="cell-output">Interactive viewer (needs a live kernel)</pre>'
     return f'<pre class="cell-output">{html.escape(repr(obj))}</pre>'
 
 
