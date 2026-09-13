@@ -298,15 +298,19 @@ class TestFitRecordRoundTripsThroughH5:
         with pytest.raises(ValueError, match=r"X=data\.model\.design"):
             BrainData(path).bootstrap("weights", X=X, n_samples=5)
 
-    def test_banded_ridge_keeps_its_named_feature_spaces(
+    def test_banded_ridge_keeps_its_feature_spaces_in_fitted_order(
         self, minimal_brain_data, tmp_path
     ):
+        """The betas are blocked in the order the fit saw the spaces, not by name."""
         from nltools.data import BrainData
 
         rng = np.random.default_rng(6)
+        # Insertion order is deliberately not alphabetical: h5py iterates a
+        # group's members by name, so a reload that trusts iteration order
+        # would hand back a design that no longer describes its own betas.
         spaces = {
-            "a": rng.normal(size=(len(minimal_brain_data), 3)),
-            "b": rng.normal(size=(len(minimal_brain_data), 2)),
+            "zeta": rng.normal(size=(len(minimal_brain_data), 3)),
+            "alphaSpace": rng.normal(size=(len(minimal_brain_data), 2)),
         }
         minimal_brain_data.fit(
             model="ridge",
@@ -319,7 +323,14 @@ class TestFitRecordRoundTripsThroughH5:
         path = str(tmp_path / "banded.h5")
         minimal_brain_data.write(path)
 
-        restored = BrainData(path).model.design
+        loaded = BrainData(path)
 
-        assert set(restored) == {"a", "b"}
-        np.testing.assert_allclose(restored["a"], spaces["a"])
+        assert list(loaded.model.design) == ["zeta", "alphaSpace"]
+        np.testing.assert_allclose(loaded.model.design["zeta"], spaces["zeta"])
+        # The first three coefficient rows belong to `zeta`, the last two to
+        # `alphaSpace`; a permuted reload would line them up the other way.
+        widths = [loaded.model.design[name].shape[1] for name in loaded.model.design]
+        assert widths == [3, 2]
+        np.testing.assert_allclose(
+            loaded.model.betas.data, minimal_brain_data.model.betas.data
+        )
