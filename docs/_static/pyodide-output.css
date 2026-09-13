@@ -19,3 +19,36 @@
   overflow-x: auto;
   white-space: normal;
 }
+
+/* Build-time output for a ```pyodide fence, emitted by
+   scripts/marimo_to_zensical.py and moved into the fence's own output element by
+   pyodide-output.js on page load. Hidden where it lands in the page so it never
+   shows twice; the rules below style it where it arrives, inside the `<code>`
+   element that zensical writes cell output into. */
+
+.cell-baked {
+  display: none;
+}
+
+/* docs_show wraps a cell's `print` output in `<pre class="cell-output">` and each
+   of its figures in `<div class="cell-output cell-figure">`. Inside the output
+   element the `<pre>` is already preformatted by its ancestor, so drop the
+   nested block's own spacing; the figure opts out of `white-space: pre` the way
+   a live figure does. */
+.md-typeset .pyodide-output pre.cell-output {
+  margin: 0;
+  padding: 0;
+  background: none;
+  font: inherit;
+}
+
+.md-typeset .pyodide-output .cell-figure {
+  white-space: normal;
+  margin: 0.5em 0;
+}
+
+.md-typeset .pyodide-output .cell-figure > svg {
+  display: block;
+  max-width: 100%;
+  height: auto;
+}
