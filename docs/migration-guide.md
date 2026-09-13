@@ -9,6 +9,7 @@ Version 0.6.0 is a **breaking release** that refactors nltools to better leverag
 | Category | v0.5.1 (Old) | v0.6.0 (New) | Status |
 |----------|--------------|--------------|--------|
 | **Class names** | `Brain_Data`, `Design_Matrix` | `BrainData`, `DesignMatrix` | **Renamed** |
+| **Top-level imports** | `from nltools import ...` for masks and estimators | `nltools` exports the six data classes, `concatenate`, the four brain-space functions and `__version__`; masks come from `nltools.mask`, and the shared-response estimators are internal behind `BrainData.align` | **Moved** |
 | **Import paths** | `nltools.file_reader`, `nltools.simulator`, `nltools.external` | `nltools.io`, `nltools.data`, `nltools.algorithms` | **Moved** |
 | **GLM regression** | `BrainData.regress()` | `.fit(model='glm', X=…)` | **Removed** |
 | **Ridge regression** | Manual | `.fit(model='ridge')` | New |
@@ -21,7 +22,7 @@ Version 0.6.0 is a **breaking release** that refactors nltools to better leverag
 | **Properties** | Method-style shape/empty checks | `.shape`, `.is_empty` | Changed |
 | **Cross-validation** | N/A | `.fit(..., cv=5)` | New |
 | **Multi-subject** | `Brain_Collection` | Collection orchestration is deferred to 0.6.1; use an explicit per-subject `BrainData` workflow in 0.6.0 | **Deferred** |
-| **SRM** | N/A | `SRM` / `DetSRM` classes | **New** |
+| **SRM** | N/A | <code>BrainData.align(method='probabilistic_srm'&#124;'deterministic_srm')</code> and the standalone `align()` | **New** |
 | **Procrustes `transformation_matrix`** (`BrainData.align`, `align` on numpy input) | Back-project with `transformed @ T` | Back-project with `transformed @ T.T` | **Transposed** |
 | **Algorithm kwarg** | `algorithm=`, `scheme=`, `kind=`, `noise_model=`, `extract_type=`, `mode=`, `perm_type=` | `method=` (or `spatial_scale=` for spatial scale; `Adjacency.similarity` keeps the correlation type in the separate `metric=` slot) | **Renamed** |
 | **Progress flag** | `show_progress=True` | `progress_bar=False` | **Renamed + default flipped** |
@@ -48,11 +49,12 @@ Version 0.6.0 is a **breaking release** that refactors nltools to better leverag
 | **`convolve()` kernel kwarg** | `Design_Matrix.convolve(conv_func='hrf')` | `DesignMatrix.convolve(kernel='glover')` — the kwarg is `kernel=`, with no `conv_func` alias, and the string names an HRF model nilearn computes: `'glover'`, `'glover_time'`, `'glover_dispersion'`, `'spm'`, `'spm_time'`, `'spm_dispersion'`. `'hrf'` is no longer accepted. `DesignMatrix(events_file, hrf_model=)` takes the same six names plus `None`. An array kernel still convolves as before. | **Renamed** |
 | **Convolved regressor values** | A Glover kernel sampled once per TR, whose peak sat at 8 s rather than 5 s at TR=2; events files were sampled onto the TR grid and then convolved with it | Every HRF path is nilearn's: `.convolve()` sends each column to [`compute_regressor`](https://nilearn.github.io/stable/modules/generated/nilearn.glm.first_level.compute_regressor.html) at `oversampling=50` resampled onto the frame times, and `DesignMatrix(events_file)` sends the events to `make_first_level_design_matrix`, so both are exactly what a nilearn `FirstLevelModel` builds from the same events. Every convolved regressor changes, and with it every beta, t and contrast: individual timepoints move by up to roughly a quarter of peak regressor amplitude (0.18 on a 0.72 peak at TR=2 against the 0.6.0 pre-release kernel, more against v0.5.1's 8 s peak), and an events file with sub-TR onsets moves further still because it is no longer quantized onto the TR grid first (up to 0.77 in absolute value on the bundled `onsets_example.csv`). Array kernels are unaffected. | **Values changed** |
 | **Generated column names** | `poly_0`, `cosine_1`, `global_spike1`, `0_poly_0` | `.nl_poly_0`, `.nl_cosine_1`, `.nl_global_spike1`, `.nl_r0_poly_0` — the reserved `.nl_` namespace | **Renamed** |
-| **Plotting functions** | `surface_plot`, `scatterplot`, `roc_plot`, `heatmap`, … | `plot_surf`, `plot_scatter`, `plot_roc`, `plot_designmatrix`, … | **Renamed** |
+| **Plotting functions** | `surface_plot`, `scatterplot`, `roc_plot`, `heatmap`, … | Draw through the data classes — `BrainData.plot_surf`, `Roc.plot`, `Adjacency.plot`, `DesignMatrix.plot`; `component_viewer` is the one standalone plot left | **Moved onto the data classes** |
 | **`nifti_masker` attr** | `brain_data.nifti_masker` | Use `nilearn.masking.apply_mask(img, bd.mask)` | **Removed** |
 | **`nltools.prefs`** | Stateful template singleton | `set_brainspace()` / `get_brainspace()` / `with_brainspace()` | **Removed** |
 | **Neurovault helpers** | `download_collection`, `get_collection_image_metadata` | `fetch_neurovault_collection` | **Removed** |
 | **ICC reliability** | `BrainData.icc()`, `nltools.stats.compute_icc` | None — compute externally (e.g. `pingouin.intraclass_corr`) | **Removed** |
+| **Distance-matrix centering** | `nltools.stats.double_center`, `nltools.stats.u_center` | None — both are internal centering steps of `distance_correlation`, which is the entry point to use | **Removed** |
 
 ---
 
@@ -130,7 +132,7 @@ dm_boxcar = DesignMatrix(events_path, run_length=200, TR=2.0, hrf_model=None)
 dm = dm_boxcar.convolve()  # convolve later, after manipulating regressors
 
 # In-memory events DataFrame? Use the helper directly (always boxcar — caller convolves):
-from nltools.data.designmatrix.io import events_to_dm
+from nltools.io import events_to_dm
 dm_data = events_to_dm(events_frame, run_length=200, sampling_freq=0.5)
 dm = DesignMatrix(dm_data, sampling_freq=0.5).convolve()
 
@@ -654,10 +656,7 @@ and `"loo"` all raise. Pass the splitter itself — `cv=LeaveOneGroupOut()` with
 `groups=` for leave-one-group-out, `cv=LeaveOneOut()` for leave-one-out. An
 integer selects that many unshuffled folds and ignores `groups`, so pass a group
 splitter when groups must stay disjoint across training and test sets. `cv=None`
-is a deterministic five-fold split. The standalone
-[`resolve_cv`](api/tasks/prediction.md#nltools.cross_validation.resolve_cv) helper still
-accepts the `'loo'`/`'logo'` names and still promotes an integer to a group-aware
-splitter, for callers writing their own loops. The legacy fluent `cv()` pipeline
+is a deterministic five-fold split. The legacy fluent `cv()` pipeline
 is removed; configure cross-validation through `BrainData.predict`.
 
 Collection decoding and its permutation result fields are deferred to 0.6.1;
@@ -863,7 +862,7 @@ Constructor rules for the file-path branch:
 **For in-memory events DataFrames** (the path `nltools.datasets.load_haxby_example` and similar takes), use the helper directly:
 
 ```python
-from nltools.data.designmatrix.io import events_to_dm
+from nltools.io import events_to_dm
 
 dm_data = events_to_dm(events_frame, run_length=200, sampling_freq=0.5)
 dm = DesignMatrix(dm_data, sampling_freq=0.5).convolve()
@@ -1644,10 +1643,9 @@ result = isc_group_permutation_test(group1, group2, n_permute=1000)
 - `correlation()` → Use `correlation_permutation_test()` from inference module
 - `pearson()` → Use `scipy.stats.pearsonr` or `correlation_permutation_test()`
 
-**Matrix Utilities** (now in the inference module, also exported flat from `nltools.algorithms`):
-- `double_center()` → `nltools.algorithms.inference.double_center()`
-- `u_center()` → `nltools.algorithms.inference.u_center()`
-- `distance_correlation()` → `nltools.algorithms.inference.distance_correlation()`
+**Matrix Utilities**:
+- `double_center()` and `u_center()` → removed; both are internal centering steps of `distance_correlation()`, which is the entry point to use
+- `distance_correlation()` → `nltools.algorithms.distance_correlation()`
 
 ---
 
@@ -1730,9 +1728,9 @@ ci_lower, ci_upper = np.percentile(draws, [2.5, 97.5], axis=0)
 
 **After (v0.6.0):**
 ```python
-from nltools.algorithms import SRM, DetSRM
+from nltools.algorithms.alignment import SRM, DetSRM
 
-# Probabilistic SRM
+# Probabilistic SRM (internal estimators; align() builds them for you)
 model = SRM(n_features=50, n_iter=10)
 model.fit(subjects)             # List of (n_voxels, n_timepoints) arrays
 aligned = model.transform(subjects)  # Project to shared space
@@ -1750,7 +1748,7 @@ rotation = model.transform_subject(new_data)
 |--------|--------|-------|---------|
 | Availability | External library | Built-in | No extra dependency |
 | API | Varies | sklearn-compatible | Composable pipelines |
-| Variants | N/A | SRM + DetSRM | Flexibility |
+| Variants | N/A | `'probabilistic_srm'` + `'deterministic_srm'` | Flexibility |
 
 ---
 
@@ -1872,7 +1870,7 @@ Affected:
 - `Adjacency.bootstrap` — keyword-only after `statistic`
 - `BrainData.predict` — keyword-only after the required positionals
 - The seven public inference entry points — `one_sample_permutation_test`, `two_sample_permutation_test`, `correlation_permutation_test`, `matrix_permutation_test`, `timeseries_correlation_permutation_test`, `isc_permutation_test`, `isc_group_permutation_test` — keyword-only after the leading data arguments: `one_sample_permutation_test(data, 5000)` becomes `one_sample_permutation_test(data, n_permute=5000)`
-- The remaining public functions the convention sweep caught — `SRM.__init__` / `DetSRM.__init__`, `KFoldStratified.__init__` (matching sklearn's own `KFold(n_splits, *, ...)` shape), `plot_mean_label_distance`, `plot_between_label_distance`, and `plot_interactive_brain`: `KFoldStratified(5, True)` becomes `KFoldStratified(5, shuffle=True)`
+- The remaining public functions the convention sweep caught — `KFoldStratified.__init__` (matching sklearn's own `KFold(n_splits, *, ...)` shape) and the alignment and plotting internals behind the facades: `KFoldStratified(5, True)` becomes `KFoldStratified(5, shuffle=True)`
 - `SphereNeighborhoods.iter_neighborhoods` — `progress_bar` is keyword-only
 
 The `*` marker prevents classes of bug that the old implicit-positional API allowed — e.g. `Adjacency(data, "directed")` used to silently bind `"directed"` to the `Y` parameter, and a parameter inserted mid-signature in the inference layer once silently shifted `single_feature` into `progress_bar` with no error of any kind.
@@ -2312,7 +2310,7 @@ is_empty = brain_data.is_empty
 ### Must fix (will crash)
 
 - [ ] Rename `Brain_Data` → `BrainData`, `Design_Matrix` → `DesignMatrix` everywhere
-- [ ] Replace `onsets_to_dm(events_path, run_length=N, sampling_freq=sf, hrf_model='glover')` → `DesignMatrix(events_path, run_length=N, TR=1/sf)` (HRF-convolved by default; pass `hrf_model=None` for boxcar). For in-memory DataFrames use `events_to_dm(...)` from `nltools.data.designmatrix.io` (always boxcar). The `from nltools.file_reader import ...` / `from nltools.io import onsets_to_dm` paths are both removed.
+- [ ] Replace `onsets_to_dm(events_path, run_length=N, sampling_freq=sf, hrf_model='glover')` → `DesignMatrix(events_path, run_length=N, TR=1/sf)` (HRF-convolved by default; pass `hrf_model=None` for boxcar). For in-memory DataFrames use `events_to_dm(...)` from `nltools.io` (always boxcar). The `from nltools.file_reader import ...` / `from nltools.io import onsets_to_dm` paths are both removed.
 - [ ] Rename `dm.polys` → `dm.confounds` (attribute), `polys=` → `confounds=` (constructor kwarg), `exclude_polys=` → `exclude_confounds=` (on `.vif()` / `.clean()`)
 - [ ] Replace any direct `dm.convolved = …` / `dm.confounds = …` assignments with the constructor kwargs (`convolved=`, `confounds=`) or with `.append(other, axis=1)` — the attributes are now read-only properties. See [DesignMatrix .convolved / .confounds are read-only](#designmatrix-confounds-readonly).
 - [ ] Replace pandas concatenation with `dm.append(...)`. Pass raw Polars frames directly; convert pandas frames with `DesignMatrix(frame, sampling_freq=dm.sampling_freq, confounds=list(frame.columns))` first.
@@ -2348,7 +2346,7 @@ is_empty = brain_data.is_empty
 - [ ] Replace `stats.correlation()` with `correlation_permutation_test()` from inference module
 - [ ] Replace `stats.pearson()` with `scipy.stats.pearsonr` or `correlation_permutation_test()`
 - [ ] Consider using `fit(inplace=False)` for immutable results and serialization
-- [ ] Consider using `SRM` / `DetSRM` for shared response modeling (new in v0.6.0)
+- [ ] Consider `align(..., method='deterministic_srm')` for shared response modeling (new in v0.6.0)
 - [ ] Test with `DeprecationWarning` filters to catch remaining issues
 
 ---
@@ -2382,7 +2380,7 @@ nltools v0.6.0 introduces a consolidated inference module for permutation testin
 
 ### Migration from nltools.stats
 
-The old unsuffixed permutation wrappers are removed, and so is `nltools.stats` itself. Add the `_test` suffix and import the resulting names from `nltools.algorithms` (or `nltools.algorithms.inference` — same functions).
+The old unsuffixed permutation wrappers are removed, and so is `nltools.stats` itself. Add the `_test` suffix and import the resulting name from `nltools.algorithms.inference`, which has every engine (`nltools.algorithms` re-exports the one- and two-sample, correlation and matrix tests too).
 
 **New API** (nltools.algorithms.inference):
 ```python
@@ -2526,7 +2524,7 @@ result = one_sample_permutation_test(data, n_jobs=1)
 
 **v0.6.0** (current):
 - ✅ New inference module available
-- ✅ Suffixed `*_permutation_test` functions (including `isc_permutation_test` / `isc_group_permutation_test`) are exported flat from `nltools.algorithms`, alongside the legacy-vocabulary `isc` / `isc_group` wrappers
+- ✅ Suffixed `*_permutation_test` functions are the engines; the one- and two-sample, correlation and matrix tests are exported flat from `nltools.algorithms`, and the ISC and timeseries engines are imported from `nltools.algorithms.inference`, alongside the flat `isc` / `isc_group` wrappers
 - ❌ Unsuffixed permutation wrapper names are removed
 
 Future migration guidance will follow the APIs available in those releases.

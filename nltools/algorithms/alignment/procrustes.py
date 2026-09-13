@@ -1,7 +1,5 @@
 """Data alignment — SRM, Procrustes, and state alignment."""
 
-__all__ = ["align", "align_states", "procrustes", "procrustes_distance"]
-
 import numpy as np
 from joblib import Parallel, delayed
 from scipy.linalg import orthogonal_procrustes

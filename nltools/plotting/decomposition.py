@@ -1,7 +1,5 @@
 """ICA/PCA component viewer — interactive decomposition explorer."""
 
-__all__ = ["component_viewer"]
-
 import matplotlib.pyplot as plt
 import numpy as np
 import sklearn

@@ -529,7 +529,7 @@ def load_from_h5(bd, file_path, mask):
         mask (Nifti1Image | str | Path | None): User-specified mask; when None the
             mask stored in the file is used.
     """
-    from nltools.io import load_brain_data_h5
+    from nltools.io.h5 import load_brain_data_h5
 
     # Load data using utility function
     h5_data = load_brain_data_h5(file_path, mask)
@@ -779,7 +779,7 @@ def write_brain_data(bd, file_name):
         file_name (str | Path): Output file path. Supports `.nii`/`.nii.gz` (NIfTI)
             and `.h5`/`.hdf5` (HDF5) formats.
     """
-    from nltools.io import is_h5_path, to_h5
+    from nltools.io.h5 import is_h5_path, to_h5
 
     if isinstance(file_name, Path):
         file_name = str(file_name)

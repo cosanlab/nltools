@@ -236,7 +236,6 @@ class TestFitStatePrivacy:
     def test_state_is_private(self, fitted_glm):
         assert not hasattr(fitted_glm, "fit_state")
         assert not hasattr(nltools.models, "GlmFitState")
-        assert "GlmFitState" not in nltools.models.__all__
 
     def test_state_is_frozen(self, fitted_glm):
         state = fitted_glm._fit_state

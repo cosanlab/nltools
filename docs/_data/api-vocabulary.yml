@@ -61,13 +61,13 @@ vocabulary:
     index_md: "`summary_statistic` (`'pairwise' | 'leave-one-out'`) on the ISC entry points — which cross-subject comparison is summarized, distinct from `summary`, which is the `'mean'`/`'median'` central tendency applied to it"
   - concept: "Cross-validation spec"
     kwarg: "cv"
-    index_md: "`cv` (`int |` splitter `| None`) on `BrainData.predict` — `None` is a deterministic five-fold `KFold`/`StratifiedKFold`; the `'loo'`/`'logo'` names are accepted only by `resolve_cv`, and `'loso'`/`'loro'` are gone everywhere. The grouping lives in `groups=`"
+    index_md: "`cv` (`int |` splitter `| None`) on `BrainData.predict` — `None` is a deterministic five-fold `KFold`/`StratifiedKFold`; the `'loo'`/`'logo'` names are accepted only by the internal cv resolver behind `BrainData.predict`, and `'loso'`/`'loro'` are gone everywhere. The grouping lives in `groups=`"
   - concept: "Subject-level parallelism"
     kwarg: "n_jobs"
     index_md: "`n_jobs: int = -1`"
   - concept: "GPU / CPU selection"
     kwarg: "device"
-    index_md: "`device: str = \"cpu\"` on the ridge entry points — `Ridge`, `BrainData.fit(ridge_device=)` and `BrainData.bootstrap` — the only paths with a GPU implementation. Run-or-raise: explicit `'gpu'` either runs on the GPU or raises, and there is no `'auto'`"
+    index_md: "`device: str = \"cpu\"` on the ridge entry points — `BrainData.fit(ridge_device=)`, `BrainData.bootstrap`, and the internal ridge estimator they drive — the only paths with a GPU implementation. Run-or-raise: explicit `'gpu'` either runs on the GPU or raises, and there is no `'auto'`"
   - concept: "Alignment refinement count"
     kwarg: "n_iter"
     index_md: "`n_iter` on `SRM` and `DetSRM` — EM iterations or coordinate-descent iterations; everywhere else `n_iter` is a banned alias for `n_permute`/`n_samples`/`search_iterations`"
@@ -121,7 +121,7 @@ vocabulary:
     index_md: "`glm_*` on `BrainData.fit` (`glm_noise_model`, `glm_bins`, `glm_n_jobs`) — a non-default one under `model='ridge'` raises `ValueError`; `random_state` keeps its bare name because both estimators use it"
   - concept: "Ridge-specific fit option"
     kwarg: "ridge_*"
-    index_md: "`ridge_*` on `BrainData.fit` (`ridge_alpha`, `ridge_cv`, `ridge_search_iterations`, `ridge_dirichlet_concentration`, `ridge_device`, `ridge_memory_budget_gb`, `ridge_per_target_alpha`, `ridge_prefer_conservative_alpha`, `ridge_progress_bar`) — each maps onto the identically-named `Ridge` argument, and a non-default one under `model='glm'` raises `ValueError`"
+    index_md: "`ridge_*` on `BrainData.fit` (`ridge_alpha`, `ridge_cv`, `ridge_search_iterations`, `ridge_dirichlet_concentration`, `ridge_device`, `ridge_memory_budget_gb`, `ridge_per_target_alpha`, `ridge_prefer_conservative_alpha`, `ridge_progress_bar`) — each maps onto the identically-named argument of the internal ridge estimator behind `model='ridge'`, and a non-default one under `model='glm'` raises `ValueError`"
   - concept: "Contrast inference toggle"
     kwarg: "inference"
     index_md: "`inference: bool = False` on `compute_contrasts` — the effect alone by default (what a second-level model consumes); `True` returns the full `ContrastResult`"
@@ -169,7 +169,8 @@ exceptions:
 # Scope model mirrors .semgrep/rules.yml: rules bind PUBLIC (non-underscore)
 # defs; the pipelines subsystem is path-excluded (nltools/pipelines/ forwards
 # to its own dispatch layer). The alignment estimators (SRM, DetSRM) are
-# exported with no facade, so they are checked directly; `n_iter` is that
+# internal after 8g3b but still unprefixed, so they are checked directly as
+# ordinary public defs; `n_iter` is that
 # subsystem's own vocabulary (see the "Alignment refinement count" row above),
 # suppressed from the general ban via per-alias banned_kwargs.<name>.exclude_paths
 # rather than a directory-wide exclusion.
@@ -215,8 +216,9 @@ enforcement:
     n_perm: {canonical: "n_permute"}
     n_iter:
       canonical: "n_permute (permutations), n_samples (bootstrap), or search_iterations (banded ridge)"
-      # SRM/DetSRM are exported with no facade; their n_iter IS the
-      # "Alignment refinement count" concept above, not an alias.
+      # SRM/DetSRM are internal after 8g3b (reached through BrainData.align);
+      # their n_iter IS the "Alignment refinement count" concept above, not an
+      # alias.
       exclude_paths: ["nltools/algorithms/alignment/"]
     alphas: {canonical: "alpha (a scalar fits it; a sequence selects among the candidates)"}
     concentration: {canonical: "dirichlet_concentration"}

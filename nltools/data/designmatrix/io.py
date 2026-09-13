@@ -19,51 +19,6 @@ if TYPE_CHECKING:
     from nltools.data.designmatrix import DesignMatrix
 
 
-def events_to_dm(
-    events: pl.DataFrame | pd.DataFrame,
-    *,
-    run_length: int,
-    sampling_freq: float,
-) -> pl.DataFrame:
-    """Convert a BIDS events table to boxcar regressors aligned to TRs.
-
-    Uses `nilearn.glm.first_level.make_first_level_design_matrix` with
-    `hrf_model=None` to sample events onto the TR grid without HRF
-    convolution — the caller is expected to call `DesignMatrix.convolve()`
-    explicitly when convolution is desired. Drops nilearn's auto-added
-    `constant` column; users add the intercept via `add_poly(0)`.
-
-    Args:
-        events (pl.DataFrame | pd.DataFrame): Events table with BIDS columns
-            `onset`, `duration`, `trial_type` (required); `modulation` is
-            passed through if present.
-        run_length (int): Number of TRs the run contains.
-        sampling_freq (float): Sampling frequency in Hz (= 1/TR).
-
-    Returns:
-        pl.DataFrame: One column per unique `trial_type`, values in
-            {0, modulation} indicating where each condition is active.
-    """
-    import pandas as pd
-    from nilearn.glm.first_level import make_first_level_design_matrix
-
-    if isinstance(events, pl.DataFrame):
-        events = pd.DataFrame(events.to_dict(as_series=False))
-
-    tr = 1.0 / sampling_freq
-    frame_times = np.arange(run_length) * tr
-    dm = make_first_level_design_matrix(
-        frame_times,
-        events=events,
-        hrf_model=None,
-        drift_model=None,
-    )
-    if "constant" in dm.columns:
-        dm = dm.drop(columns=["constant"])
-    # Avoid pyarrow dep on the pandas → polars hop (matches `_to_pandas` below).
-    return pl.DataFrame({str(c): dm[c].to_numpy() for c in dm.columns})
-
-
 def _events_to_convolved_dm(
     events: pl.DataFrame | pd.DataFrame,
     *,
@@ -202,6 +157,8 @@ def load_from_file(
             the caller that the columns are experimental regressors rather than
             nuisance.
     """
+    from nltools.io.events import events_to_dm
+
     p = Path(path)
     raw = _read_delimited(p, separator_for_path(p))
 
@@ -303,7 +260,7 @@ def write(dm: DesignMatrix, file_name: str, sep: str | None = None) -> None:
     """
     from pathlib import Path
 
-    from nltools.io import is_h5_path
+    from nltools.io.h5 import is_h5_path
 
     if isinstance(file_name, Path):
         file_name = str(file_name)

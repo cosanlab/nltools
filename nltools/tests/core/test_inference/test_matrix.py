@@ -305,11 +305,11 @@ class TestDoubleCenter:
 
     def test_double_center_basic(self):
         """Test basic double-centering operation."""
-        from nltools.algorithms import double_center
+        from nltools.algorithms.inference.matrix import _double_center
 
         # Create a simple matrix
         mat = np.array([[1, 2, 3], [4, 5, 6], [7, 8, 9]], dtype=float)
-        result = double_center(mat)
+        result = _double_center(mat)
 
         # After double-centering, row and column means should be zero
         assert np.allclose(result.mean(axis=0), 0, atol=1e-10)
@@ -318,13 +318,13 @@ class TestDoubleCenter:
 
     def test_double_center_symmetric(self):
         """Test double-centering on symmetric matrix."""
-        from nltools.algorithms import double_center
+        from nltools.algorithms.inference.matrix import _double_center
 
         np.random.seed(42)
         mat = np.random.randn(5, 5)
         mat = (mat + mat.T) / 2  # Make symmetric
 
-        result = double_center(mat)
+        result = _double_center(mat)
 
         # Should preserve symmetry
         assert np.allclose(result, result.T, atol=1e-10)
@@ -333,10 +333,10 @@ class TestDoubleCenter:
 
     def test_double_center_raises_on_1d(self):
         """Test that double_center raises error on 1D input."""
-        from nltools.algorithms import double_center
+        from nltools.algorithms.inference.matrix import _double_center
 
         with pytest.raises(ValueError, match="Array should be 2d"):
-            double_center(np.array([1, 2, 3]))
+            _double_center(np.array([1, 2, 3]))
 
 
 class TestUCenter:
@@ -344,12 +344,12 @@ class TestUCenter:
 
     def test_u_center_basic(self):
         """Test basic u-centering operation."""
-        from nltools.algorithms import u_center
+        from nltools.algorithms.inference.matrix import _u_center
 
         np.random.seed(42)
         mat = np.random.randn(5, 5)
 
-        result = u_center(mat)
+        result = _u_center(mat)
 
         # Diagonal should be zero
         assert np.allclose(np.diag(result), 0, atol=1e-10)
@@ -357,13 +357,13 @@ class TestUCenter:
 
     def test_u_center_symmetric(self):
         """Test u-centering on symmetric matrix."""
-        from nltools.algorithms import u_center
+        from nltools.algorithms.inference.matrix import _u_center
 
         np.random.seed(42)
         mat = np.random.randn(5, 5)
         mat = (mat + mat.T) / 2  # Make symmetric
 
-        result = u_center(mat)
+        result = _u_center(mat)
 
         # Should preserve symmetry
         assert np.allclose(result, result.T, atol=1e-10)
@@ -372,10 +372,10 @@ class TestUCenter:
 
     def test_u_center_raises_on_1d(self):
         """Test that u_center raises error on 1D input."""
-        from nltools.algorithms import u_center
+        from nltools.algorithms.inference.matrix import _u_center
 
         with pytest.raises(ValueError, match="Array should be 2d"):
-            u_center(np.array([1, 2, 3]))
+            _u_center(np.array([1, 2, 3]))
 
 
 class TestDistanceCorrelation:
@@ -503,13 +503,13 @@ class TestMatrixUtilitiesIntegration:
 
     def test_double_center_vs_u_center(self):
         """Test that double_center and u_center produce different results."""
-        from nltools.algorithms import double_center, u_center
+        from nltools.algorithms.inference.matrix import _double_center, _u_center
 
         np.random.seed(42)
         mat = np.random.randn(5, 5)
 
-        dc_result = double_center(mat)
-        uc_result = u_center(mat)
+        dc_result = _double_center(mat)
+        uc_result = _u_center(mat)
 
         # Results should be different
         assert not np.allclose(dc_result, uc_result, atol=1e-10)

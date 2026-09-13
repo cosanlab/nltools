@@ -1,7 +1,7 @@
 """Tests for the file-path / events-DataFrame paths in DesignMatrix.
 
 The old standalone `nltools.io.onsets_to_dm` was folded into
-`DesignMatrix.__init__` (file path) and `nltools.data.designmatrix.io.events_to_dm`
+`DesignMatrix.__init__` (file path) and `nltools.io.events_to_dm`
 (in-memory events DataFrame).
 """
 
@@ -14,7 +14,7 @@ import polars as pl
 import pytest
 
 from nltools.data import DesignMatrix
-from nltools.data.designmatrix.io import events_to_dm
+from nltools.io import events_to_dm
 from nltools.datasets import get_resource_path
 
 

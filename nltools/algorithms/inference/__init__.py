@@ -28,41 +28,23 @@ Note:
     masking and result reshaping for you.
 """
 
-# Import public API functions
-from .one_sample import one_sample_permutation_test
-from .two_sample import two_sample_permutation_test
-from .correlation import correlation_permutation_test
-from .timeseries import (
+# Engine entry points, re-exported so `nltools.algorithms.inference` is the one
+# import path for the whole family.
+from .one_sample import one_sample_permutation_test  # noqa: F401
+from .two_sample import two_sample_permutation_test  # noqa: F401
+from .correlation import correlation_permutation_test  # noqa: F401
+from .timeseries import (  # noqa: F401
     circle_shift,
     phase_randomize,
     timeseries_correlation_permutation_test,
 )
-from .matrix import (
+from .matrix import (  # noqa: F401
     matrix_permutation_test,
-    double_center,
-    u_center,
     distance_correlation,
 )
 
-# NOTE: the user-facing intersubject statistics (`isc`, `isc_group`, `isfc`,
-# `isps`) live in `.intersubject` and are exported flat from
-# `nltools.algorithms` — re-exporting the `isc` *function* here would shadow
-# the `.isc` engine *module* on this package.
-from .isc import isc_permutation_test, isc_group_permutation_test
-
-
-# Define public exports
-__all__ = [
-    "circle_shift",
-    "correlation_permutation_test",
-    "distance_correlation",
-    "double_center",
-    "isc_group_permutation_test",
-    "isc_permutation_test",
-    "matrix_permutation_test",
-    "one_sample_permutation_test",
-    "phase_randomize",
-    "timeseries_correlation_permutation_test",
-    "two_sample_permutation_test",
-    "u_center",
-]
+# NOTE: the intersubject statistics (`isc`, `isc_group`, `isfc`, `isps`) live in
+# `.intersubject` and are exported flat from `nltools.algorithms` —
+# re-exporting the `isc` *function* here would shadow the `.isc` engine
+# *module* on this package.
+from .isc import isc_permutation_test, isc_group_permutation_test  # noqa: F401

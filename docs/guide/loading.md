@@ -20,13 +20,13 @@ Goal | Use | Notes
 --- | --- | ---
 Load one or many images | `BrainData(path_or_list)` | List input stacks; mixed grids are resampled to the mask
 Use a specific grid | `BrainData(..., mask='3mm-MNI152-2009fsl')` | Also accepts a `Nifti1Image` or a mask path
-Change the global default | [`set_brainspace`](../api/tasks/loading.md#nltools.templates.set_brainspace) / [`with_brainspace`](../api/tasks/loading.md#nltools.templates.with_brainspace) | `with_brainspace` is a context manager; [`reset_brainspace`](../api/tasks/loading.md#nltools.templates.reset_brainspace) restores defaults
+Change the global default | [`set_brainspace`](../api/tasks/loading.md#nltools.set_brainspace) / [`with_brainspace`](../api/tasks/loading.md#nltools.with_brainspace) | `with_brainspace` is a context manager; [`reset_brainspace`](../api/tasks/loading.md#nltools.reset_brainspace) restores defaults
 Save / reload with metadata | [`BrainData.write`](../api/data/brain_data.md#nltools.data.braindata.BrainData.write) → `.h5` | HDF5 round-trips `X`, `Y`, and the mask; `.nii.gz` does not
 Example data | [`fetch_pain`](../api/tasks/loading.md#nltools.datasets.fetch_pain), [`fetch_emotion_ratings`](../api/tasks/loading.md#nltools.datasets.fetch_emotion_ratings), [`load_haxby_example`](../api/tasks/loading.md#nltools.datasets.load_haxby_example) | Cached on first use; `load_haxby_example` is synthetic and needs no network
-Bundled masks and atlases | [`list_resources`](../api/tasks/loading.md#nltools.templates.list_resources), [`fetch_resource`](../api/tasks/loading.md#nltools.templates.fetch_resource) | Returns a local path; parcellations live under `masks/`
+Bundled masks and atlases | [`list_resources`](../api/tasks/loading.md#nltools.datasets.list_resources), [`fetch_resource`](../api/tasks/loading.md#nltools.datasets.fetch_resource) | Returns a local path; parcellations live under `masks/`
 Published maps | [`fetch_neurovault_collection`](../api/tasks/loading.md#nltools.datasets.fetch_neurovault_collection), [`download_nifti`](../api/tasks/loading.md#nltools.datasets.download_nifti) | `BrainData` also accepts a URL directly
 Build a mask | [`create_sphere`](../api/tasks/loading.md#nltools.mask.create_sphere), [`expand_mask`](../api/tasks/loading.md#nltools.mask.expand_mask), [`collapse_mask`](../api/tasks/loading.md#nltools.mask.collapse_mask) | `expand_mask` turns one labeled atlas into per-ROI binary masks
-Stack objects | [`concatenate`](../api/tasks/loading.md#nltools.data.combine.concatenate) | Works on lists of `BrainData` or `Adjacency`
+Stack objects | [`concatenate`](../api/tasks/loading.md#nltools.concatenate) | Works on lists of `BrainData` or `Adjacency`
 
 ## Loading
 

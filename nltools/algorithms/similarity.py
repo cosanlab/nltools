@@ -8,14 +8,6 @@ from scipy.stats import rankdata
 
 from .regression import regress
 
-__all__ = [
-    "compute_multivariate_similarity",
-    "compute_similarity",
-    "fisher_r_to_z",
-    "fisher_z_to_r",
-    "transform_pairwise",
-]
-
 
 def fisher_r_to_z(r):
     """Convert correlation coefficients to Fisher z values.

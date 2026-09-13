@@ -35,9 +35,6 @@ if TYPE_CHECKING:
     from nibabel import Nifti1Image
 
 
-__all__ = ["SphereNeighborhoods", "compute_searchlight_neighborhoods"]
-
-
 @dataclass(frozen=True)
 class SphereNeighborhoods:
     """Precomputed sphere neighborhoods for a brain mask.

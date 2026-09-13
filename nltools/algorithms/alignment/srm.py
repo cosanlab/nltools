@@ -57,7 +57,6 @@ from sklearn.utils import assert_all_finite
 from sklearn.exceptions import NotFittedError
 import sys
 
-__all__ = ["SRM", "DetSRM"]
 
 logger = logging.getLogger(__name__)
 

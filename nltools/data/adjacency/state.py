@@ -144,7 +144,7 @@ def owned_frame(value, n_matrices):
 def initialize(adj, data, *, matrix_type, labels, Y):
     """Initialize one facade from normalized values or an owned source graph."""
     from . import Adjacency
-    from nltools.io import is_h5_path
+    from nltools.io.h5 import is_h5_path
 
     if isinstance(data, (str, Path)) and is_h5_path(data):
         from .io import read_h5

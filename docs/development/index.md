@@ -20,8 +20,14 @@ logic lives in pure functions.**
 | Layer | Role | Where |
 |---|---|---|
 | **Imperative shell** | Three data classes that hold state and delegate. Each is a *facade over a submodule package* (io, modeling, plotting, …). | `nltools/data/{braindata,adjacency,designmatrix}/` |
-| **Functional core** | Pure functions — the actual computation. Containers in, containers out. Every user-facing function is importable flat from `nltools.algorithms`. | `nltools/algorithms/` (`corrections`, `outliers`, `signal`, `similarity`, `regression`, `neighborhoods`, …), `utils` (stack levels, warning categories, optional imports, progress bars), `cross_validation`, `mask` |
+| **Functional core** | Pure functions — the actual computation. Containers in, containers out. | `nltools/algorithms/` (`corrections`, `outliers`, `signal`, `similarity`, `regression`, `neighborhoods`, …), `utils` (stack levels, warning categories, optional imports, progress bars), `cross_validation`, `mask` |
 | **Algorithm substrate** | Heavy numerical machinery with its own backend/parallel story. | `nltools/algorithms/{alignment,inference}/` |
+
+Nine namespaces are user-facing — `nltools`, `nltools.data`, `nltools.algorithms`,
+`nltools.io`, `nltools.datasets`, `nltools.mask`, `nltools.cross_validation`,
+`nltools.plotting` and `nltools.utils` — and each one's `__all__` *is* its surface.
+Every other module is internal and carries no `__all__`; an unprefixed name in an
+internal module is not user-facing until `0nm2` lands the prefixes.
 
 The three facades and their submodules:
 
@@ -98,9 +104,9 @@ public signature against in CI. The table below is rendered from it:
 | Convolution kernel | <code>kernel: str &#124; np.ndarray = 'glover'</code> on `DesignMatrix.convolve` (v0.5.1 spelled it `conv_func`) — an HRF model name nilearn computes (<code>'glover' &#124; 'glover_time' &#124; 'glover_dispersion' &#124; 'spm' &#124; 'spm_time' &#124; 'spm_dispersion'</code>) or a caller-supplied array, 1-D for one kernel and 2-D for several. `DesignMatrix(events_file, hrf_model=)` takes the same six names plus `None` for raw boxcars |
 | Central tendency | `summary` (<code>'mean' &#124; 'median'</code>) |
 | ISC summary statistic | `summary_statistic` (<code>'pairwise' &#124; 'leave-one-out'</code>) on the ISC entry points — which cross-subject comparison is summarized, distinct from `summary`, which is the `'mean'`/`'median'` central tendency applied to it |
-| Cross-validation spec | `cv` (<code>int &#124;</code> splitter <code>&#124; None</code>) on `BrainData.predict` — `None` is a deterministic five-fold `KFold`/`StratifiedKFold`; the `'loo'`/`'logo'` names are accepted only by `resolve_cv`, and `'loso'`/`'loro'` are gone everywhere. The grouping lives in `groups=` |
+| Cross-validation spec | `cv` (<code>int &#124;</code> splitter <code>&#124; None</code>) on `BrainData.predict` — `None` is a deterministic five-fold `KFold`/`StratifiedKFold`; the `'loo'`/`'logo'` names are accepted only by the internal cv resolver behind `BrainData.predict`, and `'loso'`/`'loro'` are gone everywhere. The grouping lives in `groups=` |
 | Subject-level parallelism | `n_jobs: int = -1` |
-| GPU / CPU selection | `device: str = "cpu"` on the ridge entry points — `Ridge`, `BrainData.fit(ridge_device=)` and `BrainData.bootstrap` — the only paths with a GPU implementation. Run-or-raise: explicit `'gpu'` either runs on the GPU or raises, and there is no `'auto'` |
+| GPU / CPU selection | `device: str = "cpu"` on the ridge entry points — `BrainData.fit(ridge_device=)`, `BrainData.bootstrap`, and the internal ridge estimator they drive — the only paths with a GPU implementation. Run-or-raise: explicit `'gpu'` either runs on the GPU or raises, and there is no `'auto'` |
 | Alignment refinement count | `n_iter` on `SRM` and `DetSRM` — EM iterations or coordinate-descent iterations; everywhere else `n_iter` is a banned alias for `n_permute`/`n_samples`/`search_iterations` |
 | Working-memory budget | <code>memory_budget_gb: float &#124; None = None</code> — device-neutral working-memory budget for internal batching; `None` measures the selected device with headroom |
 | Progress indicator | `progress_bar: bool = False` |
@@ -118,7 +124,7 @@ public signature against in CI. The table below is rendered from it:
 | Diagonal flag | `include_diag: bool` |
 | Radius (mm) | `radius: float` in millimeters everywhere, following nilearn's `SearchLight` and `NiftiSpheresMasker` — `10.0` on the searchlight entry points (`BrainData.predict`, `BrainData.distance`, `compute_searchlight_neighborhoods`), and the same millimeter unit for `create_sphere` and `Simulator` geometry, converted to voxels through the image affine |
 | GLM-specific fit option | `glm_*` on `BrainData.fit` (`glm_noise_model`, `glm_bins`, `glm_n_jobs`) — a non-default one under `model='ridge'` raises `ValueError`; `random_state` keeps its bare name because both estimators use it |
-| Ridge-specific fit option | `ridge_*` on `BrainData.fit` (`ridge_alpha`, `ridge_cv`, `ridge_search_iterations`, `ridge_dirichlet_concentration`, `ridge_device`, `ridge_memory_budget_gb`, `ridge_per_target_alpha`, `ridge_prefer_conservative_alpha`, `ridge_progress_bar`) — each maps onto the identically-named `Ridge` argument, and a non-default one under `model='glm'` raises `ValueError` |
+| Ridge-specific fit option | `ridge_*` on `BrainData.fit` (`ridge_alpha`, `ridge_cv`, `ridge_search_iterations`, `ridge_dirichlet_concentration`, `ridge_device`, `ridge_memory_budget_gb`, `ridge_per_target_alpha`, `ridge_prefer_conservative_alpha`, `ridge_progress_bar`) — each maps onto the identically-named argument of the internal ridge estimator behind `model='ridge'`, and a non-default one under `model='glm'` raises `ValueError` |
 | Contrast inference toggle | `inference: bool = False` on `compute_contrasts` — the effect alone by default (what a second-level model consumes); `True` returns the full `ContrastResult` |
 <!-- /AUTOGEN:api-vocabulary:index-table -->
 

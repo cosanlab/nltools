@@ -2,13 +2,6 @@
 
 import numpy as np
 
-__all__ = [
-    "fdr",
-    "holm_bonf",
-    "multi_threshold",
-    "threshold",
-]
-
 
 def fdr(p, q=0.05):
     """Determine an FDR threshold for an array of p-values.

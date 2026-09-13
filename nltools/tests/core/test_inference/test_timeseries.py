@@ -190,7 +190,7 @@ class TestTimeseriesCorrelation:
 
     def test_basic_functionality_circle_shift(self):
         """Test basic functionality with circle_shift method."""
-        from nltools.algorithms import (
+        from nltools.algorithms.inference import (
             timeseries_correlation_permutation_test,
         )
 
@@ -209,7 +209,7 @@ class TestTimeseriesCorrelation:
 
     def test_basic_functionality_phase_randomize(self):
         """Test basic functionality with phase_randomize method."""
-        from nltools.algorithms import (
+        from nltools.algorithms.inference import (
             timeseries_correlation_permutation_test,
         )
 
@@ -228,7 +228,7 @@ class TestTimeseriesCorrelation:
 
     def test_deterministic_with_seed(self):
         """Test that results are deterministic with random_state."""
-        from nltools.algorithms import (
+        from nltools.algorithms.inference import (
             timeseries_correlation_permutation_test,
         )
 
@@ -248,7 +248,7 @@ class TestTimeseriesCorrelation:
 
     def test_return_null_distribution(self):
         """Test that null distribution is returned when requested."""
-        from nltools.algorithms import (
+        from nltools.algorithms.inference import (
             timeseries_correlation_permutation_test,
         )
 
@@ -270,7 +270,7 @@ class TestTimeseriesCorrelation:
 
     def test_spearman_metric(self):
         """Test with Spearman correlation metric."""
-        from nltools.algorithms import (
+        from nltools.algorithms.inference import (
             timeseries_correlation_permutation_test,
         )
 
@@ -292,7 +292,7 @@ class TestTimeseriesCorrelation:
 
     def test_kendall_metric(self):
         """Test with Kendall correlation metric."""
-        from nltools.algorithms import (
+        from nltools.algorithms.inference import (
             timeseries_correlation_permutation_test,
         )
 
@@ -309,7 +309,7 @@ class TestTimeseriesCorrelation:
 
     def test_invalid_method(self):
         """Test that invalid method raises ValueError."""
-        from nltools.algorithms import (
+        from nltools.algorithms.inference import (
             timeseries_correlation_permutation_test,
         )
 
@@ -324,7 +324,7 @@ class TestTimeseriesCorrelation:
 
     def test_mismatched_lengths(self):
         """Test that mismatched lengths raise ValueError."""
-        from nltools.algorithms import (
+        from nltools.algorithms.inference import (
             timeseries_correlation_permutation_test,
         )
 

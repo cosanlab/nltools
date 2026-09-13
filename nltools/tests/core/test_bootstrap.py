@@ -93,12 +93,6 @@ class TestBootstrapResultRecord:
         assert result.estimate[0] == 0.0
         assert result.samples[0, 0] == 0.0
 
-    def test_not_re_exported_from_nltools_data(self):
-        import nltools.data as data
-
-        assert "BootstrapResult" not in data.__all__
-        assert not hasattr(data, "BootstrapResult")
-
 
 class TestBootstrapAccumulator:
     """Streaming Welford variance plus a bounded per-element retained tail."""

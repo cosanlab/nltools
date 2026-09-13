@@ -10,14 +10,12 @@ Algorithms for aligning functional data across subjects:
 - **align_states**: match two sets of state weight maps
 """
 
-from .srm import SRM, DetSRM
-from .procrustes import align, align_states, procrustes, procrustes_distance
-
-__all__ = [
-    "SRM",
-    "DetSRM",
-    "align",
-    "align_states",
-    "procrustes",
-    "procrustes_distance",
-]
+# Internal package: these imports are re-exports for the rest of nltools, not
+# an advertised surface, so there is no `__all__` to mark them as used.
+from .srm import SRM, DetSRM  # noqa: F401
+from .procrustes import (  # noqa: F401
+    align,
+    align_states,
+    procrustes,
+    procrustes_distance,
+)

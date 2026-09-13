@@ -1,12 +1,5 @@
 """Model output visualization — ROC, SVM margin, regression, and logistic plots."""
 
-__all__ = [
-    "plot_dist_from_hyperplane",
-    "plot_probability",
-    "plot_roc",
-    "plot_scatter",
-]
-
 import matplotlib.pyplot as plt
 import seaborn as sns
 

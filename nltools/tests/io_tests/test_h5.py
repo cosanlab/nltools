@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-from nltools.io import is_h5_path, load_brain_data_h5, to_h5
+from nltools.io.h5 import is_h5_path, load_brain_data_h5, to_h5
 
 
 class TestIsH5Path:

@@ -8,7 +8,6 @@ from sklearn.metrics.pairwise import pairwise_distances
 from nltools.utils import attempt_to_import
 from .utils import apply_stat, perform_arithmetic
 
-__all__ = ["Adjacency"]
 
 # Optional dependencies
 nx = attempt_to_import("networkx")

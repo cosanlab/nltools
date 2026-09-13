@@ -4,8 +4,6 @@ These tools provide the ability to quickly run receiver operating characteristic
 analyses on the output of machine-learning models applied to imaging data.
 """
 
-__all__ = ["Roc"]
-
 import numpy as np
 from nltools.plotting import plot_roc
 from scipy.stats import norm, binomtest

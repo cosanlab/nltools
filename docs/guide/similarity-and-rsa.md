@@ -23,7 +23,7 @@ Paint a stack's result on the brain | `roi_to_brain_from_atlas(...)` or `nilearn
 Compare two raw matrices | [`matrix_permutation_test`](../api/tasks/similarity.md#nltools.algorithms.matrix_permutation_test) | The Mantel test on plain arrays; `include_diag=False` by default
 Row-wise pattern similarity | [`compute_similarity`](../api/tasks/similarity.md#nltools.algorithms.compute_similarity) | One image against many; `metric='correlation'`, `'spearman'`, `'cosine'`, `'dot_product'`
 Average correlations | [`fisher_r_to_z`](../api/tasks/similarity.md#nltools.algorithms.fisher_r_to_z) / [`fisher_z_to_r`](../api/tasks/similarity.md#nltools.algorithms.fisher_z_to_r) | Also `Adjacency.r_to_z` / `.z_to_r`, returning independent copies
-Show two RDMs together | [`plot_stacked_adjacency`](../api/tasks/similarity.md#nltools.plotting.plot_stacked_adjacency) | Brain RDM above the diagonal, model RDM below
+Show two RDMs together | [`similarity`](../api/data/adjacency.md#nltools.data.adjacency.Adjacency.similarity)`(plot=True)` | Brain RDM above the diagonal, model RDM below
 Cluster structure | [`plot_mds`](../api/data/adjacency.md#nltools.data.adjacency.Adjacency.plot_mds), [`plot_silhouette`](../api/data/adjacency.md#nltools.data.adjacency.Adjacency.plot_silhouette), [`plot_label_distance`](../api/data/adjacency.md#nltools.data.adjacency.Adjacency.plot_label_distance) | All take `labels=`
 
 ## Brain RDM vs model RDM
@@ -42,19 +42,15 @@ stats = brain_rdm.similarity(
 stats["correlation"], stats["p"]
 ```
 
-`plot_stacked_adjacency` is the picture that goes with that number. It draws one matrix above the
-diagonal and the other below on a shared scale, so you can see where the two agree, not just how
-much:
+`plot=True` draws the picture that goes with that number: one matrix above the diagonal and the
+other below on a shared scale, so you can see where the two agree, not just how much.
 
 ```python
-from nltools.plotting import plot_stacked_adjacency
-
-plot_stacked_adjacency(brain_rdm, model_rdm)
+brain_rdm.similarity(model_rdm, metric="spearman", n_permute=1000, plot=True)
 ```
 
-`normalize=True` (the default) rescales both matrices before stacking, which matters whenever the
-two are on different scales, say a correlation-distance brain RDM against a model RDM in stimulus
-units. Extra keyword arguments go to seaborn's heatmap.
+Both matrices are rescaled before stacking, which matters whenever the two are on different
+scales, say a correlation-distance brain RDM against a model RDM in stimulus units.
 
 ## Per-ROI RSA, painted back on the brain
 

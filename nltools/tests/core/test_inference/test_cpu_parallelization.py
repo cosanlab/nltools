@@ -6,9 +6,9 @@ import numpy as np
 from nltools.algorithms import (
     correlation_permutation_test,
     one_sample_permutation_test,
-    timeseries_correlation_permutation_test,
     two_sample_permutation_test,
 )
+from nltools.algorithms.inference import timeseries_correlation_permutation_test
 
 
 def _one_sample_at(n_jobs):

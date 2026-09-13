@@ -1,12 +1,5 @@
 """Adjacency matrix visualization — stacked plots, distance, and silhouette."""
 
-__all__ = [
-    "plot_between_label_distance",
-    "plot_mean_label_distance",
-    "plot_silhouette",
-    "plot_stacked_adjacency",
-]
-
 import matplotlib.pyplot as plt
 import numpy as np
 import polars as pl

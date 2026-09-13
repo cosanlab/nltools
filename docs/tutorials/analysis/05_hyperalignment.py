@@ -360,9 +360,11 @@ def _(mo):
     mo.md(r"""
     ## The estimators underneath
 
-    `align` is a convenience wrapper. The estimators it builds are public and
-    follow the scikit-learn `fit`/`transform` shape, which is worth reaching for
-    when you need the fitted state or want to reuse one model across datasets.
+    `align` is a convenience wrapper over two internal estimators that follow the
+    scikit-learn `fit`/`transform` shape. They live in
+    `nltools.algorithms.alignment`, and reaching for them directly is worth it
+    only when you need the fitted state or want to reuse one model across
+    datasets.
 
     | Class | What it fits |
     |---|---|
@@ -381,7 +383,7 @@ def _(mo):
 
 @app.cell
 def _(subjects):
-    from nltools.algorithms import SRM, DetSRM
+    from nltools.algorithms.alignment import SRM, DetSRM
 
     voxels_by_time = [subject.data.T for subject in subjects]
 

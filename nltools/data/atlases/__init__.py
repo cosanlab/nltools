@@ -15,16 +15,9 @@ References:
     https://doi.org/10.21105/joss.01257
 """
 
-from .labeling import label_coords
-from .loading import Atlas, load_atlas
-from .registry import list_atlases
-from .reporting import ClusterReport, cluster_report_data
-
-__all__ = [
-    "Atlas",
-    "ClusterReport",
-    "cluster_report_data",
-    "label_coords",
-    "list_atlases",
-    "load_atlas",
-]
+# Internal package: these imports are re-exports for the rest of nltools, not
+# an advertised surface, so there is no `__all__` to mark them as used.
+from .labeling import label_coords  # noqa: F401
+from .loading import Atlas, load_atlas  # noqa: F401
+from .registry import list_atlases  # noqa: F401
+from .reporting import ClusterReport, cluster_report_data  # noqa: F401

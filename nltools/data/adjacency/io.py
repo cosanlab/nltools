@@ -23,7 +23,7 @@ def write(adj, file_name, method="long"):
         method (str): Layout for CSV output, `'long'` (vectorized rows) or `'square'`
             (single matrix only).
     """
-    from nltools.io import is_h5_path, to_h5
+    from nltools.io.h5 import is_h5_path, to_h5
 
     if method not in ["long", "square"]:
         raise ValueError('Make sure method is ["long","square"].')

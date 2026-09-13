@@ -89,16 +89,14 @@ class TestContrastResultIsGeneric:
 
 
 class TestModelsPackageSurface:
-    """`nltools.models` exports `ContrastResult` and no longer exports `BaseModel`."""
+    """`ContrastResult` is reachable from `nltools.data` and `nltools.models`."""
 
-    def test_exported_from_models_package(self):
-        """`ContrastResult` is importable from `nltools.models` and in `__all__`."""
+    def test_exported_from_data_namespace(self):
+        """`ContrastResult` is one of the result records `nltools.data` advertises."""
+        from nltools.data import ContrastResult as DataContrastResult
+
+        assert DataContrastResult is ContrastResult
         assert nltools.models.ContrastResult is ContrastResult
-        assert "ContrastResult" in nltools.models.__all__
-
-    def test_exports_are_exactly_the_public_estimators_and_result(self):
-        """`__all__` is exactly the result record and the two estimators."""
-        assert nltools.models.__all__ == ["ContrastResult", "Glm", "Ridge"]
 
     def test_lives_in_the_results_module(self):
         """The class is defined in `nltools.models.results`."""

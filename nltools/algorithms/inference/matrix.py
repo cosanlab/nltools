@@ -4,8 +4,8 @@
 (e.g. two representational dissimilarity matrices, or a brain and a model
 similarity matrix) are correlated, building the null by permuting the rows and
 columns of one matrix together. `distance_correlation` measures multivariate
-dependence (linear or not) between two arrays, with `double_center` and
-`u_center` as the centering steps it is built on. Permutations run on joblib
+dependence (linear or not) between two arrays, with `_double_center` and
+`_u_center` as the centering steps it is built on. Permutations run on joblib
 workers; `n_jobs` sets how many, and a given `random_state` gives the same
 result at any worker count.
 
@@ -408,7 +408,7 @@ def matrix_permutation_test(
 # ============================================================================
 
 
-def double_center(mat: np.ndarray) -> np.ndarray:
+def _double_center(mat: np.ndarray) -> np.ndarray:
     """Double center a 2d array.
 
     Double-centering subtracts row means, column means, and adds the grand mean.
@@ -426,7 +426,7 @@ def double_center(mat: np.ndarray) -> np.ndarray:
     Examples:
         ```python
         mat = np.array([[1, 2, 3], [4, 5, 6], [7, 8, 9]], dtype=float)
-        result = double_center(mat)
+        result = _double_center(mat)
         np.allclose(result.mean(axis=0), 0)  # → True
         np.allclose(result.mean(axis=1), 0)  # → True
         ```
@@ -441,7 +441,7 @@ def double_center(mat: np.ndarray) -> np.ndarray:
     return mat - row_mean - col_mean + grand_mean
 
 
-def u_center(mat: np.ndarray) -> np.ndarray:
+def _u_center(mat: np.ndarray) -> np.ndarray:
     """U-center a 2d array.
 
     U-centering is a bias-corrected form of double-centering: it corrects for the
@@ -460,7 +460,7 @@ def u_center(mat: np.ndarray) -> np.ndarray:
     Examples:
         ```python
         mat = np.random.randn(5, 5)
-        result = u_center(mat)
+        result = _u_center(mat)
         np.allclose(np.diag(result), 0)  # → True
         ```
     """
@@ -562,8 +562,8 @@ def distance_correlation(
     # 2 center each matrix
     if bias_corrected:
         # U-centering
-        x_dist_cent = u_center(x_dist)
-        y_dist_cent = u_center(y_dist)
+        x_dist_cent = _u_center(x_dist)
+        y_dist_cent = _u_center(y_dist)
         # Compute covariances using N*(N-3) in denominator
         adjusted_n = _x.shape[0] * (_x.shape[0] - 3)
         xy = np.multiply(x_dist_cent, y_dist_cent).sum() / adjusted_n
@@ -571,8 +571,8 @@ def distance_correlation(
         yy = np.multiply(y_dist_cent, y_dist_cent).sum() / adjusted_n
     else:
         # double-centering
-        x_dist_cent = double_center(x_dist)
-        y_dist_cent = double_center(y_dist)
+        x_dist_cent = _double_center(x_dist)
+        y_dist_cent = _double_center(y_dist)
         # Compute covariances using N^2 in denominator
         xy = np.multiply(x_dist_cent, y_dist_cent).mean()
         xx = np.multiply(x_dist_cent, x_dist_cent).mean()

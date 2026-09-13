@@ -25,12 +25,12 @@ import pytest
 from scipy.stats import t as t_dist
 
 from nltools.algorithms import (
-    compute_multivariate_similarity,
     isc,
     isc_group,
     procrustes_distance,
     regress,
 )
+from nltools.algorithms.similarity import compute_multivariate_similarity
 from nltools.algorithms.inference import (
     correlation_permutation_test,
     isc_group_permutation_test,

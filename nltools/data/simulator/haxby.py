@@ -7,7 +7,7 @@ volume. That makes it a simulator, so its implementation sits here.
 
 from nltools.data.braindata import BrainData
 from nltools.data.designmatrix import DesignMatrix
-from nltools.data.designmatrix.io import events_to_dm
+from nltools.io.events import events_to_dm
 
 
 _HAXBY_CONDITIONS = (

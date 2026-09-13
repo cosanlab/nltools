@@ -14,7 +14,6 @@ from nltools.models.results import Payload
 if TYPE_CHECKING:
     from .braindata import BrainData
 
-__all__ = ["BootstrapResult", "Predict"]
 
 #: Fields that may be populated for each spatial scale, and the subset that
 #: every result of that scale must carry. Anything outside `permitted` must be

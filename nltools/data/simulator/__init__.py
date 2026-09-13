@@ -1,8 +1,5 @@
 """Tools to simulate multivariate brain and grid data for testing analysis pipelines."""
 
-__all__ = ["SimulateGrid", "Simulator"]
-
-
 import os
 import numpy as np
 import nibabel as nib

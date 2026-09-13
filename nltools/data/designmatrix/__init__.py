@@ -8,7 +8,6 @@ concatenation, and collinearity diagnostics.
 
 from __future__ import annotations
 
-__all__ = ["DesignMatrix"]
 
 from copy import deepcopy
 from numbers import Integral
@@ -213,7 +212,7 @@ class DesignMatrix:
             self.data = pl.DataFrame()
 
         elif isinstance(data, (str, Path)):
-            from nltools.io import is_h5_path
+            from nltools.io.h5 import is_h5_path
 
             if is_h5_path(data):
                 # A .h5 is a serialized DesignMatrix rather than a table

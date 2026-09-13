@@ -13,8 +13,8 @@ Method | Use when | Trade-off
 --- | --- | ---
 `'procrustes'` (hyperalignment) | Aligning one subject to a reference subject or common model | Orthogonal rotation, no dimensionality reduction; invertible
 [`align`](../api/tasks/alignment.md#nltools.algorithms.align)`(..., method='procrustes')` | Building a common model from a group, iteratively | Same voxel count out
-[`SRM`](../api/tasks/alignment.md#nltools.algorithms.SRM) | You want a low-dimensional shared response and a noise model | Probabilistic, slower; `n_features=` sets the shared dimensionality
-[`DetSRM`](../api/tasks/alignment.md#nltools.algorithms.DetSRM) | Same, without the probabilistic machinery | Faster and deterministic; the usual default
+`align(..., method='probabilistic_srm')` | You want a low-dimensional shared response and a noise model | Probabilistic, slower; `n_features=` sets the shared dimensionality
+`align(..., method='deterministic_srm')` | Same, without the probabilistic machinery | Faster and deterministic; the usual default
 
 Goal | Use | Notes
 --- | --- | ---

@@ -1,12 +1,5 @@
 """Temporal signal processing — resampling, filtering, and basis functions."""
 
-__all__ = [
-    "calc_bpm",
-    "downsample",
-    "make_cosine_basis",
-    "upsample",
-]
-
 import numpy as np
 import polars as pl
 from scipy.interpolate import interp1d

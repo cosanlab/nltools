@@ -19,8 +19,6 @@ if TYPE_CHECKING:
 
 from .utils import check_brain_data, coalesced_gc
 
-__all__ = ["BrainData"]
-
 
 class BrainData:
     """Represent neuroimaging data as vectors instead of three-dimensional matrices.

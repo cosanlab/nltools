@@ -7,8 +7,7 @@ per-image label or value `y` from voxel patterns, cross-validated. One call retu
 [`Predict`](../api/data/results.md#nltools.data.results.Predict) result whose `spatial_scale` field
 says which of its fields carry values. Encoding runs the other way, predicting voxel timeseries
 from stimulus features, and is a ridge problem. Use
-[`BrainData.fit`](../api/data/brain_data.md#nltools.data.braindata.BrainData.fit)`(model='ridge')` or the
-[`Ridge`](../api/models.md#nltools.models.Ridge) estimator directly.
+[`BrainData.fit`](../api/data/brain_data.md#nltools.data.braindata.BrainData.fit)`(model='ridge')`.
 
 `spatial_scale=` sets what a "pattern" means. `'whole_brain'` fits one model on every in-mask
 voxel. `'roi'` needs `roi_mask=` (a labeled parcellation) and fits one model per parcel, returning
@@ -59,7 +58,7 @@ Stratify a continuous target | [`KFoldStratified`](../api/tasks/prediction.md#nl
 Region-by-region | `spatial_scale='roi', roi_mask=atlas` | Answers "is this region informative on its own?"
 Voxel-by-voxel | `spatial_scale='searchlight', radius=8.0` | Thousands of models; `n_jobs` defaults to `1` here on purpose
 Classifier performance | [`Roc`](../api/tasks/prediction.md#nltools.data.roc.Roc) | `calculate()` then `summary()` or `plot()`
-Encoding (features → voxels) | [`Ridge`](../api/models.md#nltools.models.Ridge), or `fit(model='ridge', ridge_*=...)` | `per_target_alpha=True` (the default) picks a per-voxel alpha; a named mapping of feature spaces makes it banded
+Encoding (features → voxels) | [`fit`](../api/data/brain_data.md#nltools.data.braindata.BrainData.fit)`(model='ridge', ridge_*=...)` | `per_target_alpha=True` (the default) picks a per-voxel alpha; a named mapping of feature spaces makes it banded
 
 ## Decoding
 

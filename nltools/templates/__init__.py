@@ -29,36 +29,23 @@ Examples:
     ```
 """
 
-from .config import (
+# Internal package: these imports are re-exports for the rest of nltools, not
+# an advertised surface, so there is no `__all__` to mark them as used. The
+# four brain-space functions are advertised at `nltools`, `BrainSpaceConfig` at
+# `nltools.data`, and `fetch_resource`/`list_resources` at `nltools.datasets`.
+from .config import (  # noqa: F401
     BrainSpaceConfig,
     get_brainspace,
     reset_brainspace,
     set_brainspace,
     with_brainspace,
 )
-from .fetch import fetch_resource, list_resources
-from .matching import (
+from .fetch import fetch_resource, list_resources  # noqa: F401
+from .matching import (  # noqa: F401
     TemplateMatch,
     detect_resolution,
     get_bg_image,
     is_standard_space,
     match_resolution,
 )
-from .paths import resolve_paths, resolve_template_name
-
-__all__ = [
-    "BrainSpaceConfig",
-    "TemplateMatch",
-    "detect_resolution",
-    "fetch_resource",
-    "get_bg_image",
-    "get_brainspace",
-    "is_standard_space",
-    "list_resources",
-    "match_resolution",
-    "reset_brainspace",
-    "resolve_paths",
-    "resolve_template_name",
-    "set_brainspace",
-    "with_brainspace",
-]
+from .paths import resolve_paths, resolve_template_name  # noqa: F401

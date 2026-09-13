@@ -13,9 +13,6 @@ import numpy as np
 from scipy.stats import t as t_dist
 
 
-__all__ = ["regress"]
-
-
 def regress(X, Y, *, stats: str = "full", tail: int | str = 2):
     """Fit an OLS regression of `Y` on `X`.
 

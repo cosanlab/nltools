@@ -4,11 +4,11 @@ title: Design matrices, HRF & GLM
 
 # Design matrices, HRF & GLM
 
-Build a first-level model. `events_to_dm` turns an events table into a [DesignMatrix](../data/design_matrix.md), which convolves with the canonical Glover HRF; for any other kernel, sample one with [nilearn's HRF functions](https://nilearn.github.io/stable/modules/glm.html) and pass the array to `convolve`. `regress` is the standalone numpy GLM. For 4D data use `BrainData.fit(model='glm')`, which raises `RankDeficientDesignWarning` when a design is rank deficient.
+Build a first-level model. `events_to_dm` (from `nltools.io`) turns an events table into a [DesignMatrix](../data/design_matrix.md), which convolves with the canonical Glover HRF; for any other kernel, sample one with [nilearn's HRF functions](https://nilearn.github.io/stable/modules/glm.html) and pass the array to `convolve`. `regress` is the standalone numpy GLM. For 4D data use `BrainData.fit(model='glm')`, which raises `RankDeficientDesignWarning` when a design is rank deficient.
 
 ## Events to design matrix
 
-::: nltools.data.designmatrix.io
+::: nltools.io
     options:
       show_root_heading: false
       show_root_toc_entry: false

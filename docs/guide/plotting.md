@@ -22,12 +22,12 @@ Object | Plot | Notes
 `BrainData` numbers | <code>plot(method='timeseries'&#124;'histogram')</code> | <code>stat='mean'&#124;'median'&#124;'std'</code> for `'timeseries'`
 `BrainData` surface | [`plot_surf`](../api/data/brain_data.md#nltools.data.braindata.BrainData.plot_surf) | `hemi=`, `view=` (`'montage'` = lateral + medial), <code>surface='pial'&#124;'inflated'</code>
 `BrainData` flatmap | [`plot_flatmap`](../api/data/brain_data.md#nltools.data.braindata.BrainData.plot_flatmap) | Curvature underlay on by default
-`BrainData` interactive | [`iplot`](../api/data/brain_data.md#nltools.data.braindata.BrainData.iplot) / [`plot_interactive_brain`](../api/tasks/plotting.md#nltools.plotting.plot_interactive_brain) | Needs a live kernel (Jupyter, marimo); static pages show a placeholder
+`BrainData` interactive | [`iplot`](../api/data/brain_data.md#nltools.data.braindata.BrainData.iplot) | Needs a live kernel (Jupyter, marimo); static pages show a placeholder
 `DesignMatrix` | [`plot`](../api/data/design_matrix.md#nltools.data.designmatrix.DesignMatrix.plot)<code>(method='matrix'&#124;'timeseries'&#124;'corr')</code> | `'matrix'` is the SPM-style heatmap; `'corr'` shows regressor collinearity
 `Adjacency` matrix | [`plot`](../api/data/adjacency.md#nltools.data.adjacency.Adjacency.plot) | `limit=` caps how many matrices from a stack are drawn
 `Adjacency` structure | [`plot_mds`](../api/data/adjacency.md#nltools.data.adjacency.Adjacency.plot_mds), [`plot_silhouette`](../api/data/adjacency.md#nltools.data.adjacency.Adjacency.plot_silhouette), [`plot_label_distance`](../api/data/adjacency.md#nltools.data.adjacency.Adjacency.plot_label_distance) | All take `labels=`, one per node
-Two matrices at once | [`plot_stacked_adjacency`](../api/tasks/similarity.md#nltools.plotting.plot_stacked_adjacency) | See [Similarity & RSA](similarity-and-rsa.md)
-`Predict` result | [`plot_roc`](../api/tasks/prediction.md#nltools.plotting.plot_roc), [`plot_scatter`](../api/tasks/prediction.md#nltools.plotting.plot_scatter), [`plot_dist_from_hyperplane`](../api/tasks/prediction.md#nltools.plotting.plot_dist_from_hyperplane), [`plot_probability`](../api/tasks/prediction.md#nltools.plotting.plot_probability) | Or `Roc.plot()` / `Roc.summary()`
+Two matrices at once | [`similarity`](../api/data/adjacency.md#nltools.data.adjacency.Adjacency.similarity)`(plot=True)` | See [Similarity & RSA](similarity-and-rsa.md)
+`Predict` result | [`Roc`](../api/tasks/prediction.md#nltools.data.roc.Roc)`.plot()` / `.summary()` | Build it from the decision values of a binary decode
 `decompose` output | [`component_viewer`](../api/tasks/plotting.md#nltools.plotting.component_viewer) | ipywidgets; live kernel only
 
 ## Volumes

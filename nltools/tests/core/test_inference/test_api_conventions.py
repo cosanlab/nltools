@@ -1,10 +1,10 @@
 """
 API-convention guards for the inference layer.
 
-`nltools/algorithms/inference` is public in practice: it is documented in
-`docs/api/algorithms/inference.md`, re-exported through `nltools.algorithms`, and
-imported directly by downstream code. These tests hold it to the conventions in
-CLAUDE.md rather than treating it as private internals.
+`nltools/algorithms/inference` is an internal package whose entry points are
+partly re-exported through `nltools.algorithms` and partly reached by their own
+import path. These tests hold the whole family to the conventions in CLAUDE.md
+rather than checking only the names the namespace advertises.
 
 They exist because a real bug got through: inserting a parameter into a helper
 signature ahead of an existing one silently shifted a positional argument at the
@@ -126,12 +126,9 @@ ENGINE_IDENTITY = {
     "one_sample_permutation_test": "nltools.algorithms.inference.one_sample",
     "two_sample_permutation_test": "nltools.algorithms.inference.two_sample",
     "correlation_permutation_test": "nltools.algorithms.inference.correlation",
-    "timeseries_correlation_permutation_test": "nltools.algorithms.inference.timeseries",
     "circle_shift": "nltools.algorithms.inference.timeseries",
     "phase_randomize": "nltools.algorithms.inference.timeseries",
     "matrix_permutation_test": "nltools.algorithms.inference.matrix",
-    "double_center": "nltools.algorithms.inference.matrix",
-    "u_center": "nltools.algorithms.inference.matrix",
     "distance_correlation": "nltools.algorithms.inference.matrix",
 }
 

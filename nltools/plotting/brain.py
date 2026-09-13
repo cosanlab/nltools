@@ -1,11 +1,5 @@
 """Brain visualization — surface plots, flatmaps, and interactive viewers."""
 
-__all__ = [
-    "plot_flatmap",
-    "plot_interactive_brain",
-    "plot_surf",
-]
-
 import os
 import warnings
 from pathlib import Path

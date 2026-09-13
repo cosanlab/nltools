@@ -4,20 +4,7 @@ title: Loading, masks & datasets
 
 # Loading, masks & datasets
 
-Get data into nltools. [BrainData](../data/brain_data.md) and the other data classes load NIfTI files and HDF5 bundles themselves. The functions here cover the rest: example datasets and Neurovault collections, sphere and ROI masks, `concatenate`, and the MNI template every object falls back on when it gets no mask (`set_brainspace`).
-
-## HDF5 files
-
-::: nltools.io
-    options:
-      show_root_heading: false
-      show_root_toc_entry: false
-      show_category_heading: false
-      heading_level: 3
-      members:
-        - load_brain_data_h5
-        - to_h5
-        - is_h5_path
+Get data into nltools. [BrainData](../data/brain_data.md) and the other data classes load NIfTI files and HDF5 bundles themselves. The functions here cover the rest: example datasets, bundled resources and Neurovault collections, sphere and ROI masks, `concatenate`, and the MNI template every object falls back on when it gets no mask (`set_brainspace`).
 
 ## Example datasets
 
@@ -34,6 +21,8 @@ Get data into nltools. [BrainData](../data/brain_data.md) and the other data cla
         - load_haxby_example
         - download_nifti
         - get_resource_path
+        - fetch_resource
+        - list_resources
 
 ## Masks and ROIs
 
@@ -51,7 +40,7 @@ Get data into nltools. [BrainData](../data/brain_data.md) and the other data cla
 
 ## Combining objects
 
-::: nltools.data.combine
+::: nltools
     options:
       show_root_heading: false
       show_root_toc_entry: false
@@ -62,7 +51,19 @@ Get data into nltools. [BrainData](../data/brain_data.md) and the other data cla
 
 ## Templates and brain space
 
-::: nltools.templates
+::: nltools
+    options:
+      show_root_heading: false
+      show_root_toc_entry: false
+      show_category_heading: false
+      heading_level: 3
+      members:
+        - get_brainspace
+        - set_brainspace
+        - reset_brainspace
+        - with_brainspace
+
+::: nltools.data
     options:
       show_root_heading: false
       show_root_toc_entry: false
@@ -70,12 +71,3 @@ Get data into nltools. [BrainData](../data/brain_data.md) and the other data cla
       heading_level: 3
       members:
         - BrainSpaceConfig
-        - get_brainspace
-        - set_brainspace
-        - reset_brainspace
-        - with_brainspace
-        - fetch_resource
-        - list_resources
-        - get_bg_image
-        - is_standard_space
-        - detect_resolution

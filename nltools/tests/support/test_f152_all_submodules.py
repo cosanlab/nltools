@@ -20,20 +20,12 @@ def test_datasets_and_cross_validation_importable():
 
 
 def test_every_advertised_submodule_is_attribute_reachable():
-    """Every submodule name in `nltools.__all__` must resolve via plain attribute access.
-
-    C1 (q31x mg6z): `nltools.models` was in neither `nltools.__all__` nor the
-    `from . import (...)` binding block, so `import nltools; nltools.models`
-    raised `AttributeError` despite `nltools.models` being a real, documented
-    subpackage. This pins the general rule for every submodule the top-level
-    package advertises.
-    """
+    """Every submodule name in `nltools.__all__` must resolve via plain attribute access."""
     submodule_names = {
         name
         for name in nltools.__all__
         if isinstance(getattr(nltools, name, None), types.ModuleType)
     }
-    assert "models" in submodule_names
     for name in submodule_names:
         submodule = getattr(nltools, name)
         assert submodule.__name__ == f"nltools.{name}"

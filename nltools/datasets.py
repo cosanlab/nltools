@@ -1,11 +1,11 @@
-"""Dataset download and example-data utilities.
+"""Dataset, resource, and atlas lookups.
 
-Functions to help download example datasets. The curated example datasets
-(`fetch_pain`, `fetch_emotion_ratings`) are hosted on the ``nltools/niftis``
-Hugging Face dataset and resolve through the same `fetch_resource` machinery
-as the MNI templates and atlases. Arbitrary Neurovault collections are still
-available via `fetch_neurovault_collection`.
-
+Functions to fetch example datasets, bundled resources, and parcellations. The
+curated example datasets (`fetch_pain`, `fetch_emotion_ratings`) are hosted on
+the ``nltools/niftis`` Hugging Face dataset and resolve through the same
+`fetch_resource` machinery as the MNI templates and atlases. Arbitrary
+Neurovault collections are available via `fetch_neurovault_collection`, and
+`list_atlases` / `load_atlas` / `label_coords` cover the parcellations.
 """
 
 __all__ = [
@@ -13,7 +13,12 @@ __all__ = [
     "fetch_emotion_ratings",
     "fetch_neurovault_collection",
     "fetch_pain",
+    "fetch_resource",
     "get_resource_path",
+    "label_coords",
+    "list_atlases",
+    "list_resources",
+    "load_atlas",
     "load_haxby_example",
 ]
 
@@ -23,8 +28,9 @@ from os.path import dirname, join, sep as pathsep
 from pathlib import Path
 
 from nltools.data import BrainData
+from nltools.data.atlases import label_coords, list_atlases, load_atlas
 from nltools.data.simulator.haxby import load_haxby_example
-from nltools.templates import fetch_resource
+from nltools.templates import fetch_resource, list_resources
 
 # Core dependencies
 from nilearn.datasets import fetch_neurovault_ids

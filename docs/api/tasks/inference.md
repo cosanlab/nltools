@@ -4,7 +4,7 @@ title: Statistics & inference
 
 # Statistics & inference
 
-Non-parametric group statistics. The one-sample, two-sample, and timeseries permutation tests spread their permutations across joblib workers (`n_jobs=`); `phase_randomize` and `circle_shift` are the timeseries null models. `fdr`, `holm_bonf`, `threshold`, and `multi_threshold` correct or threshold the resulting p-maps. `BrainData.ttest`, `Adjacency.ttest`, and `BrainData.bootstrap` call these.
+Non-parametric group statistics. The one- and two-sample permutation tests spread their permutations across joblib workers (`n_jobs=`); `phase_randomize` and `circle_shift` are the timeseries null models. `fdr`, `holm_bonf`, `threshold`, and `multi_threshold` correct or threshold the resulting p-maps. `BrainData.ttest`, `Adjacency.ttest`, and `BrainData.bootstrap` call these.
 
 ::: nltools.algorithms
     options:
@@ -14,7 +14,6 @@ Non-parametric group statistics. The one-sample, two-sample, and timeseries perm
       members:
         - one_sample_permutation_test
         - two_sample_permutation_test
-        - timeseries_correlation_permutation_test
         - phase_randomize
         - circle_shift
         - fdr

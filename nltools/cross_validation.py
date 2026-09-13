@@ -1,6 +1,6 @@
 """Scikit-learn-compatible cross-validation data classes."""
 
-__all__ = ["KFoldStratified", "resolve_cv"]
+__all__ = ["KFoldStratified"]
 
 from sklearn.model_selection._split import _BaseKFold
 from sklearn.utils import check_random_state

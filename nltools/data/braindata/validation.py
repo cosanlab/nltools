@@ -110,7 +110,7 @@ def validate_data_type(data):
     if isinstance(data, list):
         return "list"
     if isinstance(data, (str, Path)):
-        from nltools.io import is_h5_path
+        from nltools.io.h5 import is_h5_path
 
         data_str = str(data)
         if is_h5_path(data_str):

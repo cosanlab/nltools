@@ -28,7 +28,7 @@ Goal | Use | Notes
 One-sample voxelwise test | [`ttest`](../api/data/brain_data.md#nltools.data.braindata.BrainData.ttest)`(popmean=0.0)` | Returns `{'mean', 't', 'z', 'p'}`
 Non-parametric one-sample | `ttest(permutation=True, n_permute=)` | Sign flipping; add `return_null=True` for the `'null_dist'` array. Also [`one_sample_permutation_test`](../api/tasks/inference.md#nltools.algorithms.one_sample_permutation_test)
 Non-parametric two-sample | [`two_sample_permutation_test`](../api/tasks/inference.md#nltools.algorithms.two_sample_permutation_test) | Group-label shuffling
-Correlated time series | [`timeseries_correlation_permutation_test`](../api/tasks/inference.md#nltools.algorithms.timeseries_correlation_permutation_test) | `method='circle_shift'` or `'phase_randomize'` preserves autocorrelation
+Correlated time series | `timeseries_correlation_permutation_test` (from `nltools.algorithms.inference`) | `method='circle_shift'` or `'phase_randomize'` preserves autocorrelation
 Build a timeseries null | [`circle_shift`](../api/tasks/inference.md#nltools.algorithms.circle_shift), [`phase_randomize`](../api/tasks/inference.md#nltools.algorithms.phase_randomize) | The surrogate generators used above
 Confidence intervals | [`BrainData.bootstrap`](../api/data/brain_data.md#nltools.data.braindata.BrainData.bootstrap), [`Adjacency.bootstrap`](../api/data/adjacency.md#nltools.data.adjacency.Adjacency.bootstrap) | Returns a `BootstrapResult`: `.estimate`, `.standard_error`, `.ci_lower`, `.ci_upper`
 Matrix comparison | [`matrix_permutation_test`](../api/tasks/similarity.md#nltools.algorithms.matrix_permutation_test), [`Adjacency.ttest`](../api/data/adjacency.md#nltools.data.adjacency.Adjacency.ttest) | `Adjacency.ttest` takes the same kwargs and returns the same keys, one edgewise `Adjacency` each. See [Similarity & RSA](similarity-and-rsa.md)
@@ -102,8 +102,8 @@ explicit about the assumption.
 from nltools.algorithms import (
     one_sample_permutation_test,
     two_sample_permutation_test,
-    timeseries_correlation_permutation_test,
 )
+from nltools.algorithms.inference import timeseries_correlation_permutation_test
 
 one_sample_permutation_test(a, n_permute=1000, random_state=0)["p"]
 two_sample_permutation_test(a, b, n_permute=1000, random_state=0)["p"]

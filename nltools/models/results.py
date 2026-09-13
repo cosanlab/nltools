@@ -7,7 +7,6 @@ from typing import Generic, TypeVar
 
 import numpy as np
 
-__all__ = ["ContrastResult"]
 
 Payload = TypeVar("Payload")
 

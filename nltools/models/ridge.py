@@ -23,7 +23,6 @@ from ..algorithms.backends import (
 )
 from .validation import _check_is_fitted
 
-__all__ = ["Ridge"]
 
 #: Constructor defaults for the arguments that only the banded random search
 #: consumes. Passing any of them a different value while fitting ordinary Ridge
