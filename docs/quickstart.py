@@ -95,6 +95,22 @@ def _(data):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
+    `iplot()` draws the same map in an interactive [niivue](https://niivue.com)
+    viewer: run the cell below, then drag the sliders to rewindow the map and
+    scroll a panel to move through slices.
+    """)
+    return
+
+
+@app.cell
+def _(data):
+    data.mean().iplot()
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
     More in [Working with BrainData](tutorials/data-operations/01_brain_data.md),
     which covers loading, indexing, masks and ROIs, plotting and saving images.
 
