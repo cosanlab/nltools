@@ -34,15 +34,18 @@ def _(mo):
 
     ## Create one
 
-    The constructor takes a square matrix, an upper-triangle vector, a `polars`
-    or `pandas` DataFrame, a `.csv` or `.h5` path, or a list of any of those to
-    stack. `matrix_type` declares what the values mean: `'similarity'` (higher
-    is more alike), `'distance'` (higher is further apart), or `'directed'`
-    (asymmetric, stored in full). `labels` names the nodes and travels with the
-    object. A matrix declared symmetric has to be symmetric, so noise is
-    symmetrized before it is added, and the diagonal is discarded either way.
-    The example below has three groups of four nodes, connected within group at
-    strengths 1, 2 and 3 and unconnected across groups:
+    The constructor takes a square matrix, a `polars` or `pandas` DataFrame, or
+    a `.csv` or `.h5` path, and a list of those stacks them — except `.h5`
+    paths, which load one at a time. `matrix_type` declares what the values
+    mean: `'similarity'` (higher is more alike), `'distance'` (higher is further
+    apart), or `'directed'` (asymmetric, stored in full). Append `'_flat'` to
+    pass values that are already vectorized; a bare vector with no `matrix_type`
+    is read as a distance. `labels` names the nodes and travels with the object.
+    Distance and similarity matrices store the strict upper triangle, so an
+    input diagonal is dropped, and a matrix declared symmetric has to be
+    symmetric — hence the symmetrized noise below. The example has three groups
+    of four nodes, connected within group at strengths 1, 2 and 3 and
+    unconnected across groups:
     """)
     return
 
@@ -78,13 +81,15 @@ def _(mo):
     Printing reports the logical shape, the size of the metadata frame `Y`,
     symmetry, and the matrix type. `.shape` is that logical shape —
     `(n_matrices, n_nodes, n_nodes)` for a stack — while `.vector_shape` is what
-    is stored, the n(n-1)/2 entries above the diagonal. `squareform()` rebuilds
-    the square matrix as a plain `numpy` array with a zero diagonal.
+    is stored, here the n(n-1)/2 entries above the diagonal. `squareform()`
+    rebuilds the square matrix as a plain `numpy` array with a zero diagonal, or
+    a list of them for a stack.
 
     `BrainData.distance()` returns an `Adjacency` too: every image against every
-    other under a `scikit-learn` metric. Twenty-one images from the pain dataset
-    — seven subjects at low, medium and high intensity — give a 21-node distance
-    matrix, and `joblib` keeps the build from redownloading them:
+    other under a `scipy` metric (`'euclidean'` by default). Twenty-one images
+    from the pain dataset — seven subjects at low, medium and high intensity —
+    give a 21-node distance matrix, and `joblib` keeps the build from
+    redownloading them:
     """)
     return
 
@@ -147,11 +152,11 @@ def _(mo):
     `threshold` zeroes part of the range and keeps the rest. `upper=` keeps
     values at or above the cutoff, `lower=` keeps values at or below it, and
     giving both keeps the two tails outside the band. Read each as the edge of
-    the region you keep, not the region you drop: on a similarity matrix the
-    interesting edges are the high ones, so `upper=` is what you want, and on a
-    distance matrix the close pairs are the low ones, so `lower=` is. A string
-    ending in `%` is a percentile of the stored values; `binarize=True` turns
-    whatever survives into ones.
+    the region you keep, not the region you drop: the interesting edges of a
+    similarity matrix are the high ones, so reach for `upper=`, and of a
+    distance matrix the low ones, so reach for `lower=`. A string ending in `%`
+    is a percentile of the stored values; `binarize=True` turns whatever
+    survives into ones.
     """)
     return
 
@@ -173,12 +178,14 @@ def _(mo):
     mo.md(r"""
     `distance_to_similarity` converts a distance matrix into a similarity one:
     `metric='correlation'` returns `1 - d`, undoing the correlation distance
-    above, and `metric='euclidean'` returns `exp(-beta * d / sd(d))`. There is
-    no method for the other direction — a correlation similarity goes back as
-    `1 - s`, with `matrix_type` set on the constructor. Correlations are also
-    not on an interval scale, so averaging them raw understates the large ones;
-    Fisher's r-to-z fixes that, and `r_to_z()` and `z_to_r()` apply the two
-    directions elementwise to the stored triangle:
+    above, and `metric='euclidean'` returns `exp(-beta * d / sd)`, where `sd`
+    is the standard deviation of the square matrix. There is no method for the
+    other direction — a correlation similarity goes back as `1 - s`, with
+    `matrix_type` set on the constructor. Correlations are also bounded at ±1
+    and their sampling variance shrinks near those ends, so averages and
+    parametric tests misbehave there. Fisher's r-to-z is the usual fix:
+    `r_to_z()` is `arctanh` and `z_to_r()` is `tanh`, applied elementwise to
+    the stored triangle:
     """)
     return
 
@@ -203,12 +210,12 @@ def _(mo):
     ## Arithmetic and statistics
 
     `+`, `-`, `*` and `/` work elementwise against another `Adjacency` or a
-    scalar. Two matrices have to agree on node count and on node labels and
-    their order — nothing else would catch two matrices whose nodes are ordered
-    differently. `mean`, `median`, `std` and `sum` collapse the object: on a
-    single matrix they return one number over the stored edges, and on a stack
-    `axis=0` averages across matrices into an `Adjacency` while `axis=1`
-    collapses each matrix into one number. Subtracting the first group's mask
+    scalar. Two matrices have to agree on node count, matrix type, and node
+    labels and their order — nothing else would catch nodes stacked in
+    different orders. `mean`, `median`, `std` and `sum` collapse the object: on
+    a single matrix they return one number over the stored edges; on a stack
+    the default `axis=0` averages across matrices into an `Adjacency`, and
+    `axis=1` returns one number per matrix. Subtracting the first group's mask
     leaves the other two groups and the noise:
     """)
     return
@@ -232,9 +239,10 @@ def _(mo):
     five, under noise five times larger than above. Averaging across the stack
     recovers the planted group at two thirds of its strength, since a third of
     the matrices do not carry it. `ttest` then tests every edge against zero,
-    returning `'mean'`, `'t'`, `'z'` and `'p'` as four `Adjacency` maps, and
-    `permutation=True` swaps the parametric p-value for a sign-flip one. The
-    maps are unthresholded: 66 edges is 66 tests, so correct for them.
+    returning `'mean'`, `'t'`, `'z'` and `'p'` as four `Adjacency` maps;
+    `permutation=True` swaps the parametric p-value for a sign-flip one and
+    leaves `'t'` parametric. The maps are unthresholded: 66 edges is 66 tests,
+    so correct for them.
     """)
     return
 
@@ -276,17 +284,20 @@ def _(mo):
     ## Regression
 
     `regress` answers two different questions and the design decides which.
-    `tail` is keyword-only and takes `2` (two-tailed, the default) or `1`.
+    Both return a dict of `beta`, `sigma`, `t`, `p`, `df` and `residual`, and
+    neither adds an intercept for you. `tail` is keyword-only and takes `2`
+    (two-tailed, the default) or `1`.
 
     Pass an `Adjacency` and this matrix is decomposed into a weighted sum of the
-    predictor matrices: edges are the observations and matrices the predictors.
-    The three group masks recover the strengths the data was built with, and
-    since predictor and response must agree on node ordering, the design carries
-    the same labels. Pass a `DesignMatrix` and each edge is regressed across the
-    stack instead — the adjacency analogue of a mass-univariate imaging
-    analysis, with the same multiple-comparisons problem. That result holds one
-    `Adjacency` map per predictor, and thresholding the t map leaves the
-    on-off-on group:
+    predictor matrices: edges are the observations, matrices the predictors, and
+    the coefficients come back as plain arrays. Only a single response matrix
+    works, and predictor and response must agree on node ordering, so the design
+    carries the same labels. The three group masks recover the strengths the
+    data was built with. Pass a `DesignMatrix` and each edge is regressed across
+    the stack instead — the adjacency analogue of a mass-univariate imaging
+    analysis, with the same multiple-comparisons problem. Each coefficient is
+    then an `Adjacency` holding one matrix per predictor, and thresholding the t
+    map leaves the on-off-on group:
     """)
     return
 
@@ -322,16 +333,16 @@ def _(mo):
     mo.md(r"""
     ## Multidimensional scaling
 
-    `plot_mds` lays a distance matrix out in two or three dimensions. It needs a
-    single distance matrix; metric scaling is the default and `metric_mds=False`
-    asks for non-metric. Node names come from `labels` and `labels_color` takes
-    one color per node, here each image's intensity.
+    `plot_mds` lays a single distance matrix out in two or three dimensions
+    (`n_components`); metric scaling is the default and `metric_mds=False` asks
+    for non-metric. Node names come from `labels`, and `labels_color` takes one
+    color per node, here each image's intensity.
 
-    The images land in seven tight clusters, one per subject; intensity, the
-    thing the experiment manipulated, does not organize the picture at all. The
-    distances agree: two images of one subject are more than three times closer
-    than two of different subjects, and across subjects sharing an intensity
-    buys nothing:
+    The images land in seven tight clusters, one per subject; the manipulated
+    variable, intensity, does not organize the picture at all. The distances
+    agree: two images of one subject are more than three times closer than two
+    of different subjects, and sharing an intensity across subjects buys
+    nothing:
     """)
     return
 
@@ -368,12 +379,13 @@ def _(mo):
 
     `to_graph` hands a single matrix to `networkx` — a `Graph`, or a `DiGraph`
     for a directed matrix — with `labels` as the node names, so give the nodes
-    distinct labels or two of them will merge into one. Every `networkx` metric
-    and layout applies from there, and the binarized matrix from earlier is
-    three disconnected cliques of four nodes, so every node has degree 3. A
-    graph measure is one number per node, and when the nodes are brain regions
-    `roi_to_brain` writes those numbers back into the parcellation as an image;
-    the BrainData tutorial runs that round trip end to end.
+    distinct labels or two of them will merge into one. Zero entries become
+    non-edges, so the binarized matrix from earlier arrives as three
+    disconnected cliques of four nodes and every node has degree 3. Every
+    `networkx` metric and layout applies from there. A node-level measure is one
+    number per node, and when the nodes are brain regions `roi_to_brain` writes
+    those numbers back into the parcellation as an image; the BrainData tutorial
+    runs that round trip end to end.
     """)
     return
 
