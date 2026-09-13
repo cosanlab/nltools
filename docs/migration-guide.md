@@ -450,7 +450,7 @@ CSV under 0.5.1 first, then read them back in 0.6.0.
 | `Roc(threshold_type=…)` | `Roc(method=…)`, keyword-only |
 | `plot_brain`, `plot_t_brain` | `BrainData.plot(method='glass'\|'mni'\|'full')`; run the t-test yourself with `BrainData.ttest` |
 | `plot_interactive_brain` | Removed, no successor — `BrainData.iplot` |
-| `plot_stacked_adjacency` | `Adjacency.plot_stacked(other, ...)` — the same two triangles, plus titles, node labels and a per-triangle color scale |
+| `plot_stacked_adjacency` | `Adjacency.plot_stacked(data, ...)` — the same two triangles, plus titles, node labels and a per-triangle color scale |
 | `fetch_pain(data_dir=…, resume=…, verbose=1)` | `fetch_pain(verbose=0)` — caching is internal |
 | `Brain_Data.icc()`, `compute_icc` | Removed, no successor — `pingouin.intraclass_corr` on `brain.data` |
 | `double_center`, `u_center` | Removed — internal steps of `nltools.algorithms.distance_correlation` |

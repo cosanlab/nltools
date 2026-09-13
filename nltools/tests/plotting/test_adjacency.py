@@ -203,7 +203,7 @@ def _correlation_adjacency(seed, n_nodes=6):
 
 class TestAdjacencyPlotStacked:
     def test_each_matrix_fills_its_own_triangle(self):
-        """#529: self is the upper triangle, other the lower, diagonal masked in both."""
+        """#529: self is the upper triangle, `data` the lower, diagonal masked in both."""
         upper_adj = _correlation_adjacency(0)
         lower_adj = _correlation_adjacency(1)
         n = upper_adj.n_nodes
