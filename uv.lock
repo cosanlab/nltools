@@ -1776,8 +1776,8 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "anywidget", specifier = ">=0.9" },
-    { name = "h5py", specifier = ">=3.15" },
-    { name = "h5py", marker = "extra == 'h5'", specifier = ">=3.15" },
+    { name = "h5py", specifier = ">=3.13" },
+    { name = "h5py", marker = "extra == 'h5'", specifier = ">=3.13" },
     { name = "himalaya", specifier = ">=0.4.11,<0.5" },
     { name = "huggingface-hub", specifier = ">=0.30" },
     { name = "ipywidgets", marker = "extra == 'interactive-plots'", specifier = ">=8.1.7" },
@@ -1801,7 +1801,7 @@ provides-extras = ["h5", "graph", "interactive-plots", "all"]
 [package.metadata.requires-dev]
 dev = [
     { name = "git-cliff", specifier = ">=2.0" },
-    { name = "h5py", specifier = ">=3.15" },
+    { name = "h5py", specifier = ">=3.13" },
     { name = "ipywidgets", specifier = ">=8.1.7" },
     { name = "marimo", specifier = ">=0.23" },
     { name = "markdown-exec", specifier = ">=1.12.3" },
