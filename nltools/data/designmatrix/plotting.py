@@ -212,9 +212,8 @@ def _plot_corr(
 ):
     """Render a labeled correlation heatmap of the columns.
 
-    Reuses `DesignMatrix.corr`, which returns a similarity ``Adjacency``
-    with the unit diagonal dropped; the diagonal is restored to ``1.0`` here so
-    the heatmap reads as a standard correlation matrix.
+    Reuses `DesignMatrix.corr`, which returns a similarity ``Adjacency``; its
+    square form carries the unit diagonal a correlation matrix should have.
 
     Args:
         dm (DesignMatrix): DesignMatrix instance.
@@ -239,7 +238,6 @@ def _plot_corr(
 
     adj = _corr(dm, metric=metric, columns=columns)
     mat = adj.squareform()
-    np.fill_diagonal(mat, 1.0)  # restore unit diagonal dropped by Adjacency
     labels = list(adj.labels) if adj.labels else "auto"
 
     n = mat.shape[0]

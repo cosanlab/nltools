@@ -78,7 +78,12 @@ def _to_graph(adj):
         if adj.matrix_type == "directed":
             G = nx.DiGraph(adj.squareform())
         else:
-            G = nx.Graph(adj.squareform())
+            # The diagonal of a symmetric square is a constant of the matrix
+            # type (1 for a similarity), not an edge; drop it so no node picks
+            # up a self-loop.
+            square = np.asarray(adj.squareform()).copy()
+            np.fill_diagonal(square, 0)
+            G = nx.Graph(square)
         if adj.labels:
             labels = dict(zip(G.nodes, adj.labels))
             nx.relabel_nodes(G, labels, copy=False)

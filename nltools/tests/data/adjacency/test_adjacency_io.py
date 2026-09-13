@@ -57,3 +57,6 @@ class TestAdjacencyIO:
         """Test conversion to NetworkX graph (directed and undirected)."""
         assert isinstance(sim_adjacency_single.to_graph(), nx.Graph)
         assert isinstance(sim_adjacency_directed.to_graph(), nx.DiGraph)
+        # A similarity's unit diagonal is not an edge.
+        similarity = sim_adjacency_single.distance_to_similarity()
+        assert not list(nx.selfloop_edges(similarity.to_graph()))
