@@ -102,7 +102,7 @@ class TestOneSamplePermutation:
 
 
 class TestOneSampleStatistics:
-    """Shared one-sample t-test contract (docs/development/specs/ttest.md)."""
+    """Shared one-sample t-test contract (development/specs/ttest.md)."""
 
     @staticmethod
     def _data(n_obs=12, n_features=4, shift=0.0, seed=0):

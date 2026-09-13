@@ -34,11 +34,6 @@ project:
     - title: Development
       children:
         - file: contributing.md
-        - file: development/index.md
-          title: Architecture
-        - file: development/ridge-internals.md
-        - file: development/inference-internals.md
-        - file: development/benchmarks.md
         - file: changelog.md
 site:
   # No `domains:` entry — mystmd rejects apex domains (it requires >= 3 dot-parts,

@@ -1799,7 +1799,7 @@ axis, not voxels on both sides, and keeps its own back-projection rule.
 
 **Status**: ✅ Complete (v0.6.0). No aliases kept for the old spellings — callers using the legacy names will hit a `TypeError: unexpected keyword argument`.
 
-A sweep of the implemented data-class facades (`BrainData`, `Adjacency`, and `DesignMatrix`) landed in a series of `!:` commits on 2026-04-14 and 2026-04-20 to make kwarg names consistent across the public API. The canonical names are documented in `docs/_data/api-vocabulary.yml` (rendered in the [architecture docs](development/index.md)); the table below is the migration mapping for callers.
+A sweep of the implemented data-class facades (`BrainData`, `Adjacency`, and `DesignMatrix`) landed in a series of `!:` commits on 2026-04-14 and 2026-04-20 to make kwarg names consistent across the public API. The canonical names are documented in `docs/_data/api-vocabulary.yml` (rendered in the [architecture notes](https://github.com/cosanlab/nltools/blob/master/development/index.md) in the repository); the table below is the migration mapping for callers.
 
 ### Renamed kwargs {#renamed-kwargs}
 
@@ -2190,8 +2190,8 @@ selection_scores = brain_data.model_.cv_scores_
 `BrainCollection`, `PredictCollection`, collection execution and fit/predict
 bundles are absent from 0.6.0. The development-only `Predict.permutation_scores`
 and `Predict.permutation_pvalue` fields are removed with their collection producer.
-The [collection specification](development/specs/braincollection.md) and
-[execution design](development/execution-model.md) preserve the deferred work.
+The [collection specification](https://github.com/cosanlab/nltools/blob/master/development/specs/braincollection.md) and
+[execution design](https://github.com/cosanlab/nltools/blob/master/development/execution-model.md) in the repository preserve the deferred work.
 
 For 0.6.0, apply `BrainData` methods to each subject and concatenate the resulting
 maps for group analysis with [`concatenate`](api/nltools.md).
@@ -2517,7 +2517,7 @@ result = one_sample_permutation_test(data, n_jobs=1)
 **Usability**:
 - **Comprehensive error messages**: Clear validation and actionable suggestions
 - **Full type hints**: Better IDE support and static analysis
-- **Extensive documentation**: `docs/development/inference-internals.md` with algorithms, citations, trade-offs
+- **Extensive documentation**: `development/inference-internals.md` with algorithms, citations, trade-offs
 - **Multiple metrics**: Pearson, Spearman, Kendall for correlation/matrix tests
 
 ### Migration Checklist

@@ -6,7 +6,7 @@ the canonical-kwarg vocabulary. This script renders it into a hand-authored doc,
 replacing the content between `<!-- AUTOGEN:api-vocabulary:<block> -->` and
 `<!-- /AUTOGEN:api-vocabulary:<block> -->` marker pairs:
 
-  - docs/development/index.md — block `index-table` (2-column Markdown table)
+  - development/index.md — block `index-table` (2-column Markdown table)
 
 Everything OUTSIDE the markers is left untouched, so the surrounding hand-crafted
 prose is preserved verbatim.
@@ -34,7 +34,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from manifest import PROJECT_ROOT, load_vocab  # noqa: E402
 
-INDEX_MD = PROJECT_ROOT / "docs" / "development" / "index.md"
+INDEX_MD = PROJECT_ROOT / "development" / "index.md"
 
 _CODE_SPAN_RE = re.compile(r"`([^`]+)`")
 
@@ -60,7 +60,7 @@ def _code_span_to_html(match: re.Match[str]) -> str:
 
 
 def render_index_table(vocab: dict) -> str:
-    """Render the 2-column Markdown vocabulary table for docs/development/index.md."""
+    """Render the 2-column Markdown vocabulary table for development/index.md."""
     lines = ["| Concept | Canonical kwarg |", "|---|---|"]
     for row in vocab["vocabulary"]:
         lines.append(f"| {row['concept']} | {_escape_table_cell(row['index_md'])} |")

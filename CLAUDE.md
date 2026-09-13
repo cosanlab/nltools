@@ -65,7 +65,7 @@ The `uv run poe ok` gate includes the API checks required after changing a publi
 
 The package version lives only in `pyproject.toml`.
 
-The site is a home page, the tutorials, one API reference page per user-facing namespace, the migration guide, contributing and the changelog. Pages under `docs/api/` are mkdocstrings stubs whose `members:` lists mirror the table above; the strict docs build is the only check on them. Design notes and specifications under `docs/development/` are maintainer documents, not part of the site.
+The site is a home page, the tutorials, one API reference page per user-facing namespace, the migration guide, contributing and the changelog. Pages under `docs/api/` are mkdocstrings stubs whose `members:` lists mirror the table above; the strict docs build is the only check on them. Design notes and specifications live in `development/` at the repo root, outside `docs/`: zensical builds every file under `docs/`, navigated or not, so a maintainer document kept there would ship with the site. `docs/_data` stays under `docs/` as the vocabulary manifest's home.
 
 Marked `AUTOGEN` blocks are generated and committed. Change their source, then run the generator. Never edit generated output directly.
 
@@ -79,10 +79,10 @@ Use `uv run poe docs-generate` after changing the vocabulary manifest or a tutor
 - GPU execution means Himalaya ridge fitting (`_Ridge(device='gpu')`, `BrainData.fit(ridge_device='gpu')`) and the ridge bootstrap (`BrainData.bootstrap(device='gpu')`). nltools ships no GPU implementation of its own; permutation, ISC and alignment run on CPU workers. Memory budgeting, batch sizing, worker sizing and OOM recovery for those paths live only in `nltools/algorithms/backends.py`; an algorithm supplies its per-item working-set estimate and never its own budget arithmetic.
 - On those ridge paths an explicit `device="gpu"` must run on the GPU or raise; there is no silent CPU fallback, and no `"auto"` value.
 - Read the relevant design document before changing these subsystems:
-  - `docs/development/execution-model.md` preserves deferred 0.6.1 `BrainCollection` execution design; it is not an active 0.6.0 subsystem
-  - `docs/development/ridge-internals.md` for ridge backends and numerical behavior
-  - `docs/development/inference-internals.md` for permutation tests, bootstrap tests, RNG behavior, and numerical stability
-  - `docs/development/index.md` for the overall architecture
+  - `development/execution-model.md` preserves deferred 0.6.1 `BrainCollection` execution design; it is not an active 0.6.0 subsystem
+  - `development/ridge-internals.md` for ridge backends and numerical behavior
+  - `development/inference-internals.md` for permutation tests, bootstrap tests, RNG behavior, and numerical stability
+  - `development/index.md` for the overall architecture
 
 Update the corresponding document when an invariant or behavior changes.
 

@@ -197,7 +197,7 @@ def _one_sample_statistics(
     """Compute the shared one-sample t-test statistics for a 2-D feature matrix.
 
     The single implementation behind `BrainData.ttest` and `Adjacency.ttest`
-    (see `docs/development/specs/ttest.md`). It works on plain arrays and
+    (see `development/specs/ttest.md`). It works on plain arrays and
     returns plain arrays; each facade wraps them in its own result type.
 
     `t` is always the observed SciPy statistic against `popmean`, on both the

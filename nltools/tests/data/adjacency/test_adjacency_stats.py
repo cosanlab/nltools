@@ -247,7 +247,7 @@ def _adjacency_stack(
 
 
 class TestAdjacencyTTest:
-    """Shared one-sample t-test contract (docs/development/specs/ttest.md)."""
+    """Shared one-sample t-test contract (development/specs/ttest.md)."""
 
     def test_ttest_null_only_when_permuting_and_requested(self):
         stack = _adjacency_stack()

@@ -472,7 +472,7 @@ class TestBrainDataTTest:
         res0 = bd.ttest(popmean=0.0, permutation=True, n_permute=200, random_state=0)
         assert np.all(np.asarray(res0["p"].data) < 0.01)
 
-    # ── Shared one-sample contract (docs/development/specs/ttest.md) ────────
+    # ── Shared one-sample contract (development/specs/ttest.md) ────────
 
     @pytest.mark.parametrize("popmean", [0.0])
     @pytest.mark.parametrize("tail,alternative", [(2, "two-sided")])
