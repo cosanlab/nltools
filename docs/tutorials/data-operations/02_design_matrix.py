@@ -91,15 +91,16 @@ def _(mo):
     activity. `convolve` replaces each task column with its convolved version
     and renames it `<column>_c0`: the source column is dropped and `.convolved`
     records the new name. Confound columns are skipped, so drift terms are left
-    alone, and a column already listed in `.convolved` is left alone too —
-    convolving an HRF-shaped signal a second time describes nothing.
+    alone, and so is anything already in `.convolved`: convolving an HRF-shaped
+    signal a second time describes nothing, so naming such a column in
+    `columns=` raises rather than doing it.
 
-    `kernel` defaults to `'glover'` and takes any of nilearn's HRF models:
-    `'glover_time'`, `'glover_dispersion'`, `'spm'`, `'spm_time'`,
-    `'spm_dispersion'`. A named model hands each column to nilearn's
-    `compute_regressor` as events — one per nonzero sample, each lasting one TR
-    — convolved at 50x oversampling and resampled onto the TR grid, which is
-    what a nilearn `FirstLevelModel` computes from the same events.
+    `kernel` defaults to `'glover'`; the other five names are `'glover_time'`,
+    `'glover_dispersion'`, `'spm'`, `'spm_time'` and `'spm_dispersion'`. A named
+    model hands each column to nilearn's `compute_regressor` as events — one per
+    nonzero sample, each lasting one TR and scaled by that sample's value —
+    convolved at 50x oversampling and resampled onto the TR grid, which is what
+    a nilearn `FirstLevelModel` computes from the same events.
 
     Pass an array instead of a name for your own kernel: 1-D for a single
     kernel, applied with `numpy.convolve` and truncated back to the run length;
@@ -138,15 +139,16 @@ def _(mo):
     charges it to the task regressors. Two standard families do the job, and
     both mark their columns as confounds so `convolve` skips them.
 
-    `add_poly` adds Legendre polynomials over the interval -1 to 1, the
-    convention other packages use: order 0 is the intercept, 1 a linear trend, 2
-    a quadratic, and `include_lower=True` (the default) adds every order up to
-    the one you ask for. `add_dct_basis` adds discrete cosine filters acting as
-    a high-pass filter, with `duration` the cutoff period in seconds (180 by
-    default). That basis omits the constant per SPM convention, so nltools
-    re-adds it unless `include_constant=False`. Every column nltools generates
-    lives in a reserved `.nl_` namespace — `.nl_poly_2`, `.nl_cosine_1` — so
-    your own regressors can be named anything without colliding.
+    `add_poly` adds Legendre polynomials evaluated over -1 to 1: order 0 is the
+    intercept, 1 a linear trend, 2 a quadratic, and `include_lower=True` (the
+    default) adds every order up to the one you ask for. `add_dct_basis` adds a
+    discrete cosine basis that acts as a high-pass filter; `duration` is the
+    cutoff period in seconds, 180 by default, and together with the run length
+    it fixes how many bases you get. The basis omits the constant per SPM
+    convention, so nltools re-adds it unless `include_constant=False`. Every
+    column nltools generates lives in a reserved `.nl_` namespace —
+    `.nl_poly_2`, `.nl_cosine_1` — so your own regressors can be named anything
+    without colliding.
 
     Pick one family, not both. Polynomials are the simpler choice for a short
     run; the cosine basis states its cutoff in seconds, which is easier to match
@@ -217,9 +219,9 @@ def _(DesignMatrix):
 def _(mo):
     mo.md(r"""
     Every other table is read as it stands, one row per TR. `run_length='infer'`
-    accepts whatever row count the file has, which an events file may not do
-    because its rows are events rather than TRs. Empty cells arrive as nulls, so
-    a motion file whose first row has no derivatives needs `fillna`. `vmin` and
+    accepts whatever row count the file has; an events file rejects it, since
+    its rows are events rather than TRs. Empty cells arrive as nulls, so a
+    motion file whose first row has no derivatives needs `fillna`. `vmin` and
     `vmax` reach `seaborn.heatmap` and set a color range these small regressors
     are visible in:
     """)
@@ -246,10 +248,10 @@ def _(mo):
     `append(axis=0)` stacks runs. Task regressors stack with them, so one
     coefficient is estimated across the whole experiment, but a run's baseline
     and drift cannot be shared: `keep_separate=True`, the default, renames each
-    confound into the run-separated part of the reserved namespace,
-    `.nl_r{run}_{name}`, giving every run its own. Name a column in
-    `unique_cols` to separate it the same way — a leading or trailing `*` is a
-    wildcard, so `'house*'` covers both house conditions.
+    confound into the run-separated part of the reserved namespace —
+    `.nl_r0_poly_0`, `.nl_r1_poly_0` — giving every run its own. Name a column
+    in `unique_cols` to separate it the same way — a leading or trailing `*` is
+    a wildcard, so `'house*'` covers both house conditions.
 
     Add drift terms to each run before stacking. `add_poly` and `add_dct_basis`
     refuse a design that already carries run-separated drift, because a global
@@ -284,9 +286,11 @@ def _(mo):
     The whole recipe, once. Per run: read the events, read the confounds, fill
     their nulls, add that run's drift terms, join the two side by side as
     confounds, and stack the result onto the design so far. Four runs of the
-    same two example files stand in for a real experiment.
-    `include_constant=False` is deliberate — `add_poly(1)` has already
-    contributed an intercept, and asking for a second one warns and skips it:
+    same two example files stand in for a real experiment. Both drift families
+    go in, against the advice above, so that [Diagnostics](#diagnostics) has a
+    real redundancy to find. `include_constant=False` keeps the cosine basis
+    from adding a second intercept on top of the one `add_poly(1)` already
+    contributed; asking for one anyway warns and skips it:
     """)
     return
 
@@ -316,9 +320,9 @@ def _(DesignMatrix, confounds_file, events_file):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    Reading that heatmap left to right: the conditions of interest, stacked
-    across all four runs; then each run's own confounds; then each run's drift
-    and baseline terms.
+    Reading that heatmap left to right: the thirteen conditions, stacked across
+    all four runs, then one block per run — that run's motion confounds, then
+    its drift and baseline terms.
 
     ## Diagnostics
 
@@ -329,12 +333,13 @@ def _(mo):
     warning sign. It returns a plain array in column order, and `None` when the
     design is singular outright.
 
-    `clean` drops any column whose absolute correlation with a column before it
-    reaches `thresh`, 0.95 by default, keeping the first of each pair. Planting
-    a near-copy of one task regressor shows both at work: copy and original post
-    variance inflation factors in the thousands, and `clean` removes the copy.
-    It also removes each run's lowest-frequency cosine, which duplicates that
-    run's linear polynomial — the price of using both drift families above:
+    `clean` walks the columns in order and drops the second of a pair whose
+    absolute correlation reaches `thresh`, 0.95 by default, keeping the first.
+    Planting a near-copy of one task regressor shows both at work: the copy and
+    the original come back with VIFs above a thousand, and `clean` removes the
+    copy. It also removes each run's lowest-frequency cosine, a near duplicate
+    of that run's linear polynomial — the price of using both drift families
+    above:
     """)
     return
 
@@ -369,9 +374,10 @@ def _(mo):
     — so the design and the data belong to each other. `fit(model='glm',
     X=design)` attaches `glm_betas`, one map per design column in column order,
     alongside `glm_predicted`, `glm_residual` and `glm_r2`. `compute_contrasts`
-    names design columns to get an effect map, and with `inference=True` returns
-    the t, z and p maps as well. The univariate GLM tutorial takes a real
-    dataset through the whole first-level workflow; this is only the handoff:
+    takes a string naming design columns and returns the effect map;
+    `inference=True` returns a `ContrastResult` carrying the t, z and one-sided
+    p maps alongside it. The univariate GLM tutorial takes a real dataset
+    through the whole first-level workflow; this is only the handoff:
     """)
     return
 
