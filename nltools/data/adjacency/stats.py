@@ -59,7 +59,7 @@ def _similarity(
         correlation_permutation_test,
         matrix_permutation_test,
     )
-    from nltools.plotting import _plot_stacked_adjacency
+    from .plotting import _plot_stacked
 
     if nan_policy not in ("omit", "propagate", "raise"):
         raise ValueError(
@@ -136,7 +136,7 @@ def _similarity(
 
     if adj.is_single_matrix:
         if plot:
-            _plot_stacked_adjacency(adj, data)
+            _plot_stacked(adj, data2)
         arr1 = _convert_data_similarity(data1, permutation_method=method)
         arr2 = _convert_data_similarity(data2, permutation_method=method)
         arr1, arr2 = _handle_nans(arr1, arr2, nan_policy)
@@ -154,9 +154,9 @@ def _similarity(
     if plot:
         import matplotlib.pyplot as plt
 
-        _, a = plt.subplots(len(adj))
-        for i in a:
-            _plot_stacked_adjacency(adj, data, ax=i)
+        _, axes = plt.subplots(len(adj))
+        for matrix, matrix_ax in zip(adj, axes):
+            _plot_stacked(matrix, data2, ax=matrix_ax)
     results = []
     arr2_base = _convert_data_similarity(data2, permutation_method=method)
     for x in adj:

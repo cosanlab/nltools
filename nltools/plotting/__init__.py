@@ -6,7 +6,7 @@ here is the drawing internal behind a data-class method — `BrainData.plot_surf
 submodules:
 
 - **brain**: surface plots and flatmaps
-- **adjacency**: adjacency matrix visualizations (stacked, silhouette, distance)
+- **adjacency**: adjacency matrix visualizations (silhouette, label distance)
 - **prediction**: model output plots (ROC, decision margin, regression, probability)
 - **decomposition**: ICA/PCA component viewer
 """
@@ -16,7 +16,6 @@ from .brain import (  # noqa: F401
     _plot_flatmap,
 )
 from .adjacency import (  # noqa: F401
-    _plot_stacked_adjacency,
     _plot_mean_label_distance,
     _plot_between_label_distance,
     _plot_silhouette,

@@ -540,6 +540,80 @@ class Adjacency:
             figsize=figsize,
         )
 
+    def plot_stacked(  # nosemgrep: kwargs-internal-forwarding  # forwards to seaborn via plotting._plot_stacked
+        self,
+        other,
+        *,
+        labels=None,
+        upper_title=None,
+        lower_title=None,
+        cmap=None,
+        vmin=None,
+        vmax=None,
+        colorbar=True,
+        ax=None,
+        **kwargs,
+    ):
+        """Draw this matrix and another as complementary triangles of one square.
+
+        This matrix fills the upper-right triangle and `other` the lower-left,
+        with the diagonal hidden in both so a one-cell white gap runs between
+        them — the intersubject RSA figure that compares a neural similarity
+        structure against a behavioural one. Each triangle keeps its own
+        colormap and limits, so the two matrices need not share units: signed
+        matrices are anchored at zero on `"RdBu_r"` like `plot`, one-signed ones
+        keep seaborn's sequential default.
+
+        Args:
+            other (Adjacency): Single matrix over the same nodes, drawn in the
+                lower triangle.
+            labels (list, optional): Node tick labels. Defaults to the stored
+                labels, or no ticks when there are none; `False` suppresses them.
+            upper_title (str, optional): Title drawn above the square.
+            lower_title (str, optional): Title drawn below the square.
+            cmap (str | matplotlib.colors.Colormap | tuple, optional): One
+                colormap for both triangles, or an `(upper, lower)` tuple.
+            vmin (float | tuple, optional): One lower limit for both triangles,
+                or an `(upper, lower)` tuple.
+            vmax (float | tuple, optional): One upper limit for both triangles,
+                or an `(upper, lower)` tuple.
+            colorbar (bool): Draw colorbars. One bar when both triangles share a
+                colormap and limits, two when they do not. Default True.
+            ax (matplotlib.axes.Axes, optional): Axis to draw on.
+            **kwargs (dict): Forwarded to `seaborn.heatmap` for both triangles.
+
+        Returns:
+            matplotlib.axes.Axes: The axis holding both triangles.
+
+        Raises:
+            ValueError: If `other` is not an `Adjacency`, either object holds
+                more than one matrix, or the two cover different numbers of nodes.
+
+        Examples:
+            ```python
+            brain_rdm.plot_stacked(
+                behavior_rdm,
+                upper_title="PCC ROI similarity",
+                lower_title="Self-control similarity",
+            )
+            ```
+        """
+        from .plotting import _plot_stacked
+
+        return _plot_stacked(
+            self,
+            other,
+            labels=labels,
+            upper_title=upper_title,
+            lower_title=lower_title,
+            cmap=cmap,
+            vmin=vmin,
+            vmax=vmax,
+            colorbar=colorbar,
+            ax=ax,
+            **kwargs,
+        )
+
     def r_to_z(self):
         """Apply Fisher's r-to-z transformation to each data element."""
         from .stats import _r_to_z

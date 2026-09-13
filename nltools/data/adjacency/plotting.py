@@ -36,6 +36,182 @@ def _heatmap_kwargs(square, kwargs):
     return merged
 
 
+def _triangle_pair(value):
+    """Split a per-triangle argument into its `(upper, lower)` halves.
+
+    A 2-tuple gives each triangle its own value; anything else, `None`
+    included, is one value both triangles share.
+
+    Args:
+        value: Scalar for both triangles, or a `(upper, lower)` tuple.
+
+    Returns:
+        tuple: The upper and lower value.
+    """
+    if isinstance(value, tuple) and len(value) == 2:
+        return value[0], value[1]
+    return value, value
+
+
+def _stacked_triangle_kwargs(square, mask, cmap, vmin, vmax, kwargs):
+    """Resolve one triangle's heatmap keywords, caller's values over the divergent defaults.
+
+    Limits always end up explicit, even when the caller gave none, so the two
+    triangles can be compared for a shared colorbar instead of each being
+    scaled by seaborn behind our back.
+
+    Args:
+        square (np.ndarray): The triangle's source matrix.
+        mask (np.ndarray): Boolean mask of the cells this triangle hides.
+        cmap: Colormap for this triangle, or None for the default.
+        vmin: Lower limit for this triangle, or None to take it from the data.
+        vmax: Upper limit for this triangle, or None to take it from the data.
+        kwargs (dict): The caller's remaining `seaborn.heatmap` keywords.
+
+    Returns:
+        dict: Heatmap keywords for this triangle.
+    """
+    resolved = dict(kwargs)
+    if cmap is not None:
+        resolved["cmap"] = cmap
+    if vmin is not None:
+        resolved["vmin"] = vmin
+    if vmax is not None:
+        resolved["vmax"] = vmax
+    for name, value in _divergent_heatmap_defaults(square).items():
+        resolved.setdefault(name, value)
+    values = square[~mask]
+    if values.size and not np.all(np.isnan(values)):
+        resolved.setdefault("vmin", float(np.nanmin(values)))
+        resolved.setdefault("vmax", float(np.nanmax(values)))
+    return resolved
+
+
+def _color_scale(heatmap_kwargs):
+    """The part of a triangle's keywords a colorbar speaks for."""
+    return tuple(
+        str(heatmap_kwargs.get(name)) for name in ("cmap", "center", "vmin", "vmax")
+    )
+
+
+def _plot_stacked(
+    adj,
+    other,
+    *,
+    labels=None,
+    upper_title=None,
+    lower_title=None,
+    cmap=None,
+    vmin=None,
+    vmax=None,
+    colorbar=True,
+    ax=None,
+    **kwargs,
+):
+    """Draw two matrices as the complementary triangles of one square.
+
+    `adj` fills the upper-right triangle and `other` the lower-left, with the
+    diagonal hidden in both so a one-cell white gap separates them. Each
+    triangle carries its own colormap and limits, resolved from
+    `_divergent_heatmap_defaults` unless the caller names them, so the two
+    matrices need not share units.
+
+    Args:
+        adj (Adjacency): Single matrix drawn in the upper triangle.
+        other (Adjacency): Single matrix over the same nodes, drawn in the lower
+            triangle.
+        labels (list, optional): Node tick labels. Defaults to `adj.labels`, or
+            no ticks when it has none; `False` suppresses them.
+        upper_title (str, optional): Title drawn above the square.
+        lower_title (str, optional): Title drawn below the square.
+        cmap (str | matplotlib.colors.Colormap | tuple, optional): One
+            colormap for both triangles, or an `(upper, lower)` tuple.
+        vmin (float | tuple, optional): One lower limit for both triangles,
+            or an `(upper, lower)` tuple.
+        vmax (float | tuple, optional): One upper limit for both triangles,
+            or an `(upper, lower)` tuple.
+        colorbar (bool): Draw colorbars. One bar when the triangles share a
+            colormap and limits, two when they do not. Default True.
+        ax (matplotlib.axes.Axes, optional): Axis to draw on.
+        **kwargs (dict): Forwarded to `seaborn.heatmap` for both triangles;
+            `cbar`, `cbar_ax` and `mask` are controlled here.
+
+    Returns:
+        matplotlib.axes.Axes: The axis holding both triangles.
+    """
+    import matplotlib.pyplot as plt
+    import seaborn as sns
+
+    from nltools.data import Adjacency
+
+    if not isinstance(other, Adjacency):
+        raise ValueError("other must be an Adjacency instance.")
+    if not adj.is_single_matrix or not other.is_single_matrix:
+        raise ValueError(
+            "plot_stacked draws one matrix per triangle; index a stack first."
+        )
+    if adj.n_nodes != other.n_nodes:
+        raise ValueError(
+            "Both matrices must describe the same nodes; got "
+            f"{adj.n_nodes} and {other.n_nodes}."
+        )
+
+    upper_square = adj.squareform()
+    lower_square = other.squareform()
+    ones = np.ones((adj.n_nodes, adj.n_nodes), dtype=bool)
+    upper_mask = np.tril(ones)
+    lower_mask = np.triu(ones)
+
+    upper_cmap, lower_cmap = _triangle_pair(cmap)
+    upper_vmin, lower_vmin = _triangle_pair(vmin)
+    upper_vmax, lower_vmax = _triangle_pair(vmax)
+    upper_kwargs = _stacked_triangle_kwargs(
+        upper_square, upper_mask, upper_cmap, upper_vmin, upper_vmax, kwargs
+    )
+    lower_kwargs = _stacked_triangle_kwargs(
+        lower_square, lower_mask, lower_cmap, lower_vmin, lower_vmax, kwargs
+    )
+
+    if labels is None:
+        labels = adj.labels if adj.labels else False
+    if labels is not False and len(labels) != adj.n_nodes:
+        raise ValueError("labels must have one entry per node.")
+
+    if ax is None:
+        _, ax = plt.subplots(1, figsize=(7, 6))
+    ax.set_facecolor("white")
+
+    if not colorbar:
+        upper_cbar_ax, lower_cbar_ax = None, None
+    elif _color_scale(upper_kwargs) == _color_scale(lower_kwargs):
+        upper_cbar_ax, lower_cbar_ax = ax.inset_axes([1.03, 0.15, 0.03, 0.7]), None
+    else:
+        upper_cbar_ax = ax.inset_axes([1.03, 0.55, 0.03, 0.42])
+        lower_cbar_ax = ax.inset_axes([1.03, 0.03, 0.03, 0.42])
+
+    for square, mask, triangle_kwargs, cbar_ax in (
+        (upper_square, upper_mask, upper_kwargs, upper_cbar_ax),
+        (lower_square, lower_mask, lower_kwargs, lower_cbar_ax),
+    ):
+        triangle_kwargs["mask"] = mask
+        triangle_kwargs["ax"] = ax
+        triangle_kwargs["cbar"] = cbar_ax is not None
+        if cbar_ax is not None:
+            triangle_kwargs["cbar_ax"] = cbar_ax
+        triangle_kwargs.setdefault("square", True)
+        triangle_kwargs.setdefault("linewidths", 0.5)
+        triangle_kwargs.setdefault("linecolor", "white")
+        triangle_kwargs.setdefault("xticklabels", labels)
+        triangle_kwargs.setdefault("yticklabels", labels)
+        sns.heatmap(square, **triangle_kwargs)
+
+    if upper_title is not None:
+        ax.set_title(upper_title)
+    if lower_title is not None:
+        ax.set_xlabel(lower_title)
+    return ax
+
+
 def _plot_adjacency(adj, *, limit=3, ax=None, **kwargs):
     """Create a heatmap of an Adjacency matrix.
 
