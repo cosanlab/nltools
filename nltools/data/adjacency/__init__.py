@@ -376,6 +376,10 @@ class Adjacency:
     ):
         """Create a heatmap of an Adjacency matrix.
 
+        Matrices whose off-diagonal values cross zero are drawn on `"RdBu_r"`,
+        centered at 0 with symmetric limits; one-signed matrices keep seaborn's
+        sequential default. `cmap`, `center`, `vmin` and `vmax` override this.
+
         Args:
             limit (int): Number of heatmaps to plot if the object contains multiple
                 matrices. Default 3.

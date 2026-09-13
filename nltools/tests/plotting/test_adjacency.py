@@ -182,3 +182,51 @@ class TestAdjacencyPlot:
         assert len(plt.get_fignums()) == n_before
         assert ax.collections
         plt.close("all")
+
+    def test_plot_anchors_a_signed_matrix_at_zero(self):
+        """#527: off-diagonal values that cross zero get a divergent, centered map."""
+        from nltools.data import Adjacency
+
+        rng = np.random.default_rng(0)
+        matrix = np.corrcoef(rng.normal(size=(6, 20)))
+        adj = Adjacency(matrix, matrix_type="similarity")
+        off_diagonal = matrix[~np.eye(6, dtype=bool)]
+        expected = max(abs(off_diagonal.min()), abs(off_diagonal.max()))
+
+        # Seaborn rebuilds a centered colormap as an unnamed ListedColormap,
+        # so compare the ramp by its colors rather than by name.
+        positions = np.linspace(0, 1, 5)
+
+        plt.close("all")
+        _, ax = plt.subplots(1)
+        adj.plot(ax=ax)
+        mappable = ax.collections[0]
+        assert mappable.get_cmap()(positions) == pytest.approx(
+            plt.get_cmap("RdBu_r")(positions)
+        )
+        assert mappable.get_clim() == pytest.approx((-expected, expected))
+
+        _, ax = plt.subplots(1)
+        adj.plot(ax=ax, cmap="viridis", vmin=-1, vmax=1)
+        mappable = ax.collections[0]
+        assert mappable.get_cmap()(positions) == pytest.approx(
+            plt.get_cmap("viridis")(positions)
+        )
+        assert mappable.get_clim() == pytest.approx((-1.0, 1.0))
+        plt.close("all")
+
+    def test_plot_leaves_one_signed_data_sequential(self, well_separated_distance):
+        """#527: a matrix that never crosses zero keeps seaborn's sequential default."""
+        from nltools.data import Adjacency
+
+        distance, _ = well_separated_distance
+        adj = Adjacency(distance, matrix_type="distance")
+        square = adj.squareform()
+
+        plt.close("all")
+        _, ax = plt.subplots(1)
+        adj.plot(ax=ax)
+        mappable = ax.collections[0]
+        assert mappable.get_cmap().name == "rocket"
+        assert mappable.get_clim() == pytest.approx((square.min(), square.max()))
+        plt.close("all")
