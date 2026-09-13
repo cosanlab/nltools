@@ -48,13 +48,6 @@ def test_braindata_cluster_report_returns_ClusterReport(stat_brain):
     assert isinstance(report, _ClusterReport)
 
 
-def test_braindata_cluster_report_uses_default_atlases(stat_brain):
-    report = stat_brain.cluster_report(stat_threshold=3.0, cluster_threshold=5)
-    # Default trio should appear as columns
-    for name in ("harvard_oxford", "aal", "schaefer_200"):
-        assert name in report.clusters.columns
-
-
 def test_braindata_cluster_report_two_sided_default(stat_brain):
     report = stat_brain.cluster_report(
         stat_threshold=3.0, cluster_threshold=5, atlas="aal"

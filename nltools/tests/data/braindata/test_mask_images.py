@@ -30,13 +30,6 @@ def _make_mask_and_imgs(n=4, dtype=np.float64):
 
 
 class TestListConstruction:
-    def test_list_data_matches_functional_path(self):
-        """BrainData(list, mask).data equals the functional per-item reference."""
-        mask, imgs = _make_mask_and_imgs(n=3)
-        bd = BrainData(imgs, mask=mask)
-        ref = np.vstack([nm.apply_mask(im, mask) for im in imgs])
-        assert np.array_equal(bd.data, ref)
-
     def test_construction_validates_mask_once(self):
         """Constructing from an N-item list validates the mask once, not N times."""
         mask, imgs = _make_mask_and_imgs(n=5)

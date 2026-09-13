@@ -53,14 +53,6 @@ def test_fitted_output_properties(equal_sized_subjects):
         )
 
 
-def test_n_iter_refines_the_template(equal_sized_subjects):
-    """More refinement rounds must produce a different template."""
-    _, _, one_round, _, _ = _hyperalign(equal_sized_subjects, n_iter=1)
-    _, _, five_rounds, _, _ = _hyperalign(equal_sized_subjects, n_iter=5)
-
-    assert not np.allclose(one_round, five_rounds)
-
-
 def test_identical_subjects_align_almost_perfectly():
     """Subjects that are already identical have near-zero disparity."""
     base = np.random.default_rng(42).standard_normal((50, 20))

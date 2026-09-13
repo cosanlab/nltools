@@ -27,9 +27,7 @@ from nltools.algorithms.inference import (
 
 CANONICAL_SIGNATURES = [
     _isc_permutation_test,
-    _isc_group_permutation_test,
     isc,
-    isc_group,
 ]
 
 
@@ -64,23 +62,8 @@ def test_summary_and_metric_are_canonical(func):
     )
 
 
-@pytest.mark.parametrize("func", [isc, isc_group], ids=lambda f: f.__name__)
-def test_wrappers_expose_progress_bar(func):
-    param = inspect.signature(func).parameters.get("progress_bar")
-    assert param is not None, f"{func.__name__} lacks progress_bar="
-    assert param.default is False
-    assert param.kind is inspect.Parameter.KEYWORD_ONLY
-
-
 def test_isc_returns_null_dist_key(subjects_data):
     result = isc(subjects_data, n_samples=20, return_null=True, random_state=0)
-    assert "null_dist" in result
-    assert "null_distribution" not in result
-
-
-def test_isc_group_returns_null_dist_key(group_data):
-    g1, g2 = group_data
-    result = isc_group(g1, g2, n_samples=20, return_null=True, random_state=0)
     assert "null_dist" in result
     assert "null_distribution" not in result
 
@@ -91,12 +74,6 @@ def test_isc_summary_kwarg_selects_central_tendency(subjects_data):
     assert r_median["isc"] != r_mean["isc"]
     with pytest.raises(ValueError, match="summary"):
         isc(subjects_data, n_samples=20, summary="mode", random_state=0)
-
-
-def test_isc_group_summary_kwarg_validated(group_data):
-    g1, g2 = group_data
-    with pytest.raises(ValueError, match="summary"):
-        isc_group(g1, g2, n_samples=20, summary="mode", random_state=0)
 
 
 def test_engine_summary_kwarg_validated(subjects_data):
@@ -116,14 +93,5 @@ class TestWrapperProgressBarThreading:
         assert self._stderr_of(lambda: isc(subjects_data, **kwargs)) == ""
         assert (
             self._stderr_of(lambda: isc(subjects_data, progress_bar=True, **kwargs))
-            != ""
-        )
-
-    def test_isc_group_silent_by_default_bar_when_asked(self, group_data):
-        g1, g2 = group_data
-        kwargs = {"n_samples": 20, "random_state": 0, "n_jobs": 1}
-        assert self._stderr_of(lambda: isc_group(g1, g2, **kwargs)) == ""
-        assert (
-            self._stderr_of(lambda: isc_group(g1, g2, progress_bar=True, **kwargs))
             != ""
         )

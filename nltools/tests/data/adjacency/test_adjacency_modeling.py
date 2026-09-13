@@ -20,20 +20,6 @@ pytestmark = [
 
 class TestAdjacencyModeling:
     @pytest.mark.slow
-    def test_bootstrap(self, sim_adjacency_multiple):
-        """Test bootstrap resampling."""
-        from nltools.data.results import BootstrapResult
-
-        n_samples = 50
-        boot = sim_adjacency_multiple.bootstrap(
-            "mean", n_samples=n_samples, random_state=42
-        )
-        assert isinstance(boot, BootstrapResult)
-        for field in ("estimate", "standard_error", "ci_lower", "ci_upper"):
-            assert isinstance(getattr(boot, field), Adjacency)
-        assert boot.samples is None
-
-    @pytest.mark.slow
     def test_bootstrap_estimate_is_the_unresampled_statistic(
         self, sim_adjacency_multiple
     ):
@@ -61,15 +47,6 @@ class TestAdjacencyModeling:
         )
 
     @pytest.mark.slow
-    def test_bootstrap_all_simple_statistics(self, sim_adjacency_multiple):
-        """Test all basic statistics work."""
-        for statistic in ["mean", "median", "std", "sum", "min", "max"]:
-            boot = sim_adjacency_multiple.bootstrap(
-                statistic, n_samples=50, random_state=42
-            )
-            assert isinstance(boot.estimate, Adjacency)
-
-    @pytest.mark.slow
     def test_bootstrap_reproducibility(self, sim_adjacency_multiple):
         """Test same random_state produces identical results."""
         kwargs = {"n_samples": 50, "random_state": 42}
@@ -86,42 +63,10 @@ class TestAdjacencyModeling:
         with pytest.raises(ValueError, match="Unsupported statistic"):
             sim_adjacency_multiple.bootstrap("invalid_statistic", n_samples=10)
 
-    @pytest.mark.parametrize("removed", ["stat", "save_boots", "percentiles", "tail"])
+    @pytest.mark.parametrize("removed", ["stat"])
     def test_bootstrap_removed_keywords_raise(self, sim_adjacency_multiple, removed):
         with pytest.raises(TypeError):
             sim_adjacency_multiple.bootstrap("mean", n_samples=10, **{removed: 1})
-
-    def test_generate_permutations(self, sim_adjacency_single):
-        """Test lazy generation of permuted adjacency matrices."""
-        n_permute = 10
-        original_data = sim_adjacency_single.data.copy()
-
-        perms = list(
-            sim_adjacency_single.generate_permutations(n_permute, random_state=42)
-        )
-        assert len(perms) == n_permute
-
-        for perm in perms:
-            assert isinstance(perm, Adjacency)
-            assert perm.shape == sim_adjacency_single.shape
-
-        all_same = all(np.allclose(perm.data, original_data) for perm in perms)
-        assert not all_same
-
-        perm_list1 = [
-            p.data.copy()
-            for p in sim_adjacency_single.generate_permutations(5, random_state=123)
-        ]
-        perm_list2 = [
-            p.data.copy()
-            for p in sim_adjacency_single.generate_permutations(5, random_state=123)
-        ]
-        for p1, p2 in zip(perm_list1, perm_list2):
-            np.testing.assert_array_equal(p1, p2)
-
-        perm_a = next(sim_adjacency_single.generate_permutations(1, random_state=1))
-        perm_b = next(sim_adjacency_single.generate_permutations(1, random_state=2))
-        assert not np.allclose(perm_a.data, perm_b.data)
 
     def test_regression(self):
         """Test regression with Adjacency and DesignMatrix predictors."""

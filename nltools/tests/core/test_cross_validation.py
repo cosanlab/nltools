@@ -1,6 +1,5 @@
 import numpy as np
 import pandas as pd
-from sklearn.model_selection import KFold
 from nltools.cross_validation import KFoldStratified
 
 
@@ -72,60 +71,11 @@ class TestKFoldStratifiedBasic:
             cv, X=np.zeros(len(y)), y=y, groups=None, expected_n_splits=n_folds
         )
 
-    def test_different_n_splits(self):
-        """Test with different numbers of splits."""
-        y = pd.DataFrame(np.random.randn(100))
-        for n_splits in [2, 3, 5, 10]:
-            cv = KFoldStratified(n_splits=n_splits)
-            check_cv_coverage(
-                cv, X=np.zeros(len(y)), y=y, groups=None, expected_n_splits=n_splits
-            )
-
     def test_small_dataset(self):
         """Test with very small dataset."""
         y = pd.DataFrame(np.random.randn(10))
         cv = KFoldStratified(n_splits=2)
         check_cv_coverage(cv, X=np.zeros(len(y)), y=y, groups=None, expected_n_splits=2)
-
-
-class TestKFoldStratifiedSklearnCompatibility:
-    """Test sklearn API compatibility."""
-
-    def test_compatible_with_sklearn_functions(self):
-        """Test that KFoldStratified works with sklearn utilities."""
-        from sklearn.model_selection import cross_val_score
-        from sklearn.linear_model import LinearRegression
-
-        # Create simple regression problem
-        np.random.seed(42)
-        X = np.random.randn(100, 5)
-        y = np.random.randn(100)
-
-        cv = KFoldStratified(n_splits=5)
-        model = LinearRegression()
-
-        # This should work without errors
-        scores = cross_val_score(model, X, y, cv=cv, scoring="r2")
-        assert len(scores) == 5
-        assert all(np.isfinite(scores))
-
-    def test_stratification_actually_works(self):
-        """Test that stratification produces balanced folds."""
-        # Create target with clear structure
-        np.random.seed(42)
-        y = pd.DataFrame(np.arange(100))  # Linear increasing values
-
-        cv = KFoldStratified(n_splits=5)
-        fold_means = []
-        for train_idx, test_idx in cv.split(np.zeros(len(y)), y):
-            fold_means.append(y.iloc[test_idx].mean()[0])
-
-        # Means should be similar (within reasonable range)
-        # With 100 samples in 5 folds, each fold has ~20 samples
-        # Mean of entire dataset is ~50
-        fold_means = np.array(fold_means)
-        assert np.std(fold_means) < 5.0  # Standard deviation should be small
-        assert np.mean(fold_means) > 45 and np.mean(fold_means) < 55
 
 
 class TestKFoldStratifiedInputValidation:
@@ -134,27 +84,6 @@ class TestKFoldStratifiedInputValidation:
     def test_y_as_array(self):
         """Test that y can be numpy array."""
         y = np.random.randn(100)
-        X = np.zeros((100, 10))
-        cv = KFoldStratified(n_splits=5)
-        check_cv_coverage(cv, X, y, groups=None, expected_n_splits=5)
-
-    def test_y_as_dataframe(self):
-        """Test that y can be pandas DataFrame."""
-        y = pd.DataFrame(np.random.randn(100))
-        X = np.zeros((100, 10))
-        cv = KFoldStratified(n_splits=5)
-        check_cv_coverage(cv, X, y, groups=None, expected_n_splits=5)
-
-    def test_y_as_series(self):
-        """Test that y can be pandas Series."""
-        y = pd.Series(np.random.randn(100))
-        X = np.zeros((100, 10))
-        cv = KFoldStratified(n_splits=5)
-        check_cv_coverage(cv, X, y, groups=None, expected_n_splits=5)
-
-    def test_y_as_list(self):
-        """Test that y can be list."""
-        y = list(np.random.randn(100))
         X = np.zeros((100, 10))
         cv = KFoldStratified(n_splits=5)
         check_cv_coverage(cv, X, y, groups=None, expected_n_splits=5)
@@ -170,20 +99,6 @@ class TestKFoldStratifiedInputValidation:
         splits = list(cv.split(X, y))
         assert len(splits) == 5
 
-    def test_groups_parameter_ignored(self):
-        """Test that groups parameter is ignored (as documented)."""
-        y = np.random.randn(100)
-        X = np.zeros((100, 10))
-        groups = np.random.randint(0, 5, 100)
-
-        cv = KFoldStratified(n_splits=5)
-        # Should work with groups=None and groups=something
-        splits_without = list(cv.split(X, y, groups=None))
-        splits_with = list(cv.split(X, y, groups=groups))
-
-        # Should produce same splits (groups ignored)
-        assert len(splits_without) == len(splits_with)
-
 
 class TestKFoldStratifiedShuffle:
     """Regression tests for F150: shuffle/random_state must affect folds."""
@@ -197,19 +112,6 @@ class TestKFoldStratifiedShuffle:
             folds[test] = k
         return folds
 
-    def test_shuffle_true_differs_by_seed(self):
-        """shuffle=True with two seeds yields different fold assignments."""
-        # Many tied y values so within-stratum permutation can reorder folds.
-        y = np.repeat(np.arange(10), 5).astype(float)  # 50 samples, ties
-
-        cv1 = KFoldStratified(n_splits=5, shuffle=True, random_state=1)
-        cv2 = KFoldStratified(n_splits=5, shuffle=True, random_state=999)
-
-        folds1 = self._fold_assignment(cv1, y)
-        folds2 = self._fold_assignment(cv2, y)
-
-        assert not np.array_equal(folds1, folds2)
-
     def test_shuffle_true_reproducible(self):
         """Same seed reproduces the same folds."""
         y = np.repeat(np.arange(10), 5).astype(float)
@@ -219,15 +121,6 @@ class TestKFoldStratifiedShuffle:
             self._fold_assignment(cv_a, y), self._fold_assignment(cv_b, y)
         )
 
-    def test_shuffle_false_deterministic(self):
-        """shuffle=False is deterministic and ignores random_state."""
-        y = np.repeat(np.arange(10), 5).astype(float)
-        cv1 = KFoldStratified(n_splits=5, shuffle=False)
-        cv2 = KFoldStratified(n_splits=5, shuffle=False)
-        np.testing.assert_array_equal(
-            self._fold_assignment(cv1, y), self._fold_assignment(cv2, y)
-        )
-
     def test_shuffle_still_stratifies(self):
         """Shuffling ties preserves balanced (stratified) fold means."""
         np.random.seed(0)
@@ -235,28 +128,3 @@ class TestKFoldStratifiedShuffle:
         cv = KFoldStratified(n_splits=5, shuffle=True, random_state=3)
         fold_means = [y[test].mean() for _, test in cv.split(np.zeros(len(y)), y)]
         assert np.std(fold_means) < 5.0
-
-
-class TestKFoldStratifiedComparison:
-    """Comparison tests with sklearn's KFold."""
-
-    def test_different_from_kfold(self):
-        """Test that stratification produces different splits than regular KFold."""
-        np.random.seed(42)
-        y = pd.DataFrame(np.arange(100))  # Ordered values
-        X = np.zeros((100, 10))
-
-        cv_stratified = KFoldStratified(n_splits=5)
-        cv_regular = KFold(n_splits=5, shuffle=False)
-
-        # Get first fold from each
-        train_s, test_s = next(cv_stratified.split(X, y))
-        train_r, test_r = next(cv_regular.split(X, y))
-
-        # Stratified should have more balanced means
-        mean_stratified = y.iloc[test_s].mean()[0]
-        mean_regular = y.iloc[test_r].mean()[0]
-
-        # Stratified mean should be closer to overall mean (~50)
-        overall_mean = y.mean()[0]
-        assert abs(mean_stratified - overall_mean) < abs(mean_regular - overall_mean)

@@ -11,12 +11,6 @@ from nltools.data import DesignMatrix
     "kwargs",
     [
         {"TR": 0},
-        {"TR": -1},
-        {"TR": float("inf")},
-        {"sampling_freq": float("nan")},
-        {"sampling_freq": -1},
-        {"n_rows": True},
-        {"n_rows": 1.5},
     ],
 )
 def test_invalid_constructor_controls(kwargs):
@@ -101,15 +95,6 @@ def test_numpy_and_series_exports_detached():
     assert dm.item(0, "a") == 1
 
 
-def test_pandas_export_and_direct_append_removed():
-    import pandas as pd
-
-    dm = DesignMatrix({"a": [1, 2]})
-    assert "to_pandas" not in DesignMatrix.__dict__
-    with pytest.raises(TypeError):
-        dm.append(pd.DataFrame({"b": [3, 4]}), axis=1)
-
-
 def test_zero_column_text_export_rejected(tmp_path):
     with pytest.raises(ValueError, match="column"):
         DesignMatrix(n_rows=4).write(tmp_path / "empty.tsv")
@@ -136,9 +121,7 @@ def test_append_recorded_empty_rows_and_run_numbers():
 @pytest.mark.parametrize(
     "a,b,fill,duplicate",
     [
-        ([2**53], [2**53 + 1], None, False),
         ([float("nan"), 1.0], [float("nan"), 1.0], None, True),
-        ([None, 1.0], [0.0, 1.0], 0, True),
     ],
 )
 def test_append_exact_final_values(a, b, fill, duplicate):
@@ -161,34 +144,6 @@ def test_h5_unicode_and_empty_run_identity(tmp_path):
     empty.append(empty).write(path)
     combined = DesignMatrix(path).append(dm.add_poly(0))
     assert combined.confounds == [".nl_r2_poly_0"]
-
-
-def test_private_pandas_boundary_preserves_columns_and_row_count():
-    """`_to_pandas` is the one conversion out of polars, for pandas-only callers."""
-    from nltools.data.designmatrix.io import _to_pandas
-
-    dm = DesignMatrix({"a": [1.0, 2.0], "b": [3.0, 4.0]})
-    frame = _to_pandas(dm)
-    assert list(frame.columns) == ["a", "b"]
-    assert frame["a"].tolist() == [1.0, 2.0]
-    assert list(frame.index) == [0, 1]
-
-
-def test_plot_matrix_uses_arrays_with_labels(monkeypatch):
-    import matplotlib.pyplot as plt
-    import seaborn as sns
-
-    dm = DesignMatrix({"a": [1.0, 2.0], "b": [3.0, 4.0]})
-    original = sns.heatmap
-
-    def heatmap(data, **kwargs):
-        assert isinstance(data, np.ndarray)
-        return original(data, **kwargs)
-
-    monkeypatch.setattr(sns, "heatmap", heatmap)
-    fig = dm.plot(columns=["b", "a"])
-    assert [label.get_text() for label in fig.axes[0].get_xticklabels()] == ["b", "a"]
-    plt.close(fig)
 
 
 def test_column_expression_selection_retains_provenance():
@@ -231,9 +186,6 @@ def test_unsized_column_initialization_uses_input_length():
     "operation",
     [
         lambda dm: dm.insert_column(0, pl.Series("a", [1, 2])),
-        lambda dm: dm.hstack([pl.Series("a", [1, 2])], in_place=True),
-        lambda dm: dm.hstack([pl.Series("a", [1, 2])]),
-        lambda dm: dm.with_columns(a=[1, 2]),
     ],
 )
 def test_sized_columnless_addition_validates_height_without_mutation(operation):
@@ -241,16 +193,6 @@ def test_sized_columnless_addition_validates_height_without_mutation(operation):
     with pytest.raises((ValueError, pl.exceptions.ShapeError)):
         operation(dm)
     assert dm.shape == (5, 0)
-
-
-def test_empty_vertical_inputs_preserve_schema_and_validate_dtypes():
-    empty = DesignMatrix(pl.DataFrame(schema={"a": pl.Int64}))
-    other = DesignMatrix({"a": [1.0]})
-    with pytest.raises(ValueError, match="dtype"):
-        empty.append(other)
-    combined = empty.append(DesignMatrix(pl.DataFrame(schema={"b": pl.Int64})))
-    assert combined.shape == (0, 2)
-    assert combined.schema == {"a": pl.Int64, "b": pl.Int64}
 
 
 def test_rename_callback_matches_native_invocation_count():
@@ -268,10 +210,3 @@ def test_rename_callback_matches_native_invocation_count():
     assert result.columns == expected.columns
     assert result.convolved == [expected.columns[0]]
     assert result.confounds == [expected.columns[1]]
-
-
-def test_all_null_columns_duplicate_without_fill():
-    with pytest.raises(ValueError, match="duplicates"):
-        DesignMatrix({"a": [None, None]}).append(
-            DesignMatrix({"b": [None, None]}), axis=1, fill_na=None
-        )

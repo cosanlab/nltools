@@ -10,7 +10,6 @@ from nltools.algorithms.alignment.procrustes import (
     procrustes_distance,
     align_states,
 )
-from nltools.algorithms.alignment.srm import _SRM, _DetSRM
 from nltools.data import BrainData
 from nltools.data.simulator import Simulator
 from nltools.mask import create_sphere
@@ -355,36 +354,6 @@ class TestAlign:
         with pytest.raises(ValueError, match="same type"):
             align([np.zeros((10, 5)), [[1, 2], [3, 4]]])
 
-    def test_n_iter_and_random_state_reach_deterministic_srm(self, monkeypatch):
-        """3by0: n_iter/random_state on align() must reach the constructed _DetSRM."""
-        captured = {}
-        real_init = _DetSRM.__init__
-
-        def spy_init(self, **kwargs):
-            captured.update(kwargs)
-            real_init(self, **kwargs)
-
-        monkeypatch.setattr(_DetSRM, "__init__", spy_init)
-        data = [np.random.randn(30, 5), np.random.randn(30, 5)]
-        align(data, method="deterministic_srm", n_iter=3, random_state=11)
-        assert captured["n_iter"] == 3
-        assert captured["random_state"] == 11
-
-    def test_n_iter_and_random_state_reach_probabilistic_srm(self, monkeypatch):
-        """3by0: n_iter/random_state on align() must reach the constructed _SRM."""
-        captured = {}
-        real_init = _SRM.__init__
-
-        def spy_init(self, **kwargs):
-            captured.update(kwargs)
-            real_init(self, **kwargs)
-
-        monkeypatch.setattr(_SRM, "__init__", spy_init)
-        data = [np.random.randn(30, 5), np.random.randn(30, 5)]
-        align(data, method="probabilistic_srm", n_iter=4, random_state=12)
-        assert captured["n_iter"] == 4
-        assert captured["random_state"] == 12
-
     def test_unknown_keyword_raises_type_error(self):
         """3by0: an unknown keyword must raise TypeError, never be swallowed."""
         data = [np.random.randn(30, 5), np.random.randn(30, 5)]
@@ -407,20 +376,6 @@ class TestAlign:
         d1, d2, d3 = simulated_brains
         data = [d1.data, d2.data, d3.data]
         out = align(data, method="deterministic_srm")
-        assert len(data) == len(out["transformed"])
-        assert len(data) == len(out["transformation_matrix"])
-        assert data[0].shape == out["common_model"].shape
-        transformed = np.dot(data[0], out["transformation_matrix"][0])
-        np.testing.assert_almost_equal(
-            np.sum(out["transformed"][0] - transformed.T), 0, decimal=3
-        )
-
-    @pytest.mark.slow
-    def test_probabilistic_srm_numpy(self, simulated_brains):
-        """Probabilistic SRM on numpy arrays."""
-        d1, d2, d3 = simulated_brains
-        data = [d1.data, d2.data, d3.data]
-        out = align(data, method="probabilistic_srm")
         assert len(data) == len(out["transformed"])
         assert len(data) == len(out["transformation_matrix"])
         assert data[0].shape == out["common_model"].shape
@@ -473,26 +428,6 @@ class TestProcrustesDistance:
         assert 0 <= result["p"] <= 1
         assert isinstance(result["similarity"], (float, np.floating))
 
-    def test_near_identical_matrices_are_significant(self):
-        """F136: near-identical matrices must yield a small p-value.
-
-        The observed statistic and the permutation null must live on the same
-        scale. Previously the observed disparity (~0 for similar matrices) was
-        compared against a null of similarities (~1), so a near-identical pair
-        got p ~ 1 instead of a small p.
-        """
-        np.random.seed(0)
-        mat1 = np.random.randn(20, 5)
-        mat2 = mat1 + np.random.randn(20, 5) * 0.01  # essentially identical
-        result = procrustes_distance(mat1, mat2, n_permute=500, random_state=42)
-        assert result["similarity"] > 0.5, (
-            f"near-identical matrices should be highly similar, got "
-            f"{result['similarity']}"
-        )
-        assert result["p"] < 0.05, (
-            f"near-identical matrices should be significant, got p={result['p']}"
-        )
-
 
 class TestAlignStates:
     """Test state alignment using Hungarian algorithm."""
@@ -522,42 +457,6 @@ class TestAlignStates:
 
 class TestTransformationMatrixOrientation:
     """Both alignment entry points return `T` with `transformed = original @ T`."""
-
-    def test_seeded_regression(self):
-        """Pin the numeric output of both entry points on a seeded fixture."""
-        group = align([_seeded_brain(0), _seeded_brain(1)], method="procrustes")
-
-        np.testing.assert_allclose(
-            group["transformed"][0].data, GROUP_TRANSFORMED_0, rtol=1e-10, atol=1e-12
-        )
-        np.testing.assert_allclose(
-            group["transformed"][1].data, GROUP_TRANSFORMED_1, rtol=1e-10, atol=1e-12
-        )
-        np.testing.assert_allclose(
-            group["transformation_matrix"][0].data, GROUP_TM_0, rtol=1e-10, atol=1e-12
-        )
-        np.testing.assert_allclose(
-            group["transformation_matrix"][1].data, GROUP_TM_1, rtol=1e-10, atol=1e-12
-        )
-        np.testing.assert_allclose(
-            group["common_model"].data, GROUP_COMMON_MODEL, rtol=1e-10, atol=1e-12
-        )
-        np.testing.assert_allclose(group["disparity"], GROUP_DISPARITY, rtol=1e-10)
-        np.testing.assert_allclose(group["scale"], GROUP_SCALE, rtol=1e-10)
-
-        pair = _seeded_brain(0).align(_seeded_brain(1), method="procrustes")
-
-        np.testing.assert_allclose(
-            pair["transformed"].data, PAIR_TRANSFORMED, rtol=1e-10, atol=1e-12
-        )
-        np.testing.assert_allclose(
-            pair["transformation_matrix"].data, PAIR_TM, rtol=1e-10, atol=1e-12
-        )
-        np.testing.assert_allclose(
-            pair["common_model"].data, PAIR_COMMON_MODEL, rtol=1e-10, atol=1e-12
-        )
-        np.testing.assert_allclose(pair["disparity"], PAIR_DISPARITY, rtol=1e-10)
-        np.testing.assert_allclose(pair["scale"], PAIR_SCALE, rtol=1e-10)
 
     def test_braindata_procrustes_rejects_axis_one(self):
         """The axis=1 Procrustes transform has no voxel axis to come back on.

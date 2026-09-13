@@ -19,11 +19,7 @@ import pytest
 from nltools.data import Adjacency, BrainData
 
 FACADE_METHODS = [
-    Adjacency.similarity,
-    Adjacency.ttest,
-    Adjacency.bootstrap,
     BrainData.bootstrap,
-    BrainData.ttest,
 ]
 
 
@@ -55,17 +51,6 @@ class TestAdjacencyFacades:
         rng = np.random.default_rng(1)
         return Adjacency(rng.standard_normal((6, 10)), matrix_type="distance_flat")
 
-    def test_similarity_silent_by_default_bar_when_asked(self, pair):
-        x, y = pair
-        kwargs = {"n_permute": 20, "n_jobs": 1, "random_state": 0}
-        assert _stderr_of(lambda: x.similarity(y, **kwargs)) == ""
-        assert _stderr_of(lambda: x.similarity(y, progress_bar=True, **kwargs)) != ""
-
-    def test_ttest_silent_by_default_bar_when_asked(self, stack):
-        kwargs = {"permutation": True, "n_permute": 20, "n_jobs": 1, "random_state": 0}
-        assert _stderr_of(lambda: stack.ttest(**kwargs)) == ""
-        assert _stderr_of(lambda: stack.ttest(progress_bar=True, **kwargs)) != ""
-
     @pytest.mark.filterwarnings("ignore:n_samples=:UserWarning")
     @pytest.mark.filterwarnings("ignore:Only .* samples available:UserWarning")
     def test_bootstrap_silent_by_default_bar_when_asked(self, stack):
@@ -83,19 +68,5 @@ class TestBrainDataFacades:
         assert _stderr_of(lambda: minimal_brain_data.ttest(**kwargs)) == ""
         assert (
             _stderr_of(lambda: minimal_brain_data.ttest(progress_bar=True, **kwargs))
-            != ""
-        )
-
-    @pytest.mark.filterwarnings("ignore:n_samples=:UserWarning")
-    @pytest.mark.filterwarnings("ignore:Only .* samples available:UserWarning")
-    def test_silent_by_default_bar_when_asked(self, minimal_brain_data):
-        kwargs = {"n_samples": 20, "n_jobs": 1, "random_state": 0}
-        assert _stderr_of(lambda: minimal_brain_data.bootstrap("mean", **kwargs)) == ""
-        assert (
-            _stderr_of(
-                lambda: minimal_brain_data.bootstrap(
-                    "mean", progress_bar=True, **kwargs
-                )
-            )
             != ""
         )

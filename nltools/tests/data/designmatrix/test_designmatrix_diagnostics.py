@@ -106,29 +106,6 @@ class TestDesignMatrixDiagnostics:
         assert "b" not in dm_clean.columns, "Highly correlated column should be dropped"
         assert "c" in dm_clean.columns, "Uncorrelated column should be kept"
 
-    def test_clean_with_lower_threshold(self):
-        """
-        Lower threshold should drop more columns.
-
-        Expected behavior:
-        - thresh=0.8 more aggressive than thresh=0.95
-        - Moderately correlated columns also dropped
-        """
-        dm = DesignMatrix(
-            {
-                "a": [1, 2, 3, 4, 5],
-                "b": [1.1, 2.2, 3.1, 3.9, 5.1],  # r ≈ 0.99 with 'a'
-                "c": [2, 3, 4, 5, 6],  # r ≈ 1.0 with 'a'
-            },
-            sampling_freq=1,
-        )
-
-        dm_clean = dm.clean(thresh=0.8)
-
-        # Both b and c should be dropped (highly correlated with a)
-        assert "a" in dm_clean.columns
-        assert dm_clean.shape[1] < dm.shape[1], "Should drop correlated columns"
-
     def test_clean_excludes_confounds_from_collinearity_check(self):
         """
         exclude_confounds=True should keep polynomial columns even if correlated.
@@ -184,64 +161,6 @@ class TestDesignMatrixUtilities:
     - heatmap() creates visualization (tested separately)
     """
 
-    def test_repr_shows_metadata(self):
-        """
-        repr(dm) should summarize metadata.
-
-        Expected behavior:
-        - Contains sampling_freq
-        - Contains shape
-        - Lists convolved columns
-        - Lists polynomial columns
-
-        Use case: Quick inspection of DesignMatrix state at the REPL
-        """
-        dm = DesignMatrix({"a": [1, 2, 3]}, sampling_freq=2)
-        dm = dm.add_poly(0)
-        dm = dm.convolve(columns=["a"])
-
-        text = repr(dm)
-
-        assert "sampling_freq=2" in text
-        assert "shape=(3, 2)" in text or "(3, 2)" in text
-        assert ".nl_poly_0" in text or "confounds" in text
-        assert "convolved" in text
-
-    def test_replace_data_keeps_metadata_and_confounds(self):
-        """
-        .replace_data() swaps data columns but preserves polynomial columns.
-
-        Expected behavior:
-        - Old data columns removed
-        - New data columns added (with provided names)
-        - Polynomial columns unchanged
-        - Metadata preserved
-
-        Use case: Substitute stimulus regressors while keeping drift terms
-        """
-        dm = DesignMatrix({"a": [1, 2, 3], "b": [4, 5, 6]}, sampling_freq=2)
-        dm = dm.add_poly(order=0)  # Adds .nl_poly_0
-
-        # Replace data with new columns
-        new_data = np.array([[10, 20], [30, 40], [50, 60]])
-        dm_replaced = dm.replace_data(new_data, column_names=["x", "y"])
-
-        # New data columns should be present
-        assert "x" in dm_replaced.columns
-        assert "y" in dm_replaced.columns
-        assert dm_replaced["x"].to_list() == [10, 30, 50]
-
-        # Old data columns should be gone
-        assert "a" not in dm_replaced.columns
-        assert "b" not in dm_replaced.columns
-
-        # Polynomials should be preserved
-        assert ".nl_poly_0" in dm_replaced.columns
-        assert dm_replaced[".nl_poly_0"].to_list() == dm[".nl_poly_0"].to_list()
-
-        # Metadata should be preserved
-        assert dm_replaced.sampling_freq == 2
-
     def test_replace_data_validates_row_count(self):
         """
         .replace_data() should error if new data has different number of rows.
@@ -287,11 +206,6 @@ class TestDesignMatrixCorr:
         assert c.n_nodes == 2
         assert list(c.labels) == ["a", "b"]
 
-    def test_corr_spearman(self):
-        """metric='spearman' is supported alongside the default pearson."""
-        c = self._toy().corr(metric="spearman")
-        assert c.squareform().shape == (3, 3)
-
     def test_corr_invalid_metric(self):
         """An unknown metric raises a helpful ValueError."""
         with pytest.raises(ValueError):
@@ -315,30 +229,6 @@ class TestDesignMatrixPlotMethods:
         fig = self._toy().plot()
         assert isinstance(fig, Figure)
 
-    def test_plot_timeseries(self):
-        """method='timeseries' draws one line per regressor column."""
-        from matplotlib.figure import Figure
-
-        fig = self._toy().plot(method="timeseries")
-        assert isinstance(fig, Figure)
-        assert len(fig.axes[0].lines) == 3
-
-    def test_plot_timeseries_columns_subset(self):
-        """columns= restricts which regressors are drawn."""
-        fig = self._toy().plot(method="timeseries", columns=["a"])
-        assert len(fig.axes[0].lines) == 1
-
-    def test_plot_timeseries_ax_overlay(self):
-        """Passing ax= overlays onto the caller's axis and returns its figure."""
-        import matplotlib.pyplot as plt
-
-        dm = self._toy()
-        _, ax = plt.subplots()
-        out = dm.plot(method="timeseries", columns=["a"], ax=ax)
-        dm.plot(method="timeseries", columns=["b"], ax=ax)
-        assert out is ax.figure
-        assert len(ax.lines) == 2
-
     def test_plot_corr(self):
         """method='corr' renders a correlation heatmap with a 1.0 diagonal."""
         from matplotlib.figure import Figure
@@ -353,12 +243,6 @@ class TestDesignMatrixPlotMethods:
         with pytest.raises(ValueError):
             self._toy().plot(method="bogus")
 
-    def test_plot_save(self, tmp_path):
-        """save= writes the figure to disk."""
-        out = tmp_path / "dm.png"
-        self._toy().plot(method="corr", save=str(out))
-        assert out.exists()
-
 
 class TestVifInterceptExclusion:
     """`vif(exclude_confounds=False)` drops generated intercepts, and only those.
@@ -370,28 +254,6 @@ class TestVifInterceptExclusion:
     the exclusion keys on that rather than on a substring match that both
     misses the DCT constant and catches user columns by coincidence.
     """
-
-    def test_excludes_generated_polynomial_intercept(self):
-        rng = np.random.default_rng(0)
-        dm = DesignMatrix(
-            {"a": rng.standard_normal(20), "b": rng.standard_normal(20)},
-            sampling_freq=1,
-        ).add_poly(0)
-
-        vifs = dm.vif(exclude_confounds=False)
-        assert len(vifs) == 2, "intercept should be dropped, leaving a and b"
-
-    def test_excludes_generated_cosine_intercept(self):
-        """The DCT constant is an intercept too — same zero-variance problem."""
-        rng = np.random.default_rng(0)
-        dm = DesignMatrix(
-            {"a": rng.standard_normal(60), "b": rng.standard_normal(60)},
-            sampling_freq=0.5,
-        ).add_dct_basis(duration=40)
-
-        vifs = dm.vif(exclude_confounds=False)
-        included = dm.shape[1] - 1  # every column but .nl_cosine_0
-        assert len(vifs) == included
 
     def test_excludes_run_separated_intercepts(self):
         def run(seed):

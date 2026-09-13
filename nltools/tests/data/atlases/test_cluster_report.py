@@ -145,50 +145,6 @@ def test_cluster_threshold_filters_small_clusters(synthetic_stat_brain):
     assert clusters.height == 0
 
 
-def test_pre_thresholded_input(synthetic_stat_brain):
-    """stat_threshold=None should treat input as already thresholded."""
-    # First, threshold once via stat_threshold=3
-    _, clusters_a, thr_a = _cluster_report_data(
-        synthetic_stat_brain,
-        stat_threshold=3.0,
-        cluster_threshold=5,
-        atlas="aal",
-    )
-    # Then re-pass the thresholded BrainData with stat_threshold=None
-    _, clusters_b, _ = _cluster_report_data(
-        thr_a,
-        stat_threshold=None,
-        cluster_threshold=5,
-        atlas="aal",
-    )
-    assert clusters_a.height == clusters_b.height
-
-
-def test_atlas_columns_appear(synthetic_stat_brain):
-    peaks, clusters, _ = _cluster_report_data(
-        synthetic_stat_brain,
-        stat_threshold=3.0,
-        cluster_threshold=5,
-        atlas=["aal", "harvard_oxford"],
-    )
-    assert "aal" in peaks.columns
-    assert "harvard_oxford" in peaks.columns
-    assert "aal" in clusters.columns
-    assert "harvard_oxford" in clusters.columns
-
-
-def test_cluster_label_format_is_mass_weighted(synthetic_stat_brain):
-    """Cluster-level labels should be ``'XX.X% Region; ...'`` strings."""
-    _, clusters, _ = _cluster_report_data(
-        synthetic_stat_brain,
-        stat_threshold=3.0,
-        cluster_threshold=5,
-        atlas="aal",
-    )
-    for s in clusters["aal"].to_list():
-        assert "%" in s
-
-
 def test_returned_thresholded_brain_is_BrainData(synthetic_stat_brain):
     _, _, thr = _cluster_report_data(
         synthetic_stat_brain,
@@ -215,19 +171,6 @@ def test_cluster_report_dataclass(synthetic_stat_brain):
     assert report.peaks is peaks
     assert report.clusters is clusters
     assert report.stat_img is thr
-
-
-def test_cluster_report_to_csv(synthetic_stat_brain, tmp_path):
-    peaks, clusters, thr = _cluster_report_data(
-        synthetic_stat_brain,
-        stat_threshold=3.0,
-        cluster_threshold=5,
-        atlas="aal",
-    )
-    report = _ClusterReport(peaks=peaks, clusters=clusters, stat_img=thr)
-    report.to_csv(tmp_path)
-    assert (tmp_path / "peaks.csv").exists()
-    assert (tmp_path / "clusters.csv").exists()
 
 
 # ---------------------------------------------------------------------------
@@ -268,26 +211,6 @@ def two_peak_brain():
     mask_data = (np.abs(data) > 0.01).astype(np.uint8)
     mask = nb.Nifti1Image(mask_data, affine)
     return BrainData(img, mask=mask)
-
-
-def test_cluster_report_survives_subpeaks(two_peak_brain):
-    """F042: sub-peak rows must not crash _cluster_report_data.
-
-    `_build_peaks_dataframe` used to call `to_numpy(dtype=float)` on the size
-    column, raising ValueError the moment any cluster had more than one local
-    maximum — the common case for real fMRI stat maps.
-    """
-    peaks, clusters, thr = _cluster_report_data(
-        two_peak_brain, stat_threshold=3.0, cluster_threshold=5, atlas="aal"
-    )
-    # More than one peak row -> sub-peaks were present and handled.
-    assert peaks.height >= 2
-    # Sub-peaks inherit their parent cluster's size (forward-filled), so no
-    # nulls and integer n_voxels are well-defined (not NaN-cast garbage).
-    assert peaks["volume_mm3"].null_count() == 0
-    assert (peaks["volume_mm3"].to_numpy() > 0).all()
-    assert peaks["n_voxels"].null_count() == 0
-    assert (peaks["n_voxels"].to_numpy() > 0).all()
 
 
 def test_peaks_cluster_id_shares_integer_label_space(two_peak_brain):

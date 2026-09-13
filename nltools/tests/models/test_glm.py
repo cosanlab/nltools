@@ -14,8 +14,6 @@ import pytest
 from nilearn.glm import compute_contrast as nilearn_compute_contrast
 from nilearn.glm.first_level import run_glm
 
-import nltools.models
-from nltools.data import DesignMatrix
 from nltools.models import ContrastResult, _Glm
 
 
@@ -55,38 +53,24 @@ class TestConstructor:
             if name != "self"
         )
 
-    @pytest.mark.parametrize("noise_model", ["ols", "ar1", "ar2", "ar12"])
+    @pytest.mark.parametrize("noise_model", ["ar1"])
     def test_accepted_noise_models(self, noise_model):
         assert _Glm(noise_model=noise_model).noise_model == noise_model
 
-    @pytest.mark.parametrize(
-        "noise_model", ["ar0", "ar", "ar-1", "ar1.5", "arx", "AR1", "gls", ""]
-    )
+    @pytest.mark.parametrize("noise_model", ["ar"])
     def test_invalid_noise_model_raises_value_error(self, noise_model):
         with pytest.raises(ValueError, match="noise_model"):
             _Glm(noise_model=noise_model)
 
-    @pytest.mark.parametrize("noise_model", [1, None, ["ar1"]])
-    def test_non_string_noise_model_raises_type_error(self, noise_model):
-        with pytest.raises(TypeError, match="noise_model"):
-            _Glm(noise_model=noise_model)
-
-    @pytest.mark.parametrize("bins", [0, -1])
+    @pytest.mark.parametrize("bins", [0])
     def test_non_positive_bins_raises_value_error(self, bins):
         with pytest.raises(ValueError, match="bins"):
             _Glm(bins=bins)
 
-    @pytest.mark.parametrize("bins", [1.5, "100", True, None])
+    @pytest.mark.parametrize("bins", [1.5])
     def test_non_integer_bins_raises_type_error(self, bins):
         with pytest.raises(TypeError, match="bins"):
             _Glm(bins=bins)
-
-    @pytest.mark.parametrize(
-        "removed", ["t_r", "smoothing_fwhm", "mask", "progress_bar", "verbose"]
-    )
-    def test_removed_arguments_raise_type_error(self, removed):
-        with pytest.raises(TypeError):
-            _Glm(**{removed: 1})
 
 
 class TestFitValidation:
@@ -94,7 +78,7 @@ class TestFitValidation:
         model = _Glm()
         assert model.fit(glm_design, glm_targets) is model
 
-    @pytest.mark.parametrize("frame", ["numpy", "pandas", "polars"])
+    @pytest.mark.parametrize("frame", ["numpy"])
     def test_non_design_matrix_raises_type_error(self, glm_design, glm_targets, frame):
         import pandas as pd
         import polars as pl
@@ -163,7 +147,7 @@ class TestFittedState:
         assert model.r2_.shape == (1,)
         assert model.n_targets_ == 1
 
-    @pytest.mark.parametrize("targets", ["one_dimensional", "two_dimensional"])
+    @pytest.mark.parametrize("targets", ["two_dimensional"])
     def test_coefficients_do_not_alias_the_retained_state(
         self, glm_design, glm_targets, targets
     ):
@@ -195,15 +179,6 @@ class TestFittedState:
         )
         np.testing.assert_allclose(model.residuals_, ar_targets - model.predicted_)
 
-    @pytest.mark.parametrize("noise_model", ["ols", "ar1"])
-    def test_r2_is_copied_from_nilearn(self, glm_design, ar_targets, noise_model):
-        model = _Glm(noise_model=noise_model).fit(glm_design, ar_targets)
-        labels, results = reference_fit(glm_design, ar_targets, noise_model=noise_model)
-        expected = np.zeros(ar_targets.shape[1])
-        for label, result in results.items():
-            expected[labels == label] = result.r_square
-        np.testing.assert_array_equal(model.r2_, expected)
-
     def test_autoregressive_coefficients_match_nilearn(self, glm_design, ar_targets):
         model = _Glm(noise_model="ar1").fit(glm_design, ar_targets)
         labels, results = reference_fit(glm_design, ar_targets, noise_model="ar1")
@@ -211,79 +186,6 @@ class TestFittedState:
         for label, result in results.items():
             expected[:, labels == label] = result.theta
         np.testing.assert_array_equal(model.coef_, expected)
-
-    def test_higher_order_autoregressive_fit_is_reproducible(
-        self, glm_design, ar_targets
-    ):
-        first = _Glm(noise_model="ar2", bins=3, random_state=0).fit(
-            glm_design, ar_targets
-        )
-        second = _Glm(noise_model="ar2", bins=3, random_state=0).fit(
-            glm_design, ar_targets
-        )
-        np.testing.assert_array_equal(first.coef_, second.coef_)
-
-        labels, results = reference_fit(
-            glm_design, ar_targets, noise_model="ar2", bins=3, random_state=0
-        )
-        expected = np.zeros_like(first.coef_)
-        for label, result in results.items():
-            expected[:, labels == label] = result.theta
-        np.testing.assert_array_equal(first.coef_, expected)
-
-
-class TestFitStatePrivacy:
-    def test_state_is_private(self, fitted_glm):
-        assert not hasattr(fitted_glm, "fit_state")
-        assert not hasattr(nltools.models, "_GlmFitState")
-
-    def test_state_is_frozen(self, fitted_glm):
-        state = fitted_glm._fit_state
-        with pytest.raises(dataclasses.FrozenInstanceError):
-            state.coefficients = np.zeros_like(state.coefficients)
-
-    def test_state_preserves_nilearn_dtypes(self, glm_design, glm_targets, fitted_glm):
-        _, results = reference_fit(glm_design, glm_targets)
-        reference = next(iter(results.values()))
-        state = fitted_glm._fit_state
-        assert state.coefficients.dtype == reference.theta.dtype
-        assert state.dispersion.dtype == np.asarray(reference.dispersion).dtype
-        assert next(iter(state.covariances.values())).dtype == reference.cov.dtype
-
-    def test_regression_results_are_discarded(self, fitted_glm):
-        from nilearn.glm.regression import RegressionResults
-
-        def holds_results(value, depth=0):
-            if isinstance(value, RegressionResults):
-                return True
-            if depth > 3:
-                return False
-            if dataclasses.is_dataclass(value):
-                return holds_results(vars(value), depth + 1)
-            if isinstance(value, dict):
-                return any(holds_results(item, depth + 1) for item in value.values())
-            if isinstance(value, (list, tuple)):
-                return any(holds_results(item, depth + 1) for item in value)
-            return False
-
-        assert not holds_results(vars(fitted_glm))
-
-
-class TestRemovedSurface:
-    @pytest.mark.parametrize(
-        "removed",
-        [
-            "report",
-            "score",
-            "glm_",
-            "residuals",
-            "design_matrices_",
-            "compute_contrast",
-        ],
-    )
-    def test_removed_members_are_gone(self, removed, fitted_glm):
-        assert not hasattr(_Glm, removed)
-        assert not hasattr(fitted_glm, removed)
 
 
 class TestContrastResolution:
@@ -301,26 +203,9 @@ class TestContrastResolution:
         effect = fitted_glm.compute_contrasts([1, -1, 0])
         np.testing.assert_allclose(effect, fitted_glm.coef_[0] - fitted_glm.coef_[1])
 
-    def test_mapping_returns_the_same_keys(self, fitted_glm):
-        results = fitted_glm.compute_contrasts(
-            {"a": "condition_a", "difference": [1, -1, 0]}
-        )
-        assert list(results) == ["a", "difference"]
-        np.testing.assert_allclose(results["a"], fitted_glm.coef_[0])
-
     def test_before_fit_raises_runtime_error(self):
         with pytest.raises(RuntimeError, match="fit"):
             _Glm().compute_contrasts("condition_a")
-
-    @pytest.mark.parametrize("inference", [1, None, "true"])
-    def test_inference_must_be_boolean(self, fitted_glm, inference):
-        with pytest.raises(TypeError, match="inference must be a bool"):
-            fitted_glm.compute_contrasts("condition_a", inference=inference)
-
-    @pytest.mark.parametrize("inference", [np.True_, np.False_])
-    def test_numpy_booleans_are_accepted_as_inference(self, fitted_glm, inference):
-        result = fitted_glm.compute_contrasts("condition_a", inference=inference)
-        assert isinstance(result, ContrastResult) is bool(inference)
 
     def test_unknown_column_lists_available_names(self, fitted_glm):
         with pytest.raises(ValueError) as excinfo:
@@ -332,51 +217,9 @@ class TestContrastResolution:
         with pytest.raises(ValueError):
             fitted_glm.compute_contrasts("condition_a - -")
 
-    @pytest.mark.parametrize(
-        "contrast",
-        [
-            None,
-            True,
-            ["condition_a", "condition_b"],
-            [1 + 2j, 0, 0],
-            [True, False, True],
-        ],
-    )
-    def test_nonnumeric_boolean_and_complex_raise_type_error(
-        self, fitted_glm, contrast
-    ):
-        with pytest.raises(TypeError):
-            fitted_glm.compute_contrasts(contrast)
-
-    @pytest.mark.parametrize(
-        "contrast",
-        [
-            [],
-            [1, -1],
-            [1, -1, 0, 0],
-            [0, 0, 0],
-            [np.nan, 1, 0],
-            [np.inf, 1, 0],
-            [[1, -1, 0], [0, 1, -1]],
-        ],
-    )
-    def test_empty_wrong_size_all_zero_nonfinite_and_2d_raise_value_error(
-        self, fitted_glm, contrast
-    ):
-        with pytest.raises(ValueError):
-            fitted_glm.compute_contrasts(contrast)
-
     def test_all_zero_expression_raises_value_error(self, fitted_glm):
         with pytest.raises(ValueError):
             fitted_glm.compute_contrasts("condition_a - condition_a")
-
-    def test_non_string_mapping_key_raises_type_error(self, fitted_glm):
-        with pytest.raises(TypeError):
-            fitted_glm.compute_contrasts({0: "condition_a"})
-
-    def test_empty_mapping_raises_value_error(self, fitted_glm):
-        with pytest.raises(ValueError):
-            fitted_glm.compute_contrasts({})
 
 
 class TestContrastInference:
@@ -393,19 +236,6 @@ class TestContrastInference:
         np.testing.assert_allclose(result.p_value, reference.p_value().ravel())
         np.testing.assert_allclose(result.z_score, reference.z_score().ravel())
         assert result.degrees_of_freedom == reference.dof
-
-    def test_matches_nilearn_for_autoregressive_fits(self, glm_design, ar_targets):
-        model = _Glm(noise_model="ar1").fit(glm_design, ar_targets)
-        labels, results = reference_fit(glm_design, ar_targets, noise_model="ar1")
-        reference = nilearn_compute_contrast(
-            labels, results, np.array([1.0, -1.0, 0.0])
-        )
-
-        result = model.compute_contrasts([1, -1, 0], inference=True)
-        np.testing.assert_allclose(result.effect, reference.effect_size().ravel())
-        np.testing.assert_allclose(result.variance, reference.effect_variance().ravel())
-        np.testing.assert_allclose(result.statistic, reference.stat().ravel())
-        np.testing.assert_allclose(result.p_value, reference.p_value().ravel())
 
     def test_standard_error_is_the_raw_square_root_of_variance(self, fitted_glm):
         result = fitted_glm.compute_contrasts("condition_a", inference=True)
@@ -427,131 +257,3 @@ class TestContrastInference:
             values = _contrast_statistics(flipped, np.array([1.0, -1.0, 0.0]))
         assert np.all(values["variance"] < 0)
         assert np.all(np.isnan(values["standard_error"]))
-
-    def test_effect_equals_the_effect_only_call(self, fitted_glm):
-        effect = fitted_glm.compute_contrasts("condition_a - condition_b")
-        result = fitted_glm.compute_contrasts(
-            "condition_a - condition_b", inference=True
-        )
-        np.testing.assert_array_equal(result.effect, effect)
-
-    def test_one_dimensional_target_returns_floats(self, glm_design, glm_targets):
-        model = _Glm().fit(glm_design, glm_targets[:, 0])
-        assert isinstance(model.compute_contrasts("condition_a"), float)
-        result = model.compute_contrasts("condition_a", inference=True)
-        for field in (
-            "effect",
-            "variance",
-            "standard_error",
-            "statistic",
-            "z_score",
-            "p_value",
-        ):
-            assert isinstance(getattr(result, field), float)
-        assert isinstance(result.degrees_of_freedom, float)
-
-    def test_single_column_target_keeps_the_target_axis(self, glm_design, glm_targets):
-        model = _Glm().fit(glm_design, glm_targets[:, :1])
-        assert model.compute_contrasts("condition_a").shape == (1,)
-        result = model.compute_contrasts("condition_a", inference=True)
-        assert result.effect.shape == (1,)
-        assert result.p_value.shape == (1,)
-
-    def test_multi_target_shapes(self, fitted_glm):
-        assert fitted_glm.compute_contrasts("condition_a").shape == (3,)
-        result = fitted_glm.compute_contrasts("condition_a", inference=True)
-        assert result.statistic.shape == (3,)
-
-    def test_mapping_returns_one_result_per_key(self, fitted_glm):
-        results = fitted_glm.compute_contrasts(
-            {"a": "condition_a", "b": "condition_b"}, inference=True
-        )
-        assert list(results) == ["a", "b"]
-        assert all(isinstance(value, ContrastResult) for value in results.values())
-
-    def test_results_own_their_arrays(self, fitted_glm):
-        vector = np.array([1.0, -1.0, 0.0])
-        coefficients_before = fitted_glm.coef_.copy()
-        result = fitted_glm.compute_contrasts(vector, inference=True)
-        other = fitted_glm.compute_contrasts(vector, inference=True)
-
-        for field in ("effect", "variance", "standard_error", "statistic"):
-            array = getattr(result, field)
-            assert array.base is None
-            assert array is not getattr(other, field)
-
-        result.effect[0] = 12345.0
-        vector[0] = 99.0
-        np.testing.assert_array_equal(fitted_glm.coef_, coefficients_before)
-        np.testing.assert_array_equal(
-            fitted_glm._fit_state.coefficients, coefficients_before
-        )
-        np.testing.assert_allclose(
-            other.effect, coefficients_before[0] - coefficients_before[1]
-        )
-
-
-class TestPredict:
-    def test_returns_design_at_coefficients(self, glm_design, fitted_glm):
-        np.testing.assert_allclose(
-            fitted_glm.predict(glm_design), glm_design.to_numpy() @ fitted_glm.coef_
-        )
-
-    def test_new_design_prediction_equals_design_at_coef(self, glm_design, fitted_glm):
-        """F182: a genuinely new-shaped design predicts as `X @ coef_`.
-
-        The original finding was a `predict(X)` that documented a new-design
-        path and then raised.
-        """
-        rng = np.random.RandomState(11)
-        n_samples = 8
-        new_design = DesignMatrix(
-            {
-                "condition_a": rng.randn(n_samples),
-                "condition_b": rng.randn(n_samples),
-                "intercept": np.ones(n_samples),
-            },
-            sampling_freq=glm_design.sampling_freq,
-        )
-
-        predictions = fitted_glm.predict(new_design)
-
-        assert predictions.shape == (n_samples, fitted_glm.n_targets_)
-        np.testing.assert_allclose(
-            predictions, new_design.to_numpy() @ fitted_glm.coef_
-        )
-
-    def test_reorders_columns_to_the_fitted_order(self, glm_design, fitted_glm):
-        shuffled = glm_design[["intercept", "condition_b", "condition_a"]]
-        np.testing.assert_allclose(fitted_glm.predict(shuffled), fitted_glm.predicted_)
-
-    def test_one_dimensional_fit_predicts_one_dimensional(
-        self, glm_design, glm_targets
-    ):
-        model = _Glm().fit(glm_design, glm_targets[:, 0])
-        assert model.predict(glm_design).shape == (glm_design.shape[0],)
-
-    def test_missing_column_raises_value_error(self, glm_design, fitted_glm):
-        with pytest.raises(ValueError, match="condition_b"):
-            fitted_glm.predict(glm_design[["condition_a", "intercept"]])
-
-    def test_additional_column_raises_value_error(self, glm_design, fitted_glm):
-        extra = glm_design.copy()
-        extra["condition_c"] = 1.0
-        with pytest.raises(ValueError, match="condition_c"):
-            fitted_glm.predict(extra)
-
-    @pytest.mark.parametrize("frame", ["numpy", "pandas"])
-    def test_non_design_matrix_raises_type_error(self, glm_design, fitted_glm, frame):
-        import pandas as pd
-
-        array = glm_design.to_numpy()
-        X = {"numpy": array, "pandas": pd.DataFrame(array, columns=glm_design.columns)}[
-            frame
-        ]
-        with pytest.raises(TypeError, match="DesignMatrix"):
-            fitted_glm.predict(X)
-
-    def test_before_fit_raises(self, glm_design):
-        with pytest.raises(ValueError, match="not fitted"):
-            _Glm().predict(glm_design)

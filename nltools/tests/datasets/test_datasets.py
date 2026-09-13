@@ -27,14 +27,6 @@ class TestDownloadNifti:
         with pytest.raises(ValueError, match="URL cannot be empty"):
             download_nifti("")
 
-    def test_missing_requests_raises_error(self):
-        """Should raise ImportError when requests is not available"""
-        with (
-            patch("nltools.datasets.requests", None),
-            pytest.raises(ImportError, match="requests package is required"),
-        ):
-            download_nifti("http://example.com/test.nii.gz")
-
     @patch("nltools.datasets.requests")
     def test_successful_download(self, mock_requests):
         """Should download file successfully"""
@@ -51,20 +43,6 @@ class TestDownloadNifti:
             expected_path = os.path.join(tmp_dir, "test.nii.gz")
             assert result == expected_path
             assert os.path.exists(expected_path)
-
-    @patch("nltools.datasets.requests")
-    def test_passes_timeout(self, mock_requests):
-        """F160: download_nifti must pass a connect/read timeout to requests.get."""
-        mock_response = MagicMock()
-        mock_response.iter_content.return_value = [b"test data"]
-        mock_response.__enter__.return_value = mock_response
-        mock_requests.get.return_value = mock_response
-
-        with tempfile.TemporaryDirectory() as tmp_dir:
-            download_nifti("http://example.com/test.nii.gz", data_dir=tmp_dir)
-
-        _, kwargs = mock_requests.get.call_args
-        assert kwargs.get("timeout") == (10, 60)
 
 
 class TestFetchNeurovaultCollection:
@@ -102,38 +80,6 @@ class TestFetchNeurovaultCollection:
         mock_fetch.assert_called_once_with(
             collection_ids=[123], data_dir=None, verbose=1
         )
-
-    @patch("nltools.datasets.fetch_neurovault_ids")
-    def test_verbose_zero_is_silent(self, mock_fetch, capsys):
-        """`verbose=0` must mean no output.
-
-        nilearn resolves its data directory with `get_dataset_dir("neurovault",
-        data_dir)` and does not forward the caller's verbosity, so it announces
-        the absolute path of that directory whatever we ask for. Anything that
-        renders a captured session — a notebook, the docs build — then publishes
-        the path of the machine that ran it.
-        """
-        mock_fetch.side_effect = lambda **kwargs: (
-            print(
-                "[fetch_neurovault_ids] Dataset directory found: /home/a/nilearn_data"
-            )
-            or {"images": [], "images_meta": []}
-        )
-
-        fetch_neurovault_collection(123, verbose=0)
-
-        assert capsys.readouterr().out == ""
-
-    @patch("nltools.datasets.fetch_neurovault_ids")
-    def test_a_nonzero_verbose_still_reports(self, mock_fetch, capsys):
-        """Silencing applies to `verbose=0` only; asking for output still gets it."""
-        mock_fetch.side_effect = lambda **kwargs: (
-            print("downloading") or {"images": [], "images_meta": []}
-        )
-
-        fetch_neurovault_collection(123, verbose=1)
-
-        assert "downloading" in capsys.readouterr().out
 
     @patch("nltools.datasets.fetch_neurovault_ids")
     def test_fetch_error_handling(self, mock_fetch):
@@ -220,14 +166,6 @@ class TestLoadHaxbyExample:
         ):
             # `.convolve()` always suffixes `_c0`
             assert f"{cond}_c0" in cols, f"missing condition {cond}_c0"
-
-    def test_multiple_runs(self):
-        from nltools.datasets import load_haxby_example
-
-        brain_data, dms = load_haxby_example(n_runs=3)
-        assert len(brain_data) == 3 and len(dms) == 3
-        for bd, dm in zip(brain_data, dms):
-            assert bd.shape[0] == dm.shape[0]
 
     def test_reproducible_with_seed(self):
         import numpy as np

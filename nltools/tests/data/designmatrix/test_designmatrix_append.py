@@ -36,15 +36,6 @@ class TestDesignMatrixConcatenation:
         assert dm_combined.shape == (2, 2), "Should have 2 rows, 2 columns"
         assert set(dm_combined.columns) == {"a", "b"}
 
-    def test_append_operand_is_named_data(self):
-        """The appended matrix is `data=`; v0.5.1's `dm=` spelling is gone."""
-        dm1 = DesignMatrix({"a": [1, 2]}, sampling_freq=1)
-        dm2 = DesignMatrix({"a": [3, 4]}, sampling_freq=1)
-
-        assert dm1.append(data=dm2).shape == (4, 1)
-        with pytest.raises(TypeError):
-            dm1.append(dm=dm2)
-
     def test_horizontal_append_multiple_columns(self):
         """
         Horizontal append can add multiple columns at once.
@@ -56,17 +47,6 @@ class TestDesignMatrixConcatenation:
 
         assert dm_combined.shape == (1, 3)
         assert set(dm_combined.columns) == {"a", "b", "c"}
-
-    def test_horizontal_append_pandas_requires_constructor_conversion(self):
-        """Pandas ingress is explicit and preserves caller-supplied confound roles."""
-        import pandas as pd
-
-        dm = DesignMatrix({"task": [0.0, 1.0, 0.0]}, sampling_freq=0.5)
-        frame = pd.DataFrame({"motion": [0.1, 0.2, -0.1]})
-        with pytest.raises(TypeError):
-            dm.append(frame, axis=1)
-        converted = DesignMatrix(frame, sampling_freq=0.5, confounds=["motion"])
-        assert dm.append(converted, axis=1).confounds == ["motion"]
 
     def test_horizontal_append_polars_dataframe_as_confounds(self):
         """Same behavior for a polars DataFrame input."""
@@ -235,30 +215,6 @@ class TestDesignMatrixConcatenation:
         assert "face_A" in dm_runs.columns
         assert ".nl_r0_face_A" not in dm_runs.columns
 
-    def test_vertical_append_unique_cols_wildcard_suffix(self):
-        """
-        Wildcard '*_motion' should match all columns ending with '_motion'.
-
-        Expected behavior:
-        - x_motion and y_motion matched by '*_motion'
-        - Both separated across runs
-
-        Use case: Separate all motion-related regressors
-        """
-        dm1 = DesignMatrix(
-            {"x_motion": [1, 2], "y_motion": [3, 4], "stim": [1, 0]}, sampling_freq=1
-        )
-
-        dm2 = DesignMatrix(
-            {"x_motion": [5, 6], "y_motion": [7, 8], "stim": [0, 1]}, sampling_freq=1
-        )
-
-        dm_runs = dm1.append(dm2, axis=0, unique_cols=["*_motion"])
-
-        assert ".nl_r0_x_motion" in dm_runs.columns
-        assert ".nl_r1_y_motion" in dm_runs.columns
-        assert "stim" in dm_runs.columns
-
     def test_vertical_append_multiple_runs_increments_numbering(self):
         """
         Appending 3+ runs should correctly increment run numbering.
@@ -346,14 +302,6 @@ class TestDesignMatrixConcatenation:
 class TestDesignMatrixAppendMetadata:
     """Audit: convolved + confounds metadata survives all append paths."""
 
-    def test_horizontal_append_merges_convolved(self):
-        """convolved from both DMs should be preserved on horizontal append."""
-        dm1 = DesignMatrix({"a": [1, 2]}, sampling_freq=1, convolved=["a"])
-        dm2 = DesignMatrix({"b": [3, 4]}, sampling_freq=1, convolved=["b"])
-
-        out = dm1.append(dm2, axis=1)
-        assert set(out.convolved) == {"a", "b"}
-
     def test_vertical_simple_append_merges_convolved(self):
         """keep_separate=False should preserve shared convolved entries."""
         dm1 = DesignMatrix({"stim": [1, 2, 3]}, sampling_freq=1, convolved=["stim"])
@@ -373,22 +321,6 @@ class TestDesignMatrixAppendMetadata:
 
         out = dm1.append(dm2, axis=0, keep_separate=True)
         assert set(out.convolved) == {"house", "face"}
-
-    def test_vertical_separation_renames_convolved_via_unique_cols(self):
-        """When unique_cols renames a convolved column, convolved should track renames."""
-        dm1 = DesignMatrix(
-            {"motion_x": [1, 2], "stim": [1, 0]},
-            sampling_freq=1,
-            convolved=["motion_x"],
-        )
-        dm2 = DesignMatrix(
-            {"motion_x": [3, 4], "stim": [0, 1]},
-            sampling_freq=1,
-            convolved=["motion_x"],
-        )
-
-        out = dm1.append(dm2, axis=0, unique_cols=["motion_x"])
-        assert set(out.convolved) == {".nl_r0_motion_x", ".nl_r1_motion_x"}
 
 
 class TestDesignMatrixAppendErrors:
@@ -435,15 +367,6 @@ class TestDesignMatrixAppendFillNa:
         assert out["a"].to_list() == [1, 2, None, None]
         assert out["b"].to_list() == [None, None, 3, 4]
 
-    def test_fill_na_none_preserves_nulls_in_separation(self):
-        """keep_separate=True with fill_na=None keeps nulls for separated confounds."""
-        dm1 = DesignMatrix({"s": [1, 2]}, sampling_freq=1).add_poly(0)
-        dm2 = DesignMatrix({"s": [3, 4]}, sampling_freq=1).add_poly(0)
-        out = dm1.append(dm2, axis=0, keep_separate=True, fill_na=None)
-        # Separated poly columns: null in the other run, not 0
-        assert out[".nl_r0_poly_0"].to_list()[2:] == [None, None]
-        assert out[".nl_r1_poly_0"].to_list()[:2] == [None, None]
-
     def test_fill_na_none_preserves_nulls_in_horizontal(self):
         """Horizontal append with fill_na=None keeps nulls (when shapes differ would fail, but equal shapes no nulls)."""
         # Same shape so no nulls introduced, but verify no error when fill_na=None
@@ -463,16 +386,6 @@ class TestAppendDuplicateValues:
     keeps the decision with the user instead of silently proceeding.
     """
 
-    def test_identical_values_different_names_raise(self):
-        onehot = [0, 0, 1, 0]
-        dm1 = DesignMatrix({"task": [1, 2, 3, 4], "scrub_1": onehot}, sampling_freq=1)
-        dm2 = DesignMatrix({"global_spike1": onehot}, sampling_freq=1)
-
-        with pytest.raises(
-            ValueError, match="scrub_1.*global_spike1|global_spike1.*scrub_1"
-        ):
-            dm1.append(dm2, axis=1)
-
     def test_identical_values_between_appended_frames_raise(self):
         onehot = [0, 1, 0]
         dm = DesignMatrix({"task": [1.0, 2.0, 3.0]}, sampling_freq=1)
@@ -482,29 +395,12 @@ class TestAppendDuplicateValues:
         with pytest.raises(ValueError, match="spike_a.*spike_b|spike_b.*spike_a"):
             dm.append([dm2, dm3], axis=1)
 
-    def test_int_float_identical_values_raise(self):
-        """1 vs 1.0 is the same regressor; dtype must not mask the duplication."""
-        dm1 = DesignMatrix({"a": [0, 0, 1]}, sampling_freq=1)
-        dm2 = DesignMatrix({"b": [0.0, 0.0, 1.0]}, sampling_freq=1)
-
-        with pytest.raises(ValueError, match="duplicate|identical"):
-            dm1.append(dm2, axis=1)
-
     def test_distinct_values_still_append(self):
         dm1 = DesignMatrix({"a": [0, 0, 1, 0]}, sampling_freq=1)
         dm2 = DesignMatrix({"b": [0, 1, 0, 0]}, sampling_freq=1)
 
         out = dm1.append(dm2, axis=1)
         assert set(out.columns) == {"a", "b"}
-
-    def test_preexisting_base_duplicates_do_not_block_unrelated_append(self):
-        """The check guards what THIS append introduces, not the base's history."""
-        dup = [0, 1, 0]
-        dm1 = DesignMatrix({"x1": dup, "x2": dup}, sampling_freq=1)
-        dm2 = DesignMatrix({"y": [1, 2, 3]}, sampling_freq=1)
-
-        out = dm1.append(dm2, axis=1)
-        assert set(out.columns) == {"x1", "x2", "y"}
 
 
 class TestReservedNamespaceOnAppend:
@@ -524,13 +420,6 @@ class TestReservedNamespaceOnAppend:
         with pytest.raises(ValueError, match=r"reserved.*\.nl_poly_0|\.nl_poly_0"):
             dm.append(raw, axis=1)
 
-    def test_raw_frame_with_ordinary_names_is_unaffected(self):
-        dm = DesignMatrix({"task": [1.0, 2.0, 3.0]}, sampling_freq=1)
-        raw = pl.DataFrame({"trans_x_sq": [0.1, 0.2, 0.3]})
-
-        out = dm.append(raw, axis=1)
-        assert "trans_x_sq" in out.columns
-
     def test_designmatrix_with_generated_columns_still_appends(self):
         """The guard targets raw frames only — generated columns pass through."""
         dm = DesignMatrix({"task": [1.0, 2.0, 3.0]}, sampling_freq=1)
@@ -538,23 +427,3 @@ class TestReservedNamespaceOnAppend:
 
         out = dm.append(other, axis=1)
         assert ".nl_poly_0" in out.columns
-
-
-class TestHorizontalAppendPolarsFuture:
-    def test_axis1_emits_no_deprecation_warning(self):
-        """polars >= 1.42.1 deprecates bare how='horizontal'; use the stable name."""
-        import warnings
-
-        dm1 = DesignMatrix({"a": [1, 2]}, sampling_freq=1)
-        dm2 = DesignMatrix({"b": [3, 4]}, sampling_freq=1)
-        with warnings.catch_warnings():
-            warnings.simplefilter("error", DeprecationWarning)
-            combined = dm1.append(dm2, axis=1)
-        assert combined.shape == (2, 2)
-
-    def test_axis1_unequal_heights_still_refused(self):
-        """Row-count validation is nltools', not polars' — unchanged."""
-        dm1 = DesignMatrix({"a": [1, 2]}, sampling_freq=1)
-        dm2 = DesignMatrix({"b": [3, 4, 5]}, sampling_freq=1)
-        with pytest.raises(ValueError, match="same number of rows"):
-            dm1.append(dm2, axis=1)

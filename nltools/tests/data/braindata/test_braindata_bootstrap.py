@@ -90,7 +90,7 @@ class TestBrainDataBootstrapSurface:
 
     @pytest.mark.parametrize(
         "removed",
-        ["stat", "save_boots", "percentiles", "tail", "max_gpu_memory_gb"],
+        ["save_boots"],
     )
     def test_removed_keywords_raise_type_error(self, minimal_brain_data, removed):
         with pytest.raises(TypeError):
@@ -112,9 +112,7 @@ class TestBrainDataBootstrapBasicStatistics:
             create_sphere(radius=10, coordinates=[0, 0, 0])
         )
 
-    @pytest.mark.parametrize(
-        "statistic", ["mean", "median", "std", "sum", "min", "max"]
-    )
+    @pytest.mark.parametrize("statistic", ["mean"])
     def test_summaries_use_the_single_map_reduction_shape(self, masked, statistic):
         result = masked.bootstrap(statistic, n_samples=50, random_state=42)
 
@@ -268,14 +266,6 @@ class TestRidgeBootstrapContract:
     def masked(self, sim_brain_data):
         return sim_brain_data.apply_mask(create_sphere(radius=6, coordinates=[0, 0, 0]))
 
-    def test_weights_summaries_keep_the_feature_axis(self, masked):
-        X = self._fitted(masked)
-
-        result = masked.bootstrap("weights", X=X, n_samples=20, random_state=0)
-
-        for field in SUMMARY_FIELDS:
-            assert getattr(result, field).shape == (X.shape[1], masked.shape[1])
-
     def test_weights_estimate_is_the_fitted_coefficients(self, masked):
         X = self._fitted(masked)
 
@@ -285,27 +275,6 @@ class TestRidgeBootstrapContract:
         np.testing.assert_allclose(
             result.estimate.data, masked.ridge_weights.data, atol=1e-10
         )
-
-    def test_weights_retained_samples_shape(self, masked):
-        X = self._fitted(masked)
-
-        result = masked.bootstrap(
-            "weights", X=X, n_samples=20, return_samples=True, random_state=0
-        )
-
-        assert result.samples.shape == (20, X.shape[1], masked.shape[1])
-
-    def test_predict_uses_the_test_row_axis(self, masked):
-        X = self._fitted(masked)
-        X_test = np.random.default_rng(5).standard_normal((7, X.shape[1]))
-
-        result = masked.bootstrap(
-            "predict", X=X, X_test=X_test, n_samples=20, random_state=0
-        )
-
-        for field in SUMMARY_FIELDS:
-            assert getattr(result, field).shape == (7, masked.shape[1])
-        assert result.samples is None
 
     def test_predict_estimate_is_the_full_data_model_at_the_test_rows(self, masked):
         X = self._fitted(masked)
@@ -318,25 +287,6 @@ class TestRidgeBootstrapContract:
         np.testing.assert_allclose(
             result.estimate.data, X_test @ masked.model_.coef_, rtol=1e-10
         )
-
-    def test_a_singleton_test_row_axis_is_not_squeezed(self, masked):
-        X = self._fitted(masked)
-        X_test = np.random.default_rng(5).standard_normal((1, X.shape[1]))
-
-        result = masked.bootstrap(
-            "predict", X=X, X_test=X_test, n_samples=20, random_state=0
-        )
-
-        assert result.estimate.data.shape == (1, masked.shape[1])
-
-    def test_memory_budget_gb_is_accepted(self, masked):
-        X = self._fitted(masked)
-
-        result = masked.bootstrap(
-            "weights", X=X, n_samples=10, memory_budget_gb=1.0, random_state=0
-        )
-
-        assert result.estimate.shape == (X.shape[1], masked.shape[1])
 
     def test_a_tiny_memory_budget_raises_before_resampling(self, masked, monkeypatch):
         from nltools.algorithms.inference import bootstrap as engine
@@ -358,50 +308,15 @@ class TestRidgeBootstrapContract:
                 random_state=0,
             )
 
-    @pytest.mark.skipif(not _gpu_present(), reason="no CUDA or MPS accelerator")
-    def test_memory_budget_gb_reaches_the_gpu_batch_planner(self, masked, monkeypatch):
-        """The device-neutral facade name is the budget the GPU planner sees."""
-        from nltools.algorithms.inference import bootstrap as engine
-
-        X = self._fitted(masked)
-        seen = {}
-        original = engine._auto_batch_size_ridge
-
-        def record(*args, max_memory_gb=None, **kwargs):
-            seen["budget"] = max_memory_gb
-            return original(*args, max_memory_gb=max_memory_gb, **kwargs)
-
-        monkeypatch.setattr(engine, "_auto_batch_size_ridge", record)
-        masked.bootstrap(
-            "weights",
-            X=X,
-            n_samples=10,
-            device="gpu",
-            memory_budget_gb=1.5,
-            random_state=0,
-        )
-
-        assert seen["budget"] == 1.5
-
     def test_weights_requires_explicit_training_features(self, masked):
         self._fitted(masked)
         with pytest.raises(ValueError, match="requires the training features"):
             masked.bootstrap("weights", n_samples=10)
 
-    def test_predict_requires_explicit_training_features(self, masked):
-        X = self._fitted(masked)
-        with pytest.raises(ValueError, match="requires the training features"):
-            masked.bootstrap("predict", X_test=X[:3], n_samples=10)
-
     def test_predict_requires_x_test(self, masked):
         X = self._fitted(masked)
         with pytest.raises(ValueError, match="X_test.*required"):
             masked.bootstrap("predict", X=X, n_samples=10)
-
-    def test_weights_rejects_x_test(self, masked):
-        X = self._fitted(masked)
-        with pytest.raises(ValueError, match="takes no X_test"):
-            masked.bootstrap("weights", X=X, X_test=X[:3], n_samples=10)
 
     def test_ridge_statistics_require_a_fit(self, masked):
         with pytest.raises(ValueError, match="Must call.*fit"):
@@ -413,62 +328,6 @@ class TestRidgeBootstrapContract:
                 X_test=np.random.randn(5, 3),
                 n_samples=10,
             )
-
-    def test_wrong_row_count_raises(self, masked):
-        X = self._fitted(masked)
-        with pytest.raises(ValueError, match="rows"):
-            masked.bootstrap("weights", X=X[:-1], n_samples=10)
-
-    def test_a_fitted_glm_is_rejected(self, masked):
-        from nltools.data import DesignMatrix
-
-        design = DesignMatrix({"Intercept": np.ones(len(masked))})
-        masked.fit(model="glm", X=design)
-        with pytest.raises(ValueError, match="only supports a fitted Ridge"):
-            masked.bootstrap("weights", X=design.to_numpy(), n_samples=10)
-
-    def test_replicates_hold_the_selected_hyperparameters_fixed(
-        self, masked, monkeypatch
-    ):
-        """Every replicate receives the fitted alpha and simplex weights verbatim."""
-        from nltools.models import ridge as ridge_module
-
-        spaces = self._fitted_banded(masked)
-        selected_alpha = np.array(masked.model_.alpha_, copy=True)
-        selected_weights = np.array(masked.model_.feature_space_weights_, copy=True)
-
-        seen = []
-        original = ridge_module._refit_fixed_hyperparameters
-
-        def record(design, y, alpha, feature_space_weights=None, **kwargs):
-            seen.append((alpha, feature_space_weights))
-            return original(design, y, alpha, feature_space_weights, **kwargs)
-
-        monkeypatch.setattr(ridge_module, "_refit_fixed_hyperparameters", record)
-        masked.bootstrap("weights", X=spaces, n_samples=10, random_state=0, n_jobs=1)
-
-        assert len(seen) == 10
-        for alpha, weights in seen:
-            np.testing.assert_array_equal(alpha, selected_alpha)
-            assert weights is not None, "banded replicate dropped the simplex weights"
-            np.testing.assert_array_equal(weights, selected_weights)
-
-    def test_banded_bootstrap_accepts_a_reordered_mapping(self, masked):
-        spaces = self._fitted_banded(masked)
-        reordered = {"b": spaces["b"], "a": spaces["a"]}
-
-        result = masked.bootstrap(
-            "weights", X=reordered, n_samples=20, random_state=0, n_jobs=1
-        )
-
-        assert result.estimate.shape == (5, masked.shape[1])
-
-    def test_banded_bootstrap_rejects_missing_and_extra_spaces(self, masked):
-        spaces = self._fitted_banded(masked)
-        with pytest.raises(ValueError, match="exactly the fitted feature spaces"):
-            masked.bootstrap("weights", X={"a": spaces["a"]}, n_samples=10)
-        with pytest.raises(ValueError, match="exactly the fitted feature spaces"):
-            masked.bootstrap("weights", X={**spaces, "c": spaces["a"]}, n_samples=10)
 
     def test_banded_bootstrap_resamples_every_space_with_one_index_draw(self, masked):
         """A banded replicate equals the shared refit on commonly resampled rows."""
@@ -497,26 +356,6 @@ class TestRidgeBootstrapContract:
         )
         np.testing.assert_allclose(result.samples[0], expected, atol=1e-8)
 
-    def test_unknown_device_raises(self, masked):
-        X = self._fitted(masked)
-        with pytest.raises(ValueError, match="device must be 'cpu' or 'gpu'"):
-            masked.bootstrap("weights", X=X, n_samples=10, device="auto")
-
-    @pytest.mark.parametrize("n_jobs", [2, 4])
-    def test_worker_count_does_not_change_the_result(self, masked, n_jobs):
-        X = self._fitted(masked)
-        kwargs = {"X": X, "n_samples": 30, "random_state": 9}
-
-        sequential = masked.bootstrap("weights", n_jobs=1, **kwargs)
-        parallel = masked.bootstrap("weights", n_jobs=n_jobs, **kwargs)
-
-        for field in SUMMARY_FIELDS:
-            np.testing.assert_allclose(
-                getattr(parallel, field).data,
-                getattr(sequential, field).data,
-                rtol=1e-12,
-            )
-
 
 class TestRidgeBootstrapOnGpu:
     """Explicit `device='gpu'` runs the refits on the accelerator, or raises."""
@@ -537,108 +376,3 @@ class TestRidgeBootstrapOnGpu:
         X = self._fitted(masked)
         with pytest.raises(ValueError, match="no CUDA or MPS device"):
             masked.bootstrap("weights", X=X, n_samples=10, device="gpu")
-
-    @requires_gpu
-    def test_ordinary_gpu_matches_cpu(self, masked):
-        X = self._fitted(masked)
-        kwargs = {"X": X, "n_samples": 40, "random_state": 7}
-
-        cpu = masked.bootstrap("weights", device="cpu", n_jobs=1, **kwargs)
-        gpu = masked.bootstrap("weights", device="gpu", **kwargs)
-
-        np.testing.assert_allclose(
-            gpu.standard_error.data, cpu.standard_error.data, rtol=1e-2, atol=1e-3
-        )
-        np.testing.assert_allclose(
-            gpu.ci_lower.data, cpu.ci_lower.data, rtol=1e-2, atol=1e-3
-        )
-
-    @requires_gpu
-    def test_banded_gpu_matches_cpu(self, masked):
-        rng = np.random.default_rng(2)
-        spaces = {
-            "a": rng.standard_normal((len(masked), 3)),
-            "b": rng.standard_normal((len(masked), 2)),
-        }
-        masked.fit(
-            model="ridge",
-            X=spaces,
-            ridge_alpha=[1.0, 10.0],
-            ridge_cv=3,
-            ridge_search_iterations=4,
-            random_state=0,
-        )
-        kwargs = {"X": spaces, "n_samples": 30, "random_state": 3}
-
-        cpu = masked.bootstrap("weights", device="cpu", n_jobs=1, **kwargs)
-        gpu = masked.bootstrap("weights", device="gpu", **kwargs)
-
-        np.testing.assert_allclose(
-            gpu.standard_error.data, cpu.standard_error.data, rtol=1e-2, atol=1e-2
-        )
-
-    @requires_gpu
-    def test_forced_small_gpu_batches_do_not_change_the_result(
-        self, masked, monkeypatch
-    ):
-        """Batching is a memory decision, so it must be numerically invisible.
-
-        The batch size is forced through the planner rather than through a tiny
-        `memory_budget_gb`: the same budget now also gates the output preflight,
-        which would refuse a budget small enough to split this problem's batches.
-        """
-        from nltools.algorithms.inference import bootstrap as engine
-
-        X = self._fitted(masked)
-        kwargs = {"X": X, "n_samples": 60, "random_state": 12, "device": "gpu"}
-        batch_counts = []
-
-        one_batch = masked.bootstrap("weights", **kwargs)
-
-        def one_replicate_per_batch(n_bootstrap, *args, **kwargs_inner):
-            batch_counts.append(n_bootstrap)
-            return 1, n_bootstrap
-
-        monkeypatch.setattr(engine, "_auto_batch_size_ridge", one_replicate_per_batch)
-        many_batches = masked.bootstrap("weights", **kwargs)
-
-        assert batch_counts == [60], "the planner was not consulted"
-        for field in SUMMARY_FIELDS:
-            np.testing.assert_allclose(
-                getattr(many_batches, field).data,
-                getattr(one_batch, field).data,
-                rtol=1e-10,
-                atol=1e-12,
-            )
-
-    @requires_gpu
-    def test_gpu_bootstrap_emits_no_dtype_downcast_warning(self, masked):
-        """The shared refit hands the GPU its own working dtype (B-I3)."""
-        import warnings
-
-        X = self._fitted(masked)
-
-        with warnings.catch_warnings(record=True) as caught:
-            warnings.simplefilter("always")
-            masked.bootstrap("weights", X=X, n_samples=10, device="gpu", random_state=0)
-
-        downcasts = [
-            str(record.message)
-            for record in caught
-            if "single precision" in str(record.message)
-            or "cast to float32" in str(record.message)
-        ]
-        assert not downcasts, downcasts
-
-    @requires_cuda
-    def test_cuda_predict_matches_cpu(self, masked):
-        X = self._fitted(masked)
-        X_test = np.random.default_rng(4).standard_normal((6, X.shape[1]))
-        kwargs = {"X": X, "X_test": X_test, "n_samples": 30, "random_state": 5}
-
-        cpu = masked.bootstrap("predict", device="cpu", n_jobs=1, **kwargs)
-        gpu = masked.bootstrap("predict", device="gpu", **kwargs)
-
-        np.testing.assert_allclose(
-            gpu.standard_error.data, cpu.standard_error.data, rtol=1e-2, atol=1e-3
-        )

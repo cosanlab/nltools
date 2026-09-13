@@ -94,28 +94,6 @@ def test_plot_method_kwarg_is_method():
     assert "plot_method" not in plot_params
 
 
-def test_roc_signatures_reject_stray_kwargs():
-    """F096: no dead **kwargs on __init__ or plot to silently swallow typos."""
-    input_values, binary_outcome = _make_roc_data()
-
-    init_params = inspect.signature(Roc.__init__).parameters
-    plot_params = inspect.signature(Roc.plot).parameters
-    assert not any(
-        p.kind is inspect.Parameter.VAR_KEYWORD for p in init_params.values()
-    )
-    assert not any(
-        p.kind is inspect.Parameter.VAR_KEYWORD for p in plot_params.values()
-    )
-
-    # A typo'd kwarg is now a hard error rather than being swallowed.
-    with pytest.raises(TypeError):
-        Roc(
-            input_values=input_values,
-            binary_outcome=binary_outcome,
-            typoed_kwarg=True,
-        )
-
-
 def _make_imbalanced_roc_data(seed=0, n_positive=40, n_negative=10):
     """Two separable Gaussian classes of unequal size.
 

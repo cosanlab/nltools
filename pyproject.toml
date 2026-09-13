@@ -240,8 +240,12 @@ help = "Test plotting"
 cmd = "pytest nltools/tests/plotting -n auto --maxprocesses=4 -x"
 
 [tool.poe.tasks.test-support]
-help = "Test support utilities"
-cmd = "pytest nltools/tests/support -n auto --maxprocesses=4 -x"
+help = "Test the designation guard and the shared utils"
+cmd = "pytest nltools/tests/support nltools/tests/utils -n auto --maxprocesses=4 -x"
+
+[tool.poe.tasks.test-datasets]
+help = "Test dataset fetchers, brainspace templates and atlases"
+cmd = "pytest nltools/tests/datasets nltools/tests/templates nltools/tests/data/atlases -n auto --maxprocesses=4 -x"
 
 # Leaves `.tutorial-cache/` alone: that holds the tutorials' joblib fits, which
 # `tutorials-clean-cache` (and `docs-build-fresh`) drop deliberately.
