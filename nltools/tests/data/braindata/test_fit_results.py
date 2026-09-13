@@ -4,6 +4,7 @@ from dataclasses import FrozenInstanceError
 
 import nibabel as nib
 import numpy as np
+import polars as pl
 import pytest
 
 from nltools.data import BrainData, DesignMatrix, FitResult
@@ -44,11 +45,23 @@ def test_fields_cannot_be_rebound(record):
         record.kind = "ridge"
 
 
-def test_record_owns_its_maps(maps):
-    """Mutating a map handed to the record never reaches the stored copy."""
-    record = FitResult(kind="glm", design=None, **maps)
-    maps["betas"].data[0, 0] = 1234.0
-    assert record.betas.data[0, 0] != 1234.0
+def test_the_producer_hands_over_owned_maps_and_design(minimal_brain_data):
+    """A fit's record shares no buffer with the data or the design it ran on."""
+    n = len(minimal_brain_data)
+    design = DesignMatrix({"intercept": np.ones(n), "cond": np.arange(n, dtype=float)})
+
+    minimal_brain_data.fit(model="glm", X=design)
+    fit = minimal_brain_data.model
+
+    assert not np.shares_memory(fit.predicted.data, minimal_brain_data.data)
+    assert not np.shares_memory(fit.residual.data, minimal_brain_data.data)
+    assert fit.design is not design
+
+    before = fit.predicted.data.copy()
+    minimal_brain_data.data[:] = -999.0
+    design.data.replace_column(0, pl.Series("intercept", np.zeros(n)))
+    np.testing.assert_array_equal(fit.predicted.data, before)
+    assert fit.design["intercept"].to_list() == [1.0] * n
 
 
 def test_repr_hides_the_estimator(record):

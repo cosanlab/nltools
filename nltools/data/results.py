@@ -300,11 +300,11 @@ class FitResult:
     the fitted object's mask, so `result.betas.plot()` works directly and
     `.data` gives the array.
 
-    Field bindings cannot be rebound and the record takes independent ownership
-    of every map and design it stores. The fitted estimator is the exception:
+    Field bindings cannot be rebound, and every map and design the record holds
+    is independently owned: the producer builds them, so they never alias the
+    fitted data or the caller's design. The fitted estimator is the exception:
     it is internal state the facade methods drive, not a payload to read, so it
-    is neither copied nor shown in the repr, and it is `None` on a record
-    restored from HDF5.
+    is not shown in the repr, and it is `None` on a record restored from HDF5.
 
     Attributes:
         kind (str): Which estimator produced the fit, `'glm'` or `'ridge'`.
@@ -343,19 +343,9 @@ class FitResult:
     alpha: BrainData | None = None
     cv: Any = None
     #: The fitted `_Glm` or `_Ridge` that `compute_contrasts`, `predict` and
-    #: `bootstrap` drive. Excluded from the ownership copy because it is not a
-    #: payload the user reads, and copying a device-backed ridge fit would
-    #: duplicate its solver state for nothing.
+    #: `bootstrap` drive. Not a payload the user reads, so it is held as the
+    #: facade's own object rather than copied.
     _estimator: Any = field(default=None, repr=False)
-
-    def __post_init__(self):
-        """Take independent ownership of every payload the record stores."""
-        for name in self.__dataclass_fields__:
-            if name == "_estimator":
-                continue
-            value = getattr(self, name)
-            if value is not None:
-                object.__setattr__(self, name, deepcopy(value))
 
     def write(self, directory, prefix=None) -> list:
         """Write the fit to `directory` as NIfTI maps, a design CSV and a sidecar.

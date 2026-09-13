@@ -8,6 +8,7 @@ two-sample t-tests, and the design-matrix diagnostics `fit` runs before a GLM.
 import dataclasses
 import warnings
 from collections.abc import Mapping
+from copy import deepcopy
 
 import numpy as np
 
@@ -347,6 +348,22 @@ def _fit_ridge(bd, X, model):
     bd.model = _ridge_fit_result(bd, X, model)
 
 
+def _owned_design(X):
+    """Copy the training design so the record never aliases the caller's input.
+
+    The maps `_result_from_array` builds are independently owned already; the
+    design comes straight from the caller, so this is the one payload the
+    producer has to detach.
+    """
+    from nltools.data.designmatrix import DesignMatrix
+
+    if isinstance(X, DesignMatrix):
+        return DesignMatrix(X)
+    if isinstance(X, Mapping):
+        return {name: np.array(space, copy=True) for name, space in X.items()}
+    return np.array(X, copy=True)
+
+
 def _ridge_fit_result(bd, X, model):
     """Build the `FitResult` a ridge fit leaves on `BrainData.model`.
 
@@ -369,9 +386,9 @@ def _ridge_fit_result(bd, X, model):
         r2=_result_from_array(
             bd, np.asarray(model.score(X, bd.data)).reshape(1, -1), rows="clear"
         ),
-        design=X,
+        design=_owned_design(X),
         alpha=_result_from_array(bd, alpha.reshape(1, -1), rows="clear"),
-        cv=model._resolved_cv(),
+        cv=deepcopy(model._resolved_cv()),
         _estimator=model,
     )
 
@@ -410,7 +427,7 @@ def _glm_fit_result(bd, X, model):
         predicted=_result_from_array(bd, np.asarray(model.predicted_), rows="preserve"),
         residual=_result_from_array(bd, np.asarray(model.residuals_), rows="preserve"),
         r2=_result_from_array(bd, np.asarray(model.r2_).reshape(1, -1), rows="clear"),
-        design=X,
+        design=_owned_design(X),
         _estimator=model,
     )
 
