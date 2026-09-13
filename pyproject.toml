@@ -251,6 +251,13 @@ cmd = "pytest nltools/tests/support nltools/tests/utils -n auto --maxprocesses=4
 help = "Test dataset fetchers, brainspace templates and atlases"
 cmd = "pytest nltools/tests/datasets nltools/tests/templates nltools/tests/data/atlases -n auto --maxprocesses=4 -x"
 
+# Deliberately outside `ok` and CI: it needs node, the network, and a couple of
+# minutes. Run it by hand when a dependency floor or the browser fetch path
+# changes.
+[tool.poe.tasks.test-pyodide]
+help = "Build the wheel and run the Pyodide/WASM smoke tests (requires node and network)"
+shell = "uv build --wheel && cd nltools/tests/pyodide && npm install --silent && node test_runner.mjs"
+
 # Leaves `.tutorial-cache/` alone: that holds the tutorials' joblib fits, which
 # `tutorials-clean-cache` (and `docs-build-fresh`) drop deliberately.
 [tool.poe.tasks.docs-clean]
