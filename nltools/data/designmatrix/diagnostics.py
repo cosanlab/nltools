@@ -224,7 +224,7 @@ def _clean(
                 r = np.abs(np.corrcoef(col_i_data, col_j_data)[0, 1])
 
             # Mark for removal if correlation exceeds threshold
-            if r >= thresh and col_i not in keep and col_i not in remove:
+            if r >= thresh:
                 if progress_bar:
                     print(
                         f"{col_i} and {col_j} correlated at {r:.2f} which is >= "
