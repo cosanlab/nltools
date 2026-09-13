@@ -7,16 +7,11 @@ and memory management utilities.
 
 import pytest
 import numpy as np
-import warnings
 import multiprocessing
 
-from nltools.algorithms.inference import _generate_sign_flips, _compute_pvalue
-from nltools.algorithms.inference.utils import (
-    _auto_n_jobs_cpu,
-    _verify_n_jobs_memory_constraint,
-    _auto_batch_size,
-    _estimate_data_size_mb,
-)
+from nltools.algorithms.inference.utils import _generate_sign_flips
+from nltools.algorithms.validation import _compute_pvalue
+from nltools.algorithms.backends import _auto_n_jobs_cpu, _estimate_data_size_mb
 
 
 class TestHelperFunctions:
@@ -177,177 +172,44 @@ class TestMemoryManagement:
         )
         assert n_jobs <= max_jobs
 
-    def test_verify_n_jobs_memory_constraint_allows_requested(self):
-        """Test that memory constraint allows requested n_jobs when memory permits."""
-        # Small data, plenty of memory
-        max_cpu = multiprocessing.cpu_count()
-        requested = min(4, max_cpu)  # Don't request more than CPU count
-        n_jobs = _verify_n_jobs_memory_constraint(
-            requested_n_jobs=requested,
-            data_size_mb=1.0,  # Small data
-            n_permute=1000,
-            max_memory_gb=8.0,  # Plenty of memory
-        )
-        assert n_jobs == requested  # Should use requested value (capped at CPU count)
+    def test_auto_n_jobs_cpu_caps_at_requested_workers(self):
+        """`max_jobs=` covers the old `_verify_n_jobs_memory_constraint` use.
 
-    def test_verify_n_jobs_memory_constraint_reduces_workers(self):
-        """Test that memory constraint reduces workers when memory is limited."""
-        # Large data, limited memory
-        with warnings.catch_warnings(record=True) as w:
-            warnings.simplefilter("always")
-            n_jobs = _verify_n_jobs_memory_constraint(
-                requested_n_jobs=8,
-                data_size_mb=100.0,  # Large data per worker
+        Capping an explicit request is `min(requested, cpu_count)` passed as
+        `max_jobs` — one home for the memory math (the deleted twin duplicated
+        it verbatim and had no production caller).
+        """
+        max_cpu = multiprocessing.cpu_count()
+        requested = min(4, max_cpu)
+        n_jobs = _auto_n_jobs_cpu(
+            data_size_mb=1.0,  # Small data, plenty of memory
+            n_permute=1000,
+            max_memory_gb=8.0,
+            max_jobs=min(requested, max_cpu),
+        )
+        assert n_jobs == requested
+
+    def test_auto_n_jobs_cpu_raises_when_one_worker_exceeds_budget(self):
+        """An explicit budget must fit the estimated working set of one worker."""
+        with pytest.raises(ValueError, match="one worker requires"):
+            _auto_n_jobs_cpu(
+                data_size_mb=10000.0,
                 n_permute=1000,
-                max_memory_gb=1.0,  # Very limited memory (1 GB)
+                max_memory_gb=0.01,
             )
 
-            # Should reduce workers
-            assert n_jobs < 8
-            assert n_jobs >= 1  # But never below min_jobs
-
-            # Should warn if reduction is significant (>20%)
-            if (8 - n_jobs) / 8 >= 0.2:
-                assert len(w) > 0
-                assert any(
-                    "exceeds memory limit" in str(warning.message) for warning in w
-                )
-
-    def test_verify_n_jobs_memory_constraint_respects_cpu_limit(self):
-        """Test that memory constraint respects CPU count limit."""
-        max_cpu = multiprocessing.cpu_count()
-        # Request more workers than CPU count
-        n_jobs = _verify_n_jobs_memory_constraint(
-            requested_n_jobs=max_cpu + 10,  # More than CPU count
-            data_size_mb=0.1,  # Small data
-            n_permute=1000,
-            max_memory_gb=8.0,  # Plenty of memory
-        )
-        # Should be capped at CPU count
-        assert n_jobs <= max_cpu
-
-    def test_verify_n_jobs_memory_constraint_min_jobs(self):
-        """Test that memory constraint never goes below min_jobs."""
-        # Even with very restrictive memory, should use at least min_jobs=1
-        n_jobs = _verify_n_jobs_memory_constraint(
-            requested_n_jobs=8,
-            data_size_mb=10000.0,  # Huge data per worker
-            n_permute=1000,
-            max_memory_gb=0.01,  # Extremely limited memory (10 MB)
-            min_jobs=1,
-        )
-        assert n_jobs >= 1  # Never below min_jobs
-
-    def test_auto_n_jobs_cpu_vs_verify_consistency(self):
-        """Test that auto-detection and verification use same logic."""
-        data_size_mb = 2.0
-        n_permute = 1000
-        max_memory_gb = 4.0
-
-        # Auto-detect optimal n_jobs
-        auto_n_jobs = _auto_n_jobs_cpu(
-            data_size_mb=data_size_mb,
-            n_permute=n_permute,
-            max_memory_gb=max_memory_gb,
-        )
-
-        # Verify with same parameters (should allow auto-detected value)
-        verified_n_jobs = _verify_n_jobs_memory_constraint(
-            requested_n_jobs=auto_n_jobs,
-            data_size_mb=data_size_mb,
-            n_permute=n_permute,
-            max_memory_gb=max_memory_gb,
-        )
-
-        # Should use same value (no reduction needed)
-        assert verified_n_jobs == auto_n_jobs
-
-    def test_verify_n_jobs_memory_constraint_no_warning_small_reduction(self):
-        """Test that small reductions don't trigger warnings."""
-        # Small reduction (<20% threshold)
-        with warnings.catch_warnings(record=True) as w:
-            warnings.simplefilter("always")
-            n_jobs = _verify_n_jobs_memory_constraint(
-                requested_n_jobs=5,
-                data_size_mb=50.0,  # Moderate data
-                n_permute=1000,
-                max_memory_gb=1.0,  # Limited memory
-                warn_threshold=0.2,  # 20% threshold
+    def test_auto_n_jobs_cpu_uses_decimal_gigabyte_budget(self):
+        """A 1 GB cap must not be widened to 1 GiB during worker sizing."""
+        with pytest.raises(ValueError, match="one worker requires"):
+            _auto_n_jobs_cpu(
+                data_size_mb=334.0,
+                n_permute=100,
+                max_memory_gb=1.0,
             )
-
-            # Should reduce but not warn if reduction < 20%
-            if (5 - n_jobs) / 5 < 0.2:
-                # No warnings should be raised
-                assert len(w) == 0 or not any(
-                    "exceeds memory limit" in str(warning.message) for warning in w
-                )
 
     # ========================================================================
     # GPU Memory Management Tests
     # ========================================================================
-
-    def test_auto_batch_size_small_problem(self):
-        """Test batch size calculation for small problems."""
-        # Small problem: All permutations fit in one batch
-        batch_size, n_batches = _auto_batch_size(
-            n_permute=1000,
-            n_samples=30,
-            n_features=1000,
-            max_memory_gb=4.0,
-        )
-        assert batch_size >= 100  # Minimum batch size
-        assert n_batches >= 1
-
-    def test_auto_batch_size_large_problem(self):
-        """Test batch size calculation for large problems."""
-        # Large problem: Need multiple batches
-        batch_size, n_batches = _auto_batch_size(
-            n_permute=10000,
-            n_samples=30,
-            n_features=50000,
-            max_memory_gb=4.0,
-        )
-        assert batch_size >= 100  # Minimum batch size
-        assert n_batches > 1  # Should need multiple batches
-
-    def test_auto_batch_size_memory_budget(self):
-        """Test that different memory budgets produce different batch sizes."""
-        # Smaller memory budget should produce smaller batches
-        batch_small, _ = _auto_batch_size(
-            n_permute=5000,
-            n_samples=30,
-            n_features=10000,
-            max_memory_gb=2.0,
-        )
-        batch_large, _ = _auto_batch_size(
-            n_permute=5000,
-            n_samples=30,
-            n_features=10000,
-            max_memory_gb=8.0,
-        )
-        assert batch_large >= batch_small  # More memory = larger batches
-
-    def test_auto_batch_size_minimum(self):
-        """Test that batch size never goes below minimum."""
-        # Even with very restrictive memory, should use minimum batch size
-        batch_size, n_batches = _auto_batch_size(
-            n_permute=5000,
-            n_samples=30,
-            n_features=100000,  # Huge features
-            max_memory_gb=0.01,  # Very small memory
-        )
-        assert batch_size >= 100  # Minimum batch size
-
-    def test_auto_batch_size_maximum(self):
-        """Test that batch size never exceeds n_permute."""
-        batch_size, n_batches = _auto_batch_size(
-            n_permute=1000,
-            n_samples=30,
-            n_features=100,
-            max_memory_gb=100.0,  # Huge memory budget
-        )
-        assert batch_size <= 1000  # Never exceeds n_permute
-        assert n_batches >= 1
 
     # ========================================================================
     # Data Size Estimation Tests
@@ -374,3 +236,11 @@ class TestMemoryManagement:
         data = np.array([])
         size_mb = _estimate_data_size_mb(data)
         assert size_mb == 0.0
+
+
+class TestMeasuredBudgetDefaults:
+    """max_memory_gb=None means: measure the machine, don't assume a fixed budget."""
+
+    def test_auto_n_jobs_cpu_measured_default(self):
+        n_jobs = _auto_n_jobs_cpu(1.0, 100, max_memory_gb=None)
+        assert n_jobs >= 1

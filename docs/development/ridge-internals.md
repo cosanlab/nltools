@@ -1,225 +1,279 @@
 ---
 title: Ridge internals
-description: The six mathematical tricks behind nltools' GPU-accelerated ridge solver, and its backend abstraction.
+description: How nltools.models.Ridge adapts the Himalaya solvers — argument translation, device and memory policy, and fitted-state normalization.
 ---
 
 # Ridge internals
 
-Efficient, GPU-accelerated ridge regression for neuroimaging. Inspired by
-[Himalaya](https://github.com/gallantlab/himalaya) (Dupré la Tour et al., 2022), the
-implementation achieves large speedups on big problems through a handful of mathematical
-tricks and memory-efficient batching.
+`nltools.models.Ridge` is an adapter. All of the ridge numerics —
+decomposition, the cross-validation loss, alpha selection, the banded Dirichlet
+search, and coefficient refitting — come from
+[Himalaya](https://github.com/gallantlab/himalaya) (Dupré la Tour et al., 2022),
+pinned at `>=0.4.11,<0.5`. `nltools` owns everything around them: argument names
+and validation, named feature-space alignment, device and memory policy,
+fitted-state normalization, and bootstrap orchestration.
 
-This is design reference. For the public solver API (`solve_ridge_cv`,
-`solve_banded_ridge_cv`, `cross_val_predict_ridge`, and the legacy `ridge_svd`/`ridge_cv`),
-see the [Ridge API](../api/algorithms.md). Code lives in `nltools/algorithms/ridge/`
-(`core.py`, `solvers.py`, `utils.py`) with the backend in `nltools/algorithms/backends.py`.
+There is no `nltools.algorithms.ridge`. The in-house SVD solvers that lived
+there through 0.6.0 development were removed once Himalaya became a dependency;
+duplicating a tested numerical library was the wrong trade. The binding
+contract is [`specs/ridge.md`](specs/ridge.md); this page explains how the
+adapter meets it.
 
-## The six mathematical tricks
+Code: `nltools/models/ridge.py`, with the device and memory layer in
+`nltools/algorithms/backends.py`.
 
-### 1. SVD magic: solve once, use forever
+## What each side owns
 
-The textbook ridge formula inverts a matrix for *every* alpha:
+| Concern | Owner |
+|---|---|
+| SVD, resolution matrices, alpha and target batching | Himalaya |
+| Negative-MSE fold scores, conservative rule, tie-breaking | Himalaya |
+| Dirichlet search over feature-space weights | Himalaya |
+| Coefficient refitting at fixed hyperparameters | Himalaya (`solve_ridge_svd`) |
+| Public argument names, defaults, and validation | nltools |
+| Named feature spaces and prediction-time alignment | nltools |
+| Candidate-weight validation and the underflow floor | nltools |
+| Device resolution, memory budget, batch sizes | nltools (`backends.py`) |
+| Fitted-state shapes, dtypes, and CPU normalization | nltools |
 
-```python
-beta = (X.T @ X + alpha * I)^(-1) @ X.T @ y  # O(n³) per alpha
-```
+`nltools` must not copy Himalaya's solvers or restate its numerical tests. The
+parity tests in `nltools/tests/models/test_ridge.py` compare the adapter's
+output against direct Himalaya calls; they do not re-derive the math.
 
-The SVD approach decomposes `X` once, then reuses it for any alpha with arithmetic only:
+## Name translation
 
-```python
-# Do ONCE:
-U, s, Vt = svd(X)
+The public keywords are the nltools vocabulary; Himalaya's names stay internal.
 
-# For ANY alpha (reuse same SVD):
-shrinkage = s / (s**2 + alpha)          # just arithmetic, O(n)
-beta = Vt.T @ (shrinkage[:, None] * U.T @ y)   # no inversion
-```
+| `Ridge` keyword | Himalaya argument |
+|---|---|
+| `per_target_alpha` | `local_alpha` |
+| `prefer_conservative_alpha` | `conservative` |
+| `search_iterations` | `n_iter` |
+| `dirichlet_concentration` | `concentration` |
+| `memory_budget_gb` | derived `n_targets_batch`, `n_targets_batch_refit`, `n_alphas_batch` |
 
-Instead of solving the full system repeatedly, decompose `X` into principal directions
-once, then adjust how much you trust each direction (shrinkage) per alpha. Trying 1000
-alphas becomes trivial rather than impossible.
+The adapter always passes `fit_intercept=False` and
+`score_func=l2_neg_loss`. It exposes no scoring callback, no `solver_params`,
+and no manual batch sizes. The removed spellings (`alphas`, `n_iter`,
+`concentration`, `local_alpha`, `conservative`, `fit_intercept`, `backend`,
+`solver_params`, `max_gpu_memory_gb`) raise `TypeError`; nothing is aliased or
+translated for the caller.
 
-### 2. Generator pattern: process and forget
+## Which solver runs
 
-Storing a resolution matrix per alpha explodes memory (1000 alphas × 500 MB = 500 GB).
-`_decompose_ridge` is a **generator** that computes one alpha batch, yields it, and frees
-it before the next:
+| `X` | `alpha` | `cv` | Himalaya entry point |
+|---|---|---|---|
+| 2-D array | scalar | `None` | `solve_ridge_svd` |
+| 2-D array | sequence | int or splitter | `solve_ridge_cv_svd` |
+| name → 2-D mapping | sequence | int or splitter | `solve_group_ridge_random_search` |
 
-```python
-def _decompose_ridge(Xtrain, alphas, n_alphas_batch=None, method="svd", backend=None):
-    U, s, Vt = svd(Xtrain)                 # once
-    for batch in batches(alphas, n_alphas_batch):
-        matrices = compute_batch(U, s, Vt, batch)
-        yield matrices, batch
-        del matrices                       # freed before next iteration
-```
+`search_iterations` and `dirichlet_concentration` are the banded-only
+arguments: a non-default value of either raises during an ordinary fit rather
+than becoming a silent no-op. `random_state` is not one of them — ordinary Ridge
+accepts and ignores it, because `BrainData.fit` forwards a single unprefixed
+`random_state` to whichever estimator it builds.
 
-Only one batch lives in RAM at a time. The generator is composable — it nests inside the
-target-batch loop for two-dimensional batching. (The default is process-all-alphas in
-one batch; set `n_alphas_batch` to bound memory for very large grids.)
+A scalar `alpha` with a `cv`, a sequence without one, `alpha="auto"`, and a
+scalar alpha for a banded fit are all rejected before any decomposition. `cv`
+as an integer becomes an unshuffled `KFold`; a single-use split generator is
+rejected because fitting traverses the splits more than once.
 
-### 3. Two-dimensional batching: divide and conquer
+## Banded search: what nltools does before Himalaya
 
-A realistic problem — 100 samples × 300k voxels × 10 alphas × 5 folds — is ~60 GB naive,
-far past an 8 GB GPU. Batching over **both** targets (voxels) and alphas keeps each chunk
-small:
-
-```python
-for target_batch in range(0, 300_000, 5_000):   # 5k voxels at a time
-    for matrices, alpha_batch in _decompose_ridge(...):  # 10 alphas at a time
-        # 100 samples × 5k voxels × 10 alphas ≈ 200 MB
-        ...
-```
-
-Target batching handles massive output spaces; alpha batching handles large
-hyperparameter grids. Together they run problems far larger than GPU RAM.
-
-### 4. `Y_in_cpu` strategy: smart shuttle
-
-Pre-loading all of `Y` to the GPU (300k voxels) OOMs once multiplied by folds and alphas.
-With `Y_in_cpu=True` (the default), `Y` stays in RAM and only the current target batch is
-shuttled to the device:
-
-```python
-Y = keep_on_cpu(Y)
-for batch in target_batches:
-    Y_batch = to_gpu(Y[:, batch])   # only 5k voxels on device
-    compute(Y_batch)
-    del Y_batch
-```
-
-~10% slower, but prevents OOM entirely and enables problems many times larger than GPU
-RAM. `max_gpu_memory_gb` feeds an auto target-batch sizer (`_auto_n_targets_batch`,
-with a 5× overhead factor on GPU) that picks `n_targets_batch` when it's unset.
-
-### 5. Per-target alpha without extra cost
-
-Per-voxel alpha selection sounds like one SVD per voxel (100k SVDs). In fact you only
-need one SVD per *unique* selected alpha (typically ~10):
+Himalaya's `n_iter` accepts an explicit `(n_iter, n_spaces)` array of candidate
+feature-space weights instead of an integer count. The adapter uses that
+opening: it draws the candidates with Himalaya's own
+`generate_dirichlet_samples`, then validates and conditions them before they
+reach the solver.
 
 ```python
-unique_alphas = np.unique(best_alphas)     # e.g. [0.1, 1.0, 10.0]
-for alpha in unique_alphas:                # ~10 iterations, not 100k
-    mask = best_alphas == alpha
-    weights[:, mask] = solve_ridge(X, Y[:, mask], alpha)
+with _scoped_himalaya_backend("numpy"):        # not the ambient backend
+    candidates = generate_dirichlet_samples(
+        n_samples=search_iterations, n_kernels=n_spaces,
+        concentration=dirichlet_concentration, random_state=random_state,
+    )
+candidates = _prepare_feature_space_weights(candidates, dtype)  # nltools
+deltas, weights, cv_scores = solve_group_ridge_random_search(
+    Xs, Y, n_iter=candidates, ..., return_weights=True,
+)
 ```
 
-Per-voxel optimization at bulk-solve cost — like sorting mail by zip code before
-delivery.
+The sampler ends with `get_backend().asarray(gammas)`, so drawn candidates
+otherwise inherit the dtype and device of whatever backend happened to be
+globally active — a `device="cpu"` fit would stop being reproducible because
+unrelated code left the global backend on MPS. The candidates are validated and
+clamped on the host anyway, so they are drawn under an explicit `numpy` scope.
 
-### 6. Resolution-matrix precomputation
+`_prepare_feature_space_weights` copies the candidates, requires every weight
+to be finite and strictly positive and every row to sum to one, converts to the
+feature dtype, and only then raises weights below `np.finfo(dtype).tiny` to
+`tiny`. That floor is a numerical boundary, not a validation relaxation: the
+random search scales each space by `sqrt(gamma)` and divides the same buffer
+back afterwards, and on a float32 device a subnormal weight destroys the buffer
+on the way back. A zero or negative weight is still an error. Upstream
+[gallantlab/himalaya#107](https://github.com/gallantlab/himalaya/pull/107)
+proposes the same clamp inside the solver; applying it on the nltools side of
+the call makes a fork unnecessary.
 
-Separate the X-dependent (expensive) piece from the Y-dependent (cheap) piece:
+The caller's arrays are never modified. Candidate preparation copies, and
+Himalaya concatenates the feature spaces into a fresh buffer before scaling it.
+
+## Recovering the fitted state
+
+Himalaya reports the banded solution as `deltas = log(gamma / alpha)`, where
+each `gamma` column sums to one. `deltas_` is not public state, so the adapter
+converts it back to the two quantities the spec names, in float64 and by way of
+a log-sum-exp so a float32 device cannot underflow the small weights:
 
 ```python
-# matrices = Vt.T @ diag(s / (s² + α)) @ U.T  ==  (XᵀX + αI)⁻¹ Xᵀ
-pred_matrix = X_val @ matrices              # depends only on X
-predictions = pred_matrix @ Y_train_batch   # cheap; reuse across all targets
+shifted = deltas - deltas.max(axis=0, keepdims=True)
+feature_space_weights_ = exp(shifted) / exp(shifted).sum(axis=0, keepdims=True)
+alpha_ = exp(-(deltas.max(axis=0) + log(exp(shifted).sum(axis=0))))
 ```
 
-The expensive SVD is reused across all targets, and the computation vectorizes over
-alphas and targets simultaneously.
+The recovered `alpha_` is then snapped back onto the candidate grid by nearest
+log-distance. The log/exp round trip drifts by a few ULPs on float32, and the
+bootstrap and the fixed refit both need the exact alpha the search selected.
 
-### How it fits together
+`cv_scores_` is Himalaya's fold-averaged score at the selected alpha:
+`(n_targets,)` for ordinary fits and `(search_iterations, n_targets)` for
+banded ones, squeezed to a `float` or a 1-D array when `y` is one-dimensional.
+Every fitted array is normalized to CPU NumPy regardless of the device that
+produced it. There is no `intercept_` and no `deltas_`.
+
+## One fixed-hyperparameter refit
+
+`_refit_fixed_hyperparameters` is the package's only fixed-hyperparameter ridge
+solve. Ordinary fixed-alpha fitting, the equivalence checks for the banded
+refit, and every Ridge bootstrap resample — CPU or GPU, ordinary or banded —
+route through it, so a resample cannot drift numerically from the full-data
+fit.
+
+Bootstrap replicates differ only in which rows they draw, so the engines in
+`algorithms/inference/bootstrap.py` convert the design once into a
+`_ResidentDesign` — the concatenated feature spaces and the response, already
+on the backend in the working dtype — and each replicate passes its resample as
+`row_indices`. On a GPU that keeps the host-to-device copy out of the replicate
+loop; on the CPU it keeps the concatenation out of it. `_refit_resample` is the
+one replicate implementation: it applies the same indices to the design and the
+response and forwards the fitted `alpha_` and `feature_space_weights_`
+untouched. The GPU driver's batch loop exists only to bound how many replicates
+are retained before aggregation, and it uses the same
+`backends.ridge_bootstrap_batch_size` / `compute_oom_safe` machinery.
+
+`_working_dtype` is the single dtype rule both `Ridge.fit` and the shared refit
+use: `float32` on MPS, which is float32-only, otherwise the promoted input
+dtype with a `float32` floor. Applying it inside the refit is what keeps a
+bootstrap from handing float64 to the MPS backend and triggering its downcast
+warning on every replicate.
+
+Measured on an Apple M3 (`torch-mps`, 100 replicates, shared alpha):
+
+| Workload | Per-replicate transfer, float64 | Resident design, float32 |
+|---|---|---|
+| 120 obs x 40 feat → 4 000 voxels | 0.53 s | 0.50 s |
+| 200 obs x 60 feat → 20 000 voxels | 3.69 s | 3.36 s |
+
+The transfer is not the bottleneck at these shapes: profiling puts essentially
+all of the remaining time inside Himalaya's `solve_ridge_svd` (33 ms per
+replicate at 20 000 voxels, against 0.1 ms for the surrounding nltools code).
+The pre-0.6.0 hand-written GPU SVD did the same algebra in 3.6 ms, so Himalaya
+costs roughly 9x more per call here, and `torch-mps` is currently no faster than
+the `numpy` backend for this workload (3.36 s vs 3.04 s). Recovering that would
+mean re-implementing a solver, which this package does not do; the GPU path
+remains correct and is retained for CUDA hosts and larger designs.
+
+It accepts a scalar or per-target `alpha` and optional shared or per-target
+feature-space weights, promotes the inputs to a floating working dtype, scales
+space `k` by `sqrt(gamma[k])`, delegates the solve to `solve_ridge_svd`, and
+scales the coefficients back into the original feature coordinates. The dtype
+promotion is load-bearing rather than cosmetic: Himalaya solves in the dtype it
+is handed, so an integer design matrix — one-hot or binary event regressors, an
+ordinary thing in this domain — would truncate the shrinkage arithmetic and
+return all-zero coefficients with no error. That scaling is exactly the per-space penalty the spec
+defines:
+
+```text
+argmin_b ||X b - y||² + Σ_k (alpha / gamma[k]) ||b_k||²
+```
+
+Targets that selected the same weight vector share one decomposition. The
+grouping is an implementation detail and never changes the result — a test
+compares the grouped solve against one call per target. Weights shared by every
+target (the common case) short-circuit to a single group without sorting.
+
+The banded path does not double-refit: `solve_group_ridge_random_search` with
+`return_weights=True` already multiplies its primal weights by `sqrt(gamma)`,
+so `coef_` comes back in original coordinates.
+
+## Device and memory
+
+`device` accepts only `"cpu"` and `"gpu"`. There is no `"auto"` on this
+estimator. `resolve_backend` maps the request to an nltools `Backend`, which
+the adapter maps to a Himalaya backend:
+
+| `device` | `Backend.device` | Himalaya backend |
+|---|---|---|
+| `"cpu"` | `cpu` | `numpy` |
+| `"gpu"` | `cuda` | `torch_cuda` |
+| `"gpu"` | `mps` | `torch_mps` |
+
+An explicit `"gpu"` runs on an accelerator or raises; `resolve_backend` owns
+that rule, so the estimator cannot silently degrade to CPU. On MPS the fit runs
+in float32 — the backend supports nothing else — and Himalaya's documented
+hybrid path may execute individual unsupported operations on the host. That
+hybrid is by design, not a backend fallback.
+
+Himalaya's backend is a module-level global, so the adapter scopes it:
 
 ```python
-def solve_ridge_cv(X, Y, alphas, cv=5):
-    scores = zeros(n_splits, n_alphas, n_targets)
-    for fold in cv.split(X):
-        X_train, X_val = X[fold]
-        # Trick 1: single SVD per fold, reused across ALL alphas
-        for matrices, alpha_batch in _decompose_ridge(X_train, alphas):  # Trick 2 + 6
-            pred_matrix = X_val @ matrices
-            for target_batch in batches(n_targets, 5000):                # Trick 3
-                Y_batch = to_gpu(Y[:, target_batch])                     # Trick 4
-                predictions = pred_matrix @ Y_batch
-                scores[fold, alpha_batch, target_batch] = r2(Y_batch, predictions)
-                del Y_batch
-            del matrices, pred_matrix
-    best_alphas = argmax(scores.mean(axis=0), axis=0)                    # Trick 5
-    for alpha in np.unique(best_alphas):
-        mask = best_alphas == alpha
-        coefs[:, mask] = solve_ridge(X, Y[:, mask], alpha)
-    return {"best_alphas": best_alphas, "coefs": coefs, "cv_scores": scores, "backend": ...}
+with _scoped_himalaya_backend(name):   # restores the previous backend in finally
+    ...
 ```
 
-> **Return shape.** `solve_ridge_cv` returns a **dict** with keys `best_alphas`, `coefs`,
-> `cv_scores` (shaped `(n_splits, n_alphas, n_targets)`), and `backend` — not a tuple.
-> `solve_banded_ridge_cv` returns a dict keyed on `deltas`/`cv_scores`/`backend` (plus
-> optional `coefs`/`intercept`); there is no `best_alphas` key on the banded path.
+The previous backend is restored after success and after an exception alike, so
+a fit cannot leak its device into unrelated code.
+
+Batch sizes are derived, never passed by the user. `memory_budget_gb=None`
+measures the device through `backends.device_memory_budget`; an explicit
+positive value is the budget verbatim. Two sizing functions supply only the
+Himalaya-shaped working-set estimates and hand them to
+`backends.auto_batch_size`. `_batch_sizes` sizes a whole cross-validated or
+banded fit; `_refit_targets_batch` sizes the fixed-hyperparameter refit, whose
+dominant allocation depends on whether the targets share an alpha:
+
+| Function | Batch | Dominant allocation |
+|---|---|---|
+| `_batch_sizes` | `n_alphas_batch` | decomposition matrices, `(n_alphas_batch, n_features, n_samples)` |
+| `_batch_sizes` | `n_targets_batch` | fold predictions, `(n_alphas_batch, n_samples, n_targets_batch)` |
+| `_batch_sizes` | `n_targets_batch_refit` | refit weights, `(n_alphas_batch, n_features, n_targets_batch)` |
+| `_refit_targets_batch` | `per_target_alpha=True` | `solve_ridge_svd`'s `(n_targets_batch, n_samples, n_samples)` block |
+| `_refit_targets_batch` | `per_target_alpha=False` | one shared shrinkage operator, so `(n_samples + n_features)` per target |
+
+All budget arithmetic, the saturation ceiling, and OOM recovery live in
+`backends.py`. That is a hard invariant: an algorithm may estimate its own
+working set but must never compute a budget.
 
 ## Backend abstraction
 
-The backend is a single **`class Backend`** in `nltools/algorithms/backends.py` that
-dispatches internally on its `name`. It is *not* a set of per-backend modules, and there
-is no module-level `get_backend()`. Obtain one via `resolve_backend(parallel)` or by
-constructing `Backend(...)` directly:
+The nltools `Backend` in `nltools/algorithms/backends.py` remains the device
+abstraction for alignment and the bootstrap engines, and `Ridge.backend_` is
+the resolved instance (its `.name` reports `numpy`, `torch-cuda`, or
+`torch-mps`). Himalaya owns every decomposition on the ridge paths; `Backend` supplies the
+device, the array module, and the memory budget only.
 
-```python
-backend = resolve_backend("gpu")        # or Backend("torch"), Backend("numpy")
-X_dev = backend.asarray(X, device="cuda")
-U, s, Vt = backend.svd(X_dev)
-```
+`Backend` instances are picklable: `backend_` is public fitted state, so a
+fitted `Ridge` has to survive `copy.deepcopy`, `BrainData.copy()`, and
+process-based `n_jobs` workers. `__getstate__` drops the live array module and
+`__setstate__` recovers it from the pickled backend name.
 
-**Selection.** The algorithm-layer solvers (`ridge_svd`, `ridge_cv`, `solve_ridge_cv`,
-`cross_val_predict_ridge`) take `parallel: None | 'cpu' | 'gpu'`, translated to a
-concrete backend. `resolve_backend` also accepts explicit `"numpy"`, `"torch"`, `"auto"`.
-Resolved `.name` values are hyphenated: `numpy`, `torch-cpu`, `torch-cuda`, `torch-mps`.
-`"torch"` auto-detects and will pick CUDA/MPS if present — it is not CPU-only.
+`parallel=` stays an internal name in those subsystems. The public surface —
+`Ridge(device=...)`, `BrainData.fit(model='ridge', ridge_device=...)`,
+`BrainData.bootstrap(device=...)` — uses the canonical `device` keyword, and
+`scripts/check_api_vocabulary.py` enforces that against
+`docs/_data/api-vocabulary.yml`.
 
-> **Facade boundary (v0.6.0).** `parallel=` is an *internal* name. The public
-> surface — `Ridge(device=...)`, `BrainData.fit(model='ridge', device=...)`, and
-> `BrainData.bootstrap(device=...)` — exposes the canonical **`device: str = "cpu"`**
-> (`'cpu'` / `'gpu'` / `'auto'`) and translates to `parallel=` at the boundary
-> (`resolve_backend(device).device in ("cuda","mps") → 'gpu'`). No `backend=` or
-> `parallel=` kwarg reaches the public facade; the `.semgrep/rules.yml`
-> `banned-kwarg-device` rule enforces this. The fitted `Ridge.backend_` attribute
-> (the resolved `Backend`, whose `.name` reports e.g. `torch-cuda`) is a distinct,
-> retained concept.
-
-**Backends:**
-
-| Selector | Resolves to | Notes |
-|---|---|---|
-| `parallel=None` / `'cpu'` / `"numpy"` | `numpy` | CPU, always available |
-| `"torch"` | `torch-cuda` / `torch-mps` / `torch-cpu` | auto-detects best device |
-| `parallel='gpu'` | `torch-cuda` / `torch-mps` | requires a GPU |
-
-**MPS (Apple Metal)** is supported, including a precision workaround: SVD runs on CPU in
-float64 then moves back to the device, since MPS float32 SVD is inaccurate.
-
-### When to use the GPU
-
-| Scenario | `parallel=` | Rationale |
-|---|---|---|
-| < 10k voxels | `None`/`'cpu'` | CPU fast enough |
-| 10k–100k voxels | `'cpu'` (torch) | faster CPU implementation |
-| > 100k voxels | `'gpu'` | large speedup |
-| interactive / debugging | `None`/`'cpu'` | simpler |
-
-Rule of thumb: reach for the GPU above ~50k voxels, ~1k alphas, or when you need
-sub-minute runtime.
-
-## Banded ridge
-
-`solve_banded_ridge_cv` implements true banded/group ridge (Himalaya's
-`solve_group_ridge_random_search`): feature-group-specific regularization via `sqrt(gamma)`
-scaling, with the group weights `gamma` explored by Dirichlet random search.
-
-```python
-# Scale each feature space by sqrt(gamma_i) before a standard ridge, then unscale.
-X_scaled[:, group_i] *= sqrt(gamma[i])
-# ... solve ...
-weights[group_i] *= sqrt(gamma[i])
-```
-
-The first Dirichlet sample is forced to equal weights. Use case: multiple feature spaces
-with different characteristics (e.g. semantic vs visual features in voxelwise encoding
-models). The per-space log-ratio `deltas = log(gamma / alpha)` are returned rather than a
-single `best_alphas`.
-
-## Alpha grid selection
+## Alpha grids
 
 | Use case | Alpha range | Notes |
 |---|---|---|
@@ -227,34 +281,15 @@ single `best_alphas`.
 | Standard | `np.logspace(-2, 3, 10)` | publication quality |
 | Thorough | `np.logspace(-3, 4, 20)` | capture nuance |
 
-Use log-spaced alphas to cover a wide range efficiently.
-
-## Key design decisions
-
-- **Single SVD per fold** — mathematical equivalence (`shrinkage = s/(s²+α)` changes
-  alpha, not the SVD) turns a per-alpha decomposition into a one-time cost.
-- **`Y_in_cpu` default** — prevents OOM at ~10% runtime cost; override for small problems.
-- **Per-target alpha** — different voxels need different regularization, at the cost of
-  only `n_unique_alphas` SVDs.
-- **Generator pattern** — one batch in memory at a time, explicit `del` between yields,
-  composable across batching dimensions.
-- **Single-class backend** — one dispatch surface keeps NumPy / Torch (CUDA/MPS/CPU)
-  behind one API without per-backend module duplication.
-
-## Performance
-
-The speedups are large (order 50–100× on big problems: single SVD per fold ~10×, GPU an
-additional ~10–20×, with generator + batching enabling problems that don't fit in RAM at
-all). Concrete timings are hardware-dependent — benchmark on your own machine rather than
-relying on fixed numbers.
+Log-spaced alphas cover a wide range cheaply. Himalaya's tie-break adds a
+`1e-10 * log(alpha)` slope to the fold-averaged scores, so exactly tied
+candidates resolve to the larger alpha.
 
 ## References
 
-1. Hoerl & Kennard (1970). Ridge regression. *Technometrics* 12(1):55–67.
-2. Hastie et al. (2009). *The Elements of Statistical Learning* (2nd ed). Springer.
-3. Dupré la Tour et al. (2022). himalaya: Ridge regression with multiple solvers.
+1. Dupré la Tour et al. (2022). himalaya: Ridge regression with multiple solvers.
+2. Hoerl & Kennard (1970). Ridge regression. *Technometrics* 12(1):55–67.
+3. Hastie et al. (2009). *The Elements of Statistical Learning* (2nd ed). Springer.
 4. Nunez-Elizalde et al. (2019). Voxelwise encoding models with non-spherical priors.
    *Nature Neuroscience* 22:1060–1065.
 5. Naselaris et al. (2011). Encoding and decoding in fMRI. *NeuroImage* 56(2):400–410.
-6. Haxby et al. (2011). A common, high-dimensional model of ventral temporal cortex.
-   *Neuron* 72(2):404–416.

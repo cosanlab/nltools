@@ -1,12 +1,10 @@
 """nltools I/O utilities.
 
-HDF5 serialization for neuroimaging data types.
+`events_to_dm` turns a BIDS events table into boxcar regressors. HDF5
+serialization for the data classes lives in `nltools.io.h5`; users reach it
+through `BrainData.write`/`Adjacency.write` and the constructors.
 """
 
-from .h5 import is_h5_path, load_brain_data_h5, to_h5
+from .events import events_to_dm
 
-__all__ = [
-    "is_h5_path",
-    "load_brain_data_h5",
-    "to_h5",
-]
+__all__ = ["events_to_dm"]

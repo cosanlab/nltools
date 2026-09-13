@@ -1,19 +1,11 @@
 # /// script
-# requires-python = ">=3.12"
+# requires-python = ">=3.11"
 # dependencies = [
-#     # Only marimo + the emscripten HTTP shim load from this header. nltools and its whole
-#     # runtime stack are micropip-installed by the IN_WASM setup cell (UNPINNED, so Pyodide's
-#     # bundled builds win) — see that cell. Listing the stack here too makes marimo's header
-#     # auto-install redundantly pull unpinned latest scikit-learn/scipy/pandas/matplotlib,
-#     # which drag in `packaging>=26` (absent in Pyodide 0.27.7) and error out.
 #     "marimo",
-#     "pyodide-http; sys_platform == 'emscripten'",
+#     "nltools>=0.6.0",
 # ]
 # ///
-# Adjacency basics — runs entirely in the browser via marimo + Pyodide.
-# Source of truth for the docs tutorial; exported to WASM by
-# scripts/build_marimo_wasm.py. `nltools` is micropip-installed in the browser from a
-# build-hosted wheel URL by the IN_WASM setup cell below.
+# Adjacency basics — marimo notebook. Source of truth for the docs page; rendered to the docs page by scripts/marimo_to_zensical.py.
 
 import marimo
 
@@ -44,107 +36,13 @@ def _(mo):
 
         It supports two matrix types: `"similarity"` (higher = more similar) and
         `"distance"` (higher = more dissimilar).
-
-        /// admonition | Running live in your browser
-        This page **is** a running notebook — the cells below execute in a Pyodide kernel
-        inside the page. The first load boots the kernel and installs the scientific stack
-        plus a small example dataset (about a minute; cached afterwards).
-        ///
         """
     )
     return
 
 
-@app.cell(hide_code=True)
-def _():
-    import sys
-
-    IN_WASM = sys.platform == "emscripten"
-    return (IN_WASM,)
-
-
-@app.cell(hide_code=True)
-async def _(IN_WASM):
-    # In-browser only: install nltools + its full runtime stack before any nltools import
-    # runs, then hand `wasm_ready` to every nltools-importing cell to force ordering. We
-    # can't rely on marimo's PEP 723 header auto-install alone: it races cell execution and
-    # marimo never re-runs a cell that already failed with ModuleNotFoundError. Resolve the
-    # wheel against the shared worker origin.
-    wasm_ready = True
-    if IN_WASM:
-        import asyncio
-
-        import micropip
-        import js
-
-        async def _pip(reqs, **kw):
-            # Install packages ONE AT A TIME instead of a single concurrent
-            # micropip.install([...]) call. The big concurrent batch download
-            # occasionally returns a truncated wheel (BadZipFile); micropip then
-            # caches the corrupt bytes so an in-session retry keeps failing — and
-            # marimo never re-runs an errored cell, permanently bricking the
-            # page. Sequential installs keep peak download concurrency low and
-            # sidestep the corruption; a per-package retry still rides out
-            # ordinary network blips. (see nltools#455 investigation)
-            items = [reqs] if isinstance(reqs, str) else list(reqs)
-            for _item in items:
-                for _attempt in range(3):
-                    try:
-                        await micropip.install(_item, **kw)
-                        break
-                    except Exception:  # noqa: BLE001
-                        if _attempt == 2:
-                            raise
-                        await asyncio.sleep(0.75 * (_attempt + 1))
-
-        # Install the stack UNPINNED so micropip takes Pyodide's bundled builds (pinning to
-        # nltools' host versions, e.g. joblib>=1.5.3, fails against Pyodide's bundled
-        # joblib). nilearn is the exception: 0.14+ needs packaging>=26 (absent in Pyodide
-        # 0.27.7), so pin the last 0.13.x. numpy/scipy/pandas/sklearn/matplotlib come in
-        # transitively at their bundled versions.
-        await _pip(
-            [
-                "nibabel",
-                "nilearn==0.13.1",
-                "seaborn",
-                "polars",
-                "pynv",
-                "huggingface-hub",
-                "anywidget",
-            ]
-        )
-        # deps=False installs the wheel without re-checking nltools' own version pins.
-        await _pip(
-            js.location.origin + "__NLTOOLS_WHEEL_URL__", deps=False
-        )
-    return (wasm_ready,)
-
-
-@app.cell(hide_code=True)
-async def _(IN_WASM, wasm_ready):
-    # In-browser only: pre-seed the MNI templates + pain dataset into the IDBFS cache so
-    # the synchronous fetch_pain() below (used in the "From brain data" example) works.
-    # `seeded` is threaded into the data-loading cell so fetch_pain() waits for the cache.
-    _ = wasm_ready  # ensure the nltools wheel is installed first (WASM)
-    seeded = True
-    if IN_WASM:
-        from nltools.datasets import PAIN_RESOURCES
-        from nltools.templates import seed_resources
-
-        _ = await seed_resources(
-            [
-                "default/2mm-MNI152-2009fsl-mask.nii.gz",
-                "default/2mm-MNI152-2009fsl-brain.nii.gz",
-                "default/2mm-MNI152-2009fsl-T1.nii.gz",
-                *PAIN_RESOURCES,
-            ]
-        )
-    return (seeded,)
-
-
 @app.cell
-def _(wasm_ready):
-    _ = wasm_ready  # ensure the nltools wheel is installed first (WASM)
+def _():
     import numpy as np
     import matplotlib.pyplot as plt
 
@@ -194,8 +92,7 @@ def _(mo):
 
 
 @app.cell
-def _(seeded, wasm_ready):
-    _ = wasm_ready, seeded  # wheel installed + resources seeded first (WASM)
+def _():
     from nltools.datasets import fetch_pain
 
     data = fetch_pain()
@@ -258,8 +155,7 @@ def _(mo):
 @app.cell
 def _(adj, plt):
     adj.plot()
-    plt.gca().set_title("Random Similarity Matrix")
-    plt.gcf()
+    _ = plt.gca().set_title("Random Similarity Matrix")
     return
 
 
@@ -276,8 +172,7 @@ def _(Adjacency, n_nodes, plt, random_matrix):
         data=random_matrix, matrix_type="similarity", labels=_roi_names
     )
     adj_labeled.plot()
-    plt.gca().set_title("Labeled Matrix")
-    plt.gcf()
+    _ = plt.gca().set_title("Labeled Matrix")
     return
 
 
@@ -293,8 +188,7 @@ def _(mo):
 @app.cell
 def _(dist_matrix, plt):
     dist_matrix.plot_mds(n_components=2, figsize=(6, 5))
-    plt.gca().set_title("MDS of Image Distances")
-    plt.gcf()
+    _ = plt.gca().set_title("MDS of Image Distances")
     return
 
 
@@ -329,14 +223,13 @@ def _(adj, np):
 @app.cell
 def _(adj, binary, plt, thresh):
     _fig, _axes = plt.subplots(1, 3, figsize=(15, 4))
-    adj.plot(axes=_axes[0])
+    adj.plot(ax=_axes[0])
     _axes[0].set_title("Original")
-    thresh.plot(axes=_axes[1])
+    thresh.plot(ax=_axes[1])
     _axes[1].set_title("Thresholded (> 0.3)")
-    binary.plot(axes=_axes[2])
+    binary.plot(ax=_axes[2])
     _axes[2].set_title("Binarized")
     _fig.tight_layout()
-    _fig
     return
 
 
@@ -449,8 +342,12 @@ def _(Adjacency, np, plt):
     # Five ROI timeseries with a bit of correlation structure
     _rng = np.random.default_rng(0)
     _roi_ts = _rng.standard_normal((100, 5))
-    _roi_ts[:, 1] = _roi_ts[:, 0] + _rng.standard_normal(100) * 0.3  # ROI 0-1 correlated
-    _roi_ts[:, 4] = _roi_ts[:, 3] + _rng.standard_normal(100) * 0.3  # ROI 3-4 correlated
+    _roi_ts[:, 1] = (
+        _roi_ts[:, 0] + _rng.standard_normal(100) * 0.3
+    )  # ROI 0-1 correlated
+    _roi_ts[:, 4] = (
+        _roi_ts[:, 3] + _rng.standard_normal(100) * 0.3
+    )  # ROI 3-4 correlated
 
     _fc_matrix = np.corrcoef(_roi_ts.T)
     np.fill_diagonal(_fc_matrix, 0)
@@ -458,8 +355,7 @@ def _(Adjacency, np, plt):
     _roi_labels = ["DLPFC_L", "DLPFC_R", "ACC", "Insula_L", "Insula_R"]
     fc = Adjacency(_fc_matrix, matrix_type="similarity", labels=_roi_labels)
     fc.plot()
-    plt.gca().set_title("ROI-to-ROI Functional Connectivity")
-    plt.gcf()
+    _ = plt.gca().set_title("ROI-to-ROI Functional Connectivity")
     return
 
 
@@ -491,8 +387,7 @@ def _(Adjacency, np, plt):
     _labels = ["Face1", "Face2", "Face3", "Object1", "Object2", "Object3"]
     rsa = Adjacency(_rdm, matrix_type="distance", labels=_labels)
     rsa.plot()
-    plt.gca().set_title("Representational Dissimilarity Matrix")
-    plt.gcf()
+    _ = plt.gca().set_title("Representational Dissimilarity Matrix")
     return
 
 

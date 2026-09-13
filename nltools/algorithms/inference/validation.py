@@ -1,79 +1,20 @@
-"""Shared validation utilities for algorithms module.
+"""Shared input validation for the inference module.
 
-This module provides common validation functions to reduce code duplication
-and ensure consistent error handling across the algorithms module.
+One home for the argument checks the permutation, bootstrap, and matrix tests
+share, so every entry point raises the same `ValueError` for the same mistake.
+The `tail` vocabulary is wider than inference, so it lives one level up in
+`nltools.algorithms.validation`.
 
-Usage:
-    These functions are used throughout the algorithms module to validate
-    input parameters. They provide consistent error messages and behavior.
+Examples:
+    ```python
+    from nltools.algorithms.inference.validation import validate_square_matrix
 
-    Example:
-        >>> from nltools.algorithms.validation import validate_parallel_parameter
-        >>> validate_parallel_parameter("cpu")  # OK
-        >>> validate_parallel_parameter("invalid")  # Raises ValueError
+    validate_square_matrix(np.eye(3))  # → None
+    validate_square_matrix(np.zeros((2, 3)))  # raises ValueError
+    ```
 """
 
 import numpy as np
-
-
-def validate_parallel_parameter(parallel: str | None) -> None:
-    """Validate parallel parameter.
-
-    Args:
-        parallel: Parallel parameter value
-
-    Raises:
-        ValueError: If parallel is not None, 'cpu', or 'gpu'
-    """
-    if parallel is not None and parallel not in ["cpu", "gpu"]:
-        raise ValueError(f"parallel must be None, 'cpu', or 'gpu', got: {parallel!r}")
-
-
-def validate_parallel_parameter_matrix(parallel: str | None) -> None:
-    """Validate parallel parameter for matrix operations.
-
-    Args:
-        parallel: Parallel parameter value
-
-    Raises:
-        ValueError: If parallel is not None or 'cpu' (GPU not yet supported)
-    """
-    if parallel not in [None, "cpu"]:
-        raise ValueError(
-            f"parallel must be None or 'cpu', got {parallel!r}. "
-            "GPU support not yet implemented for matrix permutation tests."
-        )
-
-
-def validate_tail_parameter(tail: int | str) -> str:
-    """Validate and normalize tail parameter.
-
-    Args:
-        tail: Tail parameter value. Can be:
-            - 'two' or 2: Two-tailed test (|obs| > |null|)
-            - 'upper' or 1: One-tailed upper (obs > null, for testing positive effects)
-            - 'lower' or -1: One-tailed lower (obs < null, for testing negative effects)
-
-    Returns:
-        Normalized tail string: 'two', 'upper', or 'lower'
-
-    Raises:
-        ValueError: If tail is not a valid option
-
-    Notes:
-        For multiple comparisons correction (FDR, Bonferroni), use 'upper' or 'lower'
-        to ensure consistent direction across all tests. The old tail=1 behavior
-        (auto-detecting direction per test based on sign) can lead to incorrect
-        MCP-adjusted p-values. See GH #315.
-    """
-    # Normalize to string
-    if tail == 2 or tail == "two":
-        return "two"
-    if tail == 1 or tail == "upper":
-        return "upper"
-    if tail == -1 or tail == "lower":
-        return "lower"
-    raise ValueError(f"tail must be 'two', 'upper', 'lower' (or 2, 1, -1), got {tail}")
 
 
 def validate_array_shape(
@@ -84,12 +25,12 @@ def validate_array_shape(
     """Validate array dimensionality.
 
     Args:
-        array: Array to validate
-        expected_ndim: Expected number of dimensions
-        name: Name of array for error message
+        array (np.ndarray): Array to validate.
+        expected_ndim (int): Expected number of dimensions.
+        name (str): Name of the array for the error message.
 
     Raises:
-        ValueError: If array has wrong number of dimensions
+        ValueError: If the array has the wrong number of dimensions.
     """
     if array.ndim != expected_ndim:
         raise ValueError(
@@ -103,16 +44,16 @@ def validate_array_shape_range(
     max_ndim: int,
     name: str = "array",
 ) -> None:
-    """Validate array dimensionality is within a range.
+    """Validate that array dimensionality falls within a range.
 
     Args:
-        array: Array to validate
-        min_ndim: Minimum number of dimensions (inclusive)
-        max_ndim: Maximum number of dimensions (inclusive)
-        name: Name of array for error message
+        array (np.ndarray): Array to validate.
+        min_ndim (int): Minimum number of dimensions (inclusive).
+        max_ndim (int): Maximum number of dimensions (inclusive).
+        name (str): Name of the array for the error message.
 
     Raises:
-        ValueError: If array has wrong number of dimensions
+        ValueError: If the array has the wrong number of dimensions.
     """
     if not (min_ndim <= array.ndim <= max_ndim):
         raise ValueError(
@@ -127,16 +68,16 @@ def validate_same_shape(
     name1: str = "array1",
     name2: str = "array2",
 ) -> None:
-    """Validate two arrays have same shape.
+    """Validate that two arrays have the same shape.
 
     Args:
-        array1: First array
-        array2: Second array
-        name1: Name of first array for error message
-        name2: Name of second array for error message
+        array1 (np.ndarray): First array.
+        array2 (np.ndarray): Second array.
+        name1 (str): Name of the first array for the error message.
+        name2 (str): Name of the second array for the error message.
 
     Raises:
-        ValueError: If arrays have different shapes
+        ValueError: If the arrays have different shapes.
     """
     if array1.shape != array2.shape:
         raise ValueError(
@@ -150,15 +91,15 @@ def validate_metric_parameter(
     allowed: list[str],
     name: str = "metric",
 ) -> None:
-    """Validate metric parameter.
+    """Validate a metric name against an allowed list.
 
     Args:
-        metric: Metric parameter value
-        allowed: List of allowed metric values
-        name: Name of parameter for error message
+        metric (str): Metric name to validate.
+        allowed (list[str]): Allowed metric names.
+        name (str): Name of the parameter for the error message.
 
     Raises:
-        ValueError: If metric is not in allowed list
+        ValueError: If `metric` is not in `allowed`.
     """
     if metric not in allowed:
         allowed_str = ", ".join(f"'{m}'" for m in allowed)
@@ -166,56 +107,30 @@ def validate_metric_parameter(
 
 
 def validate_how_parameter(how: str) -> None:
-    """Validate 'how' parameter for matrix operations.
+    """Validate the `how` parameter for matrix operations.
 
     Args:
-        how: How parameter value
+        how (str): `'upper'`, `'lower'`, or `'full'`.
 
     Raises:
-        ValueError: If how is not 'upper', 'lower', or 'full'
+        ValueError: If `how` is not one of those values.
     """
     if how not in ["upper", "lower", "full"]:
         raise ValueError(f"how must be 'upper', 'lower', or 'full', got {how!r}")
 
 
 def validate_square_matrix(matrix: np.ndarray, name: str = "matrix") -> None:
-    """Validate matrix is square.
+    """Validate that a matrix is square.
 
     Args:
-        matrix: Matrix to validate
-        name: Name of matrix for error message
+        matrix (np.ndarray): Matrix to validate.
+        name (str): Name of the matrix for the error message.
 
     Raises:
-        ValueError: If matrix is not square
+        ValueError: If the matrix is not square.
     """
     if matrix.shape[0] != matrix.shape[1]:
         raise ValueError(f"{name} must be square, got shape {matrix.shape}")
-
-
-def validate_percentiles(percentiles: tuple[float, float]) -> None:
-    """Validate percentile values for confidence intervals.
-
-    Args:
-        percentiles: Percentile values (lower, upper)
-
-    Raises:
-        ValueError: If percentiles are invalid
-    """
-    if not isinstance(percentiles, (tuple, list)) or len(percentiles) != 2:
-        raise ValueError(f"percentiles must be a tuple of 2 values, got {percentiles}")
-
-    lower, upper = percentiles
-
-    if not (0 < lower < 50):
-        raise ValueError(f"Lower percentile must be between 0 and 50, got {lower}")
-
-    if not (50 < upper < 100):
-        raise ValueError(f"Upper percentile must be between 50 and 100, got {upper}")
-
-    if lower >= upper:
-        raise ValueError(
-            f"Lower percentile ({lower}) must be less than upper ({upper})"
-        )
 
 
 def validate_shape_compatibility(
@@ -224,16 +139,16 @@ def validate_shape_compatibility(
     X_name: str = "X",
     y_name: str = "y",
 ) -> None:
-    """Validate that X and y have compatible shapes for regression.
+    """Validate that X and y have the same number of samples.
 
     Args:
-        X: Feature matrix
-        y: Target vector or matrix
-        X_name: Name of X for error message
-        y_name: Name of y for error message
+        X (np.ndarray): Feature matrix.
+        y (np.ndarray): Target vector or matrix.
+        X_name (str): Name of X for the error message.
+        y_name (str): Name of y for the error message.
 
     Raises:
-        ValueError: If shapes are incompatible
+        ValueError: If the first dimensions differ.
     """
     if X.shape[0] != y.shape[0]:
         raise ValueError(
@@ -245,15 +160,15 @@ def validate_shape_compatibility(
 def validate_bootstrap_method(
     method: str, simple_methods: list[str], fitted_methods: list[str]
 ) -> None:
-    """Validate bootstrap method name.
+    """Validate a bootstrap method name.
 
     Args:
-        method: Method name to validate
-        simple_methods: List of simple method names
-        fitted_methods: List of fitted method names
+        method (str): Method name to validate.
+        simple_methods (list[str]): Methods that need no fitted model.
+        fitted_methods (list[str]): Methods that require a prior `.fit()`.
 
     Raises:
-        ValueError: If method is not supported
+        ValueError: If `method` is in neither list.
     """
     supported = simple_methods + fitted_methods
     if method not in supported:
@@ -269,11 +184,11 @@ def validate_bootstrap_data(data: np.ndarray, method: str) -> None:
     """Validate input data for bootstrapping.
 
     Args:
-        data: Data to validate
-        method: Bootstrap method
+        data (np.ndarray): 1D or 2D data with at least 2 samples along axis 0.
+        method (str): Bootstrap method name (reserved for method-specific checks).
 
     Raises:
-        ValueError: If data is invalid (wrong shape, too few samples, etc.)
+        ValueError: If the data is not 1D/2D or has fewer than 2 samples.
     """
     # Check dimensionality
     if data.ndim not in [1, 2]:
@@ -288,4 +203,80 @@ def validate_bootstrap_data(data: np.ndarray, method: str) -> None:
         raise ValueError(
             f"Need at least 2 samples for bootstrap, got {n_samples}. "
             f"Bootstrap requires resampling, which needs multiple samples."
+        )
+
+
+def validate_n_samples(n_samples: int) -> None:
+    """Reject a replicate count a bootstrap cannot be computed from.
+
+    Two replicates are the fewest a `ddof=1` standard error can be computed
+    from, so that is the hard floor. The separate quality advisory lives in
+    `_advise_on_n_samples`, in `nltools/algorithms/inference/bootstrap.py`.
+
+    Args:
+        n_samples (int): Number of bootstrap replicates.
+
+    Raises:
+        TypeError: If `n_samples` is not an integer.
+        ValueError: If `n_samples` is below 2.
+    """
+    if isinstance(n_samples, bool) or not isinstance(n_samples, (int, np.integer)):
+        raise TypeError(f"n_samples must be an integer, got {type(n_samples).__name__}")
+
+    if n_samples < 2:
+        raise ValueError(
+            f"n_samples must be at least 2, got {n_samples}. "
+            f"A bootstrap standard error needs at least two replicates. "
+            f"Recommended: n_samples >= 1000 for confidence intervals."
+        )
+
+
+def validate_confidence_level(confidence_level: float) -> None:
+    """Validate the interval confidence level.
+
+    Args:
+        confidence_level (float): Requested level.
+
+    Raises:
+        TypeError: If `confidence_level` is not a real number.
+        ValueError: If it is not finite and strictly between zero and one.
+    """
+    if isinstance(confidence_level, bool) or not isinstance(
+        confidence_level, (int, float, np.integer, np.floating)
+    ):
+        raise TypeError(
+            f"confidence_level must be a number, got {type(confidence_level).__name__}"
+        )
+    value = float(confidence_level)
+    if not np.isfinite(value) or not 0 < value < 1:
+        raise ValueError(
+            f"confidence_level must be finite and strictly between 0 and 1, got "
+            f"{confidence_level!r}. Use 0.95 for a 95% interval."
+        )
+
+
+def validate_memory_budget(memory_budget_gb: float | None) -> None:
+    """Validate an explicit working-memory budget.
+
+    Args:
+        memory_budget_gb (float | None): Budget in GB, or None to measure the
+            device.
+
+    Raises:
+        TypeError: If a supplied budget is not a real number.
+        ValueError: If a supplied budget is not finite and positive.
+    """
+    if memory_budget_gb is None:
+        return
+    if isinstance(memory_budget_gb, bool) or not isinstance(
+        memory_budget_gb, (int, float, np.integer, np.floating)
+    ):
+        raise TypeError(
+            f"memory_budget_gb must be a number or None, got "
+            f"{type(memory_budget_gb).__name__}"
+        )
+    value = float(memory_budget_gb)
+    if not np.isfinite(value) or value <= 0:
+        raise ValueError(
+            f"memory_budget_gb must be finite and positive, got {memory_budget_gb!r}."
         )

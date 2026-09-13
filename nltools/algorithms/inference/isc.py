@@ -1,28 +1,22 @@
-"""Intersubject Correlation (ISC) with GPU-Accelerated Permutation Testing.
+"""Intersubject correlation (ISC) with permutation and bootstrap inference.
 
-This module provides both leave-one-out (LOO) and pairwise ISC computation
-with efficient CPU-parallel and GPU-batched implementations. Follows the
-statistical methods from Chen et al. (2016) for correct bootstrap resampling
-of correlation matrices.
+Computes leave-one-out and pairwise ISC and tests it with the subject-wise
+bootstrap of Chen et al. (2016) or surrogate time series (circular shift,
+phase randomization), plus a two-group ISC difference test. Resamples run on
+joblib workers; `n_jobs` sets how many, and a given `random_state` gives the
+same result at any worker count. Pairwise correlations are stored in condensed
+(upper-triangle) form.
 
-Key Features:
-    - Two ISC modes: leave-one-out and pairwise (statistically different)
-    - GPU acceleration for voxel-wise computation (10-30× speedup)
-    - CPU-parallel bootstrap with joblib
-    - Correct subject-wise bootstrap (Chen et al. 2016)
-    - Memory-efficient condensed matrix storage
+Leave-one-out and pairwise ISC are monotonically related but statistically
+different: leave-one-out is O(n_subjects) and gives an unbiased subject-level
+estimate; pairwise captures the full correlation structure but is
+O(n_subjects²).
 
 References:
     Chen, G., Shin, Y. W., Taylor, P. A., Glen, D. R., Reynolds, R. C.,
     Israel, R. B., & Cox, R. W. (2016). Untangling the relatedness among
     correlations, part I: nonparametric approaches to inter-subject
     correlation analysis at the group level. NeuroImage, 142, 248-259.
-
-Notes:
-    Leave-one-out and pairwise ISC are monotonically correlated but
-    statistically different. LOO is computationally more efficient
-    and provides unbiased estimates. Pairwise captures full correlation
-    structure but is O(n²) in subjects.
 """
 
 import numpy as np
@@ -32,7 +26,8 @@ from scipy.stats import rankdata
 from sklearn.utils import check_random_state
 from sklearn.metrics import pairwise_distances
 
-from .utils import _compute_pvalue, EPSILON
+from .utils import EPSILON, maybe_tqdm
+from ..validation import _compute_pvalue, validate_tail_parameter
 
 
 # ============================================================================
@@ -40,7 +35,7 @@ from .utils import _compute_pvalue, EPSILON
 # ============================================================================
 
 
-def _compute_loo_isc(data, backend="numpy"):
+def _compute_loo_isc(data):
     """Compute leave-one-out intersubject correlation.
 
     For each subject, correlates their data with the mean of all other
@@ -48,42 +43,23 @@ def _compute_loo_isc(data, backend="numpy"):
     and is computationally efficient (O(n_subjects) vs O(n_subjects²)).
 
     Args:
-        data: Data array with one of the following shapes:
-            - (n_observations, n_subjects): Single feature
-            - (n_observations, n_subjects, n_voxels): Voxel-wise
-        backend: Computation backend. Use 'torch' for GPU acceleration on
-            voxel-wise data (10-30× speedup for large n_voxels). Defaults to 'numpy'.
+        data (np.ndarray): Shape `(n_observations, n_subjects)` for a single
+            feature or `(n_observations, n_subjects, n_voxels)` for voxel-wise
+            data.
 
     Returns:
-        Leave-one-out ISC values:
-        - Shape (n_subjects,) for single feature
-        - Shape (n_subjects, n_voxels) for voxel-wise
+        np.ndarray: Leave-one-out ISC values, shape `(n_subjects,)` for a single
+            feature or `(n_subjects, n_voxels)` for voxel-wise data.
+
+    Raises:
+        ValueError: If `data` is neither 2-D nor 3-D.
 
     Examples:
-        >>> data = np.random.randn(100, 10)  # 100 timepoints, 10 subjects
-        >>> loo = _compute_loo_isc(data)
-        >>> loo.shape
-        (10,)
-
-        >>> # Voxel-wise
-        >>> data_voxels = np.random.randn(100, 10, 1000)  # 1000 voxels
-        >>> loo = _compute_loo_isc(data_voxels, backend='torch')
-        >>> loo.shape
-        (10, 1000)
-
-    Notes:
-        For each subject i, computes: corr(subject_i, mean(all other subjects))
-        This is the method recommended by Chen et al. (2016) for unbiased ISC.
+        ```python
+        data = np.random.randn(100, 10)  # 100 timepoints, 10 subjects
+        _compute_loo_isc(data).shape  # → (10,)
+        ```
     """
-    if backend == "numpy":
-        return _compute_loo_isc_numpy(data)
-    if backend == "torch":
-        return _compute_loo_isc_gpu(data)
-    raise ValueError(f"backend must be 'numpy' or 'torch', got {backend}")
-
-
-def _compute_loo_isc_numpy(data):
-    """NumPy implementation of leave-one-out ISC."""
     if data.ndim == 2:
         # Single feature: (n_observations, n_subjects)
         n_obs, n_subjects = data.shape
@@ -113,127 +89,37 @@ def _compute_loo_isc_numpy(data):
     raise ValueError(f"data must be 2D or 3D, got shape {data.shape}")
 
 
-def _batch_correlation_gpu(x, y):
-    """Compute correlation between x and y in parallel across features.
-
-    Args:
-        x: Data tensor on GPU, shape (n_observations, n_features).
-        y: Data tensor on GPU, shape (n_observations, n_features).
-
-    Returns:
-        Correlation coefficients, shape (n_features,).
-    """
-    import torch
-
-    # Center the data
-    x_centered = x - x.mean(dim=0, keepdim=True)
-    y_centered = y - y.mean(dim=0, keepdim=True)
-
-    # Compute correlation
-    numerator = (x_centered * y_centered).sum(dim=0)
-    denominator = torch.sqrt((x_centered**2).sum(dim=0) * (y_centered**2).sum(dim=0))
-
-    # Handle zero variance case using EPSILON
-    correlations = numerator / (denominator + EPSILON)
-
-    return correlations
-
-
-def _compute_loo_isc_gpu(data):
-    """GPU-accelerated leave-one-out ISC computation.
-
-    Batches correlation computation across voxels for significant speedup
-    on large voxel-wise problems (10-30× faster than NumPy for >5K voxels).
-    """
-    import torch
-
-    if data.ndim != 3:
-        raise ValueError("GPU backend requires 3D voxel-wise data")
-
-    n_obs, n_subjects, n_voxels = data.shape
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
-    # Transfer data to GPU once
-    data_gpu = torch.tensor(data, dtype=torch.float32, device=device)
-    loo_values = torch.zeros(n_subjects, n_voxels, device=device)
-
-    for i in range(n_subjects):
-        # Create mask for all subjects except i
-        mask = torch.ones(n_subjects, dtype=torch.bool, device=device)
-        mask[i] = False
-
-        # Compute mean of all other subjects (across all voxels in parallel)
-        others_mean = data_gpu[:, mask, :].mean(dim=1)  # (n_obs, n_voxels)
-
-        # Get subject i's data
-        subject_i = data_gpu[:, i, :]  # (n_obs, n_voxels)
-
-        # Batch correlation across all voxels
-        loo_values[i, :] = _batch_correlation_gpu(subject_i, others_mean)
-
-    return loo_values.cpu().numpy()
-
-
-# ============================================================================
-# Phase 2: Pairwise ISC Computation
-# ============================================================================
-
-
-def _compute_pairwise_isc(data, backend="numpy", sim_metric="correlation"):
+def _compute_pairwise_isc(data, metric="correlation"):
     """Compute pairwise intersubject correlation (condensed form).
 
     Computes all n×(n-1)/2 pairwise correlations between subjects and
     stores in condensed upper-triangle format for memory efficiency.
 
+    `'correlation'`, `'spearman'` (rank-transform then `np.corrcoef`),
+    `'cosine'` (normalized dot products), and `'euclidean'` (vectorized
+    squared distances) take fast vectorized paths; any other metric falls back
+    to the slower `sklearn.metrics.pairwise_distances`.
+
     Args:
-        data: Data array with one of the following shapes:
-            - (n_observations, n_subjects): Single feature
-            - (n_observations, n_subjects, n_voxels): Voxel-wise
-        backend: Computation backend. Use 'torch' for GPU acceleration on
-            voxel-wise data. The 'torch' backend supports **only**
-            `sim_metric='correlation'` and raises `ValueError` for any other
-            metric. Defaults to 'numpy'.
-        sim_metric: Similarity metric. Options:
-            - 'correlation': Pearson correlation (uses optimized np.corrcoef)
-            - 'spearman': Spearman rank correlation (rank-transform then np.corrcoef)
-            - 'cosine': Cosine similarity (normalized dot products, optimized)
-            - 'euclidean': Euclidean similarity (1 - distance, optimized)
-            - Other metrics: Uses sklearn.metrics.pairwise_distances (slower)
-            Defaults to 'correlation'.
+        data (np.ndarray): Shape `(n_observations, n_subjects)` for a single
+            feature or `(n_observations, n_subjects, n_voxels)` for voxel-wise
+            data.
+        metric (str): `'correlation'` (Pearson, default), `'spearman'`,
+            `'cosine'`, `'euclidean'` (1 - distance), or any metric accepted by
+            `sklearn.metrics.pairwise_distances`.
 
     Returns:
-        Pairwise correlations in condensed form (upper triangle):
-        - Shape (n_pairs,) for single feature, where n_pairs = n*(n-1)/2
-        - Shape (n_pairs, n_voxels) for voxel-wise
+        np.ndarray: Pairwise similarities in condensed upper-triangle form,
+            shape `(n_pairs,)` for a single feature (`n_pairs = n*(n-1)/2`) or
+            `(n_pairs, n_voxels)` for voxel-wise data.
 
     Examples:
-        >>> data = np.random.randn(100, 5)  # 5 subjects
-        >>> pairwise = _compute_pairwise_isc(data)
-        >>> pairwise.shape
-        (10,)  # 5*4/2 = 10 pairs
-
-    Notes:
-        Uses optimized paths for common metrics:
-        - 'correlation': np.corrcoef (fast BLAS-accelerated)
-        - 'spearman': rank-transform then np.corrcoef (10-100× faster than pairwise_distances)
-        - 'cosine': normalized dot products (5-20× faster than pairwise_distances)
-        - 'euclidean': vectorized squared-distance (3-10× faster than pairwise_distances)
-        - Other metrics: sklearn.metrics.pairwise_distances (slower fallback)
+        ```python
+        data = np.random.randn(100, 5)  # 5 subjects
+        _compute_pairwise_isc(data).shape  # → (10,)  (5*4/2 pairs)
+        ```
     """
-    if backend == "numpy":
-        return _compute_pairwise_isc_numpy(data, sim_metric=sim_metric)
-    if backend == "torch":
-        if sim_metric != "correlation":
-            raise ValueError(
-                f"GPU backend only supports sim_metric='correlation', got {sim_metric}"
-            )
-        return _compute_pairwise_isc_gpu(data)
-    raise ValueError(f"backend must be 'numpy' or 'torch', got {backend}")
-
-
-def _compute_pairwise_isc_numpy(data, sim_metric="correlation"):
-    """NumPy implementation of pairwise ISC (condensed storage)."""
-    if sim_metric == "correlation":
+    if metric == "correlation":
         # Fast path: use np.corrcoef (optimized C implementation)
         if data.ndim == 2:
             # Single feature: (n_observations, n_subjects)
@@ -249,7 +135,7 @@ def _compute_pairwise_isc_numpy(data, sim_metric="correlation"):
                 pairwise_all[:, v] = squareform(corr_matrix, checks=False)
             return pairwise_all
         raise ValueError(f"data must be 2D or 3D, got shape {data.shape}")
-    if sim_metric == "spearman":
+    if metric == "spearman":
         # Spearman correlation: rank-transform then use fast np.corrcoef path
         # Spearman = Pearson correlation of rank-transformed data
         if data.ndim == 2:
@@ -279,7 +165,7 @@ def _compute_pairwise_isc_numpy(data, sim_metric="correlation"):
                 pairwise_all[:, v] = squareform(corr_matrix, checks=False)
             return pairwise_all
         raise ValueError(f"data must be 2D or 3D, got shape {data.shape}")
-    if sim_metric == "cosine":
+    if metric == "cosine":
         # Cosine similarity: normalized dot products
         # Cosine similarity = dot(a, b) / (||a|| * ||b||)
         # Optimized: normalize vectors, then compute dot product matrix
@@ -309,7 +195,7 @@ def _compute_pairwise_isc_numpy(data, sim_metric="correlation"):
                 pairwise_all[:, v] = squareform(sim_matrix, checks=False)
             return pairwise_all
         raise ValueError(f"data must be 2D or 3D, got shape {data.shape}")
-    if sim_metric == "euclidean":
+    if metric == "euclidean":
         # Euclidean distance: optimized using squared-distance formula
         # ||a - b||^2 = ||a||^2 + ||b||^2 - 2*<a, b>
         # Then: distance = sqrt(squared_distance), similarity = 1 - distance
@@ -362,7 +248,7 @@ def _compute_pairwise_isc_numpy(data, sim_metric="correlation"):
     # Convert distance to similarity: similarity = 1 - distance
     if data.ndim == 2:
         # Single feature: (n_observations, n_subjects)
-        dist_matrix = pairwise_distances(data.T, metric=sim_metric)
+        dist_matrix = pairwise_distances(data.T, metric=metric)
         sim_matrix = 1 - dist_matrix
         return squareform(sim_matrix, checks=False)
     if data.ndim == 3:
@@ -371,92 +257,19 @@ def _compute_pairwise_isc_numpy(data, sim_metric="correlation"):
         n_pairs = n_subjects * (n_subjects - 1) // 2
         pairwise_all = np.zeros((n_pairs, n_voxels))
         for v in range(n_voxels):
-            dist_matrix = pairwise_distances(data[:, :, v].T, metric=sim_metric)
+            dist_matrix = pairwise_distances(data[:, :, v].T, metric=metric)
             sim_matrix = 1 - dist_matrix
             pairwise_all[:, v] = squareform(sim_matrix, checks=False)
         return pairwise_all
     raise ValueError(f"data must be 2D or 3D, got shape {data.shape}")
 
 
-def _batch_corrcoef_gpu(data_gpu):
-    """Compute correlation matrices in parallel across voxels on GPU.
-
-    Args:
-        data_gpu: Data tensor on GPU (transposed for efficient correlation),
-            shape (n_voxels, n_subjects, n_observations).
-
-    Returns:
-        Correlation matrices for each voxel, shape (n_voxels, n_subjects, n_subjects).
-    """
-    import torch
-
-    # Center the data (per subject, per voxel)
-    data_centered = data_gpu - data_gpu.mean(dim=2, keepdim=True)
-
-    # Compute covariance matrices (batched matrix multiply)
-    # (n_voxels, n_subjects, n_obs) @ (n_voxels, n_obs, n_subjects)
-    cov_matrices = torch.bmm(data_centered, data_centered.transpose(1, 2))
-
-    # Compute standard deviations
-    std_devs = torch.sqrt((data_centered**2).sum(dim=2))  # (n_voxels, n_subjects)
-
-    # Normalize to get correlations: cov / (std_i * std_j)
-    # Broadcasting: (n_voxels, n_subjects, 1) * (n_voxels, 1, n_subjects)
-    std_outer = std_devs.unsqueeze(2) * std_devs.unsqueeze(1)
-
-    # Avoid division by zero using EPSILON
-    corr_matrices = cov_matrices / (std_outer + EPSILON)
-
-    return corr_matrices
-
-
-def _compute_pairwise_isc_gpu(data):
-    """GPU-accelerated pairwise ISC computation.
-
-    Batches correlation matrix computation across voxels for significant
-    speedup on large voxel-wise problems. Upper-triangle extraction is done
-    on-device via ``torch.triu_indices`` + gather (row-major, matching
-    ``scipy.spatial.distance.squareform``), so the whole observed pairwise
-    compute stays on the GPU — no per-voxel CPU ``squareform`` loop.
-    """
-    import torch
-
-    if data.ndim != 3:
-        raise ValueError("GPU backend requires 3D voxel-wise data")
-
-    n_obs, n_subjects, n_voxels = data.shape
-
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
-    # Transpose to (n_voxels, n_subjects, n_observations) for efficient batching
-    data_transposed = np.transpose(data, (2, 1, 0))
-    data_gpu = torch.tensor(data_transposed, dtype=torch.float32, device=device)
-
-    # Compute correlation matrices for all voxels in parallel
-    corr_matrices = _batch_corrcoef_gpu(data_gpu)  # (n_voxels, n_subjects, n_subjects)
-
-    # Extract upper triangles on-device. torch.triu_indices(offset=1) enumerates
-    # (row, col) pairs row-major — the same order scipy's squareform uses — so the
-    # condensed layout is identical to the numpy path.
-    iu = torch.triu_indices(n_subjects, n_subjects, offset=1, device=device)
-    pairwise = corr_matrices[:, iu[0], iu[1]]  # (n_voxels, n_pairs)
-
-    # Return condensed (n_pairs, n_voxels) to match _compute_pairwise_isc_numpy.
-    return pairwise.T.contiguous().cpu().numpy()
-
-
-# ============================================================================
-# Phase 2.5: ISC Group Difference Computation
-# ============================================================================
-
-
 def _compute_isc_group_difference(
     group1,
     group2,
-    metric="median",
+    summary="median",
     summary_statistic="pairwise",
-    backend="numpy",
-    sim_metric="correlation",
+    metric="correlation",
 ):
     """Compute ISC difference between two groups.
 
@@ -465,48 +278,34 @@ def _compute_isc_group_difference(
     leave-one-out ISC computation methods.
 
     Args:
-        group1: First group data with one of the following shapes:
-            - (n_observations, n_subjects1): Single feature
-            - (n_observations, n_subjects1, n_voxels): Voxel-wise
-        group2: Second group data with one of the following shapes:
-            - (n_observations, n_subjects2): Single feature
-            - (n_observations, n_subjects2, n_voxels): Voxel-wise
-        metric: Summary statistic for aggregating ISC values:
-            - 'median': Direct median (robust to outliers)
-            - 'mean': Fisher z-transformed mean (unbiased averaging)
-            Defaults to 'median'.
-        summary_statistic: ISC computation method:
-            - 'pairwise': Average all pairwise correlations
-            - 'leave-one-out': Correlate each subject with mean of others
-            Defaults to 'pairwise'.
-        backend: Computation backend. Use 'torch' for GPU acceleration on
-            voxel-wise LOO data (10-30× speedup for large n_voxels). Defaults to 'numpy'.
-        sim_metric: Similarity metric for pairwise ISC. Defaults to 'correlation'.
+        group1 (np.ndarray): First group, shape `(n_observations, n_subjects1)`
+            for a single feature or `(n_observations, n_subjects1, n_voxels)`
+            for voxel-wise data.
+        group2 (np.ndarray): Second group, shape `(n_observations, n_subjects2)`
+            or `(n_observations, n_subjects2, n_voxels)`.
+        summary (str): How ISC values are aggregated: `'median'` (default,
+            robust to outliers) or `'mean'` (Fisher z-transformed mean).
+        summary_statistic (str): `'pairwise'` (default; summarize all pairwise
+            correlations) or `'leave-one-out'` (correlate each subject with
+            the mean of the others).
+        metric (str): Similarity metric for pairwise ISC. Defaults to
+            `'correlation'`.
 
     Returns:
-        ISC difference (group1 ISC - group2 ISC):
-        - Shape () for single feature (scalar)
-        - Shape (n_voxels,) for voxel-wise
+        np.ndarray: `group1 ISC - group2 ISC`, shape `()` for a single feature
+            or `(n_voxels,)` for voxel-wise data.
 
     Examples:
-        >>> group1 = np.random.randn(100, 5)  # 5 subjects
-        >>> group2 = np.random.randn(100, 5)
-        >>> diff = _compute_isc_group_difference(group1, group2)
-        >>> diff.shape
-        ()
+        ```python
+        group1 = np.random.randn(100, 5)  # 5 subjects
+        group2 = np.random.randn(100, 5)
+        _compute_isc_group_difference(group1, group2).shape  # → ()
 
-        >>> # Voxel-wise
-        >>> group1_voxels = np.random.randn(100, 5, 1000)
-        >>> group2_voxels = np.random.randn(100, 5, 1000)
-        >>> diff = _compute_isc_group_difference(group1_voxels, group2_voxels, backend='torch')
-        >>> diff.shape
-        (1000,)
-
-    Notes:
-        This function reuses existing ISC computation functions (_compute_pairwise_isc
-        and _compute_loo_isc) to compute ISC for each group, then computes the difference.
-        GPU backend is only available for voxel-wise LOO computation (similar to
-        isc_permutation_test).
+        # Voxel-wise
+        group1_voxels = np.random.randn(100, 5, 1000)
+        group2_voxels = np.random.randn(100, 5, 1000)
+        _compute_isc_group_difference(group1_voxels, group2_voxels).shape  # → (1000,)
+        ```
     """
     # Input validation
     group1 = np.asarray(group1)
@@ -529,8 +328,8 @@ def _compute_isc_group_difference(
             f"group1 and group2 must be 2D or 3D, got shapes {group1.shape}, {group2.shape}"
         )
 
-    if metric not in ["median", "mean"]:
-        raise ValueError(f"metric must be 'median' or 'mean', got {metric}")
+    if summary not in ["median", "mean"]:
+        raise ValueError(f"summary must be 'median' or 'mean', got {summary}")
 
     if summary_statistic not in ["pairwise", "leave-one-out"]:
         raise ValueError(
@@ -540,12 +339,8 @@ def _compute_isc_group_difference(
     # Compute ISC for each group
     if summary_statistic == "pairwise":
         # Pairwise ISC: compute condensed correlation matrices
-        isc1_values = _compute_pairwise_isc(
-            group1, backend=backend, sim_metric=sim_metric
-        )
-        isc2_values = _compute_pairwise_isc(
-            group2, backend=backend, sim_metric=sim_metric
-        )
+        isc1_values = _compute_pairwise_isc(group1, metric=metric)
+        isc2_values = _compute_pairwise_isc(group2, metric=metric)
 
         # Handle single feature vs voxel-wise
         if isc1_values.ndim == 1:
@@ -556,10 +351,10 @@ def _compute_isc_group_difference(
             axis = 0
 
         # Compute summary statistic
-        if metric == "median":
+        if summary == "median":
             isc1 = np.nanmedian(isc1_values, axis=axis)
             isc2 = np.nanmedian(isc2_values, axis=axis)
-        elif metric == "mean":
+        elif summary == "mean":
             # Fisher z-transform
             z1 = np.arctanh(np.clip(isc1_values, -0.9999, 0.9999))
             z2 = np.arctanh(np.clip(isc2_values, -0.9999, 0.9999))
@@ -568,8 +363,8 @@ def _compute_isc_group_difference(
 
     else:  # leave-one-out
         # LOO ISC: compute LOO values for each subject
-        loo1_values = _compute_loo_isc(group1, backend=backend)
-        loo2_values = _compute_loo_isc(group2, backend=backend)
+        loo1_values = _compute_loo_isc(group1)
+        loo2_values = _compute_loo_isc(group2)
 
         # Handle single feature vs voxel-wise
         if loo1_values.ndim == 1:
@@ -580,10 +375,10 @@ def _compute_isc_group_difference(
             axis = 0
 
         # Compute summary statistic
-        if metric == "median":
+        if summary == "median":
             isc1 = np.median(loo1_values, axis=axis)
             isc2 = np.median(loo2_values, axis=axis)
-        elif metric == "mean":
+        elif summary == "mean":
             # Fisher z-transform
             z1 = np.arctanh(np.clip(loo1_values, -0.9999, 0.9999))
             z2 = np.arctanh(np.clip(loo2_values, -0.9999, 0.9999))
@@ -604,10 +399,10 @@ def _compute_isc_group_difference(
 def _permute_isc_group_numpy(
     group1,
     group2,
-    metric="median",
+    summary="median",
     summary_statistic="pairwise",
     random_state=None,
-    sim_metric="correlation",
+    metric="correlation",
 ):
     """Single permutation: permute group labels and compute ISC difference.
 
@@ -616,15 +411,19 @@ def _permute_isc_group_numpy(
     for the permuted groups.
 
     Args:
-        group1: First group data: (n_observations, n_subjects1) or (n_observations, n_subjects1, n_voxels).
-        group2: Second group data: (n_observations, n_subjects2) or (n_observations, n_subjects2, n_voxels).
-        metric: Summary statistic for aggregating ISC values. Defaults to 'median'.
-        summary_statistic: ISC computation method. Defaults to 'pairwise'.
-        random_state: Random state for reproducibility.
-        sim_metric: Similarity metric for pairwise ISC. Defaults to 'correlation'.
+        group1 (np.ndarray): First group, shape `(n_observations, n_subjects1)`
+            or `(n_observations, n_subjects1, n_voxels)`.
+        group2 (np.ndarray): Second group, shape `(n_observations, n_subjects2)`
+            or `(n_observations, n_subjects2, n_voxels)`.
+        summary (str): `'median'` (default) or `'mean'`.
+        summary_statistic (str): `'pairwise'` (default) or `'leave-one-out'`.
+        random_state (int | np.random.RandomState | None): Random state for
+            reproducibility.
+        metric (str): Similarity metric for pairwise ISC. Defaults to
+            `'correlation'`.
 
     Returns:
-        Permuted ISC difference (scalar or per-voxel array).
+        np.ndarray: Permuted ISC difference, shape `()` or `(n_voxels,)`.
     """
     from sklearn.utils import check_random_state
 
@@ -650,10 +449,9 @@ def _permute_isc_group_numpy(
     isc_diff = _compute_isc_group_difference(
         group1_perm,
         group2_perm,
-        metric=metric,
+        summary=summary,
         summary_statistic=summary_statistic,
-        backend="numpy",
-        sim_metric=sim_metric,
+        metric=metric,
     )
 
     return isc_diff
@@ -662,13 +460,14 @@ def _permute_isc_group_numpy(
 def _permute_isc_group_cpu_parallel(
     group1,
     group2,
+    *,
     n_permute=5000,
-    metric="median",
+    summary="median",
     summary_statistic="pairwise",
     n_jobs=-1,
     random_state=None,
-    progress_bar=True,
-    sim_metric="correlation",
+    progress_bar=False,
+    metric="correlation",
     max_memory_gb=None,
 ):
     """CPU-parallel permutation for ISC group difference.
@@ -678,25 +477,28 @@ def _permute_isc_group_cpu_parallel(
     Automatically limits workers based on available memory if n_jobs=-1.
 
     Args:
-        group1: First group data: (n_observations, n_subjects1) or (n_observations, n_subjects1, n_voxels).
-        group2: Second group data: (n_observations, n_subjects2) or (n_observations, n_subjects2, n_voxels).
-        n_permute: Number of permutations. Defaults to 5000.
-        metric: Summary statistic for aggregating ISC values. Defaults to 'median'.
-        summary_statistic: ISC computation method. Defaults to 'pairwise'.
-        n_jobs: Number of CPU cores for parallelization (-1 = auto-detect based on memory). Defaults to -1.
-        random_state: Random seed for reproducibility.
-        progress_bar: Show progress bar. Defaults to True.
-        sim_metric: Similarity metric for pairwise ISC. Defaults to 'correlation'.
-        max_memory_gb: Maximum memory budget in GB (only used if n_jobs=-1).
+        group1 (np.ndarray): First group, shape `(n_observations, n_subjects1)`
+            or `(n_observations, n_subjects1, n_voxels)`.
+        group2 (np.ndarray): Second group, shape `(n_observations, n_subjects2)`
+            or `(n_observations, n_subjects2, n_voxels)`.
+        n_permute (int): Number of permutations. Defaults to 5000.
+        summary (str): `'median'` (default) or `'mean'`.
+        summary_statistic (str): `'pairwise'` (default) or `'leave-one-out'`.
+        n_jobs (int): CPU cores; -1 (default) picks the worker count from
+            available memory.
+        random_state (int | None): Random seed for reproducibility.
+        progress_bar (bool): Show a progress bar. Defaults to False.
+        metric (str): Similarity metric for pairwise ISC. Defaults to
+            `'correlation'`.
+        max_memory_gb (float | None): Memory budget in GB for the `n_jobs=-1`
+            auto-detection; None measures the machine.
 
     Returns:
-        Permuted ISC differences:
-        - Shape (n_permute,) for single feature
-        - Shape (n_permute, n_voxels) for voxel-wise
+        np.ndarray: Permuted ISC differences, shape `(n_permute,)` for a single
+            feature or `(n_permute, n_voxels)` for voxel-wise data.
     """
     from joblib import Parallel, delayed
-    from tqdm.auto import tqdm
-    from .utils import _auto_n_jobs_cpu, _estimate_data_size_mb
+    from nltools.algorithms.backends import _auto_n_jobs_cpu, _estimate_data_size_mb
 
     # Auto-detect optimal n_jobs based on memory if n_jobs=-1
     # Estimate memory for combined groups
@@ -708,7 +510,6 @@ def _permute_isc_group_cpu_parallel(
             data_size_mb=combined_size_mb,
             n_permute=n_permute,
             max_memory_gb=max_memory_gb,
-            min_jobs=1,
         )
 
     rng = check_random_state(random_state)
@@ -716,18 +517,18 @@ def _permute_isc_group_cpu_parallel(
     seeds = rng.randint(MAX_INT, size=n_permute)
 
     # Parallelize
-    iterator = range(n_permute)
-    if progress_bar:
-        iterator = tqdm(iterator, desc="Permute ISC Group")
+    iterator = maybe_tqdm(
+        range(n_permute), progress_bar=progress_bar, desc="Permute ISC Group"
+    )
 
     permutations = Parallel(n_jobs=n_jobs)(
         delayed(_permute_isc_group_numpy)(
             group1,
             group2,
-            metric=metric,
+            summary=summary,
             summary_statistic=summary_statistic,
             random_state=np.random.RandomState(seeds[i]),
-            sim_metric=sim_metric,
+            metric=metric,
         )
         for i in iterator
     )
@@ -744,11 +545,11 @@ def _bootstrap_isc_group_numpy(
     group1,
     group2,
     observed_diff,
-    metric="median",
+    summary="median",
     summary_statistic="pairwise",
     exclude_self_corr=True,
     random_state=None,
-    sim_metric="correlation",
+    metric="correlation",
 ):
     """Single bootstrap: resample subjects within each group and compute ISC difference.
 
@@ -757,17 +558,24 @@ def _bootstrap_isc_group_numpy(
     Centers by subtracting observed difference: (boot1 - boot2) - observed_diff.
 
     Args:
-        group1: First group data: (n_observations, n_subjects1) or (n_observations, n_subjects1, n_voxels).
-        group2: Second group data: (n_observations, n_subjects2) or (n_observations, n_subjects2, n_voxels).
-        observed_diff: Observed ISC difference (for centering).
-        metric: Summary statistic for aggregating ISC values. Defaults to 'median'.
-        summary_statistic: ISC computation method. Defaults to 'pairwise'.
-        exclude_self_corr: Mask self-correlations in bootstrap (pairwise only). Defaults to True.
-        random_state: Random state for reproducibility.
-        sim_metric: Similarity metric for pairwise ISC. Defaults to 'correlation'.
+        group1 (np.ndarray): First group, shape `(n_observations, n_subjects1)`
+            or `(n_observations, n_subjects1, n_voxels)`.
+        group2 (np.ndarray): Second group, shape `(n_observations, n_subjects2)`
+            or `(n_observations, n_subjects2, n_voxels)`.
+        observed_diff (float | np.ndarray): Observed ISC difference, subtracted
+            to center the draw.
+        summary (str): `'median'` (default) or `'mean'`.
+        summary_statistic (str): `'pairwise'` (default) or `'leave-one-out'`.
+        exclude_self_corr (bool): Mask the perfect correlations a duplicated
+            subject produces (pairwise only). Defaults to True.
+        random_state (int | np.random.RandomState | None): Random state for
+            reproducibility.
+        metric (str): Similarity metric for pairwise ISC. Defaults to
+            `'correlation'`.
 
     Returns:
-        Bootstrapped ISC difference (centered): (boot1 - boot2) - observed_diff.
+        np.ndarray: Centered bootstrap difference,
+            `(boot1 - boot2) - observed_diff`, shape `()` or `(n_voxels,)`.
     """
     from sklearn.utils import check_random_state
 
@@ -791,12 +599,8 @@ def _bootstrap_isc_group_numpy(
             group2_boot = group2[:, boot_indices2, :]
 
         # Compute pairwise ISC for bootstrapped groups
-        pairwise1_boot = _compute_pairwise_isc(
-            group1_boot, backend="numpy", sim_metric=sim_metric
-        )
-        pairwise2_boot = _compute_pairwise_isc(
-            group2_boot, backend="numpy", sim_metric=sim_metric
-        )
+        pairwise1_boot = _compute_pairwise_isc(group1_boot, metric=metric)
+        pairwise2_boot = _compute_pairwise_isc(group2_boot, metric=metric)
 
         # Handle exclude_self_corr: mask perfect correlations from duplicate subjects
         if exclude_self_corr:
@@ -815,10 +619,10 @@ def _bootstrap_isc_group_numpy(
             axis = 0
 
         # Compute summary statistic
-        if metric == "median":
+        if summary == "median":
             isc1_boot = np.nanmedian(pairwise1_boot, axis=axis)
             isc2_boot = np.nanmedian(pairwise2_boot, axis=axis)
-        elif metric == "mean":
+        elif summary == "mean":
             z1 = np.arctanh(np.clip(pairwise1_boot, -0.9999, 0.9999))
             z2 = np.arctanh(np.clip(pairwise2_boot, -0.9999, 0.9999))
             isc1_boot = np.tanh(np.nanmean(z1, axis=axis))
@@ -826,14 +630,16 @@ def _bootstrap_isc_group_numpy(
 
     else:  # leave-one-out
         # LOO bootstrap: resample pre-computed LOO values
-        loo1_values = _compute_loo_isc(group1, backend="numpy")
-        loo2_values = _compute_loo_isc(group2, backend="numpy")
+        loo1_values = _compute_loo_isc(group1)
+        loo2_values = _compute_loo_isc(group2)
 
         # Bootstrap LOO values
-        isc1_boot = _bootstrap_loo_numpy(loo1_values, metric=metric, random_state=rng)
+        isc1_boot = _bootstrap_loo_numpy(loo1_values, summary=summary, random_state=rng)
         # Use different seed for group2 to ensure independence
         rng2 = check_random_state(rng.randint(0, 2**31 - 1))
-        isc2_boot = _bootstrap_loo_numpy(loo2_values, metric=metric, random_state=rng2)
+        isc2_boot = _bootstrap_loo_numpy(
+            loo2_values, summary=summary, random_state=rng2
+        )
 
     # Compute difference and center
     boot_diff = (isc1_boot - isc2_boot) - observed_diff
@@ -845,14 +651,15 @@ def _bootstrap_isc_group_cpu_parallel(
     group1,
     group2,
     observed_diff,
+    *,
     n_permute=5000,
-    metric="median",
+    summary="median",
     summary_statistic="pairwise",
     exclude_self_corr=True,
     n_jobs=-1,
     random_state=None,
-    progress_bar=True,
-    sim_metric="correlation",
+    progress_bar=False,
+    metric="correlation",
     max_memory_gb=None,
 ):
     """CPU-parallel bootstrap for ISC group difference.
@@ -862,27 +669,32 @@ def _bootstrap_isc_group_cpu_parallel(
     Automatically limits workers based on available memory if n_jobs=-1.
 
     Args:
-        group1: First group data: (n_observations, n_subjects1) or (n_observations, n_subjects1, n_voxels).
-        group2: Second group data: (n_observations, n_subjects2) or (n_observations, n_subjects2, n_voxels).
-        observed_diff: Observed ISC difference (for centering).
-        n_permute: Number of bootstrap iterations. Defaults to 5000.
-        metric: Summary statistic for aggregating ISC values. Defaults to 'median'.
-        summary_statistic: ISC computation method. Defaults to 'pairwise'.
-        exclude_self_corr: Mask self-correlations in bootstrap (pairwise only). Defaults to True.
-        n_jobs: Number of CPU cores for parallelization (-1 = auto-detect based on memory). Defaults to -1.
-        random_state: Random seed for reproducibility.
-        progress_bar: Show progress bar. Defaults to True.
-        sim_metric: Similarity metric for pairwise ISC. Defaults to 'correlation'.
-        max_memory_gb: Maximum memory budget in GB (only used if n_jobs=-1).
+        group1 (np.ndarray): First group, shape `(n_observations, n_subjects1)`
+            or `(n_observations, n_subjects1, n_voxels)`.
+        group2 (np.ndarray): Second group, shape `(n_observations, n_subjects2)`
+            or `(n_observations, n_subjects2, n_voxels)`.
+        observed_diff (float | np.ndarray): Observed ISC difference, subtracted
+            to center each draw.
+        n_permute (int): Number of bootstrap iterations. Defaults to 5000.
+        summary (str): `'median'` (default) or `'mean'`.
+        summary_statistic (str): `'pairwise'` (default) or `'leave-one-out'`.
+        exclude_self_corr (bool): Mask the perfect correlations a duplicated
+            subject produces (pairwise only). Defaults to True.
+        n_jobs (int): CPU cores; -1 (default) picks the worker count from
+            available memory.
+        random_state (int | None): Random seed for reproducibility.
+        progress_bar (bool): Show a progress bar. Defaults to False.
+        metric (str): Similarity metric for pairwise ISC. Defaults to
+            `'correlation'`.
+        max_memory_gb (float | None): Memory budget in GB for the `n_jobs=-1`
+            auto-detection; None measures the machine.
 
     Returns:
-        Bootstrapped ISC differences (centered):
-        - Shape (n_permute,) for single feature
-        - Shape (n_permute, n_voxels) for voxel-wise
+        np.ndarray: Centered bootstrap differences, shape `(n_permute,)` for a
+            single feature or `(n_permute, n_voxels)` for voxel-wise data.
     """
     from joblib import Parallel, delayed
-    from tqdm.auto import tqdm
-    from .utils import _auto_n_jobs_cpu, _estimate_data_size_mb
+    from nltools.algorithms.backends import _auto_n_jobs_cpu, _estimate_data_size_mb
 
     # Auto-detect optimal n_jobs based on memory if n_jobs=-1
     # Estimate memory for combined groups
@@ -894,7 +706,6 @@ def _bootstrap_isc_group_cpu_parallel(
             data_size_mb=combined_size_mb,
             n_permute=n_permute,
             max_memory_gb=max_memory_gb,
-            min_jobs=1,
         )
 
     rng = check_random_state(random_state)
@@ -902,20 +713,20 @@ def _bootstrap_isc_group_cpu_parallel(
     seeds = rng.randint(MAX_INT, size=n_permute)
 
     # Parallelize
-    iterator = range(n_permute)
-    if progress_bar:
-        iterator = tqdm(iterator, desc="Bootstrap ISC Group")
+    iterator = maybe_tqdm(
+        range(n_permute), progress_bar=progress_bar, desc="Bootstrap ISC Group"
+    )
 
     bootstraps = Parallel(n_jobs=n_jobs)(
         delayed(_bootstrap_isc_group_numpy)(
             group1,
             group2,
             observed_diff=observed_diff,
-            metric=metric,
+            summary=summary,
             summary_statistic=summary_statistic,
             exclude_self_corr=exclude_self_corr,
             random_state=np.random.RandomState(seeds[i]),
-            sim_metric=sim_metric,
+            metric=metric,
         )
         for i in iterator
     )
@@ -931,103 +742,100 @@ def _bootstrap_isc_group_cpu_parallel(
 def isc_group_permutation_test(
     group1: np.ndarray,
     group2: np.ndarray,
+    *,
     n_permute: int = 5000,
-    metric: Literal["median", "mean"] = "median",
+    summary: Literal["median", "mean"] = "median",
     method: Literal["permute", "bootstrap"] = "permute",
     summary_statistic: Literal["leave-one-out", "pairwise"] = "pairwise",
     ci_percentile: float = 95,
-    tail: Literal[1, 2] = 2,
-    parallel: Literal["cpu", "gpu"] | None = "cpu",
+    tail: int | str = 2,
     n_jobs: int = -1,
     random_state: int | None = None,
     return_null: bool = False,
-    progress_bar: bool = True,
+    progress_bar: bool = False,
     exclude_self_corr: bool = True,
-    sim_metric: str = "correlation",
+    metric: str = "correlation",
 ) -> dict[str, Any]:
-    """Compute ISC difference between groups with permutation testing.
+    """Test the difference in intersubject correlation between two groups.
 
-    Supports both subject-wise permutation and bootstrap methods with efficient
-    CPU-parallel and optional GPU acceleration. Follows the statistical methods
-    from Chen et al. (2016) for correct group comparison inference.
+    Computes ISC within each group, takes `group1 - group2`, and builds a null
+    distribution by either subject-wise permutation (pool the subjects and
+    reshuffle the group labels — the Chen et al. 2016 recommendation) or
+    subject-wise bootstrap (resample subjects within each group; the bootstrap
+    draws are centered on the observed difference before the p-value is
+    computed). The confidence interval brackets the observed difference for
+    `method='bootstrap'` and describes the null spread for `method='permute'`.
 
     Args:
-        group1: First group data with one of the following shapes:
-            - (n_observations, n_subjects1): Single feature
-            - (n_observations, n_subjects1, n_voxels): Voxel-wise
-        group2: Second group data with one of the following shapes:
-            - (n_observations, n_subjects2): Single feature
-            - (n_observations, n_subjects2, n_voxels): Voxel-wise
-        n_permute: Number of permutations/bootstrap iterations. Defaults to 5000.
-        metric: Summary statistic for aggregating ISC values:
-            - 'median': Direct median (robust to outliers)
-            - 'mean': Fisher z-transformed mean (unbiased averaging)
-            Defaults to 'median'.
-        method: Resampling method for p-value computation:
-            - 'permute': Subject-wise permutation (combines groups, permutes labels)
-            - 'bootstrap': Subject-wise bootstrap (resamples within each group)
-            Defaults to 'permute'.
-        summary_statistic: ISC computation method:
-            - 'pairwise': Average all pairwise correlations
-            - 'leave-one-out': Correlate each subject with mean of others
-            Defaults to 'pairwise'.
-        ci_percentile: Confidence interval percentile (e.g., 95 for 95% CI). Defaults to 95.
-        tail: One-tailed (1) or two-tailed (2) p-value. Defaults to 2.
-        parallel: Parallelization method:
-            - 'cpu': CPU parallelization via joblib (default, 4-8× speedup)
-            - 'gpu': GPU acceleration via PyTorch (10-30× speedup for voxel-wise LOO)
-            - None: Single-threaded NumPy (for debugging/small problems)
-            Defaults to 'cpu'.
-        n_jobs: Number of CPU cores for parallelization (-1 = all cores).
-            Only used when parallel='cpu'. Defaults to -1.
-        random_state: Random seed for reproducibility.
-        return_null: If True, return null distribution in result dict. Defaults to False.
-        progress_bar: Show progress bar during bootstrap/permutation. Defaults to True.
-        exclude_self_corr: Mask self-correlations in bootstrap (pairwise only). Defaults to True.
-        sim_metric: Similarity metric for pairwise ISC computation. See
-            sklearn.metrics.pairwise_distances for valid options. Only applies
-            when summary_statistic='pairwise'. Defaults to 'correlation'.
+        group1 (np.ndarray): First group, shape `(n_observations, n_subjects1)`
+            for a single feature or `(n_observations, n_subjects1, n_voxels)`
+            for voxel-wise data.
+        group2 (np.ndarray): Second group, shape `(n_observations, n_subjects2)`
+            or `(n_observations, n_subjects2, n_voxels)`; `n_observations` must
+            match `group1`.
+        n_permute (int): Number of permutations or bootstrap draws. Defaults to
+            5000.
+        summary (str): How ISC values are aggregated: `'median'` (default,
+            robust to outliers) or `'mean'` (Fisher z-transformed mean).
+        method (str): `'permute'` (default; pool subjects and permute labels) or
+            `'bootstrap'` (resample subjects within each group).
+        summary_statistic (str): `'pairwise'` (default; summarize all pairwise
+            correlations) or `'leave-one-out'` (correlate each subject with the
+            mean of the others).
+        ci_percentile (float): Confidence-interval width in percent (95 gives a
+            95% CI). Defaults to 95.
+        tail (int | str): `2` or `'two'` (default) for a two-tailed p-value;
+            `1` or `'one'` for one-tailed (group1 > group2).
+        n_jobs (int): Number of joblib workers for the resamples. -1 (default)
+            picks the worker count from available memory. Results are identical
+            at every worker count.
+        random_state (int | None): Random seed for reproducibility.
+        return_null (bool): If True, include the null distribution in the
+            result. Defaults to False.
+        progress_bar (bool): Show a progress bar over the resamples. Defaults to
+            False.
+        exclude_self_corr (bool): In the bootstrap, mask the perfect
+            correlations a duplicated subject produces (pairwise only).
+            Defaults to True.
+        metric (str): Similarity metric for pairwise ISC; any metric accepted by
+            `sklearn.metrics.pairwise_distances`. Ignored for
+            `summary_statistic='leave-one-out'`. Defaults to `'correlation'`.
 
     Returns:
-        Dictionary with the following keys:
-        - 'isc_group_difference': Observed ISC difference (float or array per voxel)
-        - 'p': P-value (Phipson-Smyth corrected)
-        - 'ci': Confidence interval tuple (lower, upper)
-        - 'parallel': Parallelization method used
-        - 'null_dist': (optional) Bootstrap/permutation distribution
+        dict: Keys `'isc_group_difference'` (float or np.ndarray, observed
+            difference), `'p'` (float or np.ndarray, p-value with the
+            `(count + 1) / (n + 1)` correction), `'ci'` (tuple
+            `(lower, upper)`), and — when `return_null=True` — `'null_dist'`
+            (np.ndarray).
 
     Examples:
-        >>> # Single-feature ISC group comparison
-        >>> group1 = np.random.randn(100, 10)  # 10 subjects
-        >>> group2 = np.random.randn(100, 10)
-        >>> result = isc_group_permutation_test(group1, group2, n_permute=1000)
-        >>> print(f"ISC difference: {result['isc_group_difference']:.3f}, p: {result['p']:.3f}")
+        ```python
+        # Single-feature comparison
+        group1 = np.random.randn(100, 10)  # 10 subjects
+        group2 = np.random.randn(100, 10)
+        result = isc_group_permutation_test(group1, group2, n_permute=1000)
+        result["isc_group_difference"], result["p"]
 
-        >>> # Voxel-wise ISC group comparison with GPU acceleration
-        >>> group1_voxels = np.random.randn(100, 10, 5000)  # 5K voxels
-        >>> group2_voxels = np.random.randn(100, 10, 5000)
-        >>> result = isc_group_permutation_test(
-        ...     group1_voxels,
-        ...     group2_voxels,
-        ...     summary_statistic='leave-one-out',
-        ...     parallel='gpu',  # GPU for LOO computation
-        ...     n_permute=5000
-        ... )
-        >>> print(f"Significant voxels: {(result['p'] < 0.05).sum()}")
+        # Voxel-wise comparison
+        group1_voxels = np.random.randn(100, 10, 5000)  # 5K voxels
+        group2_voxels = np.random.randn(100, 10, 5000)
+        result = isc_group_permutation_test(
+            group1_voxels,
+            group2_voxels,
+            summary_statistic="leave-one-out",
+            n_permute=5000,
+        )
+        (result["p"] < 0.05).sum()  # → number of significant voxels
+        ```
 
     References:
         Chen, G., Shin, Y. W., Taylor, P. A., Glen, D. R., Reynolds, R. C.,
         Israel, R. B., & Cox, R. W. (2016). Untangling the relatedness among
         correlations, part I: nonparametric approaches to inter-subject
         correlation analysis at the group level. NeuroImage, 142, 248-259.
-
-    Notes:
-        - Permutation method combines groups and permutes labels (Chen et al. 2016)
-        - Bootstrap method resamples subjects within each group independently
-        - Bootstrap distribution is centered by subtracting observed difference
-        - GPU acceleration available for voxel-wise LOO computation
     """
     # Input validation
+    validate_tail_parameter(tail)
     group1 = np.asarray(group1)
     group2 = np.asarray(group2)
 
@@ -1048,8 +856,8 @@ def isc_group_permutation_test(
             f"group1 and group2 must be 2D or 3D, got shapes {group1.shape}, {group2.shape}"
         )
 
-    if metric not in ["median", "mean"]:
-        raise ValueError(f"metric must be 'median' or 'mean', got {metric}")
+    if summary not in ["median", "mean"]:
+        raise ValueError(f"summary must be 'median' or 'mean', got {summary}")
 
     if method not in ["permute", "bootstrap"]:
         raise ValueError(f"method must be 'permute' or 'bootstrap', got {method}")
@@ -1059,103 +867,43 @@ def isc_group_permutation_test(
             f"summary_statistic must be 'pairwise' or 'leave-one-out', got {summary_statistic}"
         )
 
-    # Validate parallel parameter
-    if parallel not in [None, "cpu", "gpu"]:
-        raise ValueError(f"parallel must be None, 'cpu', or 'gpu', got {parallel!r}")
-
-    # Determine backend for computation phase based on parallel parameter
-    if parallel == "cpu" or parallel is None:
-        # CPU modes
-        if parallel is None:
-            # Single-threaded NumPy
-            compute_backend = "numpy"
-            bootstrap_backend = "numpy"
-        else:
-            # CPU parallelization
-            compute_backend = "numpy"
-            bootstrap_backend = "cpu-parallel"
-    else:
-        # GPU mode
-        compute_backend = "torch"
-        bootstrap_backend = "cpu-parallel"  # Bootstrap still uses CPU parallel
-
     # Phase 1: Compute observed ISC difference
     observed_diff = _compute_isc_group_difference(
         group1,
         group2,
-        metric=metric,
+        summary=summary,
         summary_statistic=summary_statistic,
-        backend=compute_backend,
-        sim_metric=sim_metric,
+        metric=metric,
     )
 
     # Phase 2: Bootstrap/Permutation (run n_permute times)
     if method == "permute":
-        if bootstrap_backend == "numpy":
-            # Sequential NumPy
-            rng = check_random_state(random_state)
-            seeds = rng.randint(0, 2**31 - 1, size=n_permute)
-            null_dist = np.array(
-                [
-                    _permute_isc_group_numpy(
-                        group1,
-                        group2,
-                        metric=metric,
-                        summary_statistic=summary_statistic,
-                        random_state=np.random.RandomState(seeds[i]),
-                        sim_metric=sim_metric,
-                    )
-                    for i in range(n_permute)
-                ]
-            )
-        else:  # cpu-parallel
-            null_dist = _permute_isc_group_cpu_parallel(
-                group1,
-                group2,
-                n_permute=n_permute,
-                metric=metric,
-                summary_statistic=summary_statistic,
-                n_jobs=n_jobs,
-                random_state=random_state,
-                progress_bar=progress_bar,
-                sim_metric=sim_metric,
-            )
-
+        null_dist = _permute_isc_group_cpu_parallel(
+            group1,
+            group2,
+            n_permute=n_permute,
+            summary=summary,
+            summary_statistic=summary_statistic,
+            n_jobs=n_jobs,
+            random_state=random_state,
+            progress_bar=progress_bar,
+            metric=metric,
+        )
     else:  # bootstrap
-        if bootstrap_backend == "numpy":
-            # Sequential NumPy
-            rng = check_random_state(random_state)
-            seeds = rng.randint(0, 2**31 - 1, size=n_permute)
-            null_dist = np.array(
-                [
-                    _bootstrap_isc_group_numpy(
-                        group1,
-                        group2,
-                        observed_diff=observed_diff,
-                        metric=metric,
-                        summary_statistic=summary_statistic,
-                        exclude_self_corr=exclude_self_corr,
-                        random_state=np.random.RandomState(seeds[i]),
-                        sim_metric=sim_metric,
-                    )
-                    for i in range(n_permute)
-                ]
-            )
-        else:  # cpu-parallel
-            null_dist = _bootstrap_isc_group_cpu_parallel(
-                group1,
-                group2,
-                observed_diff=observed_diff,
-                n_permute=n_permute,
-                metric=metric,
-                summary_statistic=summary_statistic,
-                exclude_self_corr=exclude_self_corr,
-                n_jobs=n_jobs,
-                random_state=random_state,
-                progress_bar=progress_bar,
-                sim_metric=sim_metric,
-                max_memory_gb=None,  # Auto-detect
-            )
+        null_dist = _bootstrap_isc_group_cpu_parallel(
+            group1,
+            group2,
+            observed_diff=observed_diff,
+            n_permute=n_permute,
+            summary=summary,
+            summary_statistic=summary_statistic,
+            exclude_self_corr=exclude_self_corr,
+            n_jobs=n_jobs,
+            random_state=random_state,
+            progress_bar=progress_bar,
+            metric=metric,
+            max_memory_gb=None,  # Auto-detect
+        )
 
     # Handle NaN values (from exclude_self_corr masking)
     # For single feature: remove all NaN values
@@ -1210,7 +958,6 @@ def isc_group_permutation_test(
         "isc_group_difference": observed_diff,
         "p": p_values,
         "ci": (ci_lower, ci_upper),
-        "parallel": parallel,
     }
 
     if return_null:
@@ -1224,25 +971,22 @@ def isc_group_permutation_test(
 # ============================================================================
 
 
-def _bootstrap_loo_numpy(loo_values, metric="median", random_state=None):
+def _bootstrap_loo_numpy(loo_values, summary="median", random_state=None):
     """Bootstrap LOO ISC by resampling subjects.
 
     Implements the subject-wise bootstrap method from Chen et al. (2016).
     Resamples the pre-computed LOO values (not raw data) for efficiency.
 
     Args:
-        loo_values: Pre-computed LOO values:
-            - Shape (n_subjects,) for single feature
-            - Shape (n_subjects, n_voxels) for voxel-wise
-        metric: Summary statistic to compute from bootstrap sample. Defaults to 'median'.
-        random_state: Random state for reproducibility.
+        loo_values (np.ndarray): Pre-computed LOO values, shape `(n_subjects,)`
+            for a single feature or `(n_subjects, n_voxels)` for voxel-wise data.
+        summary (str): `'median'` (default) or `'mean'` (Fisher z-transformed:
+            arctanh → mean → tanh).
+        random_state (int | np.random.RandomState | None): Random state for
+            reproducibility.
 
     Returns:
-        Bootstrap summary statistic (scalar or per-voxel array).
-
-    Notes:
-        For 'mean', applies Fisher z-transform before averaging to avoid
-        bias (arctanh → mean → tanh). For 'median', computes directly.
+        np.ndarray: Bootstrap summary statistic, shape `()` or `(n_voxels,)`.
     """
     rng = check_random_state(random_state)
     n_subjects = loo_values.shape[0]
@@ -1258,22 +1002,23 @@ def _bootstrap_loo_numpy(loo_values, metric="median", random_state=None):
         boot_values = loo_values[indices, :]
 
     # Compute summary statistic
-    if metric == "median":
+    if summary == "median":
         return np.median(boot_values, axis=0)
-    if metric == "mean":
+    if summary == "mean":
         # Fisher z-transform for unbiased mean
         z = np.arctanh(np.clip(boot_values, -0.9999, 0.9999))
         return np.tanh(np.mean(z, axis=0))
-    raise ValueError(f"metric must be 'median' or 'mean', got {metric}")
+    raise ValueError(f"summary must be 'median' or 'mean', got {summary}")
 
 
 def _bootstrap_loo_cpu_parallel(
     loo_values,
+    *,
     n_permute=5000,
-    metric="median",
+    summary="median",
     n_jobs=-1,
     random_state=None,
-    progress_bar=True,
+    progress_bar=False,
     max_memory_gb=None,
 ):
     """CPU-parallel LOO bootstrap using joblib.
@@ -1283,20 +1028,23 @@ def _bootstrap_loo_cpu_parallel(
     Automatically limits workers based on available memory if n_jobs=-1.
 
     Args:
-        loo_values: Pre-computed LOO values (n_subjects,) or (n_subjects, n_voxels).
-        n_permute: Number of bootstrap iterations. Defaults to 5000.
-        metric: Summary statistic. Defaults to 'median'.
-        n_jobs: Number of CPU cores (-1 = auto-detect based on memory). Defaults to -1.
-        random_state: Random seed for reproducibility.
-        progress_bar: Show progress bar. Defaults to True.
-        max_memory_gb: Maximum memory budget in GB (only used if n_jobs=-1).
+        loo_values (np.ndarray): Pre-computed LOO values, shape `(n_subjects,)`
+            or `(n_subjects, n_voxels)`.
+        n_permute (int): Number of bootstrap iterations. Defaults to 5000.
+        summary (str): `'median'` (default) or `'mean'`.
+        n_jobs (int): CPU cores; -1 (default) picks the worker count from
+            available memory.
+        random_state (int | None): Random seed for reproducibility.
+        progress_bar (bool): Show a progress bar. Defaults to False.
+        max_memory_gb (float | None): Memory budget in GB for the `n_jobs=-1`
+            auto-detection; None measures the machine.
 
     Returns:
-        Bootstrap distribution, shape (n_permute,) or (n_permute, n_voxels).
+        np.ndarray: Bootstrap distribution, shape `(n_permute,)` or
+            `(n_permute, n_voxels)`.
     """
     from joblib import Parallel, delayed
-    from tqdm.auto import tqdm
-    from .utils import _auto_n_jobs_cpu, _estimate_data_size_mb
+    from nltools.algorithms.backends import _auto_n_jobs_cpu, _estimate_data_size_mb
 
     # Auto-detect optimal n_jobs based on memory if n_jobs=-1
     if n_jobs == -1:
@@ -1305,7 +1053,6 @@ def _bootstrap_loo_cpu_parallel(
             data_size_mb=data_size_mb,
             n_permute=n_permute,
             max_memory_gb=max_memory_gb,
-            min_jobs=1,
         )
 
     # Pre-generate seeds for deterministic parallelization
@@ -1313,14 +1060,14 @@ def _bootstrap_loo_cpu_parallel(
     seeds = rng.randint(0, 2**31 - 1, size=n_permute)
 
     # Parallelize with independent RandomState per permutation
-    iterator = range(n_permute)
-    if progress_bar:
-        iterator = tqdm(iterator, desc="Bootstrap LOO")
+    iterator = maybe_tqdm(
+        range(n_permute), progress_bar=progress_bar, desc="Bootstrap LOO"
+    )
 
     bootstraps = Parallel(n_jobs=n_jobs)(
         delayed(_bootstrap_loo_numpy)(
             loo_values,
-            metric=metric,
+            summary=summary,
             random_state=np.random.RandomState(seeds[i]),
         )
         for i in iterator
@@ -1336,7 +1083,7 @@ def _bootstrap_loo_cpu_parallel(
 
 def _bootstrap_pairwise_numpy(
     pairwise_condensed,
-    metric="median",
+    summary="median",
     bootstrap_subjects=None,
     n_subjects=None,
     random_state=None,
@@ -1348,25 +1095,26 @@ def _bootstrap_pairwise_numpy(
     (Chen et al. 2016): resample subjects, extract submatrix, mask
     same-subject pairs (self-correlations from duplicates).
 
+    A subject drawn twice correlates perfectly with itself; with
+    `exclude_self_corr=True` those entries are masked as NaN before the summary,
+    as Chen et al. (2016) recommend.
+
     Args:
-        pairwise_condensed: Pre-computed pairwise correlations in condensed form:
-            - Shape (n_pairs,) for single feature
-            - Shape (n_pairs, n_voxels) for voxel-wise
-        metric: Summary statistic. Defaults to 'median'.
-        bootstrap_subjects: Pre-generated bootstrap subject indices (for testing).
-        n_subjects: Number of subjects (required if bootstrap_subjects is None).
-        random_state: Random state for sampling.
-        exclude_self_corr: If True, mask self-correlations (perfect correlations from duplicate
-            subjects) as NaN. If False, include them in the summary statistic. Defaults to True.
+        pairwise_condensed (np.ndarray): Pre-computed pairwise correlations in
+            condensed form, shape `(n_pairs,)` for a single feature or
+            `(n_pairs, n_voxels)` for voxel-wise data.
+        summary (str): `'median'` (default) or `'mean'`.
+        bootstrap_subjects (np.ndarray | None): Pre-drawn subject indices (for
+            testing); drawn from `random_state` when None.
+        n_subjects (int | None): Number of subjects; required when
+            `bootstrap_subjects` is None.
+        random_state (int | np.random.RandomState | None): Random state for
+            sampling.
+        exclude_self_corr (bool): Mask self-correlations as NaN. Defaults to
+            True.
 
     Returns:
-        Bootstrap summary statistic.
-
-    Notes:
-        When the same subject appears multiple times in the bootstrap sample,
-        their pairwise correlation is 1.0 (perfect self-correlation). These
-        are masked as NaN to exclude from the summary statistic, following
-        Chen et al. (2016) recommendations.
+        np.ndarray: Bootstrap summary statistic, shape `()` or `(n_voxels,)`.
     """
     if bootstrap_subjects is None:
         if n_subjects is None:
@@ -1429,23 +1177,24 @@ def _bootstrap_pairwise_numpy(
     # Compute summary (ignoring NaNs from masked pairs)
     axis = 0 if boot_condensed.ndim > 1 else None
 
-    if metric == "median":
+    if summary == "median":
         return np.nanmedian(boot_condensed, axis=axis)
-    if metric == "mean":
+    if summary == "mean":
         # Fisher z-transform
         z = np.arctanh(np.clip(boot_condensed, -0.9999, 0.9999))
         return np.tanh(np.nanmean(z, axis=axis))
-    raise ValueError(f"metric must be 'median' or 'mean', got {metric}")
+    raise ValueError(f"summary must be 'median' or 'mean', got {summary}")
 
 
 def _bootstrap_pairwise_cpu_parallel(
     pairwise_condensed,
+    *,
     n_permute=5000,
     n_subjects=None,
-    metric="median",
+    summary="median",
     n_jobs=-1,
     random_state=None,
-    progress_bar=True,
+    progress_bar=False,
     exclude_self_corr=True,
     max_memory_gb=None,
 ):
@@ -1456,23 +1205,26 @@ def _bootstrap_pairwise_cpu_parallel(
     Automatically limits workers based on available memory if n_jobs=-1.
 
     Args:
-        pairwise_condensed: Pre-computed pairwise correlations (n_pairs,) or (n_pairs, n_voxels).
-        n_permute: Number of bootstrap iterations. Defaults to 5000.
-        n_subjects: Number of subjects in original data.
-        metric: Summary statistic. Defaults to 'median'.
-        n_jobs: Number of CPU cores (-1 = auto-detect based on memory). Defaults to -1.
-        random_state: Random seed for reproducibility.
-        progress_bar: Show progress bar. Defaults to True.
-        exclude_self_corr: If True, mask self-correlations (perfect correlations from duplicate
-            subjects) as NaN. If False, include them in the summary statistic. Defaults to True.
-        max_memory_gb: Maximum memory budget in GB (only used if n_jobs=-1).
+        pairwise_condensed (np.ndarray): Pre-computed pairwise correlations,
+            shape `(n_pairs,)` or `(n_pairs, n_voxels)`.
+        n_permute (int): Number of bootstrap iterations. Defaults to 5000.
+        n_subjects (int): Number of subjects in the original data.
+        summary (str): `'median'` (default) or `'mean'`.
+        n_jobs (int): CPU cores; -1 (default) picks the worker count from
+            available memory.
+        random_state (int | None): Random seed for reproducibility.
+        progress_bar (bool): Show a progress bar. Defaults to False.
+        exclude_self_corr (bool): Mask self-correlations as NaN. Defaults to
+            True.
+        max_memory_gb (float | None): Memory budget in GB for the `n_jobs=-1`
+            auto-detection; None measures the machine.
 
     Returns:
-        Bootstrap distribution, shape (n_permute,) or (n_permute, n_voxels).
+        np.ndarray: Bootstrap distribution, shape `(n_permute,)` or
+            `(n_permute, n_voxels)`.
     """
     from joblib import Parallel, delayed
-    from tqdm.auto import tqdm
-    from .utils import _auto_n_jobs_cpu, _estimate_data_size_mb
+    from nltools.algorithms.backends import _auto_n_jobs_cpu, _estimate_data_size_mb
 
     if n_subjects is None:
         raise ValueError("n_subjects is required for pairwise bootstrap")
@@ -1484,7 +1236,6 @@ def _bootstrap_pairwise_cpu_parallel(
             data_size_mb=data_size_mb,
             n_permute=n_permute,
             max_memory_gb=max_memory_gb,
-            min_jobs=1,
         )
 
     # Pre-generate seeds
@@ -1492,14 +1243,14 @@ def _bootstrap_pairwise_cpu_parallel(
     seeds = rng.randint(0, 2**31 - 1, size=n_permute)
 
     # Parallelize
-    iterator = range(n_permute)
-    if progress_bar:
-        iterator = tqdm(iterator, desc="Bootstrap Pairwise")
+    iterator = maybe_tqdm(
+        range(n_permute), progress_bar=progress_bar, desc="Bootstrap Pairwise"
+    )
 
     bootstraps = Parallel(n_jobs=n_jobs)(
         delayed(_bootstrap_pairwise_numpy)(
             pairwise_condensed,
-            metric=metric,
+            summary=summary,
             n_subjects=n_subjects,
             random_state=np.random.RandomState(seeds[i]),
             exclude_self_corr=exclude_self_corr,
@@ -1510,297 +1261,104 @@ def _bootstrap_pairwise_cpu_parallel(
     return np.array(bootstraps)
 
 
-def _pairwise_bootstrap_indices(n_permute, n_subjects, random_state=None):
-    """Pre-generate subject-resample indices for the pairwise bootstrap.
-
-    Reproduces the exact RNG scheme of ``_bootstrap_pairwise_cpu_parallel`` (a
-    per-iteration ``RandomState(seed).choice(n_subjects, size=n_subjects,
-    replace=True)``) so the GPU bootstrap draws the *same* resamples as the CPU
-    path for a given ``random_state``. This deterministic cross-backend RNG is
-    what lets the GPU pairwise result match the CPU result within float tolerance
-    (see docs/development/inference-internals.md).
-
-    Returns:
-        np.ndarray of shape (n_permute, n_subjects), dtype int64.
-    """
-    rng = check_random_state(random_state)
-    seeds = rng.randint(0, 2**31 - 1, size=n_permute)
-    indices = np.empty((n_permute, n_subjects), dtype=np.int64)
-    for i in range(n_permute):
-        indices[i] = np.random.RandomState(seeds[i]).choice(
-            n_subjects, size=n_subjects, replace=True
-        )
-    return indices
-
-
-def _nanmedian_lastdim_torch(x):
-    """NumPy-compatible nan-median over the last dim of a torch tensor.
-
-    ``torch.nanmedian`` returns an actual element (lower of the two middles for
-    even counts), whereas ``np.nanmedian`` averages the two middle values. Match
-    numpy here so the GPU bootstrap distribution agrees with the CPU one: sort
-    (NaNs sort to the end in torch), count the non-NaN entries per row, and
-    average the lower/upper median positions.
-
-    Args:
-        x: tensor of shape (..., K).
-
-    Returns:
-        tensor of shape (...); all-NaN rows yield NaN.
-    """
-    import torch
-
-    x_sorted, _ = torch.sort(x, dim=-1)  # NaN is treated as +inf → lands at the end
-    count = (~torch.isnan(x)).sum(dim=-1)  # (...)
-    safe = count.clamp(min=1)
-    lower = (safe - 1) // 2
-    upper = safe // 2
-    lo = torch.gather(x_sorted, -1, lower.unsqueeze(-1)).squeeze(-1)
-    hi = torch.gather(x_sorted, -1, upper.unsqueeze(-1)).squeeze(-1)
-    med = (lo + hi) / 2.0
-    return torch.where(count == 0, torch.tensor(float("nan"), device=x.device), med)
-
-
-def _pairwise_gpu_batch_sizes(n_voxels, n_subjects, n_permute, max_gpu_memory_gb):
-    """Pick (voxel_chunk, perm_batch) so the (P, Vc, N, N) working set fits budget.
-
-    The bootstrap materializes a couple of (perm_batch, voxel_chunk, N, N) float32
-    tensors per step (the gathered submatrix and its scratch); budget for ~3 copies
-    plus headroom. Prefer processing all voxels at once and batching permutations;
-    fall back to chunking voxels when even a single permutation over all voxels
-    would blow the budget.
-    """
-    per_elem = n_subjects * n_subjects * 4 * 3  # 3 working copies of (·, N, N)
-    budget = max(per_elem, int(max_gpu_memory_gb * 1e9))
-    max_elems = max(1, budget // per_elem)  # bound on perm_batch * voxel_chunk
-    voxel_chunk = min(n_voxels, max_elems)
-    perm_batch = max(1, max_elems // voxel_chunk)
-    perm_batch = min(perm_batch, n_permute)
-    return voxel_chunk, perm_batch
-
-
-def _bootstrap_pairwise_gpu(
-    data,
-    boot_indices,
-    metric="median",
-    exclude_self_corr=True,
-    max_gpu_memory_gb=4.0,
-    progress_bar=False,
-):
-    """GPU pairwise bootstrap: resample subjects and recompute on-device.
-
-    The per-voxel N×N correlation matrices are computed once and kept on the GPU;
-    each bootstrap iteration gathers the resampled submatrix, masks self-pairs,
-    extracts the upper triangle, and reduces to the summary statistic — all
-    vectorized across voxels and batched across permutations under
-    ``max_gpu_memory_gb``. This moves the bulk of the work (the ``n_permute``
-    iterations) onto the GPU, unlike the CPU-parallel path which only ran the
-    single observed compute on-device.
-
-    Args:
-        data: (n_obs, n_subjects, n_voxels) voxel-wise time series.
-        boot_indices: (n_permute, n_subjects) resample indices (see
-            ``_pairwise_bootstrap_indices``; pass numpy-generated indices to match
-            the CPU path).
-        metric: 'median' or 'mean' (Fisher-z).
-        exclude_self_corr: mask correlations ≥ 0.99999 (duplicate-subject pairs).
-        max_gpu_memory_gb: working-set budget for voxel/permutation batching.
-        progress_bar: show a tqdm bar over permutation batches.
-
-    Returns:
-        np.ndarray of shape (n_permute, n_voxels): bootstrap summary per voxel.
-    """
-    import torch
-
-    if data.ndim != 3:
-        raise ValueError("GPU pairwise bootstrap requires 3D voxel-wise data")
-
-    n_obs, n_subjects, n_voxels = data.shape
-    n_permute = boot_indices.shape[0]
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
-    data_gpu = torch.tensor(
-        np.transpose(data, (2, 1, 0)), dtype=torch.float32, device=device
-    )  # (n_voxels, n_subjects, n_obs)
-    corr = _batch_corrcoef_gpu(data_gpu)  # (n_voxels, n_subjects, n_subjects)
-    # Match np.fill_diagonal(corr, 1.0) from the numpy path.
-    diag = torch.arange(n_subjects, device=device)
-    corr[:, diag, diag] = 1.0
-
-    iu = torch.triu_indices(n_subjects, n_subjects, offset=1, device=device)
-    boot_idx = torch.as_tensor(boot_indices, dtype=torch.long, device=device)
-
-    voxel_chunk, perm_batch = _pairwise_gpu_batch_sizes(
-        n_voxels, n_subjects, n_permute, max_gpu_memory_gb
-    )
-
-    out = np.empty((n_permute, n_voxels), dtype=np.float64)
-
-    perm_starts = list(range(0, n_permute, perm_batch))
-    if progress_bar:
-        from tqdm.auto import tqdm
-
-        perm_starts = tqdm(perm_starts, desc="Bootstrap Pairwise (GPU)")
-
-    for p0 in perm_starts:
-        p1 = min(p0 + perm_batch, n_permute)
-        bi = boot_idx[p0:p1]  # (P, N)
-        P = bi.shape[0]
-        for v0 in range(0, n_voxels, voxel_chunk):
-            v1 = min(v0 + voxel_chunk, n_voxels)
-            cm = corr[v0:v1]  # (Vc, N, N)
-            Vc = cm.shape[0]
-
-            # Gather the resampled submatrix for every (perm, voxel):
-            # rows then cols indexed by the same bootstrap subject order.
-            cmb = cm.unsqueeze(0).expand(P, Vc, n_subjects, n_subjects)
-            rows = bi[:, None, :, None].expand(P, Vc, n_subjects, n_subjects)
-            gathered = torch.gather(cmb, 2, rows)
-            cols = bi[:, None, None, :].expand(P, Vc, n_subjects, n_subjects)
-            sub = torch.gather(gathered, 3, cols)  # (P, Vc, N, N)
-
-            tri = sub[:, :, iu[0], iu[1]]  # (P, Vc, n_pairs)
-            if exclude_self_corr:
-                tri = torch.where(
-                    tri >= 0.99999,
-                    torch.tensor(float("nan"), device=device),
-                    tri,
-                )
-
-            if metric == "median":
-                res = _nanmedian_lastdim_torch(tri)  # (P, Vc)
-            elif metric == "mean":
-                z = torch.arctanh(torch.clamp(tri, -0.9999, 0.9999))
-                res = torch.tanh(torch.nanmean(z, dim=-1))
-            else:
-                raise ValueError(f"metric must be 'median' or 'mean', got {metric}")
-
-            out[p0:p1, v0:v1] = res.double().cpu().numpy()
-
-    return out
-
-
-# ============================================================================
-# Phase 5: Main ISC Permutation Test Function
-# ============================================================================
-
-
 def isc_permutation_test(
     # Required
     data: np.ndarray,
+    *,
     # Optional algorithm parameters
     n_permute: int = 5000,
-    metric: Literal["median", "mean"] = "median",
+    summary: Literal["median", "mean"] = "median",
     summary_statistic: Literal["leave-one-out", "pairwise"] = "pairwise",
     method: Literal["bootstrap", "circle_shift", "phase_randomize"] = "bootstrap",
     ci_percentile: float = 95,
-    tail: Literal[1, 2] = 2,
+    tail: int | str = 2,
     return_null: bool = False,
-    progress_bar: bool = True,
+    progress_bar: bool = False,
     exclude_self_corr: bool = True,
-    sim_metric: str = "correlation",
+    metric: str = "correlation",
     # Backend parameters (grouped)
-    parallel: Literal["cpu", "gpu"] | None = "cpu",
     n_jobs: int = -1,
-    max_gpu_memory_gb: float = 4.0,
     # Random state (last)
     random_state: int | None = None,
 ) -> dict[str, Any]:
-    """Compute intersubject correlation with permutation testing.
+    """Compute intersubject correlation with bootstrap or permutation inference.
 
-    Supports both leave-one-out and pairwise ISC computation modes with
-    GPU acceleration for large voxel-wise problems and CPU-parallel
-    bootstrap resampling.
+    Summarizes how similarly subjects respond over time — either leave-one-out
+    (each subject against the mean of the others; O(n_subjects), unbiased) or
+    pairwise (all subject pairs; O(n_subjects²), full correlation structure).
+    The two are monotonically but non-linearly related and statistically
+    different (Chen et al. 2016, Figure 3). The null distribution comes from a
+    subject-wise bootstrap (centered on the observed ISC, so the p-value tests
+    H0: ISC = 0) or from surrogate time series that preserve each subject's
+    autocorrelation (circular shift) or power spectrum (phase randomization).
 
     Args:
-        data: Data array with one of the following shapes:
-            - (n_observations, n_subjects): Single feature ISC
-            - (n_observations, n_subjects, n_voxels): Voxel-wise ISC
-        n_permute: Number of bootstrap iterations or permutations. Defaults to 5000.
-        metric: Summary statistic to aggregate ISC values.
-            - 'median': Direct median (robust to outliers)
-            - 'mean': Fisher z-transformed mean (unbiased averaging)
-            Defaults to 'median'.
-        summary_statistic: ISC computation method. Options:
-            - 'leave-one-out': Correlate each subject with mean of others. O(n_subjects), unbiased, recommended by Chen et al. 2016.
-            - 'pairwise': Average all pairwise correlations. O(n_subjects²), captures full correlation structure.
-            Note: These methods are statistically different and monotonically but non-linearly related (see Chen et al. 2016, Figure 3).
-            Defaults to 'pairwise'.
-        method: Resampling method for p-value computation:
-            - 'bootstrap': Subject-wise bootstrap (default, Chen et al. 2016)
-            - 'circle_shift': Circular time-series shift (preserves autocorrelation)
-            - 'phase_randomize': FFT phase randomization (preserves power spectrum)
-            Defaults to 'bootstrap'.
-        ci_percentile: Confidence interval percentile (e.g., 95 for 95% CI). Defaults to 95.
-        tail: One-tailed (1) or two-tailed (2) p-value. Defaults to 2.
-        return_null: If True, return bootstrap/permutation distribution in result dict. Defaults to False.
-        progress_bar: Show progress bar during bootstrap/permutation. Defaults to True.
-        exclude_self_corr: If True, mask self-correlations (perfect correlations from duplicate
-            subjects in bootstrap samples) as NaN. If False, include them in the
-            summary statistic. Only applies when method='bootstrap' and
-            summary_statistic='pairwise'. Defaults to True.
-        sim_metric: Similarity metric for pairwise ISC computation. See
-            sklearn.metrics.pairwise_distances for valid options. Only applies
-            when summary_statistic='pairwise'. For 'correlation', uses optimized
-            np.corrcoef. Other metrics use pairwise_distances. Defaults to 'correlation'.
-        parallel: Parallelization method:
-            - 'cpu': CPU parallelization via joblib (default, 4-8× speedup)
-            - 'gpu': GPU acceleration via PyTorch (10-30× speedup for voxel-wise LOO)
-            - None: Single-threaded NumPy (for debugging/small problems)
-            Defaults to 'cpu'.
-        n_jobs: Number of CPU cores for parallelization (-1 = all cores).
-            Only used when parallel='cpu'. Defaults to -1.
-        max_gpu_memory_gb: GPU working-set budget in GB. For the pairwise GPU
-            bootstrap (``parallel='gpu'``, ``summary_statistic='pairwise'``,
-            ``method='bootstrap'``) this bounds the ``(perm_batch, voxel_chunk,
-            n_subjects, n_subjects)`` resample tensor, chunking voxels and
-            permutations to fit — so whole-brain runs stay within budget. Not used
-            by the LOO or surrogate (circle_shift/phase_randomize) paths.
-            Defaults to 4.
-        random_state: Random seed for reproducibility.
+        data (np.ndarray): Shape `(n_observations, n_subjects)` for a single
+            feature or `(n_observations, n_subjects, n_voxels)` for voxel-wise
+            ISC.
+        n_permute (int): Number of bootstrap draws or permutations. Defaults to
+            5000.
+        summary (str): How ISC values are aggregated: `'median'` (default,
+            robust to outliers) or `'mean'` (Fisher z-transformed mean).
+        summary_statistic (str): `'pairwise'` (default) or `'leave-one-out'`.
+        method (str): `'bootstrap'` (default; subject-wise bootstrap, Chen et
+            al. 2016), `'circle_shift'` (circular time-series shift), or
+            `'phase_randomize'` (FFT phase randomization).
+        ci_percentile (float): Confidence-interval width in percent (95 gives a
+            95% CI). Defaults to 95.
+        tail (int | str): `2` or `'two'` (default) for a two-tailed p-value;
+            `1` or `'one'` for one-tailed (ISC > 0).
+        return_null (bool): If True, include the null distribution in the
+            result. Defaults to False.
+        progress_bar (bool): Show a progress bar over the resamples. Defaults to
+            False.
+        exclude_self_corr (bool): In the pairwise bootstrap, mask the perfect
+            correlations a duplicated subject produces as NaN. Defaults to True.
+        metric (str): Similarity metric for pairwise ISC; any metric accepted by
+            `sklearn.metrics.pairwise_distances` (`'correlation'`,
+            `'spearman'`, `'cosine'`, and `'euclidean'` take fast paths). Ignored
+            for `summary_statistic='leave-one-out'`. Defaults to
+            `'correlation'`.
+        n_jobs (int): Number of joblib workers for the resamples. -1 (default)
+            picks the worker count from available memory. Results are identical
+            at every worker count.
+        random_state (int | None): Random seed for reproducibility.
 
     Returns:
-        Dictionary with the following keys:
-        - 'isc': Observed ISC value (float or array per voxel)
-        - 'p': P-value (Phipson-Smyth corrected)
-        - 'ci': Confidence interval tuple (lower, upper)
-        - 'parallel': Parallelization method used
-        - 'null_dist': (optional) Bootstrap/permutation distribution
+        dict: Keys `'isc'` (float or np.ndarray, observed ISC), `'p'` (float or
+            np.ndarray, p-value with the `(count + 1) / (n + 1)` correction),
+            `'ci'` (tuple `(lower, upper)` percentiles of the resamples), and
+            — when `return_null=True` — `'null_dist'` (np.ndarray).
 
     Examples:
-        >>> # Single-feature ISC
-        >>> data = np.random.randn(100, 10)  # 100 timepoints, 10 subjects
-        >>> result = isc_permutation_test(data, n_permute=1000)
-        >>> print(f"ISC: {result['isc']:.3f}, p: {result['p']:.3f}")
+        ```python
+        # Single-feature ISC
+        data = np.random.randn(100, 10)  # 100 timepoints, 10 subjects
+        result = isc_permutation_test(data, n_permute=1000)
+        result["isc"], result["p"]
 
-        >>> # Voxel-wise ISC with GPU acceleration
-        >>> data_voxels = np.random.randn(100, 50, 5000)  # 5K voxels
-        >>> result = isc_permutation_test(
-        ...     data_voxels,
-        ...     summary_statistic='leave-one-out',
-        ...     parallel='gpu',  # GPU for LOO computation
-        ...     n_permute=5000
-        ... )
-        >>> print(f"Significant voxels: {(result['p'] < 0.05).sum()}")
+        # Voxel-wise leave-one-out ISC
+        data_voxels = np.random.randn(100, 50, 5000)  # 5K voxels
+        result = isc_permutation_test(
+            data_voxels,
+            summary_statistic="leave-one-out",
+            n_permute=5000,
+        )
+        (result["p"] < 0.05).sum()  # → number of significant voxels
 
-        >>> # Compare LOO vs pairwise
-        >>> result_loo = isc_permutation_test(data, summary_statistic='leave-one-out')
-        >>> result_pair = isc_permutation_test(data, summary_statistic='pairwise')
-        >>> print(f"LOO: {result_loo['isc']:.3f}, Pairwise: {result_pair['isc']:.3f}")
+        # Leave-one-out vs pairwise
+        result_loo = isc_permutation_test(data, summary_statistic="leave-one-out")
+        result_pair = isc_permutation_test(data, summary_statistic="pairwise")
+        ```
 
     References:
         Chen, G., Shin, Y. W., Taylor, P. A., Glen, D. R., Reynolds, R. C.,
         Israel, R. B., & Cox, R. W. (2016). Untangling the relatedness among
         correlations, part I: nonparametric approaches to inter-subject
         correlation analysis at the group level. NeuroImage, 142, 248-259.
-
-    Notes:
-        - Leave-one-out is 20-30× faster than pairwise for large n_subjects
-        - GPU acceleration helps most for voxel-wise LOO (10-30× speedup)
-        - Pairwise bootstrap uses correct subject-wise resampling (Chen 2016)
-        - Bootstrap distribution is centered by subtracting observed ISC
     """
     # Input validation
+    validate_tail_parameter(tail)
     data = np.asarray(data)
     if data.ndim not in [2, 3]:
         raise ValueError(f"data must be 2D or 3D, got shape {data.shape}")
@@ -1817,144 +1375,60 @@ def isc_permutation_test(
             f"got {method}"
         )
 
-    # Validate parallel parameter
-    if parallel not in [None, "cpu", "gpu"]:
-        raise ValueError(f"parallel must be None, 'cpu', or 'gpu', got {parallel!r}")
-
-    # Determine backend for computation phase based on parallel parameter
-    if parallel == "cpu" or parallel is None:
-        # CPU modes
-        if parallel is None:
-            # Single-threaded NumPy
-            compute_backend = "numpy"
-            bootstrap_backend = "numpy"
-        else:
-            # CPU parallelization
-            compute_backend = "numpy"
-            bootstrap_backend = "cpu-parallel"
-    else:
-        # GPU mode
-        compute_backend = "torch"
-        # Pairwise bootstrap runs on-device (resample + recompute the condensed
-        # matrix per iteration); LOO bootstrap only resamples precomputed values,
-        # so CPU-parallel is already fine there (the GPU win is in _compute_loo_isc).
-        bootstrap_backend = "gpu" if summary_statistic == "pairwise" else "cpu-parallel"
-
-    # Input validation: GPU pairwise ISC only implements correlation. Fail fast
-    # on the contradictory combo rather than deep inside the compute call, and
-    # match the sibling isc_group_permutation_test (which also rejects it).
-    if (
-        parallel == "gpu"
-        and summary_statistic == "pairwise"
-        and sim_metric != "correlation"
-    ):
-        raise ValueError(
-            f"GPU pairwise ISC only supports sim_metric='correlation', got "
-            f"{sim_metric!r}. Use parallel='cpu' for other similarity metrics."
-        )
-
     # Phase 1: Compute ISC (run once)
     if summary_statistic == "leave-one-out":
         # Compute leave-one-out values
-        loo_values = _compute_loo_isc(data, backend=compute_backend)
+        loo_values = _compute_loo_isc(data)
 
         # Compute observed summary statistic
-        if metric == "median":
+        if summary == "median":
             observed_isc = np.median(loo_values, axis=0)
-        elif metric == "mean":
+        elif summary == "mean":
             z = np.arctanh(np.clip(loo_values, -0.9999, 0.9999))
             observed_isc = np.tanh(np.mean(z, axis=0))
         else:
-            raise ValueError(f"metric must be 'median' or 'mean', got {metric}")
+            raise ValueError(f"summary must be 'median' or 'mean', got {summary}")
 
     else:  # pairwise
-        # Compute pairwise correlation matrix (condensed form). Honor the
-        # resolved backend so parallel='gpu' actually engages the GPU for the
-        # observed pairwise computation (was hardcoded to numpy — a silent no-op).
-        pairwise_condensed = _compute_pairwise_isc(
-            data, backend=compute_backend, sim_metric=sim_metric
-        )
+        # Compute pairwise correlation matrix (condensed form)
+        pairwise_condensed = _compute_pairwise_isc(data, metric=metric)
         n_subjects = data.shape[1]
 
         # Compute observed summary statistic
-        if metric == "median":
+        if summary == "median":
             observed_isc = np.nanmedian(pairwise_condensed, axis=0)
-        elif metric == "mean":
+        elif summary == "mean":
             z = np.arctanh(np.clip(pairwise_condensed, -0.9999, 0.9999))
             observed_isc = np.tanh(np.nanmean(z, axis=0))
         else:
-            raise ValueError(f"metric must be 'median' or 'mean', got {metric}")
+            raise ValueError(f"summary must be 'median' or 'mean', got {summary}")
 
     # Phase 2: Bootstrap/permutation (run n_permute times)
     if method == "bootstrap":
         if summary_statistic == "leave-one-out":
             # LOO bootstrap: resample pre-computed values
-            if bootstrap_backend == "numpy":
-                rng = check_random_state(random_state)
-                bootstraps = np.array(
-                    [
-                        _bootstrap_loo_numpy(
-                            loo_values,
-                            metric=metric,
-                            random_state=np.random.RandomState(rng.randint(2**31)),
-                        )
-                        for _ in range(n_permute)
-                    ]
-                )
-            else:  # cpu-parallel
-                bootstraps = _bootstrap_loo_cpu_parallel(
-                    loo_values,
-                    n_permute=n_permute,
-                    metric=metric,
-                    n_jobs=n_jobs,
-                    random_state=random_state,
-                    progress_bar=progress_bar,
-                    max_memory_gb=None,  # Auto-detect
-                )
-
+            bootstraps = _bootstrap_loo_cpu_parallel(
+                loo_values,
+                n_permute=n_permute,
+                summary=summary,
+                n_jobs=n_jobs,
+                random_state=random_state,
+                progress_bar=progress_bar,
+                max_memory_gb=None,  # Auto-detect
+            )
         else:  # pairwise
             # Pairwise bootstrap: subject-wise matrix indexing
-            if bootstrap_backend == "gpu":
-                # Draw the same resamples the CPU path would (deterministic
-                # cross-backend RNG) so the GPU result matches within float
-                # tolerance, then recompute the condensed matrix on-device.
-                boot_indices = _pairwise_bootstrap_indices(
-                    n_permute, n_subjects, random_state
-                )
-                bootstraps = _bootstrap_pairwise_gpu(
-                    data,
-                    boot_indices,
-                    metric=metric,
-                    exclude_self_corr=exclude_self_corr,
-                    max_gpu_memory_gb=max_gpu_memory_gb,
-                    progress_bar=progress_bar,
-                )
-            elif bootstrap_backend == "numpy":
-                rng = check_random_state(random_state)
-                bootstraps = np.array(
-                    [
-                        _bootstrap_pairwise_numpy(
-                            pairwise_condensed,
-                            metric=metric,
-                            n_subjects=n_subjects,
-                            random_state=np.random.RandomState(rng.randint(2**31)),
-                            exclude_self_corr=exclude_self_corr,
-                        )
-                        for _ in range(n_permute)
-                    ]
-                )
-            else:  # cpu-parallel
-                bootstraps = _bootstrap_pairwise_cpu_parallel(
-                    pairwise_condensed,
-                    n_permute=n_permute,
-                    n_subjects=n_subjects,
-                    metric=metric,
-                    n_jobs=n_jobs,
-                    random_state=random_state,
-                    progress_bar=progress_bar,
-                    exclude_self_corr=exclude_self_corr,
-                    max_memory_gb=None,  # Auto-detect
-                )
+            bootstraps = _bootstrap_pairwise_cpu_parallel(
+                pairwise_condensed,
+                n_permute=n_permute,
+                n_subjects=n_subjects,
+                summary=summary,
+                n_jobs=n_jobs,
+                random_state=random_state,
+                progress_bar=progress_bar,
+                exclude_self_corr=exclude_self_corr,
+                max_memory_gb=None,  # Auto-detect
+            )
 
         # Center bootstrap distribution by subtracting observed (Chen et al. 2016)
         null_distribution = bootstraps - observed_isc
@@ -1985,17 +1459,15 @@ def isc_permutation_test(
 
             # Recompute ISC
             if summary_statistic == "leave-one-out":
-                loo_perm = _compute_loo_isc(data_permuted, backend=compute_backend)
-                if metric == "median":
+                loo_perm = _compute_loo_isc(data_permuted)
+                if summary == "median":
                     isc_perm = np.median(loo_perm, axis=0)
                 else:
                     z = np.arctanh(np.clip(loo_perm, -0.9999, 0.9999))
                     isc_perm = np.tanh(np.mean(z, axis=0))
             else:  # pairwise
-                pair_perm = _compute_pairwise_isc(
-                    data_permuted, backend=compute_backend, sim_metric=sim_metric
-                )
-                if metric == "median":
+                pair_perm = _compute_pairwise_isc(data_permuted, metric=metric)
+                if summary == "median":
                     isc_perm = np.nanmedian(pair_perm, axis=0)
                 else:
                     z = np.arctanh(np.clip(pair_perm, -0.9999, 0.9999))
@@ -2032,17 +1504,15 @@ def isc_permutation_test(
 
             # Recompute ISC
             if summary_statistic == "leave-one-out":
-                loo_perm = _compute_loo_isc(data_permuted, backend=compute_backend)
-                if metric == "median":
+                loo_perm = _compute_loo_isc(data_permuted)
+                if summary == "median":
                     isc_perm = np.median(loo_perm, axis=0)
                 else:
                     z = np.arctanh(np.clip(loo_perm, -0.9999, 0.9999))
                     isc_perm = np.tanh(np.mean(z, axis=0))
             else:  # pairwise
-                pair_perm = _compute_pairwise_isc(
-                    data_permuted, backend=compute_backend, sim_metric=sim_metric
-                )
-                if metric == "median":
+                pair_perm = _compute_pairwise_isc(data_permuted, metric=metric)
+                if summary == "median":
                     isc_perm = np.nanmedian(pair_perm, axis=0)
                 else:
                     z = np.arctanh(np.clip(pair_perm, -0.9999, 0.9999))
@@ -2076,7 +1546,6 @@ def isc_permutation_test(
         "isc": observed_isc,
         "p": p_value,
         "ci": ci,
-        "parallel": parallel,
     }
 
     if return_null:

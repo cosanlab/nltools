@@ -1,7 +1,8 @@
-"""Provide DesignMatrix I/O and visualization functions.
+"""Read and write DesignMatrix objects.
 
-Standalone functions extracted from DesignMatrix methods.
-Each takes a DesignMatrix instance (`dm`) as its first argument.
+Loads BIDS events and tabular confound files into the frame a `DesignMatrix`
+wraps, exports NumPy arrays, and round-trips through TSV/CSV or HDF5
+(which also preserves the metadata). A private pandas adapter serves nilearn.
 """
 
 from __future__ import annotations
@@ -18,49 +19,111 @@ if TYPE_CHECKING:
     from nltools.data.designmatrix import DesignMatrix
 
 
-def events_to_dm(
+def _events_to_convolved_dm(
     events: pl.DataFrame | pd.DataFrame,
     *,
     run_length: int,
     sampling_freq: float,
+    hrf_model: str,
 ) -> pl.DataFrame:
-    """Convert a BIDS events table to boxcar regressors aligned to TRs.
+    """Convert a BIDS events table straight to HRF-convolved regressors.
 
-    Uses `nilearn.glm.first_level.make_first_level_design_matrix` with
-    `hrf_model=None` to sample events onto the TR grid without HRF
-    convolution — the caller is expected to call `DesignMatrix.convolve()`
-    explicitly when convolution is desired. Drops nilearn's auto-added
-    `constant` column; users add the intercept via `add_poly(0)`.
+    `make_first_level_design_matrix` convolves the events at nilearn's own
+    oversampling and only then samples onto the frame times, so onsets that
+    fall between TRs keep their timing. Going through `events_to_dm` first
+    would quantize them onto the TR grid before convolution, and the result
+    would no longer match a nilearn `FirstLevelModel` on the same events.
 
     Args:
-        events: pandas or polars DataFrame with BIDS columns `onset`,
-            `duration`, `trial_type` (required); `modulation` is passed
-            through if present.
-        run_length: Number of TRs the run contains.
-        sampling_freq: Sampling frequency in Hz (= 1/TR).
+        events (pl.DataFrame | pd.DataFrame): Events table with BIDS columns
+            `onset`, `duration`, `trial_type` (required); `modulation` is
+            passed through if present.
+        run_length (int): Number of TRs the run contains.
+        sampling_freq (float): Sampling frequency in Hz (= 1/TR).
+        hrf_model (str): An HRF model name from `_KERNELS`.
 
     Returns:
-        pl.DataFrame with one column per unique `trial_type`, values in
-        {0, modulation} indicating where each condition is active.
+        pl.DataFrame: One column per unique `trial_type`, convolved and named
+            `<trial_type>_c0`.
     """
     import pandas as pd
     from nilearn.glm.first_level import make_first_level_design_matrix
 
+    from .regressors import _KERNELS
+
     if isinstance(events, pl.DataFrame):
         events = pd.DataFrame(events.to_dict(as_series=False))
 
-    tr = 1.0 / sampling_freq
-    frame_times = np.arange(run_length) * tr
+    kernel = _KERNELS[hrf_model]
+    frame_times = np.arange(run_length) / sampling_freq
     dm = make_first_level_design_matrix(
         frame_times,
         events=events,
-        hrf_model=None,
+        hrf_model=kernel,
         drift_model=None,
     )
     if "constant" in dm.columns:
         dm = dm.drop(columns=["constant"])
-    # Avoid pyarrow dep on the pandas → polars hop (matches `to_pandas` below).
-    return pl.DataFrame({str(c): dm[c].to_numpy() for c in dm.columns})
+    # nilearn suffixes a column with the name of the function that convolved
+    # it when the model is a callable; nltools names every convolved column
+    # `<col>_c0` regardless of kernel, so strip it back off.
+    suffix = "" if isinstance(kernel, str) else f"_{kernel.__name__}"
+    return pl.DataFrame(
+        {f"{str(c).removesuffix(suffix)}_c0": dm[c].to_numpy() for c in dm.columns}
+    )
+
+
+def separator_for_path(path: str | Path) -> str:
+    """Return the delimiter a text DesignMatrix file uses, from its extension.
+
+    The single source of truth for both `write` and `load_from_file`, so a
+    file nltools writes is always a file nltools can read back. ``.csv`` means
+    comma; every other extension means tab, matching the BIDS convention for
+    ``.tsv`` and keeping the historical default for ``.txt`` and friends.
+
+    Args:
+        path (str | Path): File path whose extension decides the delimiter.
+
+    Returns:
+        str: ``','`` for `.csv`, ``'\\t'`` otherwise.
+    """
+    return "," if Path(path).suffix.lower() == ".csv" else "\t"
+
+
+def _read_delimited(path: Path, sep: str) -> pl.DataFrame:
+    """Read a delimited text file, rejecting a separator its extension belies.
+
+    Args:
+        path (Path): File to read.
+        sep (str): Delimiter the extension implies.
+
+    Returns:
+        pl.DataFrame: The parsed table.
+
+    Raises:
+        ValueError: If the file parses as a single column whose name still
+            holds the other delimiter — the file's separator does not match
+            its extension.
+    """
+    raw = pl.read_csv(
+        path,
+        separator=sep,
+        null_values=["n/a", "N/A", "NA", ""],
+        infer_schema_length=10_000,
+    )
+    alternate = "," if sep == "\t" else "\t"
+    if raw.width == 1 and alternate in raw.columns[0]:
+        shown = {",": "','", "\t": "tab"}
+        expected = ".tsv" if alternate == "\t" else ".csv"
+        raise ValueError(
+            f"{path.name} parsed as a single column with the {shown[sep]} "
+            f"separator its extension implies, but its header contains "
+            f"{shown[alternate]}. The file's separator does not match its "
+            f"extension: rename it to {expected}, or rewrite it with "
+            f"DesignMatrix.write(name, sep=...) using the delimiter the "
+            f"extension implies."
+        )
+    return raw
 
 
 def load_from_file(
@@ -68,37 +131,36 @@ def load_from_file(
     *,
     run_length: int | str,
     sampling_freq: float,
+    hrf_model: str | None = None,
 ) -> tuple[pl.DataFrame, bool]:
     """Read a TSV/CSV into the frame a DesignMatrix wraps.
 
-    Dispatches on column inspection:
+    Dispatches on column inspection: when `onset` and `duration` are both
+    present the file is a BIDS events table and becomes an experimental design
+    — HRF-convolved by nilearn when `hrf_model` names a model, raw boxcars via
+    `events_to_dm` when it is `None` — otherwise it is a tabular file
+    (confounds / nuisance regressors) read as-is.
 
-    - `onset` and `duration` both present → BIDS events → boxcar DM via
-      `events_to_dm` (unconvolved; caller convolves later).
-    - otherwise → tabular file (confounds / nuisance regressors) read as-is.
-
-    `run_length='infer'` is accepted only for the tabular path; events
+    ``run_length='infer'`` is accepted only for the tabular path; events
     files must provide an explicit integer (they have a variable row count
     per run, unlike confounds which are 1 row per TR).
 
     Args:
-        path: Path to a `.tsv` or `.csv` file.
-        run_length: Number of TRs, or `'infer'` for tabular inputs.
-        sampling_freq: Sampling frequency in Hz (= 1/TR).
+        path (str | Path): Path to a `.tsv` or `.csv` file.
+        run_length (int | str): Number of TRs, or ``'infer'`` for tabular inputs.
+        sampling_freq (float): Sampling frequency in Hz (= 1/TR).
+        hrf_model (str | None): HRF model name to convolve an events table
+            with, or ``None`` for raw boxcars. Ignored for tabular files.
 
     Returns:
-        Tuple of (data frame, is_events) — `is_events` signals to the
-        caller that the columns are experimental regressors rather than
-        nuisance.
+        tuple[pl.DataFrame, bool]: `(frame, is_events)` — `is_events` signals to
+            the caller that the columns are experimental regressors rather than
+            nuisance.
     """
+    from nltools.io.events import events_to_dm
+
     p = Path(path)
-    sep = "\t" if p.suffix.lower() == ".tsv" else ","
-    raw = pl.read_csv(
-        p,
-        separator=sep,
-        null_values=["n/a", "N/A", "NA", ""],
-        infer_schema_length=10_000,
-    )
+    raw = _read_delimited(p, separator_for_path(p))
 
     is_events = "onset" in raw.columns and "duration" in raw.columns
 
@@ -109,11 +171,19 @@ def load_from_file(
                 "(the row count is the number of events, not the number "
                 "of TRs). Pass an explicit integer run_length."
             )
-        data_df = events_to_dm(
-            raw,
-            run_length=int(run_length),
-            sampling_freq=sampling_freq,
-        )
+        if hrf_model is None:
+            data_df = events_to_dm(
+                raw,
+                run_length=int(run_length),
+                sampling_freq=sampling_freq,
+            )
+        else:
+            data_df = _events_to_convolved_dm(
+                raw,
+                run_length=int(run_length),
+                sampling_freq=sampling_freq,
+                hrf_model=hrf_model,
+            )
         return data_df, True
 
     if run_length != "infer":
@@ -127,78 +197,70 @@ def load_from_file(
     return raw, False
 
 
-def to_pandas(dm: DesignMatrix):
-    """Convert DesignMatrix to pandas DataFrame.
-
-    Uses dict-based conversion to avoid pyarrow dependency. This is slightly
-    slower (~10-20%) than pyarrow-based conversion but removes the dependency.
-
-    Args:
-        dm: DesignMatrix instance.
-
-    Returns:
-        pd.DataFrame: Pandas DataFrame with same data and column names.
-
-    Examples:
-        >>> dm = DesignMatrix(np.random.randn(100, 3))
-        >>> pd_df = to_pandas(dm)
-        >>> type(pd_df)
-        <class 'pandas.core.frame.DataFrame'>
-    """
+def _to_pandas(dm: DesignMatrix):
+    """Build the pandas table required by nilearn's GLM boundary."""
     import pandas as pd
 
-    return pd.DataFrame(dm.data.to_dict(as_series=False))
+    return pd.DataFrame(dm.data.to_dict(as_series=False), index=range(dm.shape[0]))
 
 
 def to_numpy(dm: DesignMatrix) -> np.ndarray:
     """Convert a DesignMatrix to a NumPy array.
 
-    Returns data columns as 2D numpy array (rows x columns).
-    Column order is preserved from DataFrame.
+    Returns the data columns as a 2D array (rows x columns), preserving the
+    DataFrame's column order.
 
     Args:
-        dm: DesignMatrix instance.
+        dm (DesignMatrix): DesignMatrix instance.
 
     Returns:
-        np.ndarray: 2D array with shape (n_samples, n_columns)
+        np.ndarray: 2D array with shape ``(n_samples, n_columns)``.
 
     Examples:
-        >>> dm = DesignMatrix({"a": [1, 2, 3], "b": [4, 5, 6]}, sampling_freq=1)
-        >>> arr = to_numpy(dm)
-        >>> arr.shape
-        (3, 2)
+        ```python
+        dm = DesignMatrix({"a": [1, 2, 3], "b": [4, 5, 6]}, sampling_freq=1)
+        arr = to_numpy(dm)
+        arr.shape  # → (3, 2)
+        ```
     """
-    return dm.data.to_numpy()
+    # np.asarray(dm) routes through DesignMatrix.__array__, which knows how to
+    # honor the recorded length of a column-less matrix (polars itself would
+    # report (0, 0)).
+    return np.asarray(dm)
 
 
-def write(dm: DesignMatrix, file_name: str, sep: str = "\t") -> None:
+def write(dm: DesignMatrix, file_name: str, sep: str | None = None) -> None:
     """Write DesignMatrix to file.
 
-    Supports TSV (default), CSV, and HDF5 formats. The format is
-    automatically determined by file extension.
+    Supports TSV, CSV, and HDF5 formats. The format is automatically
+    determined by file extension.
 
     Args:
-        dm: DesignMatrix instance.
-        file_name: Output file path. Use .tsv, .csv, or .h5/.hdf5 extension.
-        sep: Column separator for text files (default: tab for TSV).
-             Ignored for HDF5 files.
-
-    Returns:
-        None
+        dm (DesignMatrix): DesignMatrix instance.
+        file_name (str): Output file path with a `.tsv`, `.csv`, `.h5`, or
+            `.hdf5` extension.
+        sep (str | None): Column separator for text files. Defaults to the
+            delimiter the extension implies (comma for `.csv`, tab otherwise),
+            so the file reads back correctly; pass a value to override.
+            Ignored for HDF5.
 
     Examples:
-        >>> dm = DesignMatrix(np.random.randn(100, 3), sampling_freq=1)
-        >>> write(dm, "design_matrix.tsv")  # TSV format (BIDS compatible)
-        >>> write(dm, "design_matrix.csv", sep=",")  # CSV format
-        >>> write(dm, "design_matrix.h5")  # HDF5 format
+        ```python
+        dm = DesignMatrix(np.random.randn(100, 3), sampling_freq=1)
+        write(dm, "design_matrix.tsv")  # tab separated (BIDS compatible)
+        write(dm, "design_matrix.csv")  # comma separated
+        write(dm, "design_matrix.h5")   # HDF5, metadata preserved
+        ```
 
     Note:
-        TSV format is recommended for BIDS compatibility.
-        HDF5 format preserves metadata (sampling_freq, convolved, confounds).
+        TSV format is recommended for BIDS compatibility. Text formats carry
+        the data only — HDF5 additionally preserves ``sampling_freq``,
+        ``.convolved``, ``.confounds``, ``.multi``, and the row count of a
+        column-less matrix, so ``DesignMatrix(path)`` restores the object.
     """
     from pathlib import Path
 
-    from nltools.io import is_h5_path
+    from nltools.io.h5 import is_h5_path
 
     if isinstance(file_name, Path):
         file_name = str(file_name)
@@ -206,38 +268,89 @@ def write(dm: DesignMatrix, file_name: str, sep: str = "\t") -> None:
     if is_h5_path(file_name):
         write_h5(dm, file_name)
     else:
-        # Write as delimited text file (TSV or CSV)
-        dm.data.write_csv(file_name, separator=sep)
+        if dm.shape[1] == 0:
+            raise ValueError(
+                "Text export requires at least one column; use HDF5 to preserve observations."
+            )
+        # Write as delimited text file. The separator follows the extension by
+        # default so `write` and the file constructor cannot disagree.
+        dm.data.write_csv(
+            file_name, separator=separator_for_path(file_name) if sep is None else sep
+        )
 
 
 def write_h5(dm: DesignMatrix, file_name: str) -> None:
     """Write DesignMatrix to HDF5 file with metadata.
 
-    Args:
-        dm: DesignMatrix instance.
-        file_name (str): Output HDF5 file path.
+    The frame is stored as Arrow IPC bytes (via the shared
+    `nltools.io.h5` helpers) so every dtype round-trips exactly — an integer
+    spike indicator comes back an integer rather than being floated by a
+    detour through a homogeneous numpy array.
 
-    Returns:
-        None
+    Args:
+        dm (DesignMatrix): DesignMatrix instance.
+        file_name (str): Output HDF5 file path.
     """
     import h5py
 
+    from nltools.io.h5 import _write_polars_frame
+
     with h5py.File(file_name, "w") as f:
-        # Store data
-        f.create_dataset("data", data=dm.data.to_numpy(), compression="gzip")
+        _write_polars_frame(f, "data", dm.data, "gzip")
 
-        # Store column names
-        f.create_dataset(
-            "columns",
-            data=np.array(dm.columns, dtype="S"),
-            compression="gzip",
-        )
-
-        # Store metadata
         meta = f.create_group("metadata")
         if dm.sampling_freq is not None:
             meta.attrs["sampling_freq"] = dm.sampling_freq
-        meta.attrs["convolved"] = np.array(dm.convolved, dtype="S")
-        meta.attrs["confounds"] = np.array(dm.confounds, dtype="S")
+        meta.attrs["convolved"] = np.array(
+            dm.convolved, dtype=h5py.string_dtype("utf-8")
+        )
+        meta.attrs["confounds"] = np.array(
+            dm.confounds, dtype=h5py.string_dtype("utf-8")
+        )
         meta.attrs["multi"] = dm.multi
+        meta.attrs["run_count"] = dm._run_count
+        # A column-less matrix still describes a specific number of
+        # timepoints, and polars cannot carry that in the frame itself.
+        if dm._n_rows is not None:
+            meta.attrs["n_rows"] = dm._n_rows
         meta.attrs["obj_type"] = "design_matrix"
+
+
+def read_h5(file_name: str | Path) -> tuple[pl.DataFrame, dict]:
+    """Read a DesignMatrix HDF5 file written by `write_h5`.
+
+    Args:
+        file_name (str | Path): Path to the HDF5 file.
+
+    Returns:
+        tuple[pl.DataFrame, dict]: `(frame, metadata)`, where metadata holds
+            ``sampling_freq``, ``convolved``, ``confounds``, ``multi``, and
+            ``n_rows`` — absent keys meaning the file didn't record them.
+    """
+    import h5py
+
+    from nltools.io.h5 import _read_polars_frame
+
+    def _decode(values) -> list[str]:
+        return [v.decode() if isinstance(v, bytes) else str(v) for v in values]
+
+    with h5py.File(file_name, "r") as f:
+        data = _read_polars_frame(f, "data")
+
+        metadata: dict = {}
+        if "metadata" in f:
+            attrs = f["metadata"].attrs
+            if "sampling_freq" in attrs:
+                metadata["sampling_freq"] = float(attrs["sampling_freq"])
+            if "convolved" in attrs:
+                metadata["convolved"] = _decode(attrs["convolved"])
+            if "confounds" in attrs:
+                metadata["confounds"] = _decode(attrs["confounds"])
+            if "multi" in attrs:
+                metadata["multi"] = bool(attrs["multi"])
+            if "run_count" in attrs:
+                metadata["run_count"] = int(attrs["run_count"])
+            if "n_rows" in attrs:
+                metadata["n_rows"] = int(attrs["n_rows"])
+
+    return data, metadata

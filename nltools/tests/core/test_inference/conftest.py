@@ -8,8 +8,6 @@ in this directory and subdirectories.
 import pytest
 import numpy as np
 
-from nltools.algorithms.backends import check_gpu_available
-
 
 @pytest.fixture
 def sample_data():
@@ -17,12 +15,3 @@ def sample_data():
     np.random.seed(42)
     # 30 subjects, 100 features (small for fast tests)
     return np.random.randn(30, 100)
-
-
-@pytest.fixture
-def backends():
-    """Return list of available backends."""
-    backends_list = ["numpy"]
-    if check_gpu_available()[0]:
-        backends_list.append("torch")
-    return backends_list

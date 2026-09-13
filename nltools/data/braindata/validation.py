@@ -1,95 +1,25 @@
-"""
-Validation utilities for BrainData class.
+"""Input validation for `BrainData`.
 
-This module contains helper functions for validating inputs, shapes, and
-compatibility between BrainData objects and other data types.
+Helpers that validate constructor inputs, array shapes, and operand
+compatibility between `BrainData` objects and other data types.
 """
 
 from pathlib import Path
 
 import nibabel as nib
 import numpy as np
-import polars as pl
-
-
-def validate_frame(frame, data_shape=None, frame_type="DataFrame"):
-    """Validate and process X or Y dataframes for BrainData.
-
-    Accepts pandas DataFrames for user convenience but always returns a
-    polars DataFrame. Internal BrainData state should be polars-only.
-
-    Args:
-        frame: Input to validate. Can be ``None``, a ``str``/``Path`` pointing
-            to a CSV, a polars or pandas DataFrame, or a 1D/2D numpy array.
-        data_shape: Optional tuple of data shape to validate row count against.
-        frame_type: Type of frame for error messages (e.g., "X", "Y").
-
-    Returns:
-        pl.DataFrame: Validated frame as polars. Empty ``pl.DataFrame()`` when
-        ``frame`` is ``None``.
-
-    Raises:
-        TypeError: If frame is not a supported type.
-        ValueError: If frame rows do not match ``data_shape[0]`` or CSV read fails.
-    """
-    if frame is None:
-        return pl.DataFrame()
-
-    # Unwrap DesignMatrix to its underlying polars DataFrame — DM-specific
-    # metadata (sampling_freq, convolved, confounds) isn't preserved on
-    # BrainData, but users should be able to hand a DM in directly.
-    from nltools.data.designmatrix import DesignMatrix
-
-    if isinstance(frame, DesignMatrix):
-        frame = frame.data
-
-    if isinstance(frame, pl.DataFrame):
-        out = frame
-    elif isinstance(frame, (str, Path)):
-        try:
-            out = pl.read_csv(frame, has_header=False)
-        except Exception as e:
-            raise ValueError(
-                f"Could not read {frame_type} from file '{frame}'. "
-                f"Make sure the file exists and is a valid CSV. Error: {e}"
-            )
-    elif isinstance(frame, np.ndarray):
-        arr = frame if frame.ndim == 2 else frame.reshape(-1, 1)
-        out = pl.DataFrame(arr)
-    else:
-        try:
-            import pandas as pd
-        except ImportError:
-            pd = None
-        if pd is not None and isinstance(frame, pd.DataFrame):
-            out = pl.DataFrame({str(c): frame[c].to_numpy() for c in frame.columns})
-        else:
-            raise TypeError(
-                f"{frame_type} must be a filepath (str/Path), numpy array, or "
-                f"polars/pandas DataFrame. Received {type(frame).__name__}"
-            )
-
-    if not out.is_empty() and data_shape is not None:
-        if out.shape[0] != data_shape[0]:
-            raise ValueError(
-                f"{frame_type} rows ({out.shape[0]}) do not match "
-                f"data rows ({data_shape[0]}). Each row in {frame_type} should "
-                f"correspond to an image in the data."
-            )
-
-    return out
 
 
 def validate_brain_data_shapes(brain1, brain2, operation="operation"):
     """Validate shape compatibility between two BrainData objects.
 
     Args:
-        brain1: First BrainData object.
-        brain2: Second BrainData object.
-        operation: Name of operation for error messages.
+        brain1 (BrainData): First operand.
+        brain2 (BrainData): Second operand.
+        operation (str): Name of the operation for error messages.
 
     Returns:
-        tuple: (brain1_is_single, brain2_is_single) booleans.
+        tuple[bool, bool]: ``(brain1_is_single, brain2_is_single)``.
 
     Raises:
         ValueError: If shapes are incompatible for the operation.
@@ -129,8 +59,9 @@ def validate_arithmetic_operand(other, operation_name):
     """Validate operand type for arithmetic operations.
 
     Args:
-        other: The operand to validate.
-        operation_name: Name of operation (e.g., 'add', 'multiply').
+        other (object): The operand to validate.
+        operation_name (str): Name of the operation (e.g. ``'add'``,
+            ``'multiply'``).
 
     Returns:
         str: Type of operand ('scalar', 'brain_data', or 'array').
@@ -160,10 +91,11 @@ def validate_data_type(data):
     """Validate input data type for BrainData initialization.
 
     Args:
-        data: Input data to validate.
+        data (object): Constructor input to classify.
 
     Returns:
-        str: Type of data ('brain_data', 'list', 'h5', 'url', 'file', 'nibabel', 'array', 'none').
+        str: One of ``'brain_data'``, ``'list'``, ``'h5'``, ``'url'``,
+            ``'file'``, ``'nibabel'``, ``'array'``, or ``'none'``.
 
     Raises:
         TypeError: If data type is not supported.
@@ -178,7 +110,7 @@ def validate_data_type(data):
     if isinstance(data, list):
         return "list"
     if isinstance(data, (str, Path)):
-        from nltools.io import is_h5_path
+        from nltools.io.h5 import is_h5_path
 
         data_str = str(data)
         if is_h5_path(data_str):
@@ -200,10 +132,10 @@ def validate_list_data(data_list):
     """Validate that all items in a list are the same type.
 
     Args:
-        data_list: List to validate.
+        data_list (list): Items to validate.
 
     Returns:
-        str: Type of items ('brain_data' or 'file').
+        str: ``'brain_data'`` or ``'file'``.
 
     Raises:
         ValueError: If list contains mixed types or unsupported types.
@@ -238,8 +170,8 @@ def validate_append_shapes(data1_shape, data2_shape):
     """Validate shape compatibility for appending BrainData objects.
 
     Args:
-        data1_shape: Shape of first BrainData.
-        data2_shape: Shape of second BrainData to append.
+        data1_shape (tuple[int, ...]): Shape of the first BrainData.
+        data2_shape (tuple[int, ...]): Shape of the BrainData being appended.
 
     Raises:
         ValueError: If shapes are incompatible for appending.

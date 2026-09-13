@@ -65,17 +65,6 @@ def synthetic_stat_brain():
 # ---------------------------------------------------------------------------
 
 
-def test_cluster_report_data_returns_polars(synthetic_stat_brain):
-    peaks, clusters, thr = cluster_report_data(
-        synthetic_stat_brain,
-        stat_threshold=3.0,
-        cluster_threshold=5,
-        atlas="aal",
-    )
-    assert isinstance(peaks, pl.DataFrame)
-    assert isinstance(clusters, pl.DataFrame)
-
-
 def test_peaks_dataframe_columns(synthetic_stat_brain):
     peaks, _, _ = cluster_report_data(
         synthetic_stat_brain,
@@ -239,3 +228,91 @@ def test_cluster_report_to_csv(synthetic_stat_brain, tmp_path):
     report.to_csv(tmp_path)
     assert (tmp_path / "peaks.csv").exists()
     assert (tmp_path / "clusters.csv").exists()
+
+
+# ---------------------------------------------------------------------------
+# Sub-peak clusters (F042/F043)
+#
+# nilearn's get_clusters_table emits one row per peak AND per sub-peak; sub-peak
+# rows carry an empty string '' in the 'Cluster Size (mm3)' column. The tests
+# below build a single connected cluster with two local maxima so nilearn emits
+# sub-peak rows.
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture(scope="module")
+def two_peak_brain():
+    """Stat map with two nearby peaks fused into one connected cluster."""
+    affine = np.array(
+        [
+            [-2.0, 0.0, 0.0, 90.0],
+            [0.0, 2.0, 0.0, -126.0],
+            [0.0, 0.0, 2.0, -72.0],
+            [0.0, 0.0, 0.0, 1.0],
+        ]
+    )
+    shape = (91, 109, 91)
+    data = np.zeros(shape, dtype=np.float32)
+
+    def mni_to_ijk(xyz):
+        homog = np.append(xyz, 1.0)
+        return tuple(int(round(v)) for v in np.linalg.solve(affine, homog)[:3])
+
+    # Two peaks 12mm apart (> default min_distance of 8mm), wide enough that the
+    # ridge between them stays above threshold -> one connected component, two
+    # local maxima -> nilearn reports a main peak plus a sub-peak.
+    data += _gaussian_blob(shape, mni_to_ijk((-6, -22, 56)), 8.0, sigma=2.0)
+    data += _gaussian_blob(shape, mni_to_ijk((6, -22, 56)), 7.0, sigma=2.0)
+
+    img = nb.Nifti1Image(data, affine)
+    mask_data = (np.abs(data) > 0.01).astype(np.uint8)
+    mask = nb.Nifti1Image(mask_data, affine)
+    return BrainData(img, mask=mask)
+
+
+def test_cluster_report_survives_subpeaks(two_peak_brain):
+    """F042: sub-peak rows must not crash cluster_report_data.
+
+    `_build_peaks_dataframe` used to call `to_numpy(dtype=float)` on the size
+    column, raising ValueError the moment any cluster had more than one local
+    maximum — the common case for real fMRI stat maps.
+    """
+    peaks, clusters, thr = cluster_report_data(
+        two_peak_brain, stat_threshold=3.0, cluster_threshold=5, atlas="aal"
+    )
+    # More than one peak row -> sub-peaks were present and handled.
+    assert peaks.height >= 2
+    # Sub-peaks inherit their parent cluster's size (forward-filled), so no
+    # nulls and integer n_voxels are well-defined (not NaN-cast garbage).
+    assert peaks["volume_mm3"].null_count() == 0
+    assert (peaks["volume_mm3"].to_numpy() > 0).all()
+    assert peaks["n_voxels"].null_count() == 0
+    assert (peaks["n_voxels"].to_numpy() > 0).all()
+
+
+def test_peaks_cluster_id_shares_integer_label_space(two_peak_brain):
+    """F043: peaks.cluster_id must use the SAME integer id space as clusters.
+
+    Previously peaks.cluster_id came from nilearn (strings '1'/'1a', ordered by
+    peak stat) while clusters.cluster_id was renumbered by size (int) — different
+    orderings AND dtypes, so the two tables couldn't be joined. Peak ids are now
+    looked up in the renumbered label volume, so they share one integer space and
+    sub-peaks inherit their parent cluster's id.
+    """
+    peaks, clusters, thr = cluster_report_data(
+        two_peak_brain, stat_threshold=3.0, cluster_threshold=5, atlas="aal"
+    )
+    assert peaks["cluster_id"].dtype == pl.Int64
+    assert clusters["cluster_id"].dtype == pl.Int64
+
+    peak_ids = set(peaks["cluster_id"].to_list())
+    cluster_ids = set(clusters["cluster_id"].to_list())
+    assert peak_ids <= cluster_ids, (
+        f"peak cluster_ids {peak_ids} are not a subset of cluster ids "
+        f"{cluster_ids} — the tables are not joinable"
+    )
+    # The two local maxima form ONE connected cluster -> one shared id.
+    assert len(peak_ids) == 1
+    # And a join actually works.
+    joined = peaks.join(clusters, on="cluster_id", how="inner")
+    assert joined.height == peaks.height

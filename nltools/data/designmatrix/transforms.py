@@ -1,7 +1,8 @@
-"""Standalone transform functions for DesignMatrix.
+"""Standardize and resample a DesignMatrix.
 
-Each function takes a DesignMatrix instance as the first argument (`dm`)
-and returns a new DesignMatrix via `copy_with(dm,...)`.
+`standardize` normalizes columns; `downsample` and `upsample` change the temporal
+resolution. Each returns a new `DesignMatrix` with metadata preserved (and
+`sampling_freq` updated when resampling).
 """
 
 from __future__ import annotations
@@ -17,105 +18,71 @@ if TYPE_CHECKING:
     from nltools.data.designmatrix import DesignMatrix
 
 
-def zscore(dm: DesignMatrix, columns: list[str] | None = None) -> DesignMatrix:
-    """Z-score standardize columns to mean zero and unit variance.
-
-    Args:
-        dm: DesignMatrix instance to transform.
-        columns (list of str, optional): Columns to standardize. If None,
-            standardize all non-confound columns.
-
-    Returns:
-        DesignMatrix: New DesignMatrix with standardized columns
-    """
-    # Determine which columns to z-score
-    if columns is None:
-        # Default: all columns except polynomials
-        columns_to_zscore = get_data_columns(dm, exclude_confounds=True)
-    else:
-        columns_to_zscore = columns
-
-    # Build Polars expressions for z-scoring
-    # For each column: (col - mean) / std
-    zscore_exprs = [
-        ((pl.col(col) - pl.col(col).mean()) / pl.col(col).std()).alias(col)
-        for col in columns_to_zscore
-    ]
-
-    # Use .with_columns() to replace only the zscored columns
-    # (automatically preserves untouched columns - idiomatic Polars pattern)
-    zscored_df = dm.data.with_columns(zscore_exprs)
-
-    return copy_with(dm, zscored_df)
-
-
 def standardize(
     dm: DesignMatrix,
+    *,
+    method: str = "center",
     columns: list[str] | None = None,
-    method: str = "zscore",
 ) -> DesignMatrix:
-    """Standardize columns using the specified method.
-
-    This method provides a consistent API with BrainData and Collection
-    for data normalization.
+    """Standardize columns by centering them, optionally scaling to unit variance.
 
     Args:
-        dm: DesignMatrix instance to transform.
-        columns: Columns to standardize. If None, standardize all
-            non-confound columns.
-        method: Standardization method. Options are:
-            - 'zscore': Z-score standardization (mean=0, std=1) [default]
-            - 'center': Mean centering only (mean=0)
+        dm (DesignMatrix): DesignMatrix instance to transform.
+        method (str): ``'center'`` subtracts the mean (default); ``'zscore'``
+            subtracts the mean and divides by the standard deviation.
+        columns (list[str] | None): Columns to standardize. If None,
+            standardize all non-confound columns.
 
     Returns:
         DesignMatrix: New DesignMatrix with standardized columns.
 
     Raises:
-        ValueError: If an invalid method is specified.
+        ValueError: If `method` is neither ``'center'`` nor ``'zscore'``.
 
     Examples:
-        >>> dm = DesignMatrix(np.random.randn(100, 3))
-        >>> dm_z = standardize(dm, method='zscore')  # z-score all columns
-        >>> dm_c = standardize(dm, method='center')  # center only
+        ```python
+        dm = DesignMatrix(np.random.randn(100, 3))
+        dm_c = standardize(dm)  # center every non-confound column
+        dm_z = standardize(dm, method="zscore")  # center and scale
+        ```
     """
-    if method == "zscore":
-        return zscore(dm, columns=columns)
-    if method == "center":
-        # Determine which columns to center
-        if columns is None:
-            columns_to_center = get_data_columns(dm, exclude_confounds=True)
-        else:
-            columns_to_center = columns
+    if method not in ("center", "zscore"):
+        raise ValueError(f"method must be 'center' or 'zscore', got {method!r}")
 
-        # Build Polars expressions for centering: (col - mean)
-        center_exprs = [
-            (pl.col(col) - pl.col(col).mean()).alias(col) for col in columns_to_center
-        ]
+    if columns is None:
+        columns = get_data_columns(dm, exclude_confounds=True)
 
-        centered_df = dm.data.with_columns(center_exprs)
-        return copy_with(dm, centered_df)
-    raise ValueError(f"Invalid method '{method}'. Must be 'zscore' or 'center'.")
+    def standardized(col: str) -> pl.Expr:
+        expr = pl.col(col) - pl.col(col).mean()
+        if method == "zscore":
+            expr = expr / pl.col(col).std()
+        return expr.alias(col)
+
+    return copy_with(dm, dm.data.with_columns(standardized(col) for col in columns))
 
 
 def downsample(dm: DesignMatrix, target: float, method: str = "mean") -> DesignMatrix:
-    """Reduce temporal resolution using Polars-native operations.
+    """Reduce temporal resolution by aggregating consecutive samples.
 
     Args:
-        dm: DesignMatrix instance to transform.
+        dm (DesignMatrix): DesignMatrix instance to transform.
         target (float): Target sampling frequency in Hz (must be < current
-            sampling_freq).
-        method (str): Aggregation method - 'mean' or 'median'. Default: 'mean'.
+            `sampling_freq`).
+        method (str): Aggregation method, ``'mean'`` or ``'median'``.
+            Default: ``'mean'``.
 
     Returns:
-        DesignMatrix: Downsampled DesignMatrix with updated sampling_freq.
+        DesignMatrix: Downsampled DesignMatrix with updated `sampling_freq`.
 
     Raises:
-        ValueError: If sampling_freq is not set, target >= current sampling_freq,
-            or method is invalid.
+        ValueError: If `sampling_freq` is not set, `target` >= current
+            `sampling_freq`, or `method` is invalid.
 
     Examples:
-        >>> dm = DesignMatrix({"a": list(range(100))}, sampling_freq=1.0)
-        >>> dm_down = downsample(dm, target=0.5)  # 1 Hz -> 0.5 Hz (100 -> 50 samples)
+        ```python
+        dm = DesignMatrix({"a": list(range(100))}, sampling_freq=1.0)
+        dm_down = downsample(dm, target=0.5)  # 1 Hz → 0.5 Hz (100 → 50 samples)
+        ```
     """
     if dm.sampling_freq is None:
         raise ValueError(
@@ -166,25 +133,27 @@ def downsample(dm: DesignMatrix, target: float, method: str = "mean") -> DesignM
 
 
 def upsample(dm: DesignMatrix, target: float, method: str = "linear") -> DesignMatrix:
-    """Increase temporal resolution using Polars-native interpolation.
+    """Increase temporal resolution by interpolating between samples.
 
     Args:
-        dm: DesignMatrix instance to transform.
+        dm (DesignMatrix): DesignMatrix instance to transform.
         target (float): Target sampling frequency in Hz (must be > current
-            sampling_freq)
-        method (str): Interpolation method - 'linear' or 'nearest'
-            (default: 'linear')
+            `sampling_freq`).
+        method (str): Interpolation method, ``'linear'`` or ``'nearest'``.
+            Default: ``'linear'``.
 
     Returns:
-        DesignMatrix: Upsampled DesignMatrix with updated sampling_freq.
+        DesignMatrix: Upsampled DesignMatrix with updated `sampling_freq`.
 
     Raises:
-        ValueError: If sampling_freq is not set, target <= current sampling_freq,
-            or method is invalid.
+        ValueError: If `sampling_freq` is not set, `target` <= current
+            `sampling_freq`, or `method` is invalid.
 
     Examples:
-        >>> dm = DesignMatrix({"a": list(range(10))}, sampling_freq=1.0)
-        >>> dm_up = upsample(dm, target=2.0)  # 1 Hz -> 2 Hz (10 -> 18 samples)
+        ```python
+        dm = DesignMatrix({"a": list(range(10))}, sampling_freq=1.0)
+        dm_up = upsample(dm, target=2.0)  # 1 Hz → 2 Hz (10 → 18 samples)
+        ```
     """
     from scipy.interpolate import interp1d
 

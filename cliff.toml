@@ -29,11 +29,12 @@ body = """
 {% else -%}
 - {% if commit.breaking %}⚠ **Breaking** {% endif %}{{ commit.message | split(pat="\n") | first | trim }}
 {% endif -%}
-{%- if commit.body -%}
-{%- for line in commit.body | split(pat="\n") -%}
-{%- set trimmed = line | trim -%}
-{%- if trimmed is matching("^BREAKING:") %}
-    - **Breaking:** {{ trimmed | trim_start_matches(pat="BREAKING:") | trim }}
+{#- The `BREAKING: ...` line and everything after it is parsed as a footer,
+    not body text. Render its first paragraph as a sub-bullet. -#}
+{%- if commit.footers -%}
+{%- for footer in commit.footers -%}
+{%- if footer.token == "BREAKING" %}
+    - **Breaking:** {{ footer.value | split(pat="\n\n") | first | replace(from="\n", to=" ") | trim }}
 {%- endif -%}
 {%- endfor %}
 {% endif -%}

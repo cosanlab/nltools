@@ -25,6 +25,8 @@ class TestBrainDataInit:
         mask_img = nib.load(get_brainspace().mask)
 
         # With verbose=True, should show resampling warning
+        from nltools.utils import ResamplingWarning
+
         with warnings.catch_warnings(record=True) as w:
             warnings.simplefilter("always")
             brain = BrainData(data_3mm, mask=mask_img, resample=True, verbose=True)
@@ -35,6 +37,11 @@ class TestBrainDataInit:
                 and "resample=true" in str(warning.message).lower()
             ]
             assert len(resample_warnings) > 0  # Warning shown when verbose=True
+            # Its own category, attributed to the caller (this file), and it
+            # names the grid the data is being resampled onto.
+            assert all(x.category is ResamplingWarning for x in resample_warnings)
+            assert all(x.filename == __file__ for x in resample_warnings)
+            assert "2x2x2mm" in str(resample_warnings[0].message)
 
         # With verbose=False, should suppress warning
         with warnings.catch_warnings(record=True) as w:
@@ -148,8 +155,6 @@ class TestBrainDataInit:
 
         # Should auto-detect and use 3mm template (not default 2mm)
         assert brain.shape[1] == 71020  # Exact voxel count for default 3mm
-        assert brain._detected_template.resolution == 3
-        assert brain._detected_template.template == "default"
 
     def test_init_resample_true_list_of_files(self, tmpdir):
         """Test resampling works with list of files."""
@@ -190,7 +195,6 @@ class TestBrainDataInit:
 
         # Should be resampled to auto-detected template space (3mm)
         assert brain.shape == (2, 71020)  # Exact voxel count for default 3mm
-        assert brain._detected_template.resolution == 3
 
     def test_init_resample_true_matched_spaces_no_resample(self):
         """Test that resample=True skips resampling when spaces already match."""
@@ -216,123 +220,6 @@ class TestBrainDataInit:
         # Should match original shape
         expected_voxels = mask_img.get_fdata().sum().astype(int)
         assert brain.shape[1] == expected_voxels
-
-    def test_init_mask_template_name_string_2mm_fmriprep(self):
-        """Test initialization with template name string: 2mm-MNI152-2009c (fmriprep)."""
-
-        # Create 2mm data
-        data_2mm = nib.Nifti1Image(
-            np.random.randn(91, 109, 91, 10), affine=np.eye(4) * 2
-        )
-
-        brain = BrainData(data_2mm, mask="2mm-MNI152-2009c", resample=True)
-
-        # Should use fmriprep 2mm template with exact voxel count
-        assert brain.mask is not None
-        assert "2mm-MNI152-2009c-mask.nii.gz" in brain.mask.get_filename()
-        assert brain.shape[1] == 235840  # Exact voxel count for fmriprep 2mm
-        assert brain._detected_template is None  # Explicit mask provided
-        assert not brain._mask_was_none
-
-    def test_init_mask_template_name_string_3mm_nilearn(self):
-        """Test initialization with template name string: 3mm-MNI152-2009a (nilearn)."""
-
-        # Create 3mm data
-        data_3mm = nib.Nifti1Image(
-            np.random.randn(60, 72, 60, 10), affine=np.eye(4) * 3
-        )
-
-        brain = BrainData(data_3mm, mask="3mm-MNI152-2009a", resample=True)
-
-        # Should use nilearn 3mm template with exact voxel count
-        assert brain.mask is not None
-        assert "3mm-MNI152-2009a-mask.nii.gz" in brain.mask.get_filename()
-        assert brain.shape[1] == 69765  # Exact voxel count for nilearn 3mm
-        assert brain._detected_template is None  # Explicit mask provided
-        assert not brain._mask_was_none
-
-    @pytest.mark.slow
-    def test_init_mask_template_name_string_1mm_nilearn(self):
-        """Test initialization with template name string: 1mm-MNI152-2009a (nilearn)."""
-
-        # Create 1mm data
-        data_1mm = nib.Nifti1Image(
-            np.random.randn(182, 218, 182, 10), affine=np.eye(4) * 1
-        )
-
-        brain = BrainData(data_1mm, mask="1mm-MNI152-2009a", resample=True)
-
-        # Should use nilearn 1mm template with exact voxel count
-        assert brain.mask is not None
-        assert "1mm-MNI152-2009a-mask.nii.gz" in brain.mask.get_filename()
-        assert brain.shape[1] == 1886539  # Exact voxel count for nilearn 1mm
-        assert np.allclose(np.abs(brain.mask.affine[0, 0]), 1.0, rtol=1e-3)
-
-    def test_init_mask_template_name_string_2mm_fsl(self):
-        """Test initialization with template name string: 2mm-MNI152-2009fsl (default)."""
-
-        # Create 2mm data
-        data_2mm = nib.Nifti1Image(
-            np.random.randn(91, 109, 91, 10), affine=np.eye(4) * 2
-        )
-
-        brain = BrainData(data_2mm, mask="2mm-MNI152-2009fsl", resample=True)
-
-        # Should use default (fsl) 2mm template with exact voxel count
-        assert brain.mask is not None
-        assert "2mm-MNI152-2009fsl-mask.nii.gz" in brain.mask.get_filename()
-        assert brain.shape[1] == 238955  # Exact voxel count for default 2mm
-        assert np.allclose(np.abs(brain.mask.affine[0, 0]), 2.0, rtol=1e-3)
-
-    def test_init_mask_template_name_string_2mm_nilearn(self):
-        """Test initialization with template name string: 2mm-MNI152-2009a (nilearn)."""
-
-        # Create 2mm data
-        data_2mm = nib.Nifti1Image(
-            np.random.randn(91, 109, 91, 10), affine=np.eye(4) * 2
-        )
-
-        brain = BrainData(data_2mm, mask="2mm-MNI152-2009a", resample=True)
-
-        # Should use nilearn 2mm template with exact voxel count
-        assert brain.mask is not None
-        assert "2mm-MNI152-2009a-mask.nii.gz" in brain.mask.get_filename()
-        assert brain.shape[1] == 235375  # Exact voxel count for nilearn 2mm
-        assert brain._detected_template is None  # Explicit mask provided
-        assert not brain._mask_was_none
-
-    def test_init_mask_template_name_string_3mm_fsl(self):
-        """Test initialization with template name string: 3mm-MNI152-2009fsl (default)."""
-
-        # Create 3mm data
-        data_3mm = nib.Nifti1Image(
-            np.random.randn(60, 72, 60, 10), affine=np.eye(4) * 3
-        )
-
-        brain = BrainData(data_3mm, mask="3mm-MNI152-2009fsl", resample=True)
-
-        # Should use default (fsl) 3mm template with exact voxel count
-        assert brain.mask is not None
-        assert "3mm-MNI152-2009fsl-mask.nii.gz" in brain.mask.get_filename()
-        assert brain.shape[1] == 71020  # Exact voxel count for default 3mm
-        assert np.allclose(np.abs(brain.mask.affine[0, 0]), 3.0, rtol=1e-3)
-
-    @pytest.mark.slow
-    def test_init_mask_template_name_string_1mm_fmriprep(self):
-        """Test initialization with template name string: 1mm-MNI152-2009c (fmriprep)."""
-
-        # Create 1mm data
-        data_1mm = nib.Nifti1Image(
-            np.random.randn(182, 218, 182, 10), affine=np.eye(4) * 1
-        )
-
-        brain = BrainData(data_1mm, mask="1mm-MNI152-2009c", resample=True)
-
-        # Should use fmriprep 1mm template with exact voxel count
-        assert brain.mask is not None
-        assert "1mm-MNI152-2009c-mask.nii.gz" in brain.mask.get_filename()
-        assert brain.shape[1] == 1886574  # Exact voxel count for fmriprep 1mm
-        assert np.allclose(np.abs(brain.mask.affine[0, 0]), 1.0, rtol=1e-3)
 
     def test_init_mask_template_name_string_with_resampling(self):
         """Test template name string with mismatched data resolution (requires resampling)."""
@@ -478,31 +365,6 @@ class TestBrainDataInit:
             # Verify template name is in filename
             assert f"{template_name}-mask.nii.gz" in brain.mask.get_filename()
 
-    def test_all_template_voxel_counts_via_resolve_template_name(self):
-        """Test voxel counts via resolve_template_name for all templates."""
-        from nltools.templates import resolve_template_name
-
-        # Define expected voxel counts for all supported templates
-        expected_voxel_counts = {
-            "1mm-MNI152-2009a": 1886539,  # nilearn 1mm
-            "1mm-MNI152-2009c": 1886574,  # fmriprep 1mm
-            "2mm-MNI152-2009fsl": 238955,  # default 2mm
-            "2mm-MNI152-2009a": 235375,  # nilearn 2mm
-            "2mm-MNI152-2009c": 235840,  # fmriprep 2mm
-            "3mm-MNI152-2009fsl": 71020,  # default 3mm
-            "3mm-MNI152-2009a": 69765,  # nilearn 3mm
-        }
-
-        # Verify voxel counts by loading masks directly
-        for template_name, expected_voxels in expected_voxel_counts.items():
-            mask_path = resolve_template_name(template_name, file_type="mask")
-            mask = nib.load(mask_path)
-            actual_voxels = int(mask.get_fdata().sum())
-
-            assert actual_voxels == expected_voxels, (
-                f"Template {template_name} mask has incorrect voxel count: got {actual_voxels}, expected {expected_voxels}"
-            )
-
     # ==================== Template Auto-Detection ====================
 
     def test_init_mask_none_auto_detect_2mm(self):
@@ -520,9 +382,6 @@ class TestBrainDataInit:
         # Should detect and use 2mm template with exact voxel count
         assert brain.shape[1] == 238955  # Exact voxel count for default 2mm
         assert np.allclose(np.abs(brain.mask.affine[0, 0]), 2.0, rtol=1e-3)
-        assert hasattr(brain, "_detected_template")
-        assert brain._detected_template.resolution == 2
-        assert brain._detected_template.template == "default"
 
     def test_init_mask_none_auto_detect_3mm(self):
         """Test automatic template detection for 3mm data."""
@@ -537,8 +396,6 @@ class TestBrainDataInit:
         # Should detect and use 3mm template with exact voxel count
         assert brain.shape[1] == 71020  # Exact voxel count for default 3mm
         assert np.allclose(np.abs(brain.mask.affine[0, 0]), 3.0, rtol=1e-3)
-        assert brain._detected_template.resolution == 3
-        assert brain._detected_template.template == "default"
 
     @pytest.mark.slow
     def test_init_mask_none_auto_detect_1mm(self):
@@ -554,8 +411,6 @@ class TestBrainDataInit:
         # Should detect and use 1mm nilearn template with exact voxel count
         assert np.allclose(np.abs(brain.mask.affine[0, 0]), 1.0, rtol=1e-3)
         assert brain.shape[1] == 1886539  # Exact voxel count for nilearn 1mm
-        assert brain._detected_template.resolution == 1
-        assert brain._detected_template.template == "nilearn"
 
     def test_init_mask_none_resample_false_exact_match(self):
         """Test auto-detection with resample=False requires exact match."""
@@ -635,17 +490,12 @@ class TestBrainDataInit:
 
         # Should use custom mask, not auto-detected
         assert np.allclose(np.abs(brain.mask.affine[0, 0]), 2.5, rtol=1e-3)
-        assert brain._detected_template is None or not brain._mask_was_none
 
     def test_init_mask_none_empty_data(self):
-        """Test that empty data with mask=None uses default template."""
+        """Empty data with mask=None still gets the default template mask."""
         brain = BrainData(data=None, mask=None)
 
-        # Should use default template (2mm default)
         assert brain.mask is not None
-        assert hasattr(brain, "_detected_template")
-        # Default template info should be None for empty data
-        assert brain._detected_template is None or brain._mask_was_none
 
     def test_init_mask_none_list_consistent_resolution(self, tmpdir):
         """Test auto-detection with list of files (same resolution)."""

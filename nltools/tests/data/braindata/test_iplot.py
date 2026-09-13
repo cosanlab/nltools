@@ -110,12 +110,17 @@ class TestView:
         with pytest.raises(ValueError, match="render"):
             minimal_brain_data[0].iplot(bg_img=False, view="surface")
 
+    def test_default_height_depends_on_view(self, minimal_brain_data):
+        assert minimal_brain_data[0].iplot(bg_img=False).height == 600
+        assert minimal_brain_data[0].iplot(bg_img=False, view="axial").height == 400
+
 
 class TestThreshold:
     def test_threshold_sets_cal_min(self, minimal_brain_data):
         v = minimal_brain_data[0].iplot(bg_img=False, threshold=2.3)
         assert v.cal_min == pytest.approx(2.3)
-        assert v.cal_max is None
+        # The unset ceiling is autoscaled (robust percentile), never None.
+        assert v.cal_max is not None and v.cal_max > 0
 
     def test_lower_upper_set_window(self, minimal_brain_data):
         v = minimal_brain_data[0].iplot(bg_img=False, lower=-1.0, upper=2.0)
@@ -124,14 +129,16 @@ class TestThreshold:
 
     def test_lower_upper_take_precedence_over_threshold(self, minimal_brain_data):
         v = minimal_brain_data[0].iplot(bg_img=False, threshold=2.3, upper=4.0)
-        # lower/upper win: threshold is ignored, floor stays auto (None)
-        assert v.cal_min is None
+        # lower/upper win: threshold is ignored; the floor is autoscaled
+        # (epsilon above zero), not the requested 2.3.
+        assert v.cal_min is not None and v.cal_min < 2.3
         assert v.cal_max == pytest.approx(4.0)
 
-    def test_default_window_is_auto(self, minimal_brain_data):
+    def test_default_window_is_explicit(self, minimal_brain_data):
+        """Python always owns the window: never None, so slider == render."""
         v = minimal_brain_data[0].iplot(bg_img=False)
-        assert v.cal_min is None
-        assert v.cal_max is None
+        assert v.cal_min is not None
+        assert v.cal_max is not None
 
 
 class TestColormap:
@@ -148,6 +155,15 @@ class TestColormap:
         with pytest.warns(UserWarning, match="matplotlib"):
             v = minimal_brain_data[0].iplot(bg_img=False, cmap="RdBu_r")
         assert v.statmap["colormap"] == "warm"
+
+    def test_default_palette_is_sign_aware(self, minimal_brain_data):
+        positive = minimal_brain_data[0].copy()
+        positive.data = np.abs(positive.data)
+        negative = minimal_brain_data[0].copy()
+        negative.data = -np.abs(negative.data)
+
+        assert positive.iplot(bg_img=False).statmap["colormap"] == "warm"
+        assert negative.iplot(bg_img=False).statmap["colormap_negative"] == "winter"
 
 
 class TestColorbar:
@@ -245,3 +261,101 @@ class TestRealAtlasAndBackground:
         v = minimal_brain_data[0].iplot()  # bg_img default None == auto
         assert _n_volumes(v) == 2  # background + statmap
         assert v.bg_bytes
+
+
+def _sparse_bd():
+    """A (1, 27) map where most voxels are zero and one is an extreme outlier."""
+    from nltools.data import BrainData
+
+    affine = np.eye(4)
+    mask = nib.Nifti1Image(np.ones((3, 3, 3), dtype=np.int8), affine)
+    data = np.zeros((1, 27), dtype=np.float32)
+    data[0, :8] = [1.0, -2.0, 3.0, -4.0, 5.0, 2.5, -1.5, 40.0]  # 40 = outlier
+    return BrainData(data, mask=mask)
+
+
+class TestAutoscale:
+    """#479: the default window comes from robust statistics, not extremes."""
+
+    def test_default_window_is_robust(self):
+        bd = _sparse_bd()
+        v = bd.iplot(bg_img=False)
+        vals = np.abs(bd.data[bd.data != 0])
+        expected_hi = float(np.percentile(vals, 98))
+        assert v.cal_max == pytest.approx(expected_hi)
+        # Epsilon floor: tiny but positive, so zeros render transparent while
+        # sub-threshold voxels stay visible.
+        assert 0 < v.cal_min < 0.01 * v.cal_max
+
+    def test_autoscale_false_uses_extremes_explicitly(self):
+        bd = _sparse_bd()
+        v = bd.iplot(bg_img=False, autoscale=False)
+        assert v.cal_min == 0.0
+        assert v.cal_max == pytest.approx(float(np.abs(bd.data).max()))
+
+    def test_percentile_window_comes_from_lower_and_upper(self):
+        """A custom percentile window is spelled with `lower`/`upper`.
+
+        `autoscale` is a bool: robust default, or the raw extremes. There is
+        deliberately no second spelling of a percentile window.
+        """
+        bd = _sparse_bd()
+        v = bd.iplot(bg_img=False, lower="60%", upper="98%")
+        vals = np.abs(bd.data[bd.data != 0])
+        assert v.cal_min == pytest.approx(float(np.percentile(vals, 60)))
+        assert v.cal_max == pytest.approx(float(np.percentile(vals, 98)))
+
+    def test_non_boolean_autoscale_raises(self):
+        bd = _sparse_bd()
+        with pytest.raises(TypeError, match="autoscale"):
+            bd.iplot(bg_img=False, autoscale=(60, 98))
+
+    def test_explicit_threshold_keeps_autoscaled_ceiling(self):
+        bd = _sparse_bd()
+        v = bd.iplot(bg_img=False, threshold=2.3)
+        vals = np.abs(bd.data[bd.data != 0])
+        assert v.cal_min == pytest.approx(2.3)
+        assert v.cal_max == pytest.approx(float(np.percentile(vals, 98)))
+
+    def test_percentile_string_thresholds(self):
+        bd = _sparse_bd()
+        v = bd.iplot(bg_img=False, upper="90%")
+        vals = np.abs(bd.data[bd.data != 0])
+        assert v.cal_max == pytest.approx(float(np.percentile(vals, 90)))
+
+    def test_slider_handles_match_rendered_window(self):
+        """The handles always show the window actually being rendered."""
+        bd = _sparse_bd()
+        v = bd.iplot(bg_img=False)
+        assert v.slider_bounds["value_low"] == pytest.approx(v.cal_min)
+        assert v.slider_bounds["value_high"] == pytest.approx(v.cal_max)
+        v2 = bd.iplot(bg_img=False, autoscale=False)
+        assert v2.slider_bounds["value_low"] == pytest.approx(v2.cal_min)
+        assert v2.slider_bounds["value_high"] == pytest.approx(v2.cal_max)
+
+    def test_auto_symmetry_uses_symmetric_limbs_for_mixed_data(self):
+        bd = _sparse_bd()
+        v = bd.iplot(bg_img=False)
+        assert v.cal_min_neg == pytest.approx(-v.cal_max)
+        assert v.cal_max_neg == pytest.approx(-v.cal_min)
+        assert v.mirror_negative is True
+
+    def test_false_scales_positive_and_negative_limbs_independently(self):
+        bd = _sparse_bd()
+        v = bd.iplot(bg_img=False, symmetric=False)
+        positives = bd.data[bd.data > 0]
+        negatives = np.abs(bd.data[bd.data < 0])
+        assert v.cal_max == pytest.approx(float(np.percentile(positives, 98)))
+        assert v.cal_min_neg == pytest.approx(-float(np.percentile(negatives, 98)))
+        assert v.mirror_negative is False
+
+    def test_true_forces_symmetry_for_one_sided_data(self):
+        bd = _sparse_bd()
+        bd.data = np.abs(bd.data)
+        v = bd.iplot(bg_img=False, symmetric=True)
+        assert v.cal_min_neg == pytest.approx(-v.cal_max)
+        assert v.cal_max_neg == pytest.approx(-v.cal_min)
+
+    def test_invalid_symmetric_raises(self):
+        with pytest.raises(TypeError, match="symmetric"):
+            _sparse_bd().iplot(bg_img=False, symmetric="sometimes")

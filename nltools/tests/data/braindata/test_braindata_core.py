@@ -1,4 +1,5 @@
 import numpy as np
+import polars as pl
 import pytest
 
 from nltools.data import BrainData, Adjacency
@@ -12,6 +13,115 @@ class TestBrainDataCore:
     def test_shape(self, minimal_brain_data):
         """Test shape property returns correct dimensions."""
         assert minimal_brain_data.shape == (50, 5)
+
+    def test_mean_reduces_across_images(self, minimal_brain_data):
+        """`mean()` reduces along the image axis and returns a BrainData."""
+        out = minimal_brain_data.mean()
+        assert isinstance(out, BrainData)
+        np.testing.assert_allclose(out.data, minimal_brain_data.data.mean(axis=0))
+
+    def test_repr_with_unnamed_in_memory_mask(self, minimal_brain_data):
+        """#447: an in-memory mask has no filename, so the repr reads `mask=None`."""
+        assert minimal_brain_data.mask.get_filename() is None
+        assert "mask=None" in repr(minimal_brain_data)
+
+    def test_equality_compares_in_memory_mask_affines(self):
+        import nibabel as nib
+
+        mask_data = np.ones((2, 2, 2), dtype=np.uint8)
+        mask_a = nib.Nifti1Image(mask_data, np.eye(4))
+        mask_b = nib.Nifti1Image(mask_data, np.diag([2.0, 2.0, 2.0, 1.0]))
+        data = np.zeros((1, mask_data.size))
+
+        assert BrainData(data, mask=mask_a) != BrainData(data, mask=mask_b)
+
+    def test_equality_accepts_equivalent_in_memory_masks(self):
+        import nibabel as nib
+
+        mask_data = np.ones((2, 2, 2), dtype=np.uint8)
+        mask_a = nib.Nifti1Image(mask_data, np.eye(4))
+        mask_b = nib.Nifti1Image(mask_data.copy(), np.eye(4))
+        data = np.zeros((1, mask_data.size))
+
+        assert BrainData(data, mask=mask_a) == BrainData(data.copy(), mask=mask_b)
+
+    def test_equality_compares_in_memory_mask_voxels(self):
+        import nibabel as nib
+
+        mask_a_data = np.zeros((2, 2, 2), dtype=np.uint8)
+        mask_b_data = np.zeros((2, 2, 2), dtype=np.uint8)
+        mask_a_data.flat[[0, 1]] = 1
+        mask_b_data.flat[[0, 2]] = 1
+        mask_a = nib.Nifti1Image(mask_a_data, np.eye(4))
+        mask_b = nib.Nifti1Image(mask_b_data, np.eye(4))
+        data = np.zeros((1, 2))
+
+        assert BrainData(data, mask=mask_a) != BrainData(data, mask=mask_b)
+
+    def test_copy_owns_complete_fitted_state(self, minimal_brain_data):
+        """Copying a fitted BrainData produces an independent snapshot."""
+        X = np.random.default_rng(0).standard_normal((len(minimal_brain_data), 3))
+        minimal_brain_data.fit(model="ridge", X=X, ridge_alpha=1.0)
+
+        copied = minimal_brain_data.copy()
+
+        copied.data[0, 0] = 11.0
+        copied.model_.coef_[0, 0] = 13.0
+        copied.ridge_weights.data[0, 0] = 14.0
+        copied.mask.get_fdata(caching="fill")[0, 0, 0] = 0.0
+
+        assert minimal_brain_data.data[0, 0] != 11.0
+        assert minimal_brain_data.model_.coef_[0, 0] != 13.0
+        assert minimal_brain_data.ridge_weights.data[0, 0] != 14.0
+        assert minimal_brain_data.mask.get_fdata()[0, 0, 0] != 0.0
+
+    def test_create_empty_drops_fitted_state(self, minimal_brain_data):
+        X = np.random.default_rng(1).standard_normal((len(minimal_brain_data), 3))
+        minimal_brain_data.fit(model="ridge", X=X, ridge_alpha=1.0)
+
+        empty = minimal_brain_data.create_empty()
+
+        assert empty.data.size == 0
+        assert not hasattr(empty, "model_")
+        assert not hasattr(empty, "X_")
+        assert not hasattr(empty, "ridge_weights")
+
+    def test_inplace_arithmetic_drops_fitted_state(self, minimal_brain_data):
+        X = np.random.default_rng(2).standard_normal((len(minimal_brain_data), 3))
+        minimal_brain_data.fit(model="ridge", X=X, ridge_alpha=1.0)
+
+        minimal_brain_data += 1.0
+
+        assert not hasattr(minimal_brain_data, "model_")
+        assert not hasattr(minimal_brain_data, "X_")
+        assert not hasattr(minimal_brain_data, "ridge_weights")
+
+    def test_setitem_drops_fitted_state(self, minimal_brain_data):
+        replacement = minimal_brain_data[0]
+        X = np.random.default_rng(3).standard_normal((len(minimal_brain_data), 3))
+        minimal_brain_data.fit(model="ridge", X=X, ridge_alpha=1.0)
+
+        minimal_brain_data[0] = replacement
+
+        assert not hasattr(minimal_brain_data, "model_")
+        assert not hasattr(minimal_brain_data, "X_")
+        assert not hasattr(minimal_brain_data, "ridge_weights")
+
+    def test_failed_setitem_preserves_data_and_fitted_state(self, minimal_brain_data):
+        replacement = minimal_brain_data[0]
+        replacement.X = pl.DataFrame({"unexpected": [1.0]})
+        X = np.random.default_rng(4).standard_normal((len(minimal_brain_data), 3))
+        minimal_brain_data.fit(model="ridge", X=X, ridge_alpha=1.0)
+        original_data = minimal_brain_data.data.copy()
+        original_model = minimal_brain_data.model_
+        original_weights = minimal_brain_data.ridge_weights
+
+        with pytest.raises(ValueError, match="self.X is the same size"):
+            minimal_brain_data[0] = replacement
+
+        np.testing.assert_array_equal(minimal_brain_data.data, original_data)
+        assert minimal_brain_data.model_ is original_model
+        assert minimal_brain_data.ridge_weights is original_weights
 
     @pytest.mark.parametrize("method", ["mean", "median"])
     def test_stat_aggregation(self, minimal_brain_data, method):
@@ -183,6 +293,11 @@ class TestBrainDataCore:
             == minimal_brain_data.shape[0] * 2
         )
 
+    def test_append_rejects_unknown_keyword(self, minimal_brain_data):
+        """An unexpected keyword raises instead of being silently swallowed."""
+        with pytest.raises(TypeError):
+            minimal_brain_data.append(minimal_brain_data, foo=1)
+
     # ==================== Statistical Methods ====================
 
     def test_distance(self, minimal_brain_data):
@@ -190,3 +305,29 @@ class TestBrainDataCore:
         distance = minimal_brain_data.distance(metric="correlation")
         assert isinstance(distance, Adjacency)
         assert distance.n_nodes == minimal_brain_data.shape[0]
+
+
+class TestIsDefault:
+    """`_is_default` decides whether a keyword still holds its signature default.
+
+    It serves both `fit`'s unselected-estimator-option check and `predict`'s
+    MVPA-only check, so it has to cope with array-valued options and with
+    sequences spelled as lists against tuple defaults.
+    """
+
+    @staticmethod
+    def _is_default(value, default):
+        from nltools.data.braindata.utils import _is_default
+
+        return _is_default(value, default)
+
+    def test_list_matches_a_tuple_default(self):
+        assert self._is_default([1, 2, 3], (1, 2, 3))
+
+    def test_zero_does_not_match_a_false_default(self):
+        # A flag given an integer was supplied deliberately.
+        assert not self._is_default(0, False)
+
+    def test_array_option_against_a_scalar_default(self):
+        assert not self._is_default(np.array([1.0, 10.0]), 1.0)
+        assert self._is_default(np.array([1.0, 10.0]), np.array([1.0, 10.0]))

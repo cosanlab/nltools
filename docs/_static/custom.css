@@ -11,8 +11,52 @@
   vertical-align: middle;
 }
 
-.badge-feature { background-color: var(--color-tip); }
-.badge-fix { background-color: var(--color-warning); }
-.badge-improvement { background-color: var(--color-primary); }
+/* Fixed colors rather than theme tokens: these badges must stay legible in both
+   the light and dark palettes, and they carry meaning, not decoration. */
+.badge-feature { background-color: #059669; }
+.badge-fix { background-color: #d97706; }
+.badge-improvement { background-color: #2563eb; }
 .badge-docs { background-color: #8b5cf6; }
-.badge-release { background-color: var(--color-hover); }
+.badge-release { background-color: #4b5563; }
+
+/* Tutorial cell outputs (scripts/docs_show.py). Each cell's printed text,
+   returned value and figures are emitted as `.cell-output` blocks under the
+   source block that produced them, so they need to read as output rather than
+   as more prose. */
+.md-typeset .cell-output {
+  margin: 0.5em 0 1.2em;
+  padding: 0.6em 0.8em;
+  border-left: 3px solid var(--md-default-fg-color--lightest);
+  background-color: var(--md-code-bg-color);
+  overflow-x: auto;
+}
+
+/* Printed text and plain reprs keep the code font at the code size. */
+pre.cell-output {
+  font-family: var(--md-code-font-family);
+  font-size: 0.75em;
+  line-height: 1.4;
+  white-space: pre;
+}
+
+/* A figure is the output; it needs no frame of its own, only room. */
+.md-typeset .cell-output.cell-figure {
+  padding: 0;
+  border-left: none;
+  background: none;
+  text-align: center;
+}
+
+.md-typeset .cell-output svg {
+  max-width: 100%;
+  height: auto;
+}
+
+/* A DataFrame repr is a wide table; let it scroll instead of the page. */
+.md-typeset .cell-output table {
+  display: block;
+  width: max-content;
+  max-width: 100%;
+  overflow-x: auto;
+  font-size: 0.72em;
+}

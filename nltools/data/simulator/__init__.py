@@ -1,20 +1,25 @@
 """Tools to simulate multivariate brain and grid data for testing analysis pipelines."""
 
-__all__ = ["SimulateGrid", "Simulator"]
-
-
 import os
 import numpy as np
 import nibabel as nib
+from nibabel.affines import voxel_sizes
 import matplotlib.pyplot as plt
+from nilearn.image.resampling import coord_transform
 from nilearn.masking import apply_mask, unmask
 from scipy.stats import multivariate_normal, binom, ttest_1samp
 from nltools.data import BrainData
-from nltools.stats import fdr
+from nltools.algorithms.corrections import fdr
 from nltools.templates import get_brainspace
 import csv
 from copy import deepcopy
 from sklearn.utils import check_random_state
+
+
+def _grid_center_world(mask):
+    """Return the world (MNI) millimeter coordinate of a mask's grid center."""
+    i, j, k = (np.array(mask.shape) // 2).tolist()
+    return [float(v) for v in coord_transform(i, j, k, mask.affine)]
 
 
 class Simulator:
@@ -26,22 +31,32 @@ class Simulator:
     pipelines and power analyses.
 
     Args:
-        brain_mask: Path to a NIfTI brain mask file, a nibabel image object,
-            or None to use the default MNI template mask.
-        output_dir: Directory for saving generated data. Defaults to the
-            current working directory.
-        random_state: Random seed or numpy RandomState for reproducibility.
+        brain_mask (str | nibabel.Nifti1Image, optional): Path to a NIfTI brain mask
+            file, a nibabel image, or None to use the default template mask.
+        output_dir (str, optional): Directory for saving generated data. Defaults to
+            the current working directory.
+        random_state (int | np.random.RandomState, optional): Seed or RandomState for
+            reproducibility.
 
     Attributes:
-        brain_mask: The brain mask image used for simulation.
-        output_dir: Output directory path.
-        random_state: Random state for reproducible simulations.
+        brain_mask (nibabel.Nifti1Image): The brain mask image used for simulation.
+        output_dir (str): Output directory path.
+        random_state (np.random.RandomState): Random state for reproducible simulations.
+        data (BrainData | nibabel.Nifti1Image): Most recently simulated data; set by
+            the `create_*` methods.
+        y (pl.DataFrame | np.ndarray): Outcome values paired with `data`; set by the
+            `create_*` methods.
+        rep_id (pl.DataFrame | list): Repetition/subject id per observation; set by
+            the `create_*` methods.
 
     Examples:
-        >>> from nltools.data.simulator import Simulator
-        >>> sim = Simulator(random_state=42)
-        >>> # Create a dataset with signal in specific regions
-        >>> data = sim.create_data(levels=[1, -1, 1, -1], sigma=1, reps=10)
+        ```python
+        from nltools.data.simulator import Simulator
+
+        sim = Simulator(random_state=42)
+        # Create a dataset with signal in specific regions
+        data = sim.create_data(levels=[1, -1, 1, -1], sigma=1, reps=10)
+        ```
     """
 
     def __init__(
@@ -65,11 +80,37 @@ class Simulator:
     def gaussian(self, mu, sigma, i_tot):
         """Create a 3D gaussian signal normalized to a given intensity.
 
+        Geometry is millimeters: `mu` is a world (MNI) coordinate and `sigma` a
+        physical width, both converted to voxel units through the brain mask's
+        affine, so the same request describes the same blob on any grid.
+
         Args:
-            mu: average value of the gaussian signal (usually set to 0)
-            sigma: standard deviation
-            i_tot: sum total of activation (numerical integral over the gaussian returns this value)
+            mu (array-like): Center of the gaussian `[x, y, z]` in world (MNI)
+                millimeters.
+            sigma (float | array-like): Standard deviation in millimeters — a scalar
+                for an isotropic blob or one width per axis `[sx, sy, sz]`.
+            i_tot (float): Total activation; the gaussian is rescaled so its sum
+                within the brain mask equals this value.
+
+        Returns:
+            np.ndarray: 3-D array the shape of the brain mask.
+
+        Note:
+            `sigma` is converted per axis with `nibabel.affines.voxel_sizes`, so the
+            millimeter widths map onto world axes only for an axis-aligned affine. On
+            an oblique affine the blob's principal axes follow the voxel grid.
         """
+        affine = self.brain_mask.affine
+        mu_voxel = np.asarray(
+            coord_transform(
+                float(mu[0]), float(mu[1]), float(mu[2]), np.linalg.inv(affine)
+            ),
+            dtype=float,
+        )
+        sigma_voxel = np.broadcast_to(
+            np.asarray(sigma, dtype=float), (3,)
+        ) / voxel_sizes(affine)
+
         x, y, z = np.mgrid[
             0 : self.brain_mask.shape[0],
             0 : self.brain_mask.shape[1],
@@ -79,8 +120,8 @@ class Simulator:
         # Need an (N, 3) array of (x, y) pairs.
         xyz = np.column_stack([x.flat, y.flat, z.flat])
 
-        covariance = np.diag(sigma**2)
-        g = multivariate_normal.pdf(xyz, mean=mu, cov=covariance)
+        covariance = np.diag(sigma_voxel**2)
+        g = multivariate_normal.pdf(xyz, mean=mu_voxel, cov=covariance)
 
         # Reshape back to a 3D grid.
         g = g.reshape(x.shape).astype(float)
@@ -92,51 +133,60 @@ class Simulator:
 
         return g
 
-    def sphere(self, r, p):
-        """Create a sphere of given radius at some point p in the brain mask.
+    def sphere(self, radius, center):
+        """Create a sphere of a given radius at a world coordinate in the brain mask.
+
+        Delegates to `nltools.mask.create_sphere`, so the radius is millimeters and
+        the center is a world (MNI) coordinate resolved through the mask's affine.
 
         Args:
-            r: radius of the sphere
-            p: point (in coordinates of the brain mask) of the center of the sphere
+            radius (int | float): Radius of the sphere in millimeters.
+            center (array-like): Center of the sphere `[x, y, z]` in world (MNI)
+                millimeters.
+
+        Returns:
+            np.ndarray: 3-D array the shape of the brain mask, 1 inside the sphere and
+                0 elsewhere.
         """
-        dims = self.brain_mask.shape
+        from nltools.mask import create_sphere
 
-        x, y, z = np.ogrid[
-            -p[0] : dims[0] - p[0], -p[1] : dims[1] - p[1], -p[2] : dims[2] - p[2]
-        ]
-        mask = x * x + y * y + z * z <= r * r
-
-        activation = np.zeros(dims)
-        activation[mask] = 1
-        activation = np.multiply(activation, self.brain_mask.get_fdata())
-        activation = nib.Nifti1Image(activation, affine=np.eye(4))
-
-        # return the 3D numpy matrix of zeros containing the sphere as a region of ones
-        return activation.get_fdata()
+        drawn = create_sphere(
+            [float(c) for c in center], radius=radius, mask=self.brain_mask
+        )
+        return np.asarray(drawn.dataobj, dtype=float)
 
     def normal_noise(self, mu, sigma):
         """Produce a normal noise distribution for all points in the brain mask.
 
         Args:
-            mu: average value of the gaussian signal (usually set to 0)
-            sigma: standard deviation
+            mu (float): Mean of the noise (usually 0).
+            sigma (float): Standard deviation of the noise.
+
+        Returns:
+            np.ndarray: 3-D array the shape of the brain mask filled with noise inside
+                the mask.
         """
 
         vlength = int(np.sum(self.brain_mask.get_fdata()))
         if sigma != 0:
             n = self.random_state.normal(mu, sigma, vlength)
         else:
-            n = [mu] * vlength
+            # float, not a list of Python ints: an int64 array makes nibabel
+            # warn and silently downcast the image to int32.
+            n = np.full(vlength, float(mu))
         m = unmask(n, self.brain_mask)
 
         # return the 3D numpy matrix of zeros containing the brain mask filled with noise produced over a normal distribution
         return m.get_fdata()
 
     def to_nifti(self, m):
-        """Convert a numpy matrix to the nifti format and assign it the brain_mask's affine matrix.
+        """Convert a numpy array to a NIfTI image with the brain mask's affine.
 
         Args:
-            m: the 3D numpy matrix we wish to convert to .nii
+            m (np.ndarray): 3-D (or 4-D) array to convert.
+
+        Returns:
+            nibabel.Nifti1Image: The array as a float32 image.
         """
         if not (isinstance(m, np.ndarray) and len(m.shape) >= 3):  # try 4D
             # if not (type(m) == np.ndarray and len(m.shape) == 3):
@@ -147,53 +197,54 @@ class Simulator:
         ni = nib.Nifti1Image(m, affine=self.brain_mask.affine)
         return ni
 
-    def n_spheres(self, radius, center):
+    def n_spheres(self, radius, center=None):
         """Generate a set of spheres in the brain mask space.
 
-        Args:
-            radius: vector of radius.  Will create multiple spheres if len(radius) > 1
-            center: a vector of sphere centers of the form [px, py, pz] or [[px1, py1, pz1], ..., [pxn, pyn, pzn]]
-        """
-        # initialize useful values
-        dims = self.brain_mask.get_fdata().shape
+        Delegates to `nltools.mask.create_sphere`, so radii are millimeters and
+        centers are world (MNI) coordinates resolved through the mask's affine.
 
-        # Initialize Spheres with options for multiple radii and centers of the spheres (or just an int and a 3D list)
-        if isinstance(radius, (int, float, np.integer, np.floating)):
-            radius = [int(radius)]
+        Args:
+            radius (int | float | list): Sphere radius in millimeters, or one radius
+                per sphere.
+            center (list, optional): Sphere center `[x, y, z]` in world (MNI)
+                millimeters, or one center per sphere `[[x1, y1, z1], ...]`. None
+                places every sphere at the world coordinate of the mask's grid center.
+
+        Returns:
+            np.ndarray: 3-D binary array the shape of the brain mask holding the union
+                of the requested spheres.
+        """
+        from nltools.mask import create_sphere
+
         if center is None:
-            center = [
-                [dims[0] // 2, dims[1] // 2, dims[2] // 2] for _ in radius
-            ]  # default value for centers (one [x, y, z] per radius)
-        elif (
-            isinstance(center, list) and isinstance(center[0], int) and len(radius) == 1
-        ):
-            center = [center]
-        if (
-            (type(radius)) is list
-            and (type(center) is list)
-            and (len(radius) == len(center))
-        ):
-            A = np.zeros_like(self.brain_mask.get_fdata())
-            for i in range(len(radius)):
-                A = np.add(A, self.sphere(radius[i], [int(c) for c in center[i]]))
-            return A
-        raise ValueError(
-            "Data type for sphere or radius(ii) or center(s) not recognized."
-        )
+            n_requested = (
+                len(radius) if isinstance(radius, (list, tuple, np.ndarray)) else 1
+            )
+            center = [_grid_center_world(self.brain_mask)] * n_requested
+
+        drawn = create_sphere(center, radius=radius, mask=self.brain_mask)
+        return np.asarray(drawn.dataobj, dtype=float)
 
     def create_data(
-        self, levels, sigma, *, radius=5, center=None, reps=1, output_dir=None
+        self, levels, sigma, *, radius=10, center=None, reps=1, output_dir=None
     ):
         """Create simulated data with discrete intensity levels.
 
         Args:
-            levels: vector of intensities or class labels
-            sigma: amount of noise to add
-            radius: vector of radius.  Will create multiple spheres if len(radius) > 1
-            center: center(s) of sphere(s) of the form [px, py, pz] or [[px1, py1, pz1], ..., [pxn, pyn, pzn]]
-            reps: number of data repetitions useful for trials or subjects
-            output_dir: string path of directory to output data.  If None, no data will be written
+            levels (list): Intensities or class labels, one per image in a repetition.
+            sigma (float): Standard deviation of the added noise.
+            radius (int | float | list): Sphere radius in millimeters, or one radius
+                per sphere. Default 10.0.
+            center (list, optional): Sphere center `[x, y, z]` in world (MNI)
+                millimeters, or one center per sphere `[[x1, y1, z1], ...]`. None
+                (the default) places every sphere at the world coordinate of the
+                mask's grid center.
+            reps (int): Number of repetitions (e.g. trials or subjects). Default 1.
+            output_dir (str, optional): Directory to write `data.nii.gz`, `y.csv`, and
+                `rep_id.csv` into. If None, nothing is written.
 
+        Returns:
+            BrainData: The simulated images with `Y` set to the levels.
         """
         import polars as pl
 
@@ -247,20 +298,24 @@ class Simulator:
     ):
         """Create continuous simulated data with covariance within a single region.
 
-        Args:
-            cor: amount of covariance between each voxel and Y variable
-            cov: amount of covariance between voxels
-            sigma: amount of noise to add
-            mask: region where activations are placed (a single mask image); defaults to a sphere if None
-            reps: number of data repetitions
-            n_sub: number of subjects to simulate
-            output_dir: string path of directory to output data.  If None, no data will be written
+        Results are stored on `self.data` (a 4-D `nibabel.Nifti1Image`), `self.y`, and
+        `self.rep_id`.
 
+        Args:
+            cor (float): Covariance between each voxel and the outcome `y`.
+            cov (float): Covariance between voxels.
+            sigma (float): Standard deviation of the added noise.
+            mask (nibabel.Nifti1Image, optional): Region where activations are placed.
+                Defaults to a 20 mm sphere at the mask's grid center.
+            reps (int): Number of repetitions per subject. Default 1.
+            n_sub (int): Number of subjects to simulate. Default 1.
+            output_dir (str, optional): Directory to write the image, `y.csv`, and
+                `rep_id.csv` into. If None, nothing is written.
         """
 
         if mask is None:
             # Initialize Spheres with options for multiple radii and centers of the spheres (or just an int and a 3D list)
-            A = self.n_spheres(10, None)  # parameters are (radius, center)
+            A = self.n_spheres(20, None)  # parameters are (radius, center)
             mask = nib.Nifti1Image(A.astype(np.float32), affine=self.brain_mask.affine)
 
         # Create n_reps with cov for each voxel within sphere
@@ -361,20 +416,27 @@ class Simulator:
     ):
         """Create continuous simulated data with covariance across multiple regions.
 
-        Args:
-            cor: amount of covariance between each voxel and Y variable (an int or a vector)
-            cov: amount of covariance between voxels (an int or a matrix)
-            sigma: amount of noise to add
-            masks: region(s) where we will have activations (list if more than one)
-            reps: number of data repetitions
-            n_sub: number of subjects to simulate
-            output_dir: string path of directory to output data.  If None, no data will be written
+        Results are stored on `self.data` (a 4-D `nibabel.Nifti1Image`), `self.y`, and
+        `self.rep_id`.
 
+        Args:
+            cor (float | list[float]): Covariance between each region's voxels and the
+                outcome `y`; one value per region.
+            cov (float | list[list[float]]): Covariance between voxels; a scalar for a
+                single region or a region-by-region matrix.
+            sigma (float): Standard deviation of the added noise.
+            masks (nibabel.Nifti1Image | list[nibabel.Nifti1Image], optional): Region(s)
+                where activations are placed. Defaults to a 20 mm sphere at the mask's
+                grid center.
+            reps (int): Number of repetitions per subject. Default 1.
+            n_sub (int): Number of subjects to simulate. Default 1.
+            output_dir (str, optional): Directory to write the image, `y.csv`, and
+                `rep_id.csv` into. If None, nothing is written.
         """
 
         if masks is None:
             # Initialize Spheres with options for multiple radii and centers of the spheres (or just an int and a 3D list)
-            A = self.n_spheres(10, None)  # parameters are (radius, center)
+            A = self.n_spheres(20, None)  # parameters are (radius, center)
             masks = nib.Nifti1Image(A.astype(np.float32), affine=self.brain_mask.affine)
 
         if type(masks) is nib.nifti1.Nifti1Image:
@@ -489,6 +551,26 @@ class Simulator:
                     wr.writerow(self.rep_id)
 
 
+#: Multiple-comparison corrections `SimulateGrid` implements. `None` applies no
+#: correction; `'fdr'` requires `threshold_type='q'`.
+_SUPPORTED_CORRECTIONS = (None, "fdr")
+
+
+def _validate_correction(correction):
+    """Raise `ValueError` for an unsupported `correction`.
+
+    Args:
+        correction: Value passed as `SimulateGrid`'s `correction` argument.
+
+    Raises:
+        ValueError: If `correction` is outside `_SUPPORTED_CORRECTIONS`.
+    """
+    if correction not in _SUPPORTED_CORRECTIONS:
+        raise ValueError(
+            f"correction must be one of {_SUPPORTED_CORRECTIONS}; got {correction!r}."
+        )
+
+
 class SimulateGrid:
     """Simulate 2D grid data for testing statistical methods.
 
@@ -498,26 +580,33 @@ class SimulateGrid:
     statistical maps.
 
     Args:
-        grid_width: Width/height of the square grid (default: 100).
-        signal_width: Width of the embedded signal region (default: 20).
-        n_subjects: Number of simulated subjects (default: 20).
-        sigma: Standard deviation of the Gaussian noise (default: 1).
-        signal_amplitude: Amplitude of the embedded signal. If None,
+        grid_width (int): Width/height of the square grid. Default 100.
+        signal_width (int): Width of the embedded signal region. Default 20.
+        n_subjects (int): Number of simulated subjects. Default 20.
+        sigma (float): Standard deviation of the Gaussian noise. Default 1.
+        signal_amplitude (float, optional): Amplitude of the embedded signal. If None,
             no signal is added.
-        random_state: Random seed or numpy RandomState for reproducibility.
+        random_state (int | np.random.RandomState, optional): Seed or RandomState for
+            reproducibility.
 
     Attributes:
-        data: The simulated data array of shape (n_subjects, grid_width, grid_width).
-        t_values: T-statistic values after fitting.
-        p_values: P-values after fitting.
-        thresholded: Thresholded statistical map.
-        isfit: Whether fit() has been called.
+        data (np.ndarray): Simulated data of shape `(grid_width, grid_width, n_subjects)`.
+        signal_mask (np.ndarray | None): Binary grid marking the signal region, or None
+            when no signal was added.
+        t_values (np.ndarray | None): T-statistic map after `fit()`.
+        p_values (np.ndarray | None): P-value map after `fit()`.
+        thresholded (np.ndarray | None): Thresholded statistical map after
+            `threshold_simulation()`.
+        isfit (bool): Whether `fit()` has been called.
 
     Examples:
-        >>> from nltools.data.simulator import SimulateGrid
-        >>> sim = SimulateGrid(signal_amplitude=0.5, random_state=42)
-        >>> sim.fit()
-        >>> sim.plot()
+        ```python
+        from nltools.data.simulator import SimulateGrid
+
+        sim = SimulateGrid(signal_amplitude=0.5, random_state=42)
+        sim.fit()
+        sim.plot_grid_simulation(threshold=0.05, threshold_type="q", correction="fdr")
+        ```
     """
 
     def __init__(
@@ -555,7 +644,7 @@ class SimulateGrid:
         """Generate simulated data using object parameters.
 
         Returns:
-            simulated_data (np.array): simulated noise using object parameters
+            np.ndarray: Simulated noise using object parameters.
         """
         return (
             self.random_state.randn(self.grid_width, self.grid_width, self.n_subjects)
@@ -563,11 +652,11 @@ class SimulateGrid:
         )
 
     def add_signal(self, signal_width=20, signal_amplitude=1):
-        """Add a rectangular signal to self.data.
+        """Add a square signal region, centered in the grid, to `self.data`.
 
         Args:
-            signal_width (int): width of signal box
-            signal_amplitude (int): intensity of signal
+            signal_width (int): Width of the signal box in pixels. Default 20.
+            signal_amplitude (float): Intensity added inside the box. Default 1.
         """
         if signal_width >= self.grid_width:
             raise ValueError("Signal width must be smaller than total grid.")
@@ -580,7 +669,11 @@ class SimulateGrid:
         self.data = deepcopy(self.data) + signal * self.signal_amplitude
 
     def create_mask(self, signal_width):
-        """Create a mask for where the signal is located in grid."""
+        """Create the binary `signal_mask` marking a centered square of the grid.
+
+        Args:
+            signal_width (int): Width of the signal box in pixels.
+        """
 
         mask = np.zeros((self.grid_width, self.grid_width))
         mask[
@@ -617,8 +710,14 @@ class SimulateGrid:
             threshold_type (str): type of threshold to use can be a specific t-value, p-value, or FDR-corrected q-value ['t', 'p', 'q']
 
         Returns:
-            threshold_data (np.array): thresholded data
+            np.ndarray: Thresholded data.
+
+        Raises:
+            ValueError: If `correction` is unsupported (see `_validate_correction`),
+                or `correction='fdr'` is paired with a `threshold_type` other than
+                `'q'`.
         """
+        _validate_correction(correction)
         if correction == "fdr":
             if threshold_type != "q":
                 raise ValueError("Must specify a q value when using fdr")
@@ -639,11 +738,13 @@ class SimulateGrid:
         return thresholded
 
     def threshold_simulation(self, threshold, threshold_type, correction=None):
-        """Threshold the fitted simulation.
+        """Threshold the fitted simulation and store `thresholded` plus hit rates.
 
         Args:
-            threshold (float): threshold to apply to simulation
-            threshold_type (str): type of threshold to use can be a specific t-value or p-value ['t', 'p', 'q']
+            threshold (float): Threshold value to apply.
+            threshold_type (str): `'t'` (absolute t-value), `'p'` (p-value), or `'q'`
+                (FDR-corrected q-value; requires `correction='fdr'`).
+            correction (str, optional): Multiple-comparison correction; `'fdr'` or None.
         """
 
         if not self.isfit:
@@ -669,7 +770,7 @@ class SimulateGrid:
         Args:
             thresholded (np.array): thresholded grid
         Returns:
-            fp_percent (float): percentage of grid that contains false positives
+            float: Percentage of grid that contains false positives.
         """
 
         if self.signal_mask is None:
@@ -686,7 +787,7 @@ class SimulateGrid:
         Args:
             thresholded (np.array): thresholded grid
         Returns:
-            tp_percent (float): percentage of grid that contains true positives
+            float: Percentage of grid that contains true positives.
         """
 
         if self.signal_mask is None:
@@ -702,7 +803,7 @@ class SimulateGrid:
         Args:
             thresholded (np.array): thresholded grid
         Returns:
-            fp_percent (float): percentage of activated voxels that are false positives
+            float: Percentage of activated voxels that are false positives.
         """
         if self.signal_mask is None:
             raise ValueError("No mask exists, run add_signal() first.")
@@ -714,7 +815,17 @@ class SimulateGrid:
     def run_multiple_simulations(
         self, threshold, threshold_type, n_simulations=100, correction=None
     ):
-        """Run multiple simulations to calculate the overall false positive rate."""
+        """Run repeated simulations to estimate the false positive rate.
+
+        Stores per-simulation results on `multiple_thresholded`, `multiple_fp`, and
+        `fpr` (plus `multiple_tp` and `multiple_fdr` when a signal is present).
+
+        Args:
+            threshold (float): Threshold value to apply to each simulation.
+            threshold_type (str): `'t'`, `'p'`, or `'q'` (see `threshold_simulation`).
+            n_simulations (int): Number of simulations to run. Default 100.
+            correction (str, optional): Multiple-comparison correction; `'fdr'` or None.
+        """
 
         if self.signal_mask is None:
             simulations = [
@@ -753,7 +864,18 @@ class SimulateGrid:
     def plot_grid_simulation(
         self, threshold, threshold_type, n_simulations=100, correction=None
     ):
-        """Create a plot of the simulations."""
+        """Plot the t-map, its thresholded version, and the false positive distribution.
+
+        Fits and thresholds the simulation first if needed, then calls
+        `run_multiple_simulations`. Adds a signal-recovery histogram when a signal is
+        present.
+
+        Args:
+            threshold (float): Threshold value to apply.
+            threshold_type (str): `'t'`, `'p'`, or `'q'` (see `threshold_simulation`).
+            n_simulations (int): Number of simulations to run. Default 100.
+            correction (str, optional): Multiple-comparison correction; `'fdr'` or None.
+        """
         if not self.isfit:
             self.fit()
         if self.thresholded is None:
@@ -766,6 +888,7 @@ class SimulateGrid:
             threshold=threshold,
             threshold_type=threshold_type,
             n_simulations=n_simulations,
+            correction=correction,
         )
 
         if self.signal_mask is None:

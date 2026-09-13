@@ -1,15 +1,11 @@
 // niivue viewer for BrainData.iplot(), driven through anywidget's *standard*
-// model API (get / set / save_changes / on) only. This is the deliberate
-// contrast with ipyniivue, whose custom chunked-binary protocol reaches for a
-// non-standard `model.onChange(...)` that exists only on a live marimo server
-// and is therefore `undefined` on a server-less `marimo export html-wasm` page
-// (see cosanlab/nltools#455). Staying on the standard API makes the widget work
-// identically in Jupyter, `marimo edit`, and a WASM/Pyodide export.
+// model API (get / set / save_changes / on) only — no host-specific protocol
+// (the contrast with ipyniivue, see cosanlab/nltools#455), so the widget works
+// identically in Jupyter and `marimo edit`.
 //
 // niivue itself is pulled from a CDN as an ES module. `_esm` is an ES module, so
-// a top-level `import` is resolved by the browser at render time; on any
-// HTTP-served page (incl. a marimo WASM export) this fetches and runs. The pin
-// keeps the API stable.
+// a top-level `import` is resolved by the browser at render time. The pin keeps
+// the API stable.
 import {
   Niivue,
   NVImage,
@@ -30,6 +26,12 @@ function orNaN(x) {
   return x === null || x === undefined ? NaN : x;
 }
 
+function formatValue(value) {
+  const number = Number(value);
+  if (!Number.isFinite(number)) return "—";
+  return Number.parseFloat(number.toPrecision(4)).toString();
+}
+
 export default {
   async render({ model, el }) {
     el.style.width = "100%";
@@ -37,6 +39,8 @@ export default {
     // --- DOM: optional threshold controls + the WebGL canvas -------------- //
     let floorInput = null;
     let ceilInput = null;
+    let floorValue = null;
+    let ceilValue = null;
     if (model.get("controls")) {
       const bounds = model.get("slider_bounds") || {};
       const controls = document.createElement("div");
@@ -50,6 +54,10 @@ export default {
           "display:flex;gap:0.4rem;align-items:center;flex:1 1 200px";
         const span = document.createElement("span");
         span.textContent = labelText;
+        const low = document.createElement("span");
+        low.textContent = formatValue(bounds.min ?? 0);
+        const high = document.createElement("span");
+        high.textContent = formatValue(bounds.max ?? 1);
         const input = document.createElement("input");
         input.type = "range";
         input.min = bounds.min ?? 0;
@@ -57,20 +65,31 @@ export default {
         input.step = bounds.step ?? 0.01;
         input.value = value ?? bounds.min ?? 0;
         input.style.flex = "1";
-        wrap.append(span, input);
+        const output = document.createElement("output");
+        output.textContent = formatValue(input.value);
+        output.style.cssText = "min-width:6ch;text-align:right;font-variant-numeric:tabular-nums";
+        wrap.append(span, low, input, high, output);
         controls.appendChild(wrap);
-        return input;
+        return [input, output];
       };
 
-      floorInput = mkRange("min", bounds.value_low);
-      ceilInput = mkRange("max", bounds.value_high);
+      [floorInput, floorValue] = mkRange("min", bounds.value_low);
+      [ceilInput, ceilValue] = mkRange("max", bounds.value_high);
       el.appendChild(controls);
     }
 
-    const canvas = document.createElement("canvas");
     const height = model.get("height") || 400;
-    canvas.style.cssText = `width:100%;height:${height}px;display:block`;
-    el.appendChild(canvas);
+    // niivue's resize observer sizes the canvas from its *parent* and rewrites
+    // the canvas's own inline height to 100%, so the requested height has to
+    // live on a wrapper. Without it the viewer collapses to the parent's
+    // natural height (~150px) in any host that doesn't size the widget for
+    // us — static/exported pages, iframes, plain Jupyter output areas.
+    const canvasWrap = document.createElement("div");
+    canvasWrap.style.cssText = `width:100%;height:${height}px`;
+    const canvas = document.createElement("canvas");
+    canvas.style.cssText = "width:100%;height:100%;display:block";
+    canvasWrap.appendChild(canvas);
+    el.appendChild(canvasWrap);
 
     // --- niivue instance --------------------------------------------------- //
     const nv = new Niivue({
@@ -109,6 +128,8 @@ export default {
           orNaN(model.get("cal_max")),
         );
         if (p.colormap_negative) vol.colormapNegative = p.colormap_negative;
+        vol.cal_minNeg = orNaN(model.get("cal_min_neg"));
+        vol.cal_maxNeg = orNaN(model.get("cal_max_neg"));
         vol.colorbarVisible = true;
         statmapIdx = nv.volumes.length;
         nv.addVolume(vol);
@@ -144,11 +165,18 @@ export default {
       const hi = ceilInput ? parseFloat(ceilInput.value) : model.get("cal_max");
       if (lo !== null && lo !== undefined && !Number.isNaN(lo)) vol.cal_min = lo;
       if (hi !== null && hi !== undefined && !Number.isNaN(hi)) vol.cal_max = hi;
+      if (model.get("mirror_negative")) {
+        if (hi !== null && hi !== undefined && !Number.isNaN(hi)) vol.cal_minNeg = -hi;
+        if (lo !== null && lo !== undefined && !Number.isNaN(lo)) vol.cal_maxNeg = -lo;
+      } else if (lo !== null && lo !== undefined && !Number.isNaN(lo)) {
+        vol.cal_maxNeg = -lo;
+      }
       nv.updateGLVolume();
     }
 
     if (floorInput) {
       floorInput.addEventListener("input", () => {
+        floorValue.textContent = formatValue(floorInput.value);
         applyWindow();
         model.set("cal_min", parseFloat(floorInput.value));
         model.save_changes();
@@ -156,6 +184,7 @@ export default {
     }
     if (ceilInput) {
       ceilInput.addEventListener("input", () => {
+        ceilValue.textContent = formatValue(ceilInput.value);
         applyWindow();
         model.set("cal_max", parseFloat(ceilInput.value));
         model.save_changes();
@@ -170,10 +199,12 @@ export default {
 
     model.on("change:cal_min", () => {
       if (floorInput) floorInput.value = model.get("cal_min") ?? floorInput.value;
+      if (floorValue) floorValue.textContent = formatValue(floorInput.value);
       applyWindow();
     });
     model.on("change:cal_max", () => {
       if (ceilInput) ceilInput.value = model.get("cal_max") ?? ceilInput.value;
+      if (ceilValue) ceilValue.textContent = formatValue(ceilInput.value);
       applyWindow();
     });
     model.on("change:slice_type", () =>

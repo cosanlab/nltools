@@ -78,6 +78,25 @@ class TestPlotBetweenLabelDistance:
         assert diag.mean() < 0.2
         assert off.mean() > 0.7
 
+    def test_default_permutation_test_completes(self, well_separated_distance):
+        """The default permutation_test=True path must not crash (F-6).
+
+        It reads the two-sample result's `mean_diff` key — the stale `mean`
+        key raised KeyError.
+        """
+        distance, labels = well_separated_distance
+        long_df, within_mean, mean_diff_df, p_df = plot_between_label_distance(
+            distance, labels, n_permute=100
+        )
+        assert set(mean_diff_df.columns) == {"label1", "label2", "mean_diff"}
+        assert set(p_df.columns) == {"label1", "label2", "p"}
+        # Diagonal comparisons are skipped: mean_diff 0, p 1.
+        diag = mean_diff_df.filter(pl.col("label1") == pl.col("label2"))
+        assert (diag["mean_diff"] == 0.0).all()
+        # Off-diagonal: within - between is negative for well-separated clusters.
+        off = mean_diff_df.filter(pl.col("label1") != pl.col("label2"))
+        assert (off["mean_diff"] < 0).all()
+
 
 class TestPlotSilhouette:
     def test_silhouette_scores_positive_for_well_separated(
@@ -101,8 +120,8 @@ class TestPlotStackedAdjacency:
         from nltools.data import Adjacency
 
         rng = np.random.default_rng(0)
-        a1 = Adjacency(rng.random((6, 6)), matrix_type="similarity")
-        a2 = Adjacency(rng.random((6, 6)), matrix_type="similarity")
+        a1 = Adjacency(rng.random(15), matrix_type="similarity_flat")
+        a2 = Adjacency(rng.random(15), matrix_type="similarity_flat")
         ax = plot_stacked_adjacency(a1, a2)
         assert ax is not None
 
@@ -139,8 +158,8 @@ class TestPlotStackedAdjacency:
         from nltools.data import Adjacency
 
         rng = np.random.default_rng(3)
-        a1 = Adjacency(rng.random((5, 5)), matrix_type="similarity")
-        a2 = Adjacency(rng.random((5, 5)), matrix_type="similarity")
+        a1 = Adjacency(rng.random(10), matrix_type="similarity_flat")
+        a2 = Adjacency(rng.random(10), matrix_type="similarity_flat")
         out = _stacked_adjacency_matrix(a1, a2, normalize=True)
         assert np.isfinite(out).all()
 
@@ -154,4 +173,62 @@ class TestPlotBetweenLabelDistanceFigureLeak:
         n_before = len(plt.get_fignums())
         plot_between_label_distance(distance, labels, ax=ax, permutation_test=False)
         assert len(plt.get_fignums()) == n_before
+        plt.close("all")
+
+
+class TestPlotMDS:
+    def test_plot_mds_uses_current_sklearn_api(self, well_separated_distance):
+        """`Adjacency.plot_mds` must not trip sklearn>=1.8's MDS deprecations."""
+        import warnings
+
+        from nltools.data import Adjacency
+
+        d, labels = well_separated_distance
+        adj = Adjacency(d, matrix_type="distance", labels=[str(x) for x in labels])
+        with warnings.catch_warnings():
+            warnings.simplefilter("error", FutureWarning)
+            adj.plot_mds(n_components=2, figsize=(4, 4))
+        plt.close("all")
+
+    def test_plot_mds_in_three_dimensions(self, well_separated_distance):
+        """A 3-D layout must reach three dimensions.
+
+        sklearn's `classical_mds` initializer is built with its own default of
+        two components, and `smacof` then adopts the init's width, so asking for
+        three and letting sklearn build the init silently yields two. Before the
+        fix the 3-D scatter raised `IndexError`; assert the embedding itself, so
+        a future fallback to 2-D that fails quietly is caught too.
+        """
+        from nltools.data import Adjacency
+
+        d, labels = well_separated_distance
+        adj = Adjacency(d, matrix_type="distance", labels=[str(x) for x in labels])
+        plt.close("all")
+        adj.plot_mds(n_components=3, figsize=(4, 4))
+
+        ax = plt.gcf().axes[0]
+        # mplot3d keeps the unprojected scatter data only on `_offsets3d`; its
+        # public `get_offsets` returns the 2-D screen projection.
+        coordinates = ax.collections[0]._offsets3d
+        assert len(coordinates) == 3
+        for axis_values in coordinates:
+            axis_values = np.asarray(axis_values)
+            assert axis_values.shape == (adj.n_nodes,)
+            assert np.isfinite(axis_values).all()
+        plt.close("all")
+
+
+class TestAdjacencyPlot:
+    def test_plot_draws_on_supplied_ax(self, well_separated_distance):
+        """`Adjacency.plot(ax=...)` draws the heatmap on the caller's axis."""
+        from nltools.data import Adjacency
+
+        distance, _ = well_separated_distance
+        adj = Adjacency(distance, matrix_type="distance")
+        plt.close("all")
+        _, ax = plt.subplots(1)
+        n_before = len(plt.get_fignums())
+        adj.plot(ax=ax)
+        assert len(plt.get_fignums()) == n_before
+        assert ax.collections
         plt.close("all")

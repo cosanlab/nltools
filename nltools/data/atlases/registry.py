@@ -1,18 +1,18 @@
-"""Static registry of atlases hosted at ``nltools/niftis/atlases``.
+"""Static registry of atlases hosted at `nltools/niftis/atlases`.
 
 Each entry describes an atlas's kind (deterministic vs probabilistic) and
 the citation users should cite when they use it. The actual NIfTI + label
-files are fetched lazily by `load_atlas` via
-`fetch_resource`.
+files are fetched lazily by `load_atlas` via `fetch_resource`.
 
 Atlases were sourced from atlasreader (BSD-3-Clause) and are subject to
-their original upstream licenses — see ``LICENSES.md`` in the HF dataset.
+their original upstream licenses — see `LICENSES.md` in the HF dataset.
 """
 
 from dataclasses import dataclass
 from typing import Literal
 
 AtlasKind = Literal["deterministic", "probabilistic"]
+"""Kind of atlas: `'deterministic'` (3-D integer labels) or `'probabilistic'` (4-D, last axis indexes regions)."""
 
 
 @dataclass(frozen=True)
@@ -20,9 +20,9 @@ class AtlasMetadata:
     """Static description of a registered atlas.
 
     Attributes:
-        kind: ``"deterministic"`` (3D integer-labeled) or
-            ``"probabilistic"`` (4D, last axis indexes regions).
-        citation: Short citation string for the original atlas.
+        kind (AtlasKind): `'deterministic'` (3-D integer-labeled) or
+            `'probabilistic'` (4-D, last axis indexes regions).
+        citation (str): Short citation string for the original atlas.
     """
 
     kind: AtlasKind
@@ -75,19 +75,22 @@ ATLASES: dict[str, AtlasMetadata] = {
         citation="Talairach & Tournoux 1988 (gyri)",
     ),
 }
+"""Registered atlases keyed by name; each value is an `AtlasMetadata` (kind + citation)."""
 
 
-# Trio used as the default for ``BrainData.cluster_report`` and
-# ``label_coords`` — picked to give one probabilistic, one anatomical
-# deterministic, and one functional deterministic atlas at once.
 DEFAULT_ATLASES: tuple[str, ...] = ("harvard_oxford", "aal", "schaefer_200")
+"""Default atlas trio for `BrainData.cluster_report` and `label_coords`.
+
+Picked to give one probabilistic (`harvard_oxford`), one anatomical
+deterministic (`aal`), and one functional deterministic (`schaefer_200`) atlas
+at once.
+"""
 
 
 def list_atlases() -> list[str]:
     """Return the sorted list of registered atlas names.
 
     Returns:
-        Sorted list of atlas names usable with
-        `load_atlas`.
+        list[str]: Sorted list of atlas names usable with `load_atlas`.
     """
     return sorted(ATLASES.keys())

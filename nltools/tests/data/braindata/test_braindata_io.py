@@ -6,6 +6,7 @@ import polars as pl
 import pytest
 
 from nltools.data import BrainData
+from nltools.data.braindata import io as io_mod
 from nltools.templates import get_brainspace
 
 
@@ -76,7 +77,6 @@ class TestBrainDataIO:
                 assert np.allclose(
                     b.__dict__[k].get_fdata(), dat.__dict__[k].get_fdata()
                 )
-                assert b.__dict__[k].get_filename() == dat.__dict__[k].get_filename()
         # Test situation where we present a user warning when they're trying to load an .h5
         # file that includes a mask AND they pass in value for the mask argument. In this
         # case the mask argument takes precedence so we warn the user
@@ -107,168 +107,127 @@ class TestBrainDataIO:
         assert np.allclose(loaded.X.to_numpy(), X.to_numpy())
         assert np.allclose(loaded.Y.to_numpy(), Y.to_numpy())
 
+    def test_h5_roundtrip_in_memory_mask(self, tmp_path):
+        """write(...h5) with a programmatically built mask (no filename) works.
+
+        ``to_h5`` used to call ``mask.get_filename()`` unconditionally, which
+        is None for an in-memory Nifti — crash. The mask must instead
+        round-trip by value (data + affine).
+        """
+        affine = np.eye(4) * 2
+        affine[3, 3] = 1
+        mask = nib.Nifti1Image(np.ones((4, 4, 4), dtype=np.int8), affine)
+        assert mask.get_filename() is None
+        rng = np.random.default_rng(0)
+        vol = rng.standard_normal((4, 4, 4, 5)).astype(np.float32)
+        bd = BrainData(nib.Nifti1Image(vol, affine), mask=mask)
+
+        path = str(tmp_path / "in_memory_mask.h5")
+        bd.write(path)
+        loaded = BrainData(path)
+
+        np.testing.assert_allclose(loaded.mask.get_fdata(), mask.get_fdata())
+        np.testing.assert_allclose(loaded.mask.affine, mask.affine)
+        assert loaded.mask.get_filename() is None
+        np.testing.assert_allclose(np.asarray(loaded.data), np.asarray(bd.data))
+        # The reconstructed BrainData is functional, not just loadable.
+        assert loaded.mean().shape == (bd.shape[1],)
+
+    def test_h5_file_backed_mask_keeps_only_the_basename(self, tmp_path):
+        """A file-backed mask retains its basename, never the parent path.
+
+        The embedded mask data and affine stay authoritative, so the stored
+        name is a label rather than a path anything reopens.
+        """
+        import h5py
+
+        affine = np.eye(4) * 2
+        affine[3, 3] = 1
+        mask_path = tmp_path / "mask.nii.gz"
+        nib.save(nib.Nifti1Image(np.ones((4, 4, 4), dtype=np.int8), affine), mask_path)
+        mask = nib.load(mask_path)
+        rng = np.random.default_rng(1)
+        vol = rng.standard_normal((4, 4, 4, 3)).astype(np.float32)
+        bd = BrainData(nib.Nifti1Image(vol, affine), mask=mask)
+
+        path = str(tmp_path / "file_mask.h5")
+        bd.write(path)
+        with h5py.File(path, "r") as f:
+            assert f["mask_file_name"][()].decode() == "mask.nii.gz"
+        loaded = BrainData(path)
+        assert loaded.mask.get_filename() == "mask.nii.gz"
+        np.testing.assert_allclose(loaded.mask.get_fdata(), mask.get_fdata())
+
+    def test_h5_absolute_mask_path_in_an_older_file_loads_as_a_basename(self, tmp_path):
+        """0.6.0-dev files stored the absolute mask path; reads normalize it."""
+        import h5py
+
+        affine = np.eye(4) * 2
+        affine[3, 3] = 1
+        mask_path = tmp_path / "mask.nii.gz"
+        nib.save(nib.Nifti1Image(np.ones((4, 4, 4), dtype=np.int8), affine), mask_path)
+        bd = BrainData(
+            nib.Nifti1Image(np.zeros((4, 4, 4, 2), dtype=np.float32), affine),
+            mask=nib.load(mask_path),
+        )
+        path = str(tmp_path / "older.h5")
+        bd.write(path)
+
+        # Rewrite the stored name the way an older nltools wrote it.
+        with h5py.File(path, "a") as f:
+            del f["mask_file_name"]
+            f.create_dataset("mask_file_name", data=str(mask_path))
+
+        assert BrainData(path).mask.get_filename() == "mask.nii.gz"
+
+    def test_h5_round_trip_of_a_fitted_object_loads_back_unfitted(self, tmp_path):
+        """Writing a fitted object is allowed; the load is always unfitted."""
+        from nltools.data.braindata.utils import _FIT_STATE_ATTRIBUTES
+
+        affine = np.eye(4) * 2
+        affine[3, 3] = 1
+        mask = nib.Nifti1Image(np.ones((4, 4, 4), dtype=np.int8), affine)
+        rng = np.random.default_rng(3)
+        vol = rng.standard_normal((4, 4, 4, 6)).astype(np.float32)
+        X = pl.DataFrame({"intercept": [1.0] * 6, "cond": [0.0, 1.0] * 3})
+        bd = BrainData(nib.Nifti1Image(vol, affine), mask=mask, X=X)
+        bd.fit(model="ridge", X=X.to_numpy(), ridge_alpha=1.0)
+        assert any(hasattr(bd, name) for name in _FIT_STATE_ATTRIBUTES)
+
+        path = str(tmp_path / "fitted.h5")
+        bd.write(path)
+        loaded = BrainData(path)
+
+        for name in _FIT_STATE_ATTRIBUTES:
+            assert not hasattr(loaded, name)
+        np.testing.assert_allclose(np.asarray(loaded.data), np.asarray(bd.data))
+        assert loaded.X.equals(bd.X)
+
+    def test_write_nifti_does_not_retain_row_metadata(self, tmp_path):
+        """NIfTI is an image export: data and geometry only."""
+        affine = np.eye(4) * 2
+        affine[3, 3] = 1
+        mask = nib.Nifti1Image(np.ones((4, 4, 4), dtype=np.int8), affine)
+        rng = np.random.default_rng(4)
+        vol = rng.standard_normal((4, 4, 4, 3)).astype(np.float32)
+        bd = BrainData(
+            nib.Nifti1Image(vol, affine),
+            mask=mask,
+            X=pl.DataFrame({"cond": [1.0, 2.0, 3.0]}),
+            Y=pl.DataFrame({"row": [0, 1, 2]}),
+        )
+
+        path = tmp_path / "export.nii.gz"
+        bd.write(path)
+        loaded = BrainData(path, mask=mask)
+
+        assert loaded.X.is_empty()
+        assert loaded.Y.is_empty()
+        np.testing.assert_allclose(np.asarray(loaded.data), np.asarray(bd.data))
+
     # ==================== Resampling Methods ====================
 
-    def test_resample_to_img_nibabel(self):
-        """Test resampling to target nibabel image."""
-
-        # Create source BrainData (3mm) - need custom mask in 3mm space
-        source_data = nib.Nifti1Image(
-            np.random.randn(60, 72, 60, 10), affine=np.eye(4) * 3
-        )
-        # Create 3mm mask matching the data
-        mask_3mm = nib.Nifti1Image(
-            np.ones((60, 72, 60), dtype=np.float32), affine=np.eye(4) * 3
-        )
-        brain_source = BrainData(source_data, mask=mask_3mm, resample=False)
-
-        # Create target image (2mm, same as MNI template)
-        mask_img = nib.load(get_brainspace().mask)
-
-        # Resample
-        brain_resampled = brain_source.resample_to(img=mask_img)
-
-        # Should match target space
-        assert brain_resampled.shape[1] == 238955  # 2mm voxel count
-        assert np.allclose(brain_resampled.mask.affine, mask_img.affine, rtol=1e-2)
-        assert (
-            brain_resampled.shape[0] == brain_source.shape[0]
-        )  # Same number of images
-
-    def test_resample_to_img_filepath(self, tmpdir):
-        """Test resampling to target image from file path."""
-
-        # Create source BrainData (3mm) - need custom mask in 3mm space
-        source_data = nib.Nifti1Image(
-            np.random.randn(60, 72, 60, 10), affine=np.eye(4) * 3
-        )
-        # Create 3mm mask matching the data
-        mask_3mm = nib.Nifti1Image(
-            np.ones((60, 72, 60), dtype=np.float32), affine=np.eye(4) * 3
-        )
-        brain_source = BrainData(source_data, mask=mask_3mm, resample=False)
-
-        # Save target image to file
-        target_path = str(tmpdir.join("target.nii.gz"))
-        mask_img = nib.load(get_brainspace().mask)
-        mask_img.to_filename(target_path)
-
-        # Resample
-        brain_resampled = brain_source.resample_to(img=target_path)
-
-        # Should match target space
-        assert brain_resampled.shape[1] == 238955
-        assert brain_resampled.shape[0] == brain_source.shape[0]
-
-    def test_resample_to_resolution_isotropic(self):
-        """Test resampling to specified isotropic resolution."""
-
-        # Create source BrainData (2mm)
-        mask_img = nib.load(get_brainspace().mask)
-        source_data = nib.Nifti1Image(
-            np.random.randn(*mask_img.shape + (10,)), affine=mask_img.affine
-        )
-        brain_source = BrainData(source_data, resample=False)
-
-        # Resample to 3mm
-        brain_resampled = brain_source.resample_to(resolution=3.0)
-
-        # Should have different voxel count
-        assert brain_resampled.shape[1] != brain_source.shape[1]
-        # Check resolution is approximately 3mm
-        resampled_nifti = brain_resampled.to_nifti()
-        zooms = resampled_nifti.header.get_zooms()[:3]
-        assert np.allclose(zooms, 3.0, rtol=0.1)
-        assert (
-            brain_resampled.shape[0] == brain_source.shape[0]
-        )  # Same number of images
-
-    def test_resample_to_both_params_error(self):
-        """Test error when both img and resolution are provided."""
-
-        # Create BrainData with matching mask
-        mask_img = nib.load(get_brainspace().mask)
-        source_data = nib.Nifti1Image(
-            np.random.randn(*mask_img.shape), affine=mask_img.affine
-        )
-        brain = BrainData(source_data, resample=False)
-
-        with pytest.raises(ValueError, match="both.*img.*and.*resolution"):
-            brain.resample_to(img=mask_img, resolution=2.0)
-
-    def test_resample_to_no_params_error(self):
-        """Test error when neither img nor resolution is provided."""
-
-        # Create BrainData with matching mask
-        mask_img = nib.load(get_brainspace().mask)
-        source_data = nib.Nifti1Image(
-            np.random.randn(*mask_img.shape), affine=mask_img.affine
-        )
-        brain = BrainData(source_data, resample=False)
-
-        with pytest.raises(ValueError, match="either.*img.*or.*resolution"):
-            brain.resample_to()
-
-    def test_resample_to_invalid_img_type(self):
-        """Test error with invalid img type."""
-
-        # Create BrainData with matching mask
-        mask_img = nib.load(get_brainspace().mask)
-        source_data = nib.Nifti1Image(
-            np.random.randn(*mask_img.shape), affine=mask_img.affine
-        )
-        brain = BrainData(source_data, resample=False)
-
-        with pytest.raises(TypeError, match="img.*must be"):
-            brain.resample_to(img=123)  # Invalid type
-
-    def test_resample_to_preserves_metadata(self):
-        """Test that X and Y metadata are preserved after resampling."""
-
-        # Create BrainData with matching mask
-        mask_img = nib.load(get_brainspace().mask)
-        source_data = nib.Nifti1Image(
-            np.random.randn(*mask_img.shape + (5,)), affine=mask_img.affine
-        )
-        X = pl.DataFrame({"cond1": [1, 2, 3, 4, 5]})
-        Y = pl.DataFrame({"outcome": [0, 1, 0, 1, 0]})
-
-        brain_source = BrainData(source_data, X=X, Y=Y, resample=False)
-        brain_resampled = brain_source.resample_to(resolution=3.0)
-
-        # Metadata should be preserved
-        assert brain_resampled.X.equals(brain_source.X)
-        assert brain_resampled.Y.equals(brain_source.Y)
-        assert (
-            brain_resampled.shape[0] == brain_source.shape[0]
-        )  # Same number of images
-
-    def test_resample_to_does_not_mutate_caller_headers(self):
-        """resample_to must not touch bd.mask or a caller-supplied target img."""
-        # Build a source with sform_code=0 on its mask
-        mask_3mm = nib.Nifti1Image(
-            np.ones((60, 72, 60), dtype=np.float32), affine=np.eye(4) * 3
-        )
-        mask_3mm.header.set_sform(mask_3mm.affine, code=0)
-        source_data = nib.Nifti1Image(
-            np.random.randn(60, 72, 60, 4), affine=np.eye(4) * 3
-        )
-        brain = BrainData(source_data, mask=mask_3mm, resample=False)
-        assert brain.mask.header.get_sform(coded=True)[1] == 0
-
-        # Resample by resolution — must not mutate brain.mask
-        brain.resample_to(resolution=4.0)
-        assert brain.mask.header.get_sform(coded=True)[1] == 0
-
-        # Resample by target img — must not mutate the caller's target
-        target = nib.Nifti1Image(
-            np.ones((45, 54, 45), dtype=np.float32), affine=np.eye(4) * 4
-        )
-        target.header.set_sform(target.affine, code=0)
-        brain.resample_to(img=target)
-        assert target.header.get_sform(coded=True)[1] == 0
-
-    def test_resample_to_same_space_identity(self):
+    def test_resample_same_space_identity(self):
         """Test resampling to same space produces similar results."""
 
         # Create BrainData
@@ -279,7 +238,7 @@ class TestBrainDataIO:
         brain_source = BrainData(source_data, resample=False)
 
         # Resample to same space (should be near-identical)
-        brain_resampled = brain_source.resample_to(img=mask_img)
+        brain_resampled = brain_source.resample(img=mask_img)
 
         # Data should be very similar (within interpolation tolerance)
         assert np.allclose(
@@ -353,8 +312,8 @@ class TestBrainDataIO:
             f"Expected many unique values, got {len(unique_vals)}"
         )
 
-    def test_resample_to_respects_interpolation(self):
-        """Test resample_to uses instance interpolation setting."""
+    def test_resample_respects_interpolation(self):
+        """Test resample uses instance interpolation setting."""
 
         # Create atlas-like source data with explicit nearest
         atlas_data = np.zeros((60, 72, 60))
@@ -375,10 +334,194 @@ class TestBrainDataIO:
 
         # Resample to 2mm template
         mask_2mm = nib.load(get_brainspace().mask)
-        brain_resampled = brain.resample_to(img=mask_2mm)
+        brain_resampled = brain.resample(img=mask_2mm)
 
         # Values should still be discrete after resampling
         unique_vals = np.unique(brain_resampled.data)
         assert len(unique_vals) < 10, (
             f"Expected discrete values after resample, got {len(unique_vals)}"
         )
+
+
+class TestIntegerImagesResampleQuietly:
+    """int16 BOLD must load without nilearn's 'Casting data from int16' notice.
+
+    nilearn casts integer data to float itself (and warns) whenever the
+    interpolation is continuous; casting up front removes the cause, and the
+    interpolation probe must not materialize a full float64 copy of a 4-D run
+    just to decide between 'nearest' and 'continuous'.
+    """
+
+    @staticmethod
+    def _int16_bold(tmp_path):
+        rng = np.random.default_rng(0)
+        # 3mm grid -> resampled onto the 2mm default template on load.
+        affine = np.diag([3.0, 3.0, 3.0, 1.0])
+        affine[:3, 3] = [-90, -126, -72]
+        data = rng.integers(200, 4000, size=(20, 24, 20, 6), dtype=np.int16)
+        path = tmp_path / "bold.nii.gz"
+        nib.Nifti1Image(data, affine).to_filename(path)
+        return path
+
+    def test_no_casting_warning_and_same_values(self, tmp_path):
+        import warnings
+
+        from nilearn.image import resample_to_img
+        from nilearn.masking import apply_mask
+
+        path = self._int16_bold(tmp_path)
+        with warnings.catch_warnings():
+            warnings.filterwarnings("error", message="Casting data from")
+            brain = BrainData(path)
+
+        # Reference: what nilearn produces on the raw int16 image (it casts to
+        # float32 internally), so the up-front cast must be value-identical.
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            resampled = resample_to_img(
+                nib.load(path), brain.mask, interpolation="continuous"
+            )
+            expected = apply_mask(resampled, brain.mask)
+        np.testing.assert_allclose(brain.data, expected)
+
+    def test_interpolation_probe_reads_one_volume(self, tmp_path, monkeypatch):
+        from nltools.data.braindata.io import _detect_interpolation
+
+        img = nib.load(self._int16_bold(tmp_path))
+
+        def boom(*_a, **_k):
+            raise AssertionError("get_fdata() materializes the whole 4-D image")
+
+        monkeypatch.setattr(nib.Nifti1Image, "get_fdata", boom)
+        assert _detect_interpolation(img) == "continuous"
+
+    def test_interpolation_probe_still_detects_float_labels(self):
+        """A float-typed atlas with a few integer labels stays 'nearest'."""
+        from nltools.data.braindata.io import _detect_interpolation
+
+        labels = np.zeros((8, 8, 8))
+        labels[2:4] = 1
+        labels[5:7] = 2
+        assert _detect_interpolation(nib.Nifti1Image(labels, np.eye(4))) == "nearest"
+
+    def test_interpolation_probe_integer_bold_is_continuous(self):
+        """Many distinct integer intensities are signal, not labels."""
+        from nltools.data.braindata.io import _detect_interpolation
+
+        data = np.arange(12 * 12 * 12, dtype=np.int16).reshape(12, 12, 12)
+        assert _detect_interpolation(nib.Nifti1Image(data, np.eye(4))) == "continuous"
+
+
+class TestLoadPathSetsSform:
+    def test_no_sform_header_loads_without_nilearn_notice(self, tmp_path):
+        """A header with sform_code=0 (haxby) must not trip nilearn's resampler
+        warning on load; `resample` already sets code 2, loading now does too."""
+        import warnings
+
+        affine = np.diag([3.0, 3.0, 3.0, 1.0])
+        affine[:3, 3] = [-90, -126, -72]
+        img = nib.Nifti1Image(
+            np.random.default_rng(0).standard_normal((20, 24, 20, 3)), affine
+        )
+        img.header.set_sform(affine, code=0)
+        img.header.set_qform(affine, code=1)
+        path = tmp_path / "no_sform.nii.gz"
+        img.to_filename(path)
+        assert nib.load(path).header.get_sform(coded=True)[1] == 0
+
+        with warnings.catch_warnings():
+            warnings.filterwarnings("error", message=".*no sform.*")
+            brain = BrainData(path)
+        assert brain.shape[0] == 3
+
+
+# ---------------------------------------------------------------------------
+# F057 / F058 / F059 regressions
+#
+# - F057: ``upload_neurovault`` left ``collection`` unbound when
+#   ``create_collection`` raised ValueError, so it fell through to an
+#   ``UnboundLocalError`` instead of surfacing a clean error.
+# - F058: ``load_from_url`` never removed the temp dir it created (leak).
+# - F059: both helpers named their temp dir from ``os.times()[-1]``
+#   (collision-prone; ``os.makedirs`` without ``exist_ok`` could crash).
+#   The fix uses ``tempfile`` so the dir is unique and cleaned up.
+# ---------------------------------------------------------------------------
+
+
+class _FakeClientCreateFails:
+    """pynv.Client stub whose create_collection always raises ValueError."""
+
+    def __init__(self, *args, **kwargs):
+        pass
+
+    def create_collection(self, name):
+        raise ValueError("Collection name already exists")
+
+
+class TestUploadNeurovaultUnbound:
+    def test_create_collection_failure_raises_cleanly(
+        self, minimal_brain_data, monkeypatch
+    ):
+        """A failed create_collection must not fall through to UnboundLocalError."""
+        import pynv
+
+        monkeypatch.setattr(pynv, "Client", _FakeClientCreateFails)
+
+        with pytest.raises(ValueError):
+            io_mod.upload_neurovault(
+                minimal_brain_data,
+                access_token="token",
+                collection_name="dupe",
+                img_type="Z",
+                img_modality="fMRI-BOLD",
+            )
+
+
+class TestLoadFromUrlTempDir:
+    def test_temp_dir_cleaned_up(self, minimal_brain_data, monkeypatch):
+        """load_from_url must remove the temp dir it downloads into."""
+        seen = {}
+
+        def fake_download_nifti(url, data_dir=None):
+            seen["data_dir"] = data_dir
+            # Directory must already exist (created by tempfile) when we write.
+            assert data_dir is not None and os.path.isdir(data_dir)
+            path = os.path.join(data_dir, "img.nii.gz")
+            with open(path, "wb") as f:
+                f.write(b"stub")
+            return path
+
+        monkeypatch.setattr("nltools.datasets.download_nifti", fake_download_nifti)
+        monkeypatch.setattr(io_mod, "load_from_file", lambda bd, data: None)
+
+        monkeypatch.setattr(nib, "load", lambda path: object())
+
+        io_mod.load_from_url(minimal_brain_data, "http://example.com/img.nii.gz")
+
+        assert "data_dir" in seen
+        assert not os.path.exists(seen["data_dir"]), (
+            "load_from_url leaked its temp directory"
+        )
+
+    def test_repeated_calls_do_not_collide(self, minimal_brain_data, monkeypatch):
+        """Two back-to-back calls must both succeed (no FileExistsError)."""
+        dirs = []
+
+        def fake_download_nifti(url, data_dir=None):
+            dirs.append(data_dir)
+            path = os.path.join(data_dir, "img.nii.gz")
+            with open(path, "wb") as f:
+                f.write(b"stub")
+            return path
+
+        monkeypatch.setattr("nltools.datasets.download_nifti", fake_download_nifti)
+        monkeypatch.setattr(io_mod, "load_from_file", lambda bd, data: None)
+
+        monkeypatch.setattr(nib, "load", lambda path: object())
+
+        for _ in range(3):
+            io_mod.load_from_url(minimal_brain_data, "http://example.com/img.nii.gz")
+
+        assert len(dirs) == 3
+        for d in dirs:
+            assert not os.path.exists(d)

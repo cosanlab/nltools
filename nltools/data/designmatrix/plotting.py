@@ -1,8 +1,7 @@
-"""DesignMatrix visualization functions.
+"""Visualize a DesignMatrix as a heatmap, overlaid time courses, or a correlation matrix.
 
-Standalone functions extracted from ``DesignMatrix`` methods. Each takes a
-``DesignMatrix`` instance (``dm``) as its first argument. ``DesignMatrix.plot``
-dispatches over ``method`` to the helpers here, mirroring ``BrainData.plot``.
+`DesignMatrix.plot` dispatches over `method` to `plot_matrix`,
+`plot_timeseries`, and `plot_corr`, mirroring `BrainData.plot`.
 """
 
 from __future__ import annotations
@@ -34,12 +33,32 @@ def plot_designmatrix(
     save: str | None = None,
     **kwargs,
 ):
-    """Visualize a DesignMatrix, dispatching over ``method``.
+    """Visualize a DesignMatrix, dispatching over `method`.
 
-    See `DesignMatrix.plot` for the full argument documentation.
+    Args:
+        dm (DesignMatrix): DesignMatrix instance.
+        method (str): ``'matrix'`` (SPM-style heatmap), ``'timeseries'``
+            (overlaid line plot), or ``'corr'`` (correlation heatmap).
+            Default: ``'matrix'``.
+        columns (list[str] | None): Subset of columns to plot. Defaults to all.
+        rescale (bool): ``'matrix'`` only; rescale each column by its L2 norm.
+            Default: True.
+        metric (str): ``'corr'`` only; ``'pearson'`` (default) or ``'spearman'``.
+        ax (matplotlib.axes.Axes | None): Existing axis to draw on; a new
+            figure is created if omitted.
+        figsize (tuple | None): Figure size; per-method default when omitted.
+        title (str | None): Axis title.
+        cmap (str | None): Colormap (``'matrix'`` / ``'corr'``).
+        save (str | None): Path to save the figure.
+        **kwargs (dict): Forwarded to the underlying plotter
+            (``seaborn.heatmap`` for ``'matrix'`` / ``'corr'``;
+            ``matplotlib.axes.Axes.plot`` for ``'timeseries'``).
 
     Returns:
         matplotlib.figure.Figure: The figure containing the plot.
+
+    Raises:
+        ValueError: If `method` is not one of the three supported values.
     """
     if method == "matrix":
         return plot_matrix(
@@ -93,42 +112,40 @@ def plot_matrix(
     """Render the design matrix as an SPM-style heatmap (rows=TRs, cols=regressors).
 
     Args:
-        dm: DesignMatrix instance.
-        columns: Subset of columns to plot. Defaults to all columns.
-        rescale: If True, rescale each column by its L2 norm so columns with
-            different native magnitudes are visually comparable (SPM/nilearn
-            convention). Default: True.
-        figsize: Figure size; defaults to ``(4, 6)`` when a new figure is made.
-        title: Optional axis title.
-        cmap: Colormap name. Default: ``'gray'``.
-        ax: Existing axis to draw on; a new figure is created if omitted.
-        save: Optional path to save the figure.
-        **kwargs: Forwarded to ``seaborn.heatmap``.
+        dm (DesignMatrix): DesignMatrix instance.
+        columns (list[str] | None): Subset of columns to plot. Defaults to all columns.
+        rescale (bool): If True, rescale each column by its L2 norm so columns
+            with different native magnitudes are visually comparable
+            (SPM/nilearn convention). Default: True.
+        figsize (tuple | None): Figure size; defaults to ``(4, 6)`` when a new
+            figure is made.
+        title (str | None): Axis title.
+        cmap (str | None): Colormap name. Default: ``'gray'``.
+        ax (matplotlib.axes.Axes | None): Existing axis to draw on; a new
+            figure is created if omitted.
+        save (str | None): Path to save the figure.
+        **kwargs (dict): Forwarded to ``seaborn.heatmap``.
 
     Returns:
-        matplotlib.figure.Figure
+        matplotlib.figure.Figure: The rendered figure.
     """
-    import pandas as pd
     import seaborn as sns
 
-    from .io import to_pandas
-
-    df = to_pandas(dm)
-    if columns is not None:
-        df = df[list(columns)]
+    labels = dm.columns if columns is None else list(columns)
+    values = dm.data.select(labels).to_numpy()
     if rescale:
-        X = df.to_numpy(dtype=float)
-        X = X / np.maximum(1.0e-12, np.sqrt(np.sum(X**2, 0)))
-        df = pd.DataFrame(X, columns=df.columns)
+        values = values.astype(float)
+        values = values / np.maximum(1.0e-12, np.sqrt(np.sum(values**2, 0)))
 
     fig, ax, owns_fig = _new_axis(ax, figsize or (4, 6))
     heatmap_kwargs = {
         "cmap": cmap or "gray",
         "cbar": False,
+        "xticklabels": labels,
         "yticklabels": False,  # Too many rows for labels typically
     }
     heatmap_kwargs.update(kwargs)
-    sns.heatmap(df, ax=ax, **heatmap_kwargs)
+    sns.heatmap(values, ax=ax, **heatmap_kwargs)
 
     ax.set_xlabel("Regressors")
     ax.set_ylabel("Time (TRs)")
@@ -153,16 +170,18 @@ def plot_timeseries(
     multiple DesignMatrices (e.g. original vs. convolved).
 
     Args:
-        dm: DesignMatrix instance.
-        columns: Subset of columns to plot. Defaults to all columns.
-        figsize: Figure size; defaults to ``(8, 4)`` when a new figure is made.
-        title: Optional axis title.
-        ax: Existing axis to draw on; a new figure is created if omitted.
-        save: Optional path to save the figure.
-        **kwargs: Forwarded to ``matplotlib.axes.Axes.plot`` for each line.
+        dm (DesignMatrix): DesignMatrix instance.
+        columns (list[str] | None): Subset of columns to plot. Defaults to all columns.
+        figsize (tuple | None): Figure size; defaults to ``(8, 4)`` when a new
+            figure is made.
+        title (str | None): Axis title.
+        ax (matplotlib.axes.Axes | None): Existing axis to draw on; a new
+            figure is created if omitted.
+        save (str | None): Path to save the figure.
+        **kwargs (dict): Forwarded to ``matplotlib.axes.Axes.plot`` for each line.
 
     Returns:
-        matplotlib.figure.Figure
+        matplotlib.figure.Figure: The rendered figure.
     """
     cols = list(columns) if columns is not None else list(dm.columns)
 
@@ -198,18 +217,21 @@ def plot_corr(
     the heatmap reads as a standard correlation matrix.
 
     Args:
-        dm: DesignMatrix instance.
-        columns: Subset of columns to correlate. Defaults to all columns.
-        metric: ``'pearson'`` (default) or ``'spearman'``.
-        figsize: Figure size; scales with the number of columns when omitted.
-        title: Optional axis title.
-        cmap: Colormap name. Default: ``'RdBu_r'``.
-        ax: Existing axis to draw on; a new figure is created if omitted.
-        save: Optional path to save the figure.
-        **kwargs: Forwarded to ``seaborn.heatmap`` (e.g. ``annot=False``).
+        dm (DesignMatrix): DesignMatrix instance.
+        columns (list[str] | None): Subset of columns to correlate. Defaults to
+            all columns.
+        metric (str): ``'pearson'`` (default) or ``'spearman'``.
+        figsize (tuple | None): Figure size; scales with the number of columns
+            when omitted.
+        title (str | None): Axis title.
+        cmap (str | None): Colormap name. Default: ``'RdBu_r'``.
+        ax (matplotlib.axes.Axes | None): Existing axis to draw on; a new
+            figure is created if omitted.
+        save (str | None): Path to save the figure.
+        **kwargs (dict): Forwarded to ``seaborn.heatmap`` (e.g. ``annot=False``).
 
     Returns:
-        matplotlib.figure.Figure
+        matplotlib.figure.Figure: The rendered figure.
     """
     import seaborn as sns
 

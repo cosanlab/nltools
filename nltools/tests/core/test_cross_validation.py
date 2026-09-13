@@ -1,7 +1,6 @@
 import numpy as np
 import pandas as pd
 from sklearn.model_selection import KFold
-from sklearn.model_selection._split import BaseCrossValidator
 from nltools.cross_validation import KFoldStratified
 
 
@@ -91,56 +90,6 @@ class TestKFoldStratifiedBasic:
 
 class TestKFoldStratifiedSklearnCompatibility:
     """Test sklearn API compatibility."""
-
-    def test_is_instance_of_base_cross_validator(self):
-        """Test that KFoldStratified is a sklearn BaseCrossValidator."""
-        cv = KFoldStratified(n_splits=5)
-        assert isinstance(cv, BaseCrossValidator)
-
-    def test_get_n_splits_method(self):
-        """Test get_n_splits method (sklearn API)."""
-        y = pd.DataFrame(np.random.randn(100))
-        X = np.zeros((100, 10))
-        cv = KFoldStratified(n_splits=5)
-        assert cv.get_n_splits(X, y) == 5
-        assert cv.get_n_splits(X, y, groups=None) == 5
-
-    def test_n_splits_attribute(self):
-        """Test n_splits attribute (sklearn API)."""
-        cv = KFoldStratified(n_splits=7)
-        assert cv.n_splits == 7
-
-    def test_shuffle_attribute(self):
-        """Test shuffle attribute (sklearn API)."""
-        cv_false = KFoldStratified(n_splits=5, shuffle=False)
-        assert cv_false.shuffle is False
-
-        cv_true = KFoldStratified(n_splits=5, shuffle=True)
-        assert cv_true.shuffle is True
-
-    def test_random_state_attribute(self):
-        """Test random_state attribute (sklearn API)."""
-        cv_none = KFoldStratified(n_splits=5, random_state=None)
-        assert cv_none.random_state is None
-
-        # random_state can only be set when shuffle=True (sklearn behavior)
-        cv_int = KFoldStratified(n_splits=5, shuffle=True, random_state=42)
-        assert cv_int.random_state == 42
-
-    def test_split_returns_correct_types(self):
-        """Test that split() returns correct types (sklearn API)."""
-        y = pd.DataFrame(np.random.randn(100))
-        X = np.zeros((100, 10))
-        cv = KFoldStratified(n_splits=5)
-
-        splits = list(cv.split(X, y))
-        assert len(splits) == 5
-
-        for train_idx, test_idx in splits:
-            assert isinstance(train_idx, np.ndarray)
-            assert isinstance(test_idx, np.ndarray)
-            assert train_idx.dtype in [np.int32, np.int64]
-            assert test_idx.dtype in [np.int32, np.int64]
 
     def test_compatible_with_sklearn_functions(self):
         """Test that KFoldStratified works with sklearn utilities."""
@@ -290,17 +239,6 @@ class TestKFoldStratifiedShuffle:
 
 class TestKFoldStratifiedComparison:
     """Comparison tests with sklearn's KFold."""
-
-    def test_same_n_splits_behavior(self):
-        """Test that n_splits works the same as sklearn KFold."""
-        y = np.random.randn(100)
-        X = np.zeros((100, 10))
-
-        cv_nltools = KFoldStratified(n_splits=5)
-        cv_sklearn = KFold(n_splits=5)
-
-        assert cv_nltools.get_n_splits(X, y) == cv_sklearn.get_n_splits(X, y)
-        assert cv_nltools.n_splits == cv_sklearn.n_splits
 
     def test_different_from_kfold(self):
         """Test that stratification produces different splits than regular KFold."""

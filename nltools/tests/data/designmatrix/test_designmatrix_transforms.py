@@ -136,64 +136,39 @@ class TestDesignMatrixStatisticalOperations:
     Test statistical transformation methods.
 
     Behavioral contract:
-    - zscore() standardizes to mean=0, std=1
+    - standardize() centers, or z-scores with method='zscore'
     - downsample() reduces temporal resolution
     - upsample() increases temporal resolution
     """
 
-    def test_zscore_standardizes_single_column(self):
-        """
-        .zscore() on single column should produce mean=0, std=1.
+    def test_standardize_centers_by_default(self):
+        """`.standardize()` centers without rescaling: mean 0, spread unchanged."""
+        dm = DesignMatrix({"a": [1.0, 2.0, 3.0, 4.0, 5.0]}, sampling_freq=1)
+        dm_c = dm.standardize()
 
-        Expected behavior:
-        - Specified column has mean ≈ 0, std ≈ 1
-        - Other columns unchanged
-        - Returns new DesignMatrix
+        assert dm_c["a"].mean() == pytest.approx(0.0, abs=1e-10)
+        assert dm_c["a"].std() == pytest.approx(dm["a"].std(), abs=1e-10)
 
-        Use case: Standardize predictors for regularization
-        """
+    def test_standardize_zscore_standardizes_named_columns(self):
+        """`method='zscore'` with `columns=` rescales only the named columns."""
         dm = DesignMatrix(
             {"a": [1, 2, 3, 4, 5], "b": [10, 20, 30, 40, 50]}, sampling_freq=1
         )
-        dm_z = dm.zscore(columns=["a"])
+        dm_z = dm.standardize(method="zscore", columns=["a"])
 
         assert dm_z["a"].mean() == pytest.approx(0.0, abs=1e-10), "Mean should be 0"
         assert dm_z["a"].std() == pytest.approx(1.0, abs=1e-10), "Std should be 1"
-        assert dm_z["b"].to_list() == dm["b"].to_list(), "Unspecified columns unchanged"
+        assert dm_z["b"].to_list() == dm["b"].to_list(), "Unnamed columns unchanged"
 
-    def test_zscore_all_columns_by_default(self):
-        """
-        .zscore() without arguments should standardize all columns.
-
-        Expected behavior:
-        - All columns standardized
-        - Each has mean=0, std=1
-        """
-        dm = DesignMatrix({"a": [1, 2, 3, 4], "b": [10, 20, 30, 40]}, sampling_freq=1)
-        dm_z = dm.zscore()
-
-        assert dm_z["a"].mean() == pytest.approx(0.0, abs=1e-10)
-        assert dm_z["a"].std() == pytest.approx(1.0, abs=1e-10)
-        assert dm_z["b"].mean() == pytest.approx(0.0, abs=1e-10)
-        assert dm_z["b"].std() == pytest.approx(1.0, abs=1e-10)
-
-    def test_zscore_excludes_polynomial_columns(self):
-        """
-        .zscore() should NOT standardize polynomial columns by default.
-
-        Expected behavior:
-        - Columns in .confounds list are skipped
-        - Only non-confound columns standardized
-
-        Rationale: Confounds (intercept, trends, motion, …) should not be standardized
-        """
+    def test_standardize_excludes_confound_columns(self):
+        """Confounds (intercept, trends, motion, ...) are never standardized."""
         dm = DesignMatrix(
             {"stim": [1, 2, 3, 4], "poly_0": [1, 1, 1, 1]},
             sampling_freq=1,
             confounds=["poly_0"],
         )
 
-        dm_z = dm.zscore()
+        dm_z = dm.standardize(method="zscore")
 
         assert dm_z["stim"].mean() == pytest.approx(0.0, abs=1e-10), (
             "Stim should be standardized"
@@ -201,6 +176,13 @@ class TestDesignMatrixStatisticalOperations:
         assert dm_z["poly_0"].to_list() == [1, 1, 1, 1], (
             "Polynomial should be unchanged"
         )
+
+    def test_standardize_rejects_unknown_method(self):
+        """An unsupported `method` raises `ValueError` naming both choices."""
+        dm = DesignMatrix({"a": [1.0, 2.0, 3.0]}, sampling_freq=1)
+
+        with pytest.raises(ValueError, match="'center'.*'zscore'"):
+            dm.standardize(method="rescale")
 
     def test_downsample_reduces_sampling_rate(self):
         """
@@ -213,8 +195,10 @@ class TestDesignMatrixStatisticalOperations:
 
         Use case: Match design matrix to lower TR acquisition
         """
-        # Create 100 samples at 1 Hz
-        dm = DesignMatrix({"a": list(range(100))}, sampling_freq=1.0)
+        # Two columns, 10 samples at 1 Hz
+        dm = DesignMatrix(
+            {"x": list(range(10)), "y": list(range(10, 20))}, sampling_freq=1.0
+        )
 
         # Downsample to 0.5 Hz (slower sampling = fewer samples)
         dm_down = dm.downsample(target=0.5)
@@ -222,68 +206,37 @@ class TestDesignMatrixStatisticalOperations:
         assert dm_down.shape[0] < dm.shape[0], "Should have fewer rows"
         assert dm_down.sampling_freq == 0.5, "Sampling freq should be updated"
 
-        # Verify exact values (Polars-native implementation)
-        # Downsample groups every 2 samples and takes mean: [0,1]→0.5, [2,3]→2.5, etc.
-        expected_first_10 = [0.5, 2.5, 4.5, 6.5, 8.5, 10.5, 12.5, 14.5, 16.5, 18.5]
-        assert dm_down["a"].to_list()[:10] == expected_first_10, (
-            "Polars downsample should produce correct aggregated values"
-        )
+        # Verify exact values: downsample groups every 2 samples and takes the
+        # mean, per column: [0,1]->0.5, [2,3]->2.5, ...
+        assert dm_down["x"].to_list() == [0.5, 2.5, 4.5, 6.5, 8.5]
+        assert dm_down["y"].to_list() == [10.5, 12.5, 14.5, 16.5, 18.5]
 
     def test_downsample_polars_native_correctness(self):
         """
         Verify Polars-native downsample() produces correct results.
 
         Tests:
-        1. Multiple columns handled correctly
-        2. Different downsample ratios work
-        3. Median aggregation method works
-        4. Edge case: non-integer n_samples
+        1. Different downsample ratios work
+        2. Median aggregation method works
+        3. Edge case: non-integer n_samples
         """
-        # Test 1: Multiple columns
-        dm = DesignMatrix(
-            {"x": list(range(10)), "y": list(range(10, 20))}, sampling_freq=1.0
-        )
-        dm_down = dm.downsample(target=0.5)
-        assert dm_down["x"].to_list() == [0.5, 2.5, 4.5, 6.5, 8.5]
-        assert dm_down["y"].to_list() == [10.5, 12.5, 14.5, 16.5, 18.5]
-
-        # Test 2: Different ratio (1 Hz → 0.25 Hz, groups of 4)
+        # Test 1: Different ratio (1 Hz → 0.25 Hz, groups of 4)
         dm2 = DesignMatrix({"b": list(range(100))}, sampling_freq=1.0)
         dm2_down = dm2.downsample(target=0.25)
         assert dm2_down.shape == (25, 1)
         assert dm2_down["b"].to_list()[:5] == [1.5, 5.5, 9.5, 13.5, 17.5]
 
-        # Test 3: Median method
+        # Test 2: Median method
         dm3 = DesignMatrix({"a": list(range(10))}, sampling_freq=1.0)
         dm3_median = dm3.downsample(target=0.5, method="median")
         assert dm3_median["a"].to_list() == [0.5, 2.5, 4.5, 6.5, 8.5]
 
-        # Test 4: Non-integer n_samples (e.g., 10 samples, 1.0 Hz → 0.3 Hz)
+        # Test 3: Non-integer n_samples (e.g., 10 samples, 1.0 Hz → 0.3 Hz)
         # n_samples = 1.0 / 0.3 ≈ 3.33, should still work
         dm4 = DesignMatrix({"c": list(range(10))}, sampling_freq=1.0)
         dm4_down = dm4.downsample(target=0.3)
         assert dm4_down.sampling_freq == 0.3
         assert dm4_down.shape[0] < dm4.shape[0]
-
-    def test_upsample_increases_sampling_rate(self):
-        """
-        .upsample() should increase temporal resolution.
-
-        Expected behavior:
-        - More rows in output
-        - sampling_freq updated to target
-        - Data appropriately interpolated
-
-        Use case: Match design matrix to faster TR acquisition
-        """
-        # Create 10 samples at 1 Hz
-        dm = DesignMatrix({"a": list(range(10))}, sampling_freq=1.0)
-
-        # Upsample to 2 Hz (faster sampling = more samples)
-        dm_up = dm.upsample(target=2.0)
-
-        assert dm_up.shape[0] > dm.shape[0], "Should have more rows"
-        assert dm_up.sampling_freq == 2.0, "Sampling freq should be updated"
 
     def test_upsample_linear_interpolation_correctness(self):
         """

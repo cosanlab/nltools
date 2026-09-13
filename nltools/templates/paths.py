@@ -1,25 +1,45 @@
 """Pure path-resolution helpers for MNI template files.
 
 Resolves logical (template, resolution, file_type) tuples to local paths.
-Files are fetched on first use from the ``nltools/niftis`` HF dataset; see
+Files are fetched on first use from the `nltools/niftis` HF dataset; see
 `nltools.templates.fetch`.
 """
 
-import re
-
 from .fetch import fetch_resource
 from .registry import SUPPORTED_RESOLUTIONS, VERSION_MAP, VERSION_TO_TEMPLATE
+
+_TEMPLATE_NAME_STEM = "mm-MNI152-2009"
+
+
+def _split_template_name(template_name: str) -> tuple[int, str] | None:
+    """Split `'{res}mm-MNI152-2009{code}'` into its resolution and version code.
+
+    This is the only parser for template-name strings; callers that merely need
+    to recognize one check the result against `None`.
+
+    Args:
+        template_name (str): Candidate template name, e.g. `'2mm-MNI152-2009c'`.
+
+    Returns:
+        tuple[int, str] | None: `(resolution_mm, version_code)`, or None when the
+            string does not have the template-name shape. The version code is not
+            validated here; look it up in `VERSION_TO_TEMPLATE`.
+    """
+    resolution, stem, version_code = template_name.partition(_TEMPLATE_NAME_STEM)
+    if not stem or not resolution.isdecimal() or not version_code:
+        return None
+    return int(resolution), version_code
 
 
 def resolve_paths(template: str, resolution: int) -> dict[str, str]:
     """Build mask/brain/plot paths for a template + resolution.
 
     Args:
-        template: Template name (``'default'``, ``'nilearn'``, ``'fmriprep'``).
-        resolution: Resolution in mm.
+        template (str): Template name (`'default'`, `'nilearn'`, `'fmriprep'`).
+        resolution (int): Resolution in mm.
 
     Returns:
-        Dict with keys ``'mask'``, ``'brain'``, ``'plot'``.
+        dict[str, str]: Local file paths keyed `'mask'`, `'brain'`, `'plot'`.
 
     Raises:
         ValueError: If template or resolution is invalid.
@@ -48,30 +68,32 @@ def resolve_paths(template: str, resolution: int) -> dict[str, str]:
 def resolve_template_name(template_name: str, file_type: str = "mask") -> str:
     """Resolve a template name string to a file path.
 
-    Supports names of the form ``'{res}mm-MNI152-2009{version}'``.
+    Supports names of the form `'{res}mm-MNI152-2009{version}'`.
 
     Args:
-        template_name: e.g. ``'2mm-MNI152-2009c'``, ``'3mm-MNI152-2009a'``.
-        file_type: ``'mask'``, ``'brain'``, or ``'T1'``.
+        template_name (str): e.g. `'2mm-MNI152-2009c'`, `'3mm-MNI152-2009a'`.
+        file_type (str): `'mask'`, `'brain'`, or `'T1'`. Default `'mask'`.
 
     Returns:
-        Absolute path to the requested template file.
+        str: Absolute path to the requested template file.
+
+    Raises:
+        ValueError: If `file_type` or the template name format is invalid.
     """
     if file_type not in ("mask", "brain", "T1"):
         raise ValueError(
             f"file_type must be 'mask', 'brain', or 'T1'. Got: {file_type!r}"
         )
 
-    match = re.match(r"^(\d+)mm-MNI152-2009([acfsl]+)$", template_name)
-    if not match:
+    parsed = _split_template_name(template_name)
+    if parsed is None:
         raise ValueError(
             f"Invalid template name format: {template_name!r}. "
             f"Expected: '{{res}}mm-MNI152-2009{{version}}' "
             f"(e.g., '2mm-MNI152-2009c', '3mm-MNI152-2009a', '2mm-MNI152-2009fsl')"
         )
 
-    resolution = int(match.group(1))
-    version_code = match.group(2)
+    resolution, version_code = parsed
 
     if version_code not in VERSION_TO_TEMPLATE:
         raise ValueError(

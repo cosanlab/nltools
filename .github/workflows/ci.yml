@@ -1,9 +1,8 @@
 name: CI
 
-# Fast feedback on every push to / PR against main (uv-cleanup is the active
-# v0.6.0 dev branch and kept here so in-flight work still gets CI). Runs the
-# default fast test suite (slow + integration markers are skipped by pyproject
-# addopts). Manually triggerable via the Actions tab.
+# Fast feedback on every push to / PR against master. Runs the default fast test
+# suite (slow + integration markers are skipped by pyproject addopts). Manually
+# triggerable via the Actions tab.
 #
 # Skip CI for a push by putting `[skip ci]` (or `[ci skip]`) in the head commit
 # message (each job is guarded below). The token is bracketed so that merely
@@ -12,12 +11,9 @@ name: CI
 on:
   push:
     branches:
-      - main
       - master
-      - uv-cleanup
   pull_request:
     branches:
-      - main
       - master
   workflow_dispatch:
 
@@ -110,7 +106,7 @@ jobs:
         if: matrix.python-version == '3.12'
         run: npm install -g mystmd@1.10.1
 
-      - name: Build docs (API generation + MyST site smoke; skips the slow marimo/WASM export)
+      - name: Build docs (API generation + MyST site smoke; no notebook execution)
         if: matrix.python-version == '3.12'
         run: |
           uv run poe docs-generate
@@ -119,50 +115,3 @@ jobs:
       - name: Build package
         if: matrix.python-version == '3.12'
         run: uv build
-
-  pyodide:
-    name: Pyodide smoke tests
-    if: ${{ !contains(github.event.head_commit.message, '[skip ci]') && !contains(github.event.head_commit.message, '[ci skip]') }}
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    # Advisory only: the in-browser Pyodide stack is a known-flaky external
-    # surface (upstream marimo/Pyodide issues, e.g. cosanlab/nltools#455), not
-    # a signal about nltools itself. Allow this job to fail without failing the
-    # overall run so a red Pyodide leg doesn't mask a genuinely green build.
-    continue-on-error: true
-
-    steps:
-      - name: Checkout Code
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
-
-      - name: Install uv
-        uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b  # v8.1.0
-        with:
-          version: "0.7.6"
-
-      - name: Set up Python
-        run: uv python install 3.12
-
-      - name: Set up Node
-        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e  # v6.4.0
-        with:
-          node-version: "22"
-          cache: "npm"
-          cache-dependency-path: nltools/tests/pyodide/package.json
-
-      - name: Build wheel
-        run: uv build --wheel
-
-      - name: Install pyodide npm package
-        working-directory: nltools/tests/pyodide
-        run: npm install --silent
-
-      - name: Cache Pyodide runtime wheels
-        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae  # v5.0.5
-        with:
-          path: nltools/tests/pyodide/node_modules/pyodide
-          key: pyodide-${{ runner.os }}-${{ hashFiles('nltools/tests/pyodide/package.json') }}
-
-      - name: Run Pyodide smoke tests
-        working-directory: nltools/tests/pyodide
-        run: node test_runner.mjs

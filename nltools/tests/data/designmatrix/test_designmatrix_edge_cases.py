@@ -57,3 +57,44 @@ class TestDesignMatrixEdgeCases:
 
         with pytest.raises(ValueError):
             dm.upsample(target=0.5)  # Target lower than current
+
+
+class TestNRowsContract:
+    """`n_rows` makes a column-less DesignMatrix self-describing — and must
+    stay self-describing through copies, and refuse values it cannot honor.
+    """
+
+    @staticmethod
+    def _empty_dm(n=60):
+        import polars as pl
+
+        return DesignMatrix(pl.DataFrame(), sampling_freq=0.5, n_rows=n)
+
+    def test_n_rows_survives_copy(self):
+        dm = self._empty_dm()
+        assert dm.copy().shape == (60, 0)
+        assert len(dm.copy()) == 60
+
+    def test_n_rows_survives_copy_constructor(self):
+        dm = self._empty_dm()
+        assert DesignMatrix(dm).shape == (60, 0)
+
+    def test_conflicting_n_rows_raises(self):
+        """A row count that contradicts the data is an error, not ignored."""
+        with pytest.raises(ValueError, match="n_rows"):
+            DesignMatrix({"a": [1, 2, 3]}, sampling_freq=1, n_rows=99)
+
+    def test_consistent_n_rows_accepted(self):
+        dm = DesignMatrix({"a": [1, 2, 3]}, sampling_freq=1, n_rows=3)
+        assert dm.shape == (3, 1)
+
+    def test_negative_n_rows_raises(self):
+        with pytest.raises(ValueError, match="n_rows"):
+            self._empty_dm(n=-1)
+
+    def test_to_numpy_honors_n_rows(self):
+        import numpy as np
+
+        dm = self._empty_dm()
+        assert dm.to_numpy().shape == (60, 0)
+        assert np.asarray(dm).shape == (60, 0)

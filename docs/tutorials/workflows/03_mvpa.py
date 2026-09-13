@@ -1,15 +1,11 @@
 # /// script
-# requires-python = ">=3.12"
+# requires-python = ">=3.11"
 # dependencies = [
-#     # Only marimo + the emscripten HTTP shim load from this header. nltools and its whole
-#     # runtime stack are micropip-installed by the IN_WASM setup cell (UNPINNED, so Pyodide's
-#     # bundled builds win) — see that cell. Listing the stack here too makes marimo's header
-#     # auto-install redundantly pull unpinned latest scikit-learn/scipy/pandas/matplotlib,
-#     # which drag in `packaging>=26` (absent in Pyodide 0.27.7) and error out.
 #     "marimo",
-#     "pyodide-http; sys_platform == 'emscripten'",
+#     "nltools>=0.6.0",
 # ]
 # ///
+# Multivariate Pattern Analysis — marimo notebook. Source of truth for the docs page; rendered to the docs page by scripts/marimo_to_zensical.py.
 import marimo
 
 __generated_with = "0.23.9"
@@ -21,70 +17,6 @@ def _():
     import marimo as mo
 
     return (mo,)
-
-
-@app.cell(hide_code=True)
-def _():
-    import sys
-
-    IN_WASM = sys.platform == "emscripten"
-    return (IN_WASM,)
-
-
-@app.cell(hide_code=True)
-async def _(IN_WASM):
-    # In-browser only: install nltools + its full runtime stack before any nltools import
-    # runs, then hand `wasm_ready` to every nltools-importing cell to force ordering. We
-    # can't rely on marimo's PEP 723 header auto-install alone: it races cell execution and
-    # marimo never re-runs a cell that already failed with ModuleNotFoundError.
-    wasm_ready = True
-    if IN_WASM:
-        import asyncio
-
-        import micropip
-        import js
-
-        async def _pip(reqs, **kw):
-            # Install packages ONE AT A TIME instead of a single concurrent
-            # micropip.install([...]) call. The big concurrent batch download
-            # occasionally returns a truncated wheel (BadZipFile); micropip then
-            # caches the corrupt bytes so an in-session retry keeps failing — and
-            # marimo never re-runs an errored cell, permanently bricking the
-            # page. Sequential installs keep peak download concurrency low and
-            # sidestep the corruption; a per-package retry still rides out
-            # ordinary network blips. (see nltools#455 investigation)
-            items = [reqs] if isinstance(reqs, str) else list(reqs)
-            for _item in items:
-                for _attempt in range(3):
-                    try:
-                        await micropip.install(_item, **kw)
-                        break
-                    except Exception:  # noqa: BLE001
-                        if _attempt == 2:
-                            raise
-                        await asyncio.sleep(0.75 * (_attempt + 1))
-
-        # Install the stack UNPINNED so micropip takes Pyodide's bundled builds (pinning
-        # to nltools' host versions, e.g. joblib>=1.5.3, fails against Pyodide's bundled
-        # joblib). nilearn is the exception: 0.14+ needs packaging>=26 (absent in Pyodide
-        # 0.27.7), so pin the last 0.13.x. numpy/scipy/pandas/sklearn/matplotlib come in
-        # transitively at their bundled versions.
-        await _pip(
-            [
-                "nibabel",
-                "nilearn==0.13.1",
-                "seaborn",
-                "polars",
-                "pynv",
-                "huggingface-hub",
-                "anywidget",
-            ]
-        )
-        # deps=False installs the wheel without re-checking nltools' own version pins.
-        await _pip(
-            js.location.origin + "__NLTOOLS_WHEEL_URL__", deps=False
-        )
-    return (wasm_ready,)
 
 
 @app.cell(hide_code=True)
@@ -110,27 +42,23 @@ def _(mo):
         r"""
     **How it works.** Both approaches operate on the same patterns; they differ in the question. Decoding fits a classifier across voxels and scores it on held-out data. RSA turns patterns into a distance matrix (the RDM) and correlates that geometry with a model RDM. The `spatial_scale=` switch is shared: whole-brain uses every voxel jointly, ROI runs the analysis per parcel, and searchlight sweeps a roving sphere.
 
-    We use the classic **Haxby** dataset — one subject viewing 8 object categories — for both. In the browser, a trimmed copy of the same subject keeps the workflow practical.
+    We use the classic **Haxby** dataset — one subject viewing 8 object categories — for both.
     """
     )
     return
 
 
 @app.cell
-def _(wasm_ready):
-    _ = wasm_ready  # ensure the nltools wheel is installed first (WASM)
-    import warnings
-
+def _():
     import numpy as np
     import pandas as pd
     from joblib import Memory
 
     from nltools.data import Adjacency, BrainData
-    from nltools.templates import fetch_resource, seed_resources
+    from nltools.templates import fetch_resource
 
-    memory = Memory(".cache/tutorials", verbose=0)
-    warnings.filterwarnings("ignore", message="Cannot detect name collisions")
-    return Adjacency, BrainData, Memory, fetch_resource, memory, np, pd, seed_resources
+    memory = Memory(".tutorial-cache", verbose=0)
+    return Adjacency, BrainData, fetch_resource, memory, np, pd
 
 
 @app.cell(hide_code=True)
@@ -139,66 +67,27 @@ def _(mo):
         r"""
     ## Decoding
 
-    Load Haxby (`BrainData` auto-resamples to MNI 3mm, so the bundled MNI atlas and searchlight line up), then restrict to **face vs. house** — the strongest, best-understood contrast. Boolean-indexing a `BrainData` slices its timeseries like a numpy array.
+    Haxby ships in **subject space** (no MNI normalization, anisotropic 3.5 × 3.75 × 3.75 mm voxels), so we load it with the dataset's own brain mask to stay on its native grid, and plot on the subject's anatomical via `bg_img=`. Then restrict to **face vs. house** — the strongest, best-understood contrast. Boolean-indexing a `BrainData` slices its timeseries like a numpy array.
     """
     )
     return
 
 
-@app.cell(hide_code=True)
-async def _(IN_WASM, wasm_ready, fetch_resource, seed_resources):
-    # In-browser only: seed the trimmed Haxby subset plus the ancillary MNI/atlas
-    # resources the analysis and plots fetch, and wrap the BOLD in a Bunch that
-    # mimics nilearn's fetch_haxby(). `browser_haxby` stays None locally, where
-    # the visible cell below loads from nilearn. Imports/vars are underscore-
-    # aliased to stay cell-local (marimo defines each name once across cells).
-    _ = wasm_ready  # ensure the nltools wheel is installed first (WASM)
-    browser_haxby = None
-    if IN_WASM:
-        from sklearn.utils import Bunch as _Bunch
-
-        _mvpa_resources = [
-            "tutorials/mvpa/bold.nii.gz",
-            "tutorials/mvpa/labels.txt",
-            # Ancillary resources the analysis/plots fetch — must be pre-seeded in Pyodide.
-            # Both 2mm (BrainData default brainspace) and 3mm (atlas + slice plots) are used.
-            "masks/default/3mm-MNI152-2009fsl-k50.nii.gz",  # ROI + RSA atlas
-            "default/2mm-MNI152-2009fsl-mask.nii.gz",
-            "default/2mm-MNI152-2009fsl-brain.nii.gz",
-            "default/2mm-MNI152-2009fsl-T1.nii.gz",
-            "default/3mm-MNI152-2009fsl-mask.nii.gz",
-            "default/3mm-MNI152-2009fsl-brain.nii.gz",
-            "default/3mm-MNI152-2009fsl-T1.nii.gz",
-        ]
-        await seed_resources(_mvpa_resources)
-        browser_haxby = _Bunch(
-            func=[fetch_resource("tutorials/mvpa/bold.nii.gz")],
-            session_target=[fetch_resource("tutorials/mvpa/labels.txt")],
-        )
-    return (browser_haxby,)
-
-
 @app.cell
-def _(IN_WASM, browser_haxby, BrainData, memory, np, pd):
+def _(BrainData, np, pd):
     from nilearn.datasets import fetch_haxby
 
-    if IN_WASM:
-        HAXBY = browser_haxby
-    else:
-        HAXBY = fetch_haxby(subjects=[2], verbose=0)
+    HAXBY = fetch_haxby(subjects=[2], verbose=0)
 
     LABELS = pd.read_csv(HAXBY.session_target[0], sep=r"\s+")["labels"].to_numpy()
 
-    @memory.cache
-    def load_haxby_mni():
-        """Load + MNI-resample the Haxby BOLD (slow; cached to disk)."""
-        return BrainData(HAXBY.func[0])
-
-    brain = load_haxby_mni()
+    brain = BrainData(HAXBY.func[0], mask=HAXBY.mask)
     keep = np.isin(LABELS, ["face", "house"])
     trials = brain[keep]
     y = (LABELS[keep] == "face").astype(int)
-    print(f"trials: {trials.shape}  (n_trials, n_voxels)   classes (house, face): {np.bincount(y)}")
+    print(
+        f"trials: {trials.shape}  (n_trials, n_voxels)   classes (house, face): {np.bincount(y)}"
+    )
     return HAXBY, LABELS, brain, trials, y
 
 
@@ -215,11 +104,19 @@ def _(mo):
 
 
 @app.cell
-def _(trials, y):
-    decode_wb = trials.predict(y=y, spatial_scale="whole_brain", model="svm", cv=5)
-    print(f"whole-brain accuracy: {decode_wb.mean_score:.3f} ± {decode_wb.std_score:.3f}  (chance 0.5)")
+def _(HAXBY, trials, y):
+    decode_wb = trials.predict(
+        y=y, spatial_scale="whole_brain", estimator="linear_svc", cv=5
+    )
+    print(
+        f"whole-brain accuracy: {decode_wb.mean_score:.3f} ± {decode_wb.std_score:.3f}  (chance 0.5)"
+    )
     decode_wb.weight_map.plot(
-        method="slices", title="SVM weights: + favors face, − favors house", cmap="RdBu_r", colorbar=True
+        method="slices",
+        bg_img=HAXBY.anat[0],
+        title="SVM weights: + favors face, − favors house",
+        cmap="RdBu_r",
+        colorbar=True,
     )
     return
 
@@ -232,21 +129,34 @@ def _(mo):
 
     ### ROI
 
-    `spatial_scale="roi"` with a parcellation trains one classifier per parcel and returns an `accuracy_map` — every voxel in parcel *i* filled with parcel *i*'s cross-validated accuracy. We use the bundled k50 atlas (matches our 3mm MNI space).
+    `spatial_scale="roi"` with a parcellation trains one classifier per parcel and returns a `score_map` — every voxel in parcel *i* filled with parcel *i*'s cross-validated accuracy. We use the bundled k50 atlas. It is defined in MNI space, and `roi_mask=` resamples it onto this subject's grid by header affine alone — a grid change, not a spatial normalization — so its parcel boundaries are only approximate for this un-normalized subject.
     """
     )
     return
 
 
 @app.cell
-def _(fetch_resource, trials, y):
+def _(HAXBY, fetch_resource, trials, y):
     atlas_path = fetch_resource("masks/default/3mm-MNI152-2009fsl-k50.nii.gz")
     decode_roi = trials.predict(
-        y=y, spatial_scale="roi", roi_mask=atlas_path, model="svm", cv=5, n_jobs=4
+        y=y,
+        spatial_scale="roi",
+        roi_mask=atlas_path,
+        estimator="linear_svc",
+        cv=5,
+        n_jobs=4,
     )
-    print(f"per-parcel accuracy: {decode_roi.mean_score.shape[0]} parcels, best = {decode_roi.mean_score.max():.3f}")
-    decode_roi.accuracy_map.plot(
-        method="slices", title="ROI decoding accuracy (chance 0.5)", cmap="RdBu_r", vmin=0.3, vmax=0.7, colorbar=True
+    print(
+        f"per-parcel accuracy: {decode_roi.mean_score.shape[0]} parcels, best = {decode_roi.mean_score.max():.3f}"
+    )
+    decode_roi.score_map.plot(
+        method="slices",
+        bg_img=HAXBY.anat[0],
+        title="ROI decoding accuracy (chance 0.5)",
+        cmap="RdBu_r",
+        vmin=0.3,
+        vmax=0.7,
+        colorbar=True,
     )
     return
 
@@ -266,16 +176,25 @@ def _(mo):
 
 
 @app.cell
-def _(memory, trials, y):
+def _(HAXBY, memory, trials, y):
     @memory.cache
-    def searchlight_decode(radius_mm):
+    def searchlight_decode(radius):
         return trials.predict(
-            y=y, spatial_scale="searchlight", radius_mm=radius_mm, model="svm", cv=5, n_jobs=-1
+            y=y,
+            spatial_scale="searchlight",
+            radius=radius,
+            estimator="linear_svc",
+            cv=5,
+            n_jobs=-1,
         )
 
     decode_sl = searchlight_decode(8.0)
-    decode_sl.accuracy_map.plot(
-        method="slices", title="Searchlight decoding accuracy (8 mm sphere)", cmap="hot", colorbar=True
+    decode_sl.score_map.plot(
+        method="slices",
+        bg_img=HAXBY.anat[0],
+        title="Searchlight decoding accuracy (8 mm sphere)",
+        cmap="hot",
+        colorbar=True,
     )
     return
 
@@ -298,7 +217,9 @@ def _(BrainData, LABELS, brain, np):
     shifted = np.roll(LABELS, 2)  # align BOLD to stimulus (~5s HRF lag)
     patterns = np.vstack([brain.data[shifted == c].mean(axis=0) for c in conditions])
     category_patterns = BrainData(patterns, mask=brain.mask)
-    print(f"category patterns: {category_patterns.shape}  ({len(conditions)} categories)")
+    print(
+        f"category patterns: {category_patterns.shape}  ({len(conditions)} categories)"
+    )
     return category_patterns, conditions
 
 
@@ -322,13 +243,18 @@ def _(mo):
 
 @app.cell
 def _(Adjacency, conditions, np, rdm):
-    # myst: remove-stderr
     animate = np.array([c in ("face", "cat") for c in conditions])
     model_rdm = Adjacency(
-        (animate[:, None] != animate[None, :]).astype(float), matrix_type="distance", labels=conditions
+        (animate[:, None] != animate[None, :]).astype(float),
+        matrix_type="distance",
+        labels=conditions,
     )
-    rsa_wb = rdm.similarity(model_rdm, metric="spearman", n_permute=1000, random_state=0)
-    print(f"whole-brain RSA (animacy): rho = {rsa_wb['correlation']:.3f}  p = {rsa_wb['p']:.3f}")
+    rsa_wb = rdm.similarity(
+        model_rdm, metric="spearman", n_permute=1000, random_state=0
+    )
+    print(
+        f"whole-brain RSA (animacy): rho = {rsa_wb['correlation']:.3f}  p = {rsa_wb['p']:.3f}"
+    )
     return (model_rdm,)
 
 
@@ -336,19 +262,43 @@ def _(Adjacency, conditions, np, rdm):
 def _(mo):
     mo.md(
         r"""
-    Whole-brain, the animacy structure is weak — it's diluted across regions that don't represent categories. As with decoding, the signal is regional. `spatial_scale="roi"` computes one RDM per parcel, and `project=True` paints each parcel's correlation-with-the-model back into brain space:
+    To examine animacy structure by region, `spatial_scale="roi"` computes one
+    RDM per parcel. `roi_to_brain_from_atlas` then paints each parcel's correlation with
+    the model back into brain space. Align the atlas first and retain the sorted
+    nonzero labels inside the source mask. These labels give the returned RDM order:
     """
     )
     return
 
 
 @app.cell
-def _(category_patterns, fetch_resource, model_rdm):
-    # myst: remove-stderr
+def _(HAXBY, category_patterns, fetch_resource, model_rdm, np):
     atlas_path_rsa = fetch_resource("masks/default/3mm-MNI152-2009fsl-k50.nii.gz")
-    roi_rdms = category_patterns.distance(metric="correlation", spatial_scale="roi", roi_mask=atlas_path_rsa)
-    rsa_map = roi_rdms.similarity(model_rdm, metric="spearman", method=None, project=True)
-    rsa_map.plot(method="slices", title="ROI RSA: where category geometry matches animacy", cmap="RdBu_r", colorbar=True)
+    from nilearn.image import resample_to_img
+    from nilearn.masking import apply_mask
+    from nltools.mask import roi_to_brain_from_atlas
+
+    rsa_atlas = resample_to_img(
+        atlas_path_rsa, category_patterns.mask, interpolation="nearest",
+        force_resample=True, copy_header=True,
+    )
+    rsa_labels = np.unique(apply_mask(rsa_atlas, category_patterns.mask).astype(int))
+    rsa_labels = rsa_labels[rsa_labels != 0]
+    roi_rdms = category_patterns.distance(
+        metric="correlation", spatial_scale="roi", roi_mask=rsa_atlas
+    )
+    roi_scores = roi_rdms.similarity(model_rdm, metric="spearman", method=None)
+    rsa_map = roi_to_brain_from_atlas(
+        np.array([score["correlation"] for score in roi_scores]),
+        atlas=rsa_atlas, source_mask=category_patterns.mask, roi_labels=rsa_labels,
+    )
+    rsa_map.plot(
+        method="slices",
+        bg_img=HAXBY.anat[0],
+        title="ROI RSA: where category geometry matches animacy",
+        cmap="RdBu_r",
+        colorbar=True,
+    )
     return
 
 
@@ -364,15 +314,15 @@ def _(mo):
     |---|---|---|
     | Question | Can we predict the condition? | What's the representational geometry? |
     | Whole-brain | `bd.predict(y=, spatial_scale="whole_brain")` | `bd.distance(metric="correlation")` → `.similarity(model)` |
-    | ROI | `bd.predict(y=, spatial_scale="roi", roi_mask=)` | `bd.distance(..., spatial_scale="roi", roi_mask=)` → `.similarity(model, project=True)` |
-    | Searchlight | `bd.predict(y=, spatial_scale="searchlight", radius_mm=)` | `bd.distance(..., spatial_scale="searchlight", radius_mm=)` |
-    | Custom model | pass any sklearn estimator to `model=` | any `metric=` (`spearman`/`pearson`) |
+    | ROI | `bd.predict(y=, spatial_scale="roi", roi_mask=)` | `bd.distance(..., spatial_scale="roi", roi_mask=)` → `.similarity(model)` → `roi_to_brain_from_atlas(...)` |
+    | Searchlight | `bd.predict(y=, spatial_scale="searchlight", radius=)` | `bd.distance(..., spatial_scale="searchlight", radius=)` |
+    | Custom model | pass any sklearn estimator to `estimator=` | any `metric=` (`spearman`/`pearson`) |
 
     **Next steps**
 
-    - [GLM analysis](workflows-01_glm.html) — the mass-univariate "where", and how to build single-trial designs.
-    - [Encoding models](workflows-02_encoding.html) — predict brain activity from stimulus features.
-    - [Inter-subject correlation](workflows-04_isc.html) — shared responses across people.
+    - [GLM analysis](01_glm.md) — the mass-univariate "where", and how to build single-trial designs.
+    - [Encoding models](02_encoding.md) — predict brain activity from stimulus features.
+    - [Inter-subject correlation](04_isc.md) — shared responses across people.
     """
     )
     return

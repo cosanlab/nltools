@@ -5,131 +5,46 @@ project:
     - name: Luke J. Chang
     - name: Eshin Jolly
   github: cosanlab/nltools
-  # Notebook-execution settings (read by MyST-NB): drop the stray matplotlib repr
-  # strings (e.g. `Text(0.5, 1.0, …)`, `<Axes: …>`) that plotting cells leave as
-  # text output when their last expression isn't silenced.
-  settings:
-    output_matplotlib_strings: remove
+  plugins:
+    # Undo linkify's dead links on dotted identifiers (`BrainData.fit` -> http://BrainData.fit).
+    - plugins/unlinkify.mjs
   toc:
     - file: index.md
     - file: migration-guide.md
-      title: v0.6.0 Migration Guide
-    - file: tutorials/index.md
+      title: Migrating from v0.5
+    # User Guide — hand-written task pages, one per task, mirroring the
+    # "Functions by task" reference pages below.
+    - title: User Guide
       children:
-        - title: Basics
-          children:
-            # Static tutorial pages: MyST-NB markdown auto-generated from the marimo
-            # .py notebooks by scripts/marimo_to_myst.py (run in docs-generate) and
-            # executed at build time (--execute) to bake outputs. The interactive
-            # marimo/WASM version of each (built by scripts/build_marimo_wasm.py) is
-            # linked as an opt-in from the tutorial gallery + each page.
-            - file: tutorials/basics/01_brain_data.md
-            - file: tutorials/basics/02_design_matrix.md
-            - file: tutorials/basics/03_adjacency.md
-            - file: tutorials/basics/04_brain_collection.md
-        - title: Workflows
-          children:
-            - file: tutorials/workflows/01_glm.md
-            - file: tutorials/workflows/02_encoding.md
-            - file: tutorials/workflows/03_mvpa.md
-            - file: tutorials/workflows/04_isc.md
-    - title: Data Classes
-      children:
-        - file: api/data/brain_data.md
-        - file: api/data/adjacency.md
-        - file: api/data/design_matrix.md
-        - file: api/data/brain_collection.md
-    - title: API Class Modules
-      children:
-        - title: BrainData
-          children:
-            - file: api/data/braindata_io.md
-            - file: api/data/braindata_analysis.md
-            - file: api/data/braindata_modeling.md
-            - file: api/data/braindata_prediction.md
-            - file: api/data/braindata_bootstrap.md
-            - file: api/data/braindata_plotting.md
-        - title: Adjacency
-          children:
-            - file: api/data/adjacency_stats.md
-            - file: api/data/adjacency_modeling.md
-            - file: api/data/adjacency_plotting.md
-            - file: api/data/adjacency_io.md
-        - title: DesignMatrix
-          children:
-            - file: api/data/design_matrix_transforms.md
-            - file: api/data/design_matrix_regressors.md
-            - file: api/data/design_matrix_append.md
-            - file: api/data/design_matrix_diagnostics.md
-            - file: api/data/design_matrix_plotting.md
-            - file: api/data/design_matrix_io.md
-        - title: BrainCollection
-          children:
-            - file: api/data/collection_core.md
-            - file: api/data/collection_execution.md
-            - file: api/data/collection_inference.md
-            - file: api/data/collection_io.md
-            - file: api/data/collection_pipeline.md
-            - file: api/data/collection_pipesteps.md
-            - file: api/data/collection_pipesteps_base.md
-            - file: api/data/collection_pipesteps_cv.md
-            - file: api/data/collection_pipesteps_steps.md
-        - title: Atlases
-          children:
-            - file: api/data/atlases.md
-            - file: api/data/atlases_registry.md
-            - file: api/data/atlases_loading.md
-            - file: api/data/atlases_labeling.md
-            - file: api/data/atlases_reporting.md
-        - file: api/models.md
-    - title: API Functions
-      children:
-        - file: api/stats.md
-        - file: api/plotting.md
-        - file: api/mask.md
-        - file: api/io.md
-        - file: api/dataset.md
-        - file: api/crossval.md
-        - file: api/analysis.md
-    - title: API Utilities
-      children:
-        - file: api/utils.md
-        - file: api/templates.md
-        - file: api/simulator.md
-        - file: api/neighborhoods.md
-        - file: api/cache.md
-    - title: API Algorithms
-      children:
-        - file: api/algorithms.md
-        - file: api/backends.md
-    - title: API Inference
-      children:
-        - file: api/algorithms/inference.md
-        - file: api/algorithms/inference_one_sample.md
-        - file: api/algorithms/inference_two_sample.md
-        - file: api/algorithms/inference_correlation.md
-        - file: api/algorithms/inference_timeseries.md
-        - file: api/algorithms/inference_matrix.md
-        - file: api/algorithms/inference_isc.md
-        - file: api/algorithms/inference_bootstrap.md
-        - file: api/algorithms/inference_utils.md
+        - file: guide/index.md
+        - file: guide/loading.md
+        - file: guide/design-and-glm.md
+        - file: guide/prediction.md
+        - file: guide/similarity-and-rsa.md
+        - file: guide/alignment.md
+        - file: guide/statistics-and-inference.md
+        - file: guide/intersubject.md
+        - file: guide/plotting.md
+        - file: guide/atlases.md
+    # Neither the API reference nor the tutorials appear here. docs/api/ holds
+    # mkdocstrings directives and the tutorial pages hold markdown-exec fences,
+    # both of which only the zensical site (zensical.toml) renders; mystmd would
+    # print them verbatim. This toc is what is left of the MyST toolchain, and it
+    # goes away with it.
     - title: Development
       children:
         - file: contributing.md
-        - file: performance.md
-        - title: Architecture & Internals
-          children:
-            # Standalone interactive HTML page (copied into _build/html by the
-            # docs-site / docs-site-pages tasks). Literal URL; the docs-site-pages
-            # perl rewrite prefixes /nltools for GitHub Pages.
-            - title: Design Tour
-              url: /design-tour.html
-            - file: development/index.md
-            - file: development/execution-model.md
-            - file: development/ridge-internals.md
-            - file: development/inference-internals.md
+        - file: development/index.md
+          title: Architecture
+        - file: development/ridge-internals.md
+        - file: development/inference-internals.md
+        - file: development/benchmarks.md
         - file: changelog.md
 site:
+  # No `domains:` entry — mystmd rejects apex domains (it requires >= 3 dot-parts,
+  # e.g. `docs.example.org`). The static build stamps its localhost dev-server host
+  # into sitemap.xml/robots.txt/page metadata instead; the docs-site task rewrites
+  # it to SITE_URL (default https://nltools.org).
   options:
     logo: ''
     logo_text: nltools

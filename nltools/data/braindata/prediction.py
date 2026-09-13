@@ -1,19 +1,26 @@
 """BrainData prediction — timeseries (encoding) and MVPA (decoding).
 
-Single entry point: `predict`. Returns `Predict`
-with fields populated based on dispatch. Mirrors `BrainData.fit` /
-`Fit` patterns: frozen result dataclass, ``inplace=True`` mutates
-self with attributes, ``inplace=False`` returns the dataclass.
+Single entry point: `predict`. It resolves exactly one mode, validates every
+argument for that mode, and returns either a new `BrainData` (fitted-model
+prediction) or a frozen `Predict` record (MVPA). Nothing is attached to the
+source object.
 """
 
 from __future__ import annotations
 
-import warnings
+import inspect
 from typing import Any
 
 import numpy as np
 
-from nltools.data.fitresults import Predict
+from nltools.algorithms.decoding import (
+    back_project_weight_maps,
+    validate_decoding_pipeline,
+)
+from nltools.data.results import Predict
+from nltools.utils import maybe_tqdm
+
+from .utils import _is_default
 
 
 # ---------------------------------------------------------------------------
@@ -21,57 +28,192 @@ from nltools.data.fitresults import Predict
 # ---------------------------------------------------------------------------
 
 
+#: Decoding-only arguments and their documented defaults. A non-default value
+#: for any of them on a fitted-model call is an invalid combination, not a
+#: silently ignored keyword.
+MVPA_ONLY_DEFAULTS = {
+    "estimator": "linear_svc",
+    "cv": None,
+    "groups": None,
+    "scoring": None,
+    "spatial_scale": "whole_brain",
+    "roi_mask": None,
+    "radius": 10.0,
+    "n_jobs": 1,
+    "progress_bar": False,
+}
+
+
 def predict(
     bd,
     *,
-    y=None,
     X=None,
-    spatial_scale: str = "whole_brain",
-    model: Any = "svm",
-    cv: int = 5,
-    standardize: bool = True,
-    reduce: str | None = None,
-    n_components: int | None = None,
-    scoring: str = "auto",
+    y=None,
+    estimator: Any = "linear_svc",
+    cv=None,
     groups=None,
+    scoring=None,
+    spatial_scale: str = "whole_brain",
     roi_mask=None,
-    radius_mm: float = 10.0,
-    inplace: bool = False,
+    radius: float = 10.0,
     n_jobs: int = 1,
-    random_state: int | None = None,
     progress_bar: bool = False,
 ):
-    """Dispatch BrainData prediction to timeseries encoding or MVPA decoding.
+    """Dispatch BrainData prediction to fitted-model prediction or MVPA decoding.
 
-    Implements `BrainData.predict`. See the class docstring for full parameter
-    documentation.
+    Implements `BrainData.predict`. See that method's docstring for full
+    parameter documentation.
     """
     if X is not None and y is not None:
         raise ValueError(
-            "Cannot specify both X and y. Use X for timeseries prediction "
-            "or y for MVPA decoding."
+            "Cannot specify both X and y. Use X to predict from a fitted "
+            "model or y to decode with MVPA."
         )
 
+    decoding_arguments = {
+        "estimator": estimator,
+        "cv": cv,
+        "groups": groups,
+        "scoring": scoring,
+        "spatial_scale": spatial_scale,
+        "roi_mask": roi_mask,
+        "radius": radius,
+        "n_jobs": n_jobs,
+        "progress_bar": progress_bar,
+    }
+
+    if X is not None:
+        _reject_decoding_arguments(decoding_arguments)
+        return predict_timeseries(bd, X=X)
+
+    resolved_y = _resolve_stored_y(bd, y)
+    if resolved_y is None:
+        # No labels to decode: the only remaining mode is prediction from a
+        # fitted model, which takes none of the decoding arguments.
+        _reject_decoding_arguments(decoding_arguments)
+        return predict_timeseries(bd, X=None)
+
+    return predict_mvpa(
+        bd,
+        y=resolved_y,
+        estimator=estimator,
+        cv=cv,
+        groups=_resolve_stored_groups(bd, groups),
+        scoring=scoring,
+        spatial_scale=spatial_scale,
+        roi_mask=roi_mask,
+        radius=radius,
+        n_jobs=n_jobs,
+        progress_bar=progress_bar,
+    )
+
+
+def _reject_decoding_arguments(supplied: dict) -> None:
+    """Raise when a decoding-only argument is passed on a call that is not decoding."""
+    offenders = sorted(
+        name
+        for name, value in supplied.items()
+        if not _is_default(value, MVPA_ONLY_DEFAULTS[name])
+    )
+    if not offenders:
+        return
+    names = ", ".join(f"{name}=" for name in offenders)
+    verb = "configures" if len(offenders) == 1 else "configure"
+    subject = "this argument" if len(offenders) == 1 else "these arguments"
+    raise ValueError(
+        f"{names} only {verb} MVPA decoding, and this call is not decoding. "
+        f"Pass y= — or attach labels to .Y — to decode, or drop {subject}."
+    )
+
+
+# ---------------------------------------------------------------------------
+# Stored-Y resolution (labels travel with the data)
+# ---------------------------------------------------------------------------
+
+
+def _series_to_numpy(series):
+    """Convert a polars Series to numpy, mapping string columns to ``'<U'``.
+
+    Polars Utf8 columns come back from ``to_numpy()`` as object arrays;
+    sklearn then propagates the object dtype into ``classes_`` and
+    ``predict()`` outputs, which breaks HDF5 persistence and dtype checks.
+    A real unicode dtype keeps label arrays first-class end to end.
+    """
+    import polars as pl
+
+    arr = series.to_numpy()
+    if arr.dtype == object and series.dtype == pl.String:
+        return arr.astype(str)
+    return arr
+
+
+def _resolve_stored_y(bd, y):
+    """Resolve ``y`` against the stored ``bd.Y`` frame.
+
+    Rules:
+      - array-like ``y`` passes through as an ndarray;
+      - a string picks that column of ``bd.Y``;
+      - ``None`` falls back to a single-column ``bd.Y`` (the idiomatic
+        labels-travel-with-the-data path). A multi-column ``Y`` is ambiguous
+        and asks for ``y='name'``; an empty ``Y`` returns ``None`` so the
+        dispatcher can fall through to timeseries prediction. A *fitted*
+        encoding model wins over stored labels, so an object carrying both
+        predicts its training timeseries.
+    """
+    stored = bd.Y
+
+    if isinstance(y, str):
+        if stored is None or stored.is_empty():
+            raise ValueError(
+                f"y={y!r} names a column of .Y, but no Y frame is stored on "
+                f"this BrainData. Set brain.Y or pass y as an array."
+            )
+        if y not in stored.columns:
+            raise ValueError(
+                f"y={y!r} is not a column of .Y (columns: {stored.columns})."
+            )
+        return _series_to_numpy(stored[y])
+
     if y is not None:
-        return predict_mvpa(
-            bd,
-            y=y,
-            spatial_scale=spatial_scale,
-            model=model,
-            cv=cv,
-            standardize=standardize,
-            reduce=reduce,
-            n_components=n_components,
-            scoring=scoring,
-            groups=groups,
-            roi_mask=roi_mask,
-            radius_mm=radius_mm,
-            inplace=inplace,
-            n_jobs=n_jobs,
-            random_state=random_state,
-            progress_bar=progress_bar,
+        return np.asarray(y)
+
+    if stored is None or stored.is_empty():
+        return None
+
+    if getattr(getattr(bd, "model_", None), "is_fitted_", False):
+        # Fitted-model prediction wins over attached labels on a no-argument
+        # call; returning None lets the dispatcher fall through to it. An
+        # unfitted `model_` is not a model to predict from, so decoding the
+        # stored labels stays available.
+        return None
+    if stored.shape[1] != 1:
+        raise ValueError(
+            f".Y has {stored.shape[1]} columns ({stored.columns}); pass "
+            f"y='name' to pick the label column."
         )
-    return predict_timeseries(bd, X=X)
+    return _series_to_numpy(stored[stored.columns[0]])
+
+
+def _resolve_stored_groups(bd, groups):
+    """Resolve a string ``groups`` spec to that column of ``bd.Y``.
+
+    The ``Y`` frame is the row-aligned metadata carrier on ``BrainData``, so
+    within-subject grouping variables (run, session, block) live there
+    alongside the labels. Arrays and ``None`` pass through unchanged.
+    """
+    if not isinstance(groups, str):
+        return groups
+    stored = bd.Y
+    if stored is None or stored.is_empty():
+        raise ValueError(
+            f"groups={groups!r} names a column of .Y, but no Y frame is "
+            f"stored on this BrainData. Set brain.Y or pass groups as an array."
+        )
+    if groups not in stored.columns:
+        raise ValueError(
+            f"groups={groups!r} is not a column of .Y (columns: {stored.columns})."
+        )
+    return _series_to_numpy(stored[groups])
 
 
 # ---------------------------------------------------------------------------
@@ -86,11 +228,18 @@ def predict_timeseries(bd, *, X=None):
     Encoding model prediction yields a brain image — the natural container is
     ``BrainData``, so it composes directly with downstream methods (`.plot()`,
     `.standardize()`, etc.). MVPA decoding (``y=`` mode) returns ``Predict``.
+
+    With no ``X``, the fitted model returns an independent copy of the stored
+    training predictions and keeps their row metadata: ``glm_predicted`` for a
+    GLM, ``ridge_fitted_values`` for a Ridge. Neither retains the training
+    features, so a no-argument call never refits or re-multiplies. With an
+    explicit ``X``, structural validation and alignment belong to the
+    estimator's own ``predict`` — named design columns for `Glm`, named feature
+    spaces for a banded `Ridge` — and the result clears the source row metadata.
     """
-    from nltools.data import BrainData
     from nltools.models import Glm
 
-    from .utils import shallow_copy
+    from .utils import _result_from_array
 
     if not hasattr(bd, "model_"):
         raise ValueError(
@@ -100,42 +249,11 @@ def predict_timeseries(bd, *, X=None):
     if not bd.model_.is_fitted_:
         raise ValueError("Model is not fitted")
 
-    using_training_data = X is None
-    if using_training_data:
-        if not hasattr(bd, "X_"):
-            raise ValueError("No training data stored on BrainData")
-        X = bd.X_
+    if X is not None:
+        return _result_from_array(bd, bd.model_.predict(X), rows="clear")
 
-    X = np.asarray(X)
-    if X.ndim != 2:
-        raise ValueError(f"X must be 2D, got {X.ndim}D")
-
-    if hasattr(bd.model_, "n_features_in_"):
-        if X.shape[1] != bd.model_.n_features_in_:
-            raise ValueError(
-                f"X has {X.shape[1]} features, but model was fitted with "
-                f"{bd.model_.n_features_in_} features"
-            )
-    elif hasattr(bd.model_, "design_matrices_") and bd.model_.design_matrices_:
-        expected = bd.model_.design_matrices_[0].shape[1]
-        if X.shape[1] != expected:
-            raise ValueError(
-                f"X has {X.shape[1]} features, but model was fitted with "
-                f"{expected} features"
-            )
-
-    if isinstance(bd.model_, Glm) and using_training_data:
-        # Training-data fitted values come back as nilearn Nifti images; remask
-        # to the BrainData array space. New-design prediction (X given) goes
-        # through model.predict(X) = X @ coef_, identical to the Ridge path.
-        y_pred_list = bd.model_.predict()
-        y_pred = BrainData(y_pred_list, mask=bd.mask).data
-    else:
-        y_pred = bd.model_.predict(X)
-
-    predictions = shallow_copy(bd)
-    predictions.data = y_pred
-    return predictions
+    stored = bd.glm_predicted if isinstance(bd.model_, Glm) else bd.ridge_fitted_values
+    return _result_from_array(bd, np.array(stored.data, copy=True), rows="preserve")
 
 
 # ---------------------------------------------------------------------------
@@ -150,179 +268,332 @@ def predict_mvpa(
     bd,
     *,
     y,
-    spatial_scale: str,
-    model: Any,
+    estimator: Any,
     cv,
-    standardize: bool,
-    reduce: str | None,
-    n_components: int | None,
-    scoring: str,
     groups,
+    scoring,
+    spatial_scale: str,
     roi_mask,
-    radius_mm: float,
-    inplace: bool,
+    radius: float,
     n_jobs: int,
-    random_state: int | None = None,
-    progress_bar: bool = False,
-) -> Predict | Any:
-    """Cross-validated decoding. Returns Predict (or self if inplace=True)."""
-    from sklearn.base import is_classifier
-    from sklearn.model_selection import KFold, StratifiedKFold
+    progress_bar: bool,
+) -> Predict:
+    """Run cross-validated decoding on a `BrainData` and return a `Predict`.
 
+    Every argument is validated, and the cross-validation folds are
+    materialized and checked, before a single model is fitted.
+    """
+    from sklearn.base import is_classifier
+
+    _validate_spatial_scale(spatial_scale, roi_mask=roi_mask, radius=radius)
+    y = _validate_target(y, n_rows=bd.shape[0])
+    groups = _validate_groups(groups, n_rows=bd.shape[0])
+    validate_scoring(scoring)
+
+    pipe = build_pipeline(estimator, y=y)
+    validate_decoding_pipeline(pipe)
+    classifier = is_classifier(pipe)
+    splits = resolve_splits(cv, X=bd.data, y=y, groups=groups, classifier=classifier)
+    classes = np.unique(y) if classifier else None
+
+    X_data = bd.data  # (n_samples, n_voxels)
+
+    if spatial_scale == "whole_brain":
+        return _run_whole_brain(
+            bd,
+            X_data,
+            y,
+            pipe,
+            splits=splits,
+            scoring=scoring,
+            classes=classes,
+            n_jobs=n_jobs,
+        )
+    if spatial_scale == "searchlight":
+        return _run_searchlight(
+            bd,
+            X_data,
+            y,
+            pipe,
+            splits=splits,
+            scoring=scoring,
+            classes=classes,
+            radius=radius,
+            n_jobs=n_jobs,
+            progress_bar=progress_bar,
+        )
+    return _run_roi(
+        bd,
+        X_data,
+        y,
+        pipe,
+        splits=splits,
+        scoring=scoring,
+        classes=classes,
+        roi_mask=roi_mask,
+        n_jobs=n_jobs,
+        progress_bar=progress_bar,
+    )
+
+
+# ---------------------------------------------------------------------------
+# Argument validation — everything here runs before the first fit
+# ---------------------------------------------------------------------------
+
+
+def _validate_spatial_scale(spatial_scale: str, *, roi_mask, radius: float) -> None:
+    """Check the spatial scale and the companion arguments it owns."""
     if spatial_scale not in VALID_SPATIAL_SCALES:
         raise ValueError(
             f"Invalid spatial_scale: {spatial_scale!r}. "
             f"Must be one of {sorted(VALID_SPATIAL_SCALES)}"
         )
-    if reduce is not None and reduce != "pca":
-        raise ValueError(f"Unknown reduce: {reduce!r}. Supported: 'pca' or None.")
-
-    resolved_model = resolve_model(model)
-    classifier = is_classifier(resolved_model)
-    scoring = resolve_scoring(scoring, classifier)
-
-    # Resolve CV
-    if isinstance(cv, int):
-        cv_splitter = (
-            StratifiedKFold(n_splits=cv, shuffle=True, random_state=random_state)
-            if classifier
-            else KFold(n_splits=cv, shuffle=True, random_state=random_state)
-        )
-    else:
-        cv_splitter = cv
-
-    y = np.asarray(y)
-    if y.shape[0] != bd.shape[0]:
+    if spatial_scale == "roi" and roi_mask is None:
+        raise ValueError("roi_mask is required for spatial_scale='roi'")
+    if spatial_scale != "roi" and roi_mask is not None:
         raise ValueError(
-            f"y has {y.shape[0]} samples but data has {bd.shape[0]} samples"
+            f"roi_mask only applies to spatial_scale='roi', not {spatial_scale!r}."
+        )
+    if spatial_scale != "searchlight" and not _is_default(radius, 10.0):
+        raise ValueError(
+            f"radius only applies to spatial_scale='searchlight', not "
+            f"{spatial_scale!r}."
         )
 
-    standardize = _resolve_standardize_for_model(resolved_model, standardize)
-    pipe = build_pipeline(resolved_model, standardize, reduce, n_components)
-    X_data = bd.data  # (n_samples, n_voxels)
 
-    if spatial_scale == "whole_brain":
-        result = _run_whole_brain(bd, X_data, y, pipe, cv_splitter, groups, scoring)
-    elif spatial_scale == "searchlight":
-        result = _run_searchlight(
-            bd,
-            X_data,
-            y,
-            pipe,
-            cv_splitter,
-            groups,
-            scoring,
-            radius_mm,
-            n_jobs,
-            progress_bar,
+def _validate_target(y, *, n_rows: int) -> np.ndarray:
+    """Return `y` as a one-dimensional array with one value per row."""
+    y = np.asarray(y)
+    if y.ndim != 1:
+        raise ValueError(
+            f"y must be one-dimensional with one value per row; got shape "
+            f"{y.shape}. Multioutput and multilabel targets are not accepted."
         )
-    else:  # spatial_scale == 'roi'
-        result = _run_roi(
-            bd,
-            X_data,
-            y,
-            pipe,
-            cv_splitter,
-            groups,
-            scoring,
-            roi_mask,
-            n_jobs,
-            progress_bar,
+    if y.shape[0] != n_rows:
+        raise ValueError(
+            f"y must have one value per row: got {y.shape[0]} values for {n_rows} rows."
         )
-
-    if inplace:
-        for fname in result.available():
-            setattr(bd, f"predict_{fname}", getattr(result, fname))
-        return bd
-    return result
+    return y
 
 
-def _resolve_standardize_for_model(resolved_model, standardize: bool) -> bool:
-    """Resolve standardization for user-provided scikit-learn pipelines.
-
-    Auto-default ``standardize=False`` when the user passes a sklearn
-    ``Pipeline`` as ``model=``. Pipelines are an explicit "I'm taking control
-    of preprocessing" signal — silently wrapping another StandardScaler around
-    them double-scales features. Users can opt back in with ``standardize=True``
-    explicitly.
-    """
-    from sklearn.pipeline import Pipeline
-
-    if standardize and isinstance(resolved_model, Pipeline):
-        warnings.warn(
-            "Detected sklearn Pipeline as model — defaulting standardize=False "
-            "to avoid wrapping another StandardScaler around your pipeline. "
-            "Pass standardize=True explicitly to override.",
-            UserWarning,
-            stacklevel=4,
+def _validate_groups(groups, *, n_rows: int):
+    """Return `groups` as a one-dimensional array with one value per row."""
+    if groups is None:
+        return None
+    groups = np.asarray(groups)
+    if groups.ndim != 1 or groups.shape[0] != n_rows:
+        raise ValueError(
+            f"groups must have one value per row: got shape {groups.shape} "
+            f"for {n_rows} rows."
         )
-        return False
-    return standardize
+    return groups
+
+
+def validate_scoring(scoring) -> None:
+    """Reject the removed `'auto'` value and multimetric scoring mappings."""
+    from collections.abc import Mapping
+
+    if isinstance(scoring, Mapping) or (
+        isinstance(scoring, (list, tuple, set)) and not isinstance(scoring, str)
+    ):
+        raise ValueError(
+            "Multimetric scoring is not accepted because Predict.scores holds "
+            "one value per cross-validation fold. Pass a single scoring name "
+            "or callable, or None to use the estimator's own score method."
+        )
+    if scoring == "auto":
+        raise ValueError(
+            "scoring='auto' was removed. Pass None (the default) to use the "
+            "estimator's own score method — accuracy for a classifier, R2 for "
+            "a regressor — or any scikit-learn scoring name or callable."
+        )
 
 
 # ---------------------------------------------------------------------------
-# Helpers — model / scoring / pipeline construction
+# Estimator resolution and pipeline construction
 # ---------------------------------------------------------------------------
 
+#: Built-in shortcuts. Every one is a linear estimator, so its coefficients
+#: project back to the voxel axis.
+ESTIMATOR_SHORTCUTS = (
+    "linear_svc",
+    "logistic_regression",
+    "linear_discriminant_analysis",
+    "ridge_classifier",
+    "ridge",
+    "lasso",
+    "linear_svr",
+)
 
-def resolve_model(model: Any):
-    """Resolve a string shortcut or pass through a sklearn estimator."""
+#: Abbreviations that used to name a shortcut. They are ambiguous — 'svm' and
+#: 'svr' say nothing about the kernel, 'ridge' already means the regressor —
+#: so they are rejected with the canonical spelling.
+REJECTED_ABBREVIATIONS = {
+    "svm": "linear_svc",
+    "logistic": "logistic_regression",
+    "lda": "linear_discriminant_analysis",
+    "svr": "linear_svr",
+}
+
+
+def resolve_estimator(estimator: Any):
+    """Resolve a shortcut name to an estimator, or pass an sklearn object through."""
     from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
     from sklearn.linear_model import Lasso, LogisticRegression, Ridge, RidgeClassifier
-    from sklearn.svm import SVR, LinearSVC
+    from sklearn.svm import LinearSVC, LinearSVR
 
-    shortcuts = {
-        # classification
-        "svm": lambda: LinearSVC(dual="auto", max_iter=10000),
-        "logistic": lambda: LogisticRegression(max_iter=1000),
-        "lda": lambda: LinearDiscriminantAnalysis(),
+    builders = {
+        "linear_svc": lambda: LinearSVC(dual="auto", max_iter=10000),
+        "logistic_regression": lambda: LogisticRegression(max_iter=1000),
+        "linear_discriminant_analysis": lambda: LinearDiscriminantAnalysis(),
         "ridge_classifier": lambda: RidgeClassifier(),
-        # regression
         "ridge": lambda: Ridge(),
         "lasso": lambda: Lasso(),
-        "svr": lambda: SVR(),
+        "linear_svr": lambda: LinearSVR(),
     }
 
-    if isinstance(model, str):
-        if model not in shortcuts:
+    if isinstance(estimator, str):
+        if estimator in REJECTED_ABBREVIATIONS:
+            canonical = REJECTED_ABBREVIATIONS[estimator]
             raise ValueError(
-                f"Unknown model: {model!r}. Valid shortcuts: "
-                f"{sorted(shortcuts)}, or pass any sklearn estimator."
+                f"estimator={estimator!r} is ambiguous and is not accepted; "
+                f"use {canonical!r}."
             )
-        return shortcuts[model]()
+        if estimator not in builders:
+            raise ValueError(
+                f"Unknown estimator shortcut: {estimator!r}. Valid shortcuts: "
+                f"{list(ESTIMATOR_SHORTCUTS)}, or pass any sklearn estimator."
+            )
+        return builders[estimator]()
 
-    if not (hasattr(model, "fit") and hasattr(model, "predict")):
+    if not (hasattr(estimator, "fit") and hasattr(estimator, "predict")):
         raise TypeError(
-            f"model must be a string shortcut or an object with fit/predict; "
-            f"got {type(model).__name__}"
+            f"estimator must be a shortcut name or an object with fit/predict; "
+            f"got {type(estimator).__name__}"
         )
-    return model
+    return estimator
 
 
-def resolve_scoring(scoring: str, classifier: bool) -> str:
-    """Resolve scoring='auto' to 'accuracy' (classifier) or 'r2' (regressor)."""
-    if scoring == "auto":
-        return "accuracy" if classifier else "r2"
-    return scoring
+def build_pipeline(estimator: Any, *, y: np.ndarray) -> Any:
+    """Build the per-fold pipeline for `estimator`.
 
+    A built-in shortcut selects a predefined pipeline: `StandardScaler` inside
+    each fold, then the linear estimator the shortcut names. A classification
+    shortcut on a multiclass target is wrapped in `OneVsRestClassifier`, which
+    gives one signed coefficient row per class instead of whatever multiclass
+    strategy the estimator happens to default to.
 
-def build_pipeline(model, standardize: bool, reduce: str | None, n_components):
-    """Build a per-fold scikit-learn preprocessing and model pipeline.
+    A caller-supplied estimator or `Pipeline` is used exactly as given — MVPA
+    adds, removes, and reconfigures nothing, and never overrides its multiclass
+    strategy. Callers who want one-vs-rest supply a `OneVsRestClassifier`.
 
-    The pipeline contains an optional StandardScaler, optional PCA, and the
-    model. If only the model is needed, returns the model itself.
+    Args:
+        estimator: A shortcut name or an sklearn estimator/`Pipeline`.
+        y: The validated target vector, used only to decide whether a
+            classification shortcut faces a multiclass problem.
+
+    Returns:
+        The estimator to clone and fit in every fold.
     """
-    from sklearn.decomposition import PCA
+    from sklearn.base import is_classifier
+    from sklearn.multiclass import OneVsRestClassifier
     from sklearn.pipeline import make_pipeline
     from sklearn.preprocessing import StandardScaler
 
-    steps = []
-    if standardize:
-        steps.append(StandardScaler())
-    if reduce == "pca":
-        steps.append(PCA(n_components=n_components))
-    steps.append(model)
-    return make_pipeline(*steps) if len(steps) > 1 else model
+    resolved = resolve_estimator(estimator)
+    if not isinstance(estimator, str):
+        return resolved
+    if is_classifier(resolved) and len(np.unique(y)) > 2:
+        resolved = OneVsRestClassifier(resolved)
+    return make_pipeline(StandardScaler(), resolved)
+
+
+# ---------------------------------------------------------------------------
+# Cross-validation
+# ---------------------------------------------------------------------------
+
+
+def resolve_splits(cv, *, X, y, groups, classifier: bool) -> list:
+    """Resolve `cv` into materialized train/test splits and check the partition.
+
+    Materializing once means every runner — and every parallel worker — sees
+    the same folds, and it lets the partition rule be checked before any model
+    is fitted.
+    """
+    splitter = _resolve_splitter(cv, classifier=classifier)
+    splits = [
+        (_as_indices(train), _as_indices(test))
+        for train, test in _iter_split(splitter, X, y, groups)
+    ]
+    _validate_partition(splits, n_rows=len(y))
+    return splits
+
+
+def _resolve_splitter(cv, *, classifier: bool):
+    """Turn a `cv` spec into a scikit-learn splitter following sklearn's grammar.
+
+    This deliberately does not call the public `nltools.cross_validation.resolve_cv`.
+    That helper keeps the `'loo'`/`'logo'` names, promotes an int to a
+    group-aware splitter, and can shuffle; the prediction spec removes all
+    three from `predict` (see the cross-validation paragraph of
+    `docs/development/specs/braindata.md`), so the two rules have genuinely
+    different semantics.
+    """
+    from sklearn.model_selection import KFold, StratifiedKFold
+
+    if isinstance(cv, str):
+        raise ValueError(
+            f"cv={cv!r} is not accepted: the 'loo' and 'logo' aliases were "
+            f"removed from predict. Pass the splitter itself — "
+            f"LeaveOneOut() or LeaveOneGroupOut() with groups= — an int fold "
+            f"count, or None for a deterministic five-fold split."
+        )
+    if cv is None or (isinstance(cv, int) and not isinstance(cv, bool)):
+        n_splits = 5 if cv is None else cv
+        return (
+            StratifiedKFold(n_splits=n_splits)
+            if classifier
+            else KFold(n_splits=n_splits)
+        )
+    if not (hasattr(cv, "split") and hasattr(cv, "get_n_splits")):
+        raise TypeError(
+            f"cv must be None, an int fold count, or a scikit-learn "
+            f"cross-validation splitter; got {type(cv).__name__}."
+        )
+    return cv
+
+
+def _as_indices(fold) -> np.ndarray:
+    """Return one fold as an integer index array, accepting a boolean mask."""
+    fold = np.asarray(fold)
+    if fold.dtype == bool:
+        return np.flatnonzero(fold)
+    if fold.size == 0:
+        return fold.astype(np.intp, copy=False)
+    if not np.issubdtype(fold.dtype, np.integer):
+        raise ValueError(
+            f"Cross-validation splits must be integer indices or a boolean "
+            f"mask; got dtype {fold.dtype}."
+        )
+    return fold
+
+
+def _validate_partition(splits: list, *, n_rows: int) -> None:
+    """Require the test folds to partition the rows: each row in exactly one."""
+    if not splits:
+        raise ValueError("The cross-validation splitter produced no folds.")
+    assignments = np.concatenate([test for _, test in splits])
+    counts = np.bincount(assignments, minlength=n_rows)
+    repeated = int((counts > 1).sum())
+    missing = int((counts == 0).sum())
+    if repeated or missing:
+        raise ValueError(
+            f"Cross-validation test folds must partition the observations, so "
+            f"each row appears in exactly one test fold: {repeated} row(s) "
+            f"appear in more than one fold and {missing} row(s) appear in "
+            f"none. Repeated, overlapping, and incomplete splitters (for "
+            f"example ShuffleSplit or RepeatedKFold) are not accepted."
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -330,160 +601,148 @@ def build_pipeline(model, standardize: bool, reduce: str | None, n_components):
 # ---------------------------------------------------------------------------
 
 
-def _run_whole_brain(bd, X, y, pipe, cv, groups, scoring) -> Predict:
-    """Cross-validated scoring + final fit on all data.
+def _fit_and_score_fold(X, y, pipe, scoring, train_idx, test_idx):
+    """Fit one cross-validation fold and return its score and test predictions.
 
-    The CV loop produces honest scores and out-of-fold predictions. Per-fold
-    ``coef_`` vectors are stacked into ``fold_weight_maps`` for stability
-    analysis but are *not* used for the canonical ``weight_map`` — that
-    comes from a single fit on the full ``(X, y)`` (a real estimator, not
-    an aggregation of K different fold models). The CV-mean of weights is
-    one line away if anyone wants it: ``fold_weight_maps.data.mean(axis=0)``.
+    A module-level function so `joblib` can ship it to a worker process
+    directly. The scorer is rebuilt inside the worker because a scorer bound to
+    an unfitted estimator does not survive the trip any more cheaply than the
+    two arguments it is built from.
     """
     from sklearn.base import clone
     from sklearn.metrics import check_scoring
 
-    n_samples = X.shape[0]
-    n_voxels = X.shape[1]
-    fold_scores: list[float] = []
-    fold_predictions = np.zeros(n_samples, dtype=float)
-    fold_idx_array = np.full(n_samples, -1, dtype=int)
-    fold_weight_maps: list[np.ndarray | None] = []
+    fitted = clone(pipe).fit(X[train_idx], y[train_idx])
+    scorer = check_scoring(fitted, scoring=scoring)
+    score = float(scorer(fitted, X[test_idx], y[test_idx]))
+    return score, np.asarray(fitted.predict(X[test_idx]))
 
-    scorer = check_scoring(pipe, scoring=scoring)
 
-    for fold_idx, (train_idx, test_idx) in enumerate(_iter_split(cv, X, y, groups)):
-        fitted = clone(pipe).fit(X[train_idx], y[train_idx])
-        score = scorer(fitted, X[test_idx], y[test_idx])
-        fold_scores.append(float(score))
-        fold_predictions[test_idx] = fitted.predict(X[test_idx])
-        fold_idx_array[test_idx] = fold_idx
-        fold_weight_maps.append(_extract_weight_map(fitted, n_voxels))
+def _run_whole_brain(bd, X, y, pipe, *, splits, scoring, classes, n_jobs) -> Predict:
+    """A fit on all data for the map, then cross-validation for the scores.
 
-    scores = np.asarray(fold_scores, dtype=float)
-    _, fold_weight_maps_arr = _aggregate_weight_maps(
-        fold_weight_maps, n_folds=len(fold_scores), n_voxels=n_voxels
-    )
+    The canonical ``weight_map`` comes from a single fit on the full
+    ``(X, y)``: one real estimator rather than an aggregation of K fold models,
+    none of which the caller ever sees. That fit runs *first* so a pipeline
+    whose coefficients cannot be projected back raises after one fit instead of
+    after K + 1. Nothing observable is reordered — the folds are already
+    materialized and the all-data fit does not depend on them.
 
-    # Always refit on all data — gives a single legitimate estimator and the
-    # canonical weight_map for publication / interpretation. Cost: +1 fit.
+    The cross-validation loop then produces honest scores and row-aligned
+    out-of-fold predictions. ``n_jobs`` parallelizes that loop — folds are the
+    outer independent work at this spatial scale — at the cost of one copy of
+    the brain per worker.
+    """
+    from joblib import Parallel, delayed
+    from sklearn.base import clone
+
+    n_samples, n_voxels = X.shape
+
     estimator = clone(pipe).fit(X, y)
-    weight_map_arr = _extract_weight_map(estimator, n_voxels)
+    weight_map_arr = _as_predict_map(back_project_weight_maps(estimator, n_voxels))
+
+    if n_jobs == 1:
+        fold_results = [
+            _fit_and_score_fold(X, y, pipe, scoring, train_idx, test_idx)
+            for train_idx, test_idx in splits
+        ]
+    else:
+        fold_results = Parallel(n_jobs=n_jobs)(
+            delayed(_fit_and_score_fold)(X, y, pipe, scoring, train_idx, test_idx)
+            for train_idx, test_idx in splits
+        )
+
+    fold_scores = [score for score, _ in fold_results]
+    fold_preds = [preds for _, preds in fold_results]
+    fold_test_idx = [test_idx for _, test_idx in splits]
+
+    fold_idx_array = np.empty(n_samples, dtype=int)
+    for fold_idx, test_idx in enumerate(fold_test_idx):
+        fold_idx_array[test_idx] = fold_idx
+
+    # Assemble out-of-fold predictions with a dtype wide enough for every
+    # fold — string class labels included (np.result_type widens e.g.
+    # '<U4' vs '<U5'; float folds stay float). The folds partition the rows,
+    # so every position is written exactly once.
+    pred_dtype = (
+        np.result_type(*(p.dtype for p in fold_preds))
+        if fold_preds
+        else np.dtype(float)
+    )
+    fold_predictions = np.zeros(n_samples, dtype=pred_dtype)
+    for test_idx, preds in zip(fold_test_idx, fold_preds):
+        fold_predictions[test_idx] = preds
 
     return Predict(
+        spatial_scale="whole_brain",
+        scoring=scoring,
+        classes=getattr(estimator, "classes_", classes),
         predictions=fold_predictions,
-        scores=scores,
-        mean_score=float(scores.mean()),
-        std_score=float(scores.std()),
         cv_folds=fold_idx_array,
-        weight_map=_to_braindata(weight_map_arr, bd.mask),
-        fold_weight_maps=_to_braindata(fold_weight_maps_arr, bd.mask),
+        scores=np.asarray(fold_scores, dtype=float),
         estimator=estimator,
+        weight_map=_to_braindata(bd, weight_map_arr),
     )
 
 
-def _to_braindata(arr, mask):
-    """Wrap a (n_voxels,) or (n_rows, n_voxels) array as BrainData with mask.
+def _to_braindata(bd, arr):
+    """Return one result map as a new, independently owned `BrainData`.
 
-    Returns None if arr is None — preserves "field not applicable" semantics.
+    The leading axis of a coefficient or score map is not the source
+    observations, so the shared result policy clears the row metadata while
+    copying the mask and masker state. Returns None if `arr` is None, which
+    preserves "field not applicable" semantics.
+
+    `Predict` deep-copies whatever it is handed, because a caller can construct
+    one from a `BrainData` they still own. This map is therefore copied twice on
+    the runner path; do not add a third copy here to "harden" it.
     """
+    from .utils import _result_from_array
+
     if arr is None:
         return None
-    from nltools.data import BrainData
-
-    arr = np.asarray(arr)
-    if arr.ndim == 1:
-        arr = arr.reshape(1, -1)
-    return BrainData(arr, mask=mask)
+    return _result_from_array(bd, np.asarray(arr), rows="clear")
 
 
 def _iter_split(cv, X, y, groups):
-    """Wrap cv.split to handle splitters that ignore/require groups."""
+    """Iterate `cv.split`, passing `groups` only to splitters that accept it.
+
+    The decision is made once from the signature, so a `TypeError` raised
+    partway through a custom splitter's iteration surfaces to the caller
+    instead of silently restarting the split.
+    """
     try:
+        accepts_groups = "groups" in inspect.signature(cv.split).parameters
+    except (TypeError, ValueError):
+        accepts_groups = True
+    if accepts_groups:
         yield from cv.split(X, y, groups=groups)
-    except TypeError:
+    else:
         yield from cv.split(X, y)
 
 
 # ---------------------------------------------------------------------------
-# Weight-map extraction (with optional PCA back-projection)
+# Weight-map extraction
 # ---------------------------------------------------------------------------
 
 
-def _extract_weight_map(
-    fitted_pipe, n_features: int, *, quiet: bool = False
-) -> np.ndarray | None:
-    """Extract a one-dimensional coefficient vector from a fitted pipeline.
+def _as_predict_map(maps: np.ndarray) -> np.ndarray:
+    """Shape back-projected coefficients the way `Predict.weight_map` requires.
 
-    The vector uses the local feature width (n_voxels for whole_brain, sphere size for searchlight,
-    parcel size for ROI).
+    `nltools.algorithms.decoding` always returns ``(n_maps, n_features)``. The
+    record wants one *unstacked* map for regression and binary classification
+    and the stack for multiclass. `Predict` no longer re-checks that rule, so
+    this is the only place it is enforced; every runner drops the leading axis
+    here and nowhere else, and
+    `test_braindata_prediction.py::TestWeightMapShapes` pins it.
 
-    For multi-class linear classifiers, returns the mean across classes.
-    Back-projects through PCA when present. Returns None for non-linear
-    models (no ``.coef_``) or when feature selection breaks back-projection
-    (e.g., ``SelectKBest`` reduces feature count un-invertibly).
+    Args:
+        maps: Back-projected coefficients, ``(n_maps, n_features)``.
 
-    ``quiet=True`` silences the no-``.coef_`` warning — used by ROI/searchlight
-    runners that aggregate a single warning at the runner level so a
-    non-linear-model call doesn't emit one warning per parcel/sphere.
+    Returns:
+        ndarray: ``(n_features,)`` when there is one map, else ``maps``.
     """
-    from sklearn.decomposition import PCA
-    from sklearn.pipeline import Pipeline
-
-    # Unwrap Pipeline / make_pipeline to find the final estimator and any
-    # preceding PCA.
-    if isinstance(fitted_pipe, Pipeline):
-        named = list(fitted_pipe.named_steps.values())
-    else:
-        named = [fitted_pipe]
-    final_est = named[-1]
-    pca_step = next((step for step in named[:-1] if isinstance(step, PCA)), None)
-
-    coef = getattr(final_est, "coef_", None)
-    if coef is None:
-        if not quiet:
-            warnings.warn(
-                f"{type(final_est).__name__} has no .coef_ attribute; "
-                "weight_map is unavailable for non-linear models. Use a linear "
-                "model ('svm', 'logistic', 'ridge_classifier', 'lda', 'ridge', "
-                "'lasso') or compute permutation importances directly.",
-                UserWarning,
-                stacklevel=4,
-            )
-        return None
-
-    coef = np.asarray(coef)
-    # Collapse (n_classes, n_features) → (n_features,) by mean across classes.
-    if coef.ndim == 2:
-        coef = coef.mean(axis=0)
-    elif coef.ndim != 1:
-        return None
-
-    # Back-project through PCA if present: pca.components_.T @ coef
-    if pca_step is not None:
-        coef = pca_step.components_.T @ coef
-
-    if coef.shape[0] != n_features:
-        # Some estimators (e.g., SelectKBest pipelines) reduce feature count
-        # in ways we can't trivially reverse — bail out.
-        return None
-    return coef
-
-
-def _aggregate_weight_maps(
-    per_fold: list[np.ndarray | None], n_folds: int, n_voxels: int
-):
-    """Aggregate per-fold weight maps into their voxelwise mean.
-
-    Stacks maps into (n_folds, n_voxels) and averages to (n_voxels,).
-    Returns (None, None) if any fold lacked a usable map.
-    """
-    if any(w is None for w in per_fold):
-        return None, None
-    stacked = np.vstack(per_fold)
-    if stacked.shape != (n_folds, n_voxels):
-        return None, None
-    return stacked.mean(axis=0), stacked
+    return maps[0] if maps.shape[0] == 1 else maps
 
 
 # ---------------------------------------------------------------------------
@@ -491,53 +750,57 @@ def _aggregate_weight_maps(
 # ---------------------------------------------------------------------------
 
 
-def _run_searchlight(
-    bd, X, y, pipe, cv, groups, scoring, radius_mm, n_jobs, progress_bar
-) -> Predict:
-    """Per-voxel-neighborhood CV decoding. Returns Predict with accuracy_map."""
-    from joblib import Parallel, delayed
+def _score_sphere(X, y, pipe, splits, scoring, neighbor_indices) -> float:
+    """Mean CV score for one searchlight sphere (NaN for degenerate/failed)."""
     from sklearn.base import clone
     from sklearn.model_selection import cross_val_score
 
-    from .neighborhoods import compute_searchlight_neighborhoods
+    X_sphere = X[:, neighbor_indices]
+    if X_sphere.shape[1] < 2:
+        return np.nan
+    try:
+        scores = cross_val_score(clone(pipe), X_sphere, y, cv=splits, scoring=scoring)
+        return float(np.mean(scores))
+    except Exception:
+        return np.nan
 
-    neighborhoods = compute_searchlight_neighborhoods(
-        bd.mask, radius_mm=radius_mm, use_cache=True
-    )
+
+def _run_searchlight(
+    bd, X, y, pipe, *, splits, scoring, classes, radius, n_jobs, progress_bar
+) -> Predict:
+    """Per-voxel-neighborhood CV decoding. Returns a Predict with one score_map.
+
+    Local models fitted on overlapping neighborhoods have no common feature
+    axis, so the result exposes no coefficient map, no fold assignments and no
+    estimator — only the cross-fold mean score at each sphere center.
+    """
+    from joblib import Parallel, delayed
+
+    from nltools.algorithms.neighborhoods import compute_searchlight_neighborhoods
+
+    neighborhoods = compute_searchlight_neighborhoods(bd.mask, radius=radius)
 
     def decode_sphere(center_idx, neighbor_indices):
-        X_sphere = X[:, neighbor_indices]
-        if X_sphere.shape[1] < 2:
-            return np.nan
-        try:
-            scores = cross_val_score(
-                clone(pipe), X_sphere, y, cv=cv, groups=groups, scoring=scoring
-            )
-            return float(np.mean(scores))
-        except Exception:
-            return np.nan
+        return _score_sphere(X, y, pipe, splits, scoring, neighbor_indices)
 
-    neighborhood_list = list(neighborhoods.iter_neighborhoods())
-    if progress_bar:
-        try:
-            from tqdm import tqdm
-
-            neighborhood_list = list(
-                tqdm(
-                    neighborhood_list, desc="Searchlight", total=neighborhoods.n_voxels
-                )
-            )
-        except ImportError:
-            pass
+    neighborhood_list = maybe_tqdm(
+        list(neighborhoods.iter_neighborhoods()),
+        progress_bar=progress_bar,
+        desc="Searchlight",
+        total=neighborhoods.n_voxels,
+    )
 
     if n_jobs == 1:
-        accuracies = [decode_sphere(c, n) for c, n in neighborhood_list]
+        sphere_scores = [decode_sphere(c, n) for c, n in neighborhood_list]
     else:
-        accuracies = Parallel(n_jobs=n_jobs)(
+        sphere_scores = Parallel(n_jobs=n_jobs)(
             delayed(decode_sphere)(c, n) for c, n in neighborhood_list
         )
     return Predict(
-        accuracy_map=_to_braindata(np.asarray(accuracies, dtype=float), bd.mask)
+        spatial_scale="searchlight",
+        scoring=scoring,
+        classes=classes,
+        score_map=_to_braindata(bd, np.asarray(sphere_scores, dtype=float)),
     )
 
 
@@ -546,122 +809,109 @@ def _run_searchlight(
 # ---------------------------------------------------------------------------
 
 
-def _run_roi(
-    bd, X, y, pipe, cv, groups, scoring, roi_mask, n_jobs, progress_bar
-) -> Predict:
-    """Per-ROI CV decoding with per-parcel weight maps.
+def _assemble_roi_weights(label_vec, unique_labels, per_roi) -> np.ndarray:
+    """Write each parcel's coefficients into its voxels, NaN everywhere else.
 
-    Returns Predict with:
+    Args:
+        label_vec: ``(n_voxels,)`` atlas label per in-mask voxel.
+        unique_labels: The scored parcel labels, in score order.
+        per_roi: One summary dict per parcel; ``coef`` is ``None`` for a parcel
+            whose fit failed.
 
-    - ``scores`` ``(n_folds, n_rois)``, ``mean_score`` / ``std_score``
-      ``(n_rois,)`` — fold scores per parcel and their cross-fold summary.
-    - ``roi_labels`` ``(n_rois,)`` — atlas integer IDs in the same order.
-    - ``accuracy_map`` BrainData ``(1, n_voxels)`` — every voxel inside parcel
-      *i* set to that parcel's mean accuracy (others NaN).
-    - ``weight_map`` BrainData ``(1, n_voxels)`` — per-parcel ``coef_`` vectors
-      from one all-data fit per parcel, written back into voxel space. Voxels
-      outside any parcel are NaN.
-    - ``fold_weight_maps`` BrainData ``(n_folds, n_voxels)`` — same assembly
-      per fold for stability analysis.
-    - ``estimator`` ``dict[int, sklearn estimator]`` keyed by atlas label —
-      the all-data fitted decoder for each parcel.
+    Returns:
+        ndarray: ``(n_voxels,)`` for one map, ``(n_classes, n_voxels)`` for
+            multiclass. A parcel whose fit failed keeps NaN in its voxels.
 
-    Weight-map assembly relies on each voxel belonging to exactly one parcel
-    (the atlas is a label image, so this is structural). Cross-parcel weight
-    magnitudes live on different X distributions so are not directly
-    comparable; within-parcel ranking is meaningful.
-
-    If any parcel's estimator can't expose ``.coef_`` (non-linear model,
-    ``SelectKBest`` pipeline), ``weight_map`` / ``fold_weight_maps`` /
-    ``estimator`` are all None for the whole call (matches whole_brain's
-    behavior for non-linear models).
+    Raises:
+        ValueError: If no parcel produced coefficients at all.
     """
-    from pathlib import Path
+    fitted = [r["coef"] for r in per_roi if r["coef"] is not None]
+    if not fitted:
+        raise ValueError(
+            "No atlas parcel could be fitted, so no weight_map exists. Check "
+            "that the atlas overlaps the mask and that every parcel has enough "
+            "voxels and observations for the estimator."
+        )
+    n_maps = fitted[0].shape[0]
+    weights = np.full((n_maps, label_vec.shape[0]), np.nan, dtype=float)
+    for roi_label, summary in zip(unique_labels, per_roi):
+        if summary["coef"] is not None:
+            weights[:, label_vec == roi_label] = summary["coef"]
+    return _as_predict_map(weights)
 
-    import nibabel as nib
+
+def _run_roi(
+    bd, X, y, pipe, *, splits, scoring, classes, roi_mask, n_jobs, progress_bar
+) -> Predict:
+    """Per-parcel cross-validated decoding with an assembled voxel-space map.
+
+    Returns a Predict with:
+
+    - ``scores`` ``(n_folds, n_rois)`` — fold scores per parcel, in
+      ``roi_labels`` order.
+    - ``roi_labels`` ``(n_rois,)`` — atlas integer ids.
+    - ``score_map`` — every voxel of parcel *i* set to that parcel's mean fold
+      score (NaN outside parcels).
+    - ``weight_map`` — per-parcel ``coef_`` from one all-data fit per parcel,
+      written back into voxel space (NaN outside parcels).
+
+    Assembly relies on each voxel belonging to exactly one parcel (the atlas is
+    a label image, so this is structural). Cross-parcel weight magnitudes live
+    on different feature distributions and are not directly comparable;
+    within-parcel ranking is meaningful. The per-parcel estimators are internal:
+    they are fitted to produce the map and are not exposed on the result.
+
+    A pipeline whose coefficients cannot be projected back onto the parcel
+    voxel axis raises `ValueError`, exactly as it does for whole-brain
+    decoding. A parcel that simply *fails to fit* — too few voxels, one class
+    in a training fold — is different: that parcel's ``scores`` column and its
+    voxels in both maps come back NaN, and the rest of the atlas is still
+    reported. Nothing warns and no field names the failed parcels; the matching
+    NaN column in ``scores`` is how a caller identifies them. If *every* parcel
+    fails, there is no map to assemble and the call raises.
+    """
     from joblib import Parallel, delayed
-    from nilearn.image import resample_to_img
-    from nilearn.masking import apply_mask
     from sklearn.base import clone
     from sklearn.metrics import check_scoring
 
-    if roi_mask is None:
-        raise ValueError("roi_mask required for spatial_scale='roi'")
+    from nltools.data.braindata.analysis import _resolve_atlas_label_vec
+    from nltools.data.results import _fold_mean
 
-    if isinstance(roi_mask, (str, Path)):
-        roi_mask = nib.load(roi_mask)
+    _, label_vec, unique_labels = _resolve_atlas_label_vec(bd, roi_mask)
 
-    if roi_mask.shape != bd.mask.shape or not np.allclose(
-        roi_mask.affine, bd.mask.affine
-    ):
-        roi_mask = resample_to_img(
-            roi_mask,
-            bd.mask,
-            interpolation="nearest",
-            force_resample=True,
-            copy_header=True,
-        )
-
-    label_vec = apply_mask(roi_mask, bd.mask).astype(np.int64)
-    unique_labels = np.unique(label_vec)
-    unique_labels = unique_labels[unique_labels != 0]
-
-    n_folds = cv.get_n_splits(X, y, groups=groups)
-    # Pre-compute split indices once so workers see the same splits; cv objects
-    # with random_state already control this, but materializing makes the
-    # per-parcel parallel loop deterministic and pickle-safe.
-    split_indices = list(_iter_split(cv, X, y, groups))
-    scorer = check_scoring(pipe, scoring=scoring)
+    n_folds = len(splits)
 
     def decode_roi(roi_label):
-        """Run cross-validation and an all-data refit for one atlas parcel.
+        """Cross-validate and refit one atlas parcel, returning its summary.
 
-        Captures per-fold scores and coefficients, then returns a tuple
-        summarizing the parcel's result.
+        The scorer is built here rather than closed over, so nothing scorer-
+        shaped has to survive the worker boundary — the same rule
+        `_fit_and_score_fold` follows for whole-brain folds.
         """
+        failed = {"fold_scores": np.full(n_folds, np.nan), "coef": None}
         cols = label_vec == roi_label
         if not cols.any():
-            return {
-                "fold_scores": np.full(n_folds, np.nan),
-                "fold_coefs": None,
-                "estimator": None,
-                "all_data_coef": None,
-            }
+            return failed
         X_roi = X[:, cols]
-        n_roi_voxels = int(cols.sum())
 
         fold_scores = []
-        fold_coefs: list[np.ndarray | None] = []
         try:
-            for train_idx, test_idx in split_indices:
+            for train_idx, test_idx in splits:
                 fitted = clone(pipe).fit(X_roi[train_idx], y[train_idx])
+                scorer = check_scoring(fitted, scoring=scoring)
                 fold_scores.append(float(scorer(fitted, X_roi[test_idx], y[test_idx])))
-                fold_coefs.append(_extract_weight_map(fitted, n_roi_voxels, quiet=True))
             estimator = clone(pipe).fit(X_roi, y)
-            all_data_coef = _extract_weight_map(estimator, n_roi_voxels, quiet=True)
         except Exception:
-            return {
-                "fold_scores": np.full(n_folds, np.nan),
-                "fold_coefs": None,
-                "estimator": None,
-                "all_data_coef": None,
-            }
+            return failed
 
+        # Outside the `try`: an unprojectable pipeline is a contract error for
+        # the whole call, not a parcel that happened to fail.
         return {
             "fold_scores": np.asarray(fold_scores, dtype=float),
-            "fold_coefs": fold_coefs,  # list of (n_roi_voxels,) arrays or Nones
-            "estimator": estimator,
-            "all_data_coef": all_data_coef,
+            "coef": back_project_weight_maps(estimator, int(cols.sum())),
         }
 
-    iterator = unique_labels
-    if progress_bar:
-        try:
-            from tqdm import tqdm
-
-            iterator = tqdm(unique_labels, desc="ROI decoding")
-        except ImportError:
-            pass
+    iterator = maybe_tqdm(unique_labels, progress_bar=progress_bar, desc="ROI decoding")
 
     if n_jobs == 1:
         per_roi = [decode_roi(label) for label in iterator]
@@ -672,53 +922,26 @@ def _run_roi(
 
     # Scores: (n_folds, n_rois)
     fold_scores_per_roi = np.vstack([r["fold_scores"] for r in per_roi]).T
-    mean_per_roi = np.nanmean(fold_scores_per_roi, axis=0)
-    std_per_roi = np.nanstd(fold_scores_per_roi, axis=0)
+    # The same reduction `Predict.mean_score` uses, so the painted map and the
+    # reported summary cannot drift apart.
+    mean_per_roi = _fold_mean(fold_scores_per_roi, axis=0)
 
-    # accuracy_map: per-voxel mean accuracy for the parcel containing that voxel
-    acc_arr = np.full(label_vec.shape, np.nan, dtype=float)
-    for roi_label, acc in zip(unique_labels, mean_per_roi):
-        acc_arr[label_vec == roi_label] = acc
+    # score_map: every voxel carries the mean fold score of its parcel.
+    score_arr = np.full(label_vec.shape, np.nan, dtype=float)
+    for roi_label, parcel_score in zip(unique_labels, mean_per_roi):
+        score_arr[label_vec == roi_label] = parcel_score
 
-    # weight_map / fold_weight_maps: assemble per-parcel coefs back to voxel
-    # space. If any parcel couldn't expose coefs (non-linear, SelectKBest,
-    # exception), set all weight fields to None and emit a single warning —
-    # matches whole_brain's behavior of all-or-nothing.
-    weight_extraction_failed = any(
-        r["all_data_coef"] is None or r["fold_coefs"] is None for r in per_roi
-    )
-    if weight_extraction_failed:
-        # Identify a representative failed parcel for the warning text
-        warnings.warn(
-            "Could not extract per-parcel coefficients for at least one "
-            "ROI (non-linear model, SelectKBest in pipeline, or per-parcel "
-            "fit error). Setting weight_map / fold_weight_maps / estimator "
-            "to None for this call.",
-            UserWarning,
-            stacklevel=4,
-        )
-        weight_arr = None
-        fold_weight_arr = None
-        estimator_dict = None
-    else:
-        weight_arr = np.full(label_vec.shape, np.nan, dtype=float)
-        fold_weight_arr = np.full((n_folds, label_vec.shape[0]), np.nan, dtype=float)
-        for roi_label, r in zip(unique_labels, per_roi):
-            cols = label_vec == roi_label
-            weight_arr[cols] = r["all_data_coef"]
-            for f_idx in range(n_folds):
-                fold_weight_arr[f_idx, cols] = r["fold_coefs"][f_idx]
-        estimator_dict = {
-            int(label): r["estimator"] for label, r in zip(unique_labels, per_roi)
-        }
+    # weight_map: assemble per-parcel coefficients back into voxel space. Each
+    # voxel belongs to exactly one parcel, so every coefficient has one
+    # destination. A parcel that failed to fit leaves NaN behind.
+    weight_arr = _assemble_roi_weights(label_vec, unique_labels, per_roi)
 
     return Predict(
+        spatial_scale="roi",
+        scoring=scoring,
+        classes=classes,
         scores=fold_scores_per_roi,
-        mean_score=mean_per_roi,
-        std_score=std_per_roi,
+        weight_map=_to_braindata(bd, weight_arr),
         roi_labels=unique_labels.astype(np.int64),
-        accuracy_map=_to_braindata(acc_arr, bd.mask),
-        weight_map=_to_braindata(weight_arr, bd.mask),
-        fold_weight_maps=_to_braindata(fold_weight_arr, bd.mask),
-        estimator=estimator_dict,
+        score_map=_to_braindata(bd, score_arr),
     )

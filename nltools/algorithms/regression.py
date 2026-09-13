@@ -1,0 +1,83 @@
+"""Ordinary least squares on plain numpy arrays.
+
+`regress` fits `Y ~ X` and returns coefficients, standard errors,
+t-statistics, p-values, degrees of freedom, and residuals as arrays. Use it for
+quick regressions on tabular or behavioral data; for voxel-wise models on
+imaging data use `BrainData.fit(model='glm')`, which adds masking, run
+handling, and the modeling helpers.
+"""
+
+from __future__ import annotations
+
+import numpy as np
+from scipy.stats import t as t_dist
+
+
+def regress(X, Y, *, stats: str = "full", tail: int | str = 2):
+    """Fit an OLS regression of `Y` on `X`.
+
+    Does not add an intercept; include one in `X` explicitly. If `Y` is 2D, a
+    separate regression is fit to each column.
+
+    Args:
+        X (np.ndarray): Design matrix, shape (n_samples, n_regressors).
+        Y (np.ndarray): Response, shape (n_samples,) or (n_samples, n_targets).
+        stats (str): 'full' returns the 6-tuple below, 'betas' returns just `b`,
+            'tstats' returns `(b, t)`. Defaults to 'full'.
+        tail (int | str): 2 or 'two' for two-tailed p-values (default); 1 or
+            'one' for a one-tailed test of beta > 0 (negate a regressor for the
+            other direction).
+
+    Returns:
+        tuple: `(b, se, t, p, df, res)` when `stats='full'`: coefficients,
+            standard errors, t-statistics, p-values (per `tail`), residual
+            degrees of freedom, and residuals. `stats='betas'` returns just `b`;
+            `stats='tstats'` returns `(b, t)`.
+    """
+    from .validation import validate_tail_parameter
+
+    if stats not in ("full", "betas", "tstats"):
+        raise ValueError("stats must be one of 'full', 'betas', 'tstats'")
+    tail_internal = validate_tail_parameter(tail)
+
+    X = np.asarray(X)
+    Y = np.asarray(Y)
+    y_was_1d = Y.ndim == 1
+    if y_was_1d:
+        Y = Y[:, np.newaxis]
+
+    b = np.linalg.pinv(X) @ Y  # (n_regressors, n_targets)
+    if stats == "betas":
+        return b.squeeze()
+
+    res = Y - X @ b
+    df_scalar = X.shape[0] - X.shape[1]
+    # Unbiased residual SE from *uncentered* RSS: sqrt(RSS / (n - p)). Correct for
+    # both intercept and intercept-free models. np.std(res, ddof=p) would center
+    # the residuals, underestimating RSS when X has no intercept (a supported
+    # usage — see the docstring). Matches stats/correlation.py; see GH #287.
+    sigma = np.sqrt((res**2).sum(axis=0) / df_scalar)  # (n_targets,)
+    xtx_inv_diag = np.diag(np.linalg.pinv(X.T @ X))  # (n_regressors,)
+    se = np.sqrt(xtx_inv_diag)[:, np.newaxis] * sigma[np.newaxis, :]
+
+    t = np.zeros_like(b)
+    mask = se > 1e-6
+    t[mask] = b[mask] / se[mask]
+
+    if stats == "tstats":
+        return b.squeeze(), t.squeeze()
+
+    df = np.full(t.shape[1], df_scalar)
+    if tail_internal == "upper":
+        p = 1 - t_dist.cdf(t, df)
+    else:
+        p = 2 * (1 - t_dist.cdf(np.abs(t), df))
+
+    return (
+        b.squeeze(),
+        se.squeeze(),
+        t.squeeze(),
+        p.squeeze(),
+        df.squeeze(),
+        res.squeeze(),
+    )

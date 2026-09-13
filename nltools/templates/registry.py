@@ -3,7 +3,10 @@
 from typing import Literal
 
 TemplateName = Literal["default", "nilearn", "fmriprep"]
+"""Which MNI template a brain space is built from."""
+
 Resolution = Literal[1, 2, 3]
+"""Voxel size of a template, in millimetres."""
 
 VERSION_MAP: dict[str, str] = {
     "default": "fsl",

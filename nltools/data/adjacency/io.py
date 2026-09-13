@@ -5,17 +5,25 @@ from pathlib import Path
 import numpy as np
 import polars as pl
 
+from nltools.io.h5 import _read_polars_frame, _reject_legacy_h5, _require_h5
+
 
 def write(adj, file_name, method="long"):
-    """Write out Adjacency object to csv file.
+    """Write an Adjacency to a `.csv` or `.h5` file.
+
+    HDF5 is the round-trip format: it stores the matrix values, the matrix kind,
+    the node labels, and `Y`. CSV stores values only. Reading a CSV back
+    therefore loses the node labels, `Y`, and the matrix kind, and needs an
+    explicit `matrix_type` wherever the flat layout is ambiguous. Square CSV
+    output is single-matrix only.
 
     Args:
-        adj: Adjacency object to write
-        file_name (str):  name of file name to write
-        method (str):     method to write out data ['long','square']
-
+        adj (Adjacency): Adjacency object to write.
+        file_name (str | Path): Output path; an `.h5`/`.hdf5` suffix writes HDF5.
+        method (str): Layout for CSV output, `'long'` (vectorized rows) or `'square'`
+            (single matrix only).
     """
-    from nltools.io import is_h5_path, to_h5
+    from nltools.io.h5 import is_h5_path, to_h5
 
     if method not in ["long", "square"]:
         raise ValueError('Make sure method is ["long","square"].')
@@ -76,3 +84,28 @@ def to_graph(adj):
             nx.relabel_nodes(G, labels, copy=False)
         return G
     raise NotImplementedError("This function currently only works on single matrices.")
+
+
+def read_h5(file_name):
+    """Read the current vector layout into a normalized Adjacency."""
+    from . import Adjacency
+
+    _require_h5()
+    import h5py
+
+    with h5py.File(file_name, "r") as source:
+        _reject_legacy_h5(source, "Y_columns")
+        kind = source["matrix_type"][()].decode()
+        values = np.array(source["data"])
+        labels_ds = source["labels"]
+        labels = (
+            labels_ds.asstr()[()].tolist()
+            if h5py.check_string_dtype(labels_ds.dtype) is not None
+            else labels_ds[()].tolist()
+        )
+        return Adjacency(
+            None if kind == "empty" else values,
+            matrix_type=None if kind == "empty" else kind + "_flat",
+            labels=labels,
+            Y=_read_polars_frame(source, "Y"),
+        )

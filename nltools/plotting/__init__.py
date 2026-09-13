@@ -1,32 +1,28 @@
-"""nltools.plotting — Visualization utilities for neuroimaging analysis.
+"""nltools.plotting — visualization utilities for neuroimaging analysis.
 
-This package provides standalone plotting functions organized into
-focused submodules:
+`component_viewer` is the one function users call directly. Everything else
+here is the drawing internal behind a data-class method — `BrainData.plot_surf`,
+`Roc.plot`, `Adjacency.plot_silhouette` and friends — organized into focused
+submodules:
 
-- **brain**: Surface plots, flatmaps, and interactive brain viewers
-- **adjacency**: Adjacency matrix visualizations (stacked, silhouette, distance)
-- **prediction**: Model output plots (ROC, SVM margin, regression, logistic)
+- **brain**: surface plots, flatmaps, and the interactive brain viewer
+- **adjacency**: adjacency matrix visualizations (stacked, silhouette, distance)
+- **prediction**: model output plots (ROC, SVM margin, regression, logistic)
 - **decomposition**: ICA/PCA component viewer
-
-All public functions are re-exported here for convenience:
-
-```python
-from nltools.plotting import plot_surf, plot_roc, component_viewer  # all work
-```
 """
 
-from .brain import (
+from .brain import (  # noqa: F401
     plot_interactive_brain,
     plot_surf,
     plot_flatmap,
 )
-from .adjacency import (
+from .adjacency import (  # noqa: F401
     plot_stacked_adjacency,
     plot_mean_label_distance,
     plot_between_label_distance,
     plot_silhouette,
 )
-from .prediction import (
+from .prediction import (  # noqa: F401
     plot_dist_from_hyperplane,
     plot_scatter,
     plot_probability,
@@ -34,21 +30,4 @@ from .prediction import (
 )
 from .decomposition import component_viewer
 
-__all__ = [
-    # decomposition
-    "component_viewer",
-    "plot_between_label_distance",
-    # prediction
-    "plot_dist_from_hyperplane",
-    "plot_flatmap",
-    # brain
-    "plot_interactive_brain",
-    "plot_mean_label_distance",
-    "plot_probability",
-    "plot_roc",
-    "plot_scatter",
-    "plot_silhouette",
-    # adjacency
-    "plot_stacked_adjacency",
-    "plot_surf",
-]
+__all__ = ["component_viewer"]

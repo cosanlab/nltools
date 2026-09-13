@@ -1,7 +1,13 @@
-"""Provide standalone regressor functions for DesignMatrix.
+"""Build regressors for a DesignMatrix: HRF convolution and drift terms.
 
-Each function takes a DesignMatrix as its first argument (`dm`) and returns
-a new DesignMatrix with the requested transformation applied.
+`convolve` applies one of nilearn's HRF models or a custom kernel; `add_poly`
+and `add_dct_basis` add Legendre polynomial and discrete-cosine drift
+regressors in the reserved ``.nl_`` namespace. Each function returns a new
+`DesignMatrix` with metadata updated.
+
+The HRF path hands the work to `nilearn.glm.first_level.compute_regressor`
+rather than sampling a kernel itself, so a TR-grid column convolved here and a
+nilearn `FirstLevelModel` regressor built from the same events agree exactly.
 """
 
 from __future__ import annotations
@@ -11,40 +17,134 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 import polars as pl
+from nilearn.glm.first_level import (
+    glover_dispersion_derivative,
+    glover_time_derivative,
+    spm_dispersion_derivative,
+    spm_time_derivative,
+)
 
-from .utils import copy_with, get_data_columns
+from nltools.utils import DesignMatrixWarning, find_stack_level
+
+from .utils import (
+    copy_with,
+    get_data_columns,
+    has_run_separated_drift,
+    reserved_name,
+)
 
 if TYPE_CHECKING:
     from . import DesignMatrix
 
 
-def convolve(
-    dm: DesignMatrix,
-    conv_func: str | np.ndarray = "hrf",
-    columns: list[str] | None = None,
-) -> DesignMatrix:
-    """Convolve columns with an HRF or custom kernel.
+# The HRF models `kernel=` accepts, mapped to what nilearn wants for each:
+# a model name its own API understands, or the nilearn function that computes
+# it. Both `compute_regressor` (the `convolve` path) and
+# `make_first_level_design_matrix` (the events-file constructor) take either
+# form, so nltools writes no kernel code and ships no kernel of its own.
+_KERNELS = {
+    "glover": "glover",
+    "glover_time": glover_time_derivative,
+    "glover_dispersion": glover_dispersion_derivative,
+    "spm": "spm",
+    "spm_time": spm_time_derivative,
+    "spm_dispersion": spm_dispersion_derivative,
+}
+
+
+def _kernel_names() -> str:
+    """Return the accepted kernel names, for error messages."""
+    return ", ".join(repr(name) for name in _KERNELS)
+
+
+def _hrf_regressor(column: np.ndarray, sampling_freq: float, kernel) -> np.ndarray:
+    """Convolve one TR-sampled column with a nilearn HRF model.
+
+    nilearn's HRF functions are written to be sampled on a finely oversampled
+    grid, convolved there, and resampled onto the frame times; that is what
+    `compute_regressor` does and what `FirstLevelModel` uses. So the column is
+    handed to nilearn as a condition rather than convolved here: each non-zero
+    sample becomes one event, onset ``i / sampling_freq``, duration one TR
+    (a design-matrix row means the regressor is on for that whole TR), and
+    amplitude the sample value. This conversion is the only logic nltools adds.
 
     Args:
-        dm: DesignMatrix to convolve.
-        conv_func (str or ndarray): 'hrf' for canonical Glover HRF, or custom kernel(s).
-            Can be 1D array (single kernel) or 2D (samples x kernels)
-        columns (list of str, optional): Columns to convolve (default: all non-confound columns)
+        column (np.ndarray): Column values, one sample per TR.
+        sampling_freq (float): Sampling frequency in Hz (= 1/TR).
+        kernel (str | Callable): A value of `_KERNELS` — an nilearn HRF model
+            name or the nilearn function that computes it.
 
     Returns:
-        DesignMatrix: New DesignMatrix with convolved columns
+        np.ndarray: Convolved regressor sampled at the frame times, same
+            length as `column`.
+
+    Raises:
+        ValueError: If the column holds fewer than two timepoints; nilearn
+            reads the TR off the spacing of the frame times.
+    """
+    from nilearn.glm.first_level import compute_regressor
+
+    if column.size < 2:
+        raise ValueError(
+            f"HRF convolution needs at least two timepoints, got {column.size}. "
+            "nilearn reads the repetition time off the spacing between frame "
+            "times, which a single-row design does not have."
+        )
+    tr = 1.0 / sampling_freq
+    active = np.flatnonzero(column)
+    if active.size == 0:
+        return np.zeros(column.size)
+    exp_condition = (active * tr, np.full(active.size, tr), column[active])
+    regressor, _ = compute_regressor(
+        exp_condition,
+        kernel,
+        np.arange(column.size) * tr,
+        oversampling=50,
+    )
+    return regressor[:, 0]
+
+
+def convolve(
+    dm: DesignMatrix,
+    kernel: str | np.ndarray = "glover",
+    columns: list[str] | None = None,
+) -> DesignMatrix:
+    """Convolve columns with an HRF model or custom kernel.
+
+    A `kernel` name selects one of nilearn's HRF models: each column is handed
+    to `nilearn.glm.first_level.compute_regressor` as a condition, convolved at
+    an oversampling factor of 50, and resampled onto the frame times — the same
+    computation `FirstLevelModel` runs, so the two agree on identical events.
+    A `kernel` array is applied with `numpy.convolve` instead.
+
+    Args:
+        dm (DesignMatrix): DesignMatrix to convolve.
+        kernel (str | np.ndarray): An HRF model name — ``'glover'`` (default),
+            ``'glover_time'``, ``'glover_dispersion'``, ``'spm'``,
+            ``'spm_time'`` or ``'spm_dispersion'`` — or custom kernel(s) as a
+            1D array (single kernel) or 2D array (samples x kernels).
+        columns (list[str] | None): Columns to convolve. Default: all
+            non-confound columns that are not already convolved.
+
+    Returns:
+        DesignMatrix: New DesignMatrix with convolved columns.
 
     Examples:
-        >>> # Default HRF convolution → produces 'stim_c0'
-        >>> dm_conv = convolve(dm)
+        ```python
+        # Canonical Glover HRF → produces 'stim_c0'
+        dm_conv = convolve(dm)
 
-        >>> # Custom 1-D kernel → produces 'stim_c0'
-        >>> kernel = np.array([0.5, 1.0, 0.5])
-        >>> dm_conv = convolve(dm, conv_func=kernel)
+        # Glover HRF plus its time derivative, as a second design → 'stim_c0'
+        dm_deriv = convolve(dm, kernel="glover_time")
 
-        >>> # Multiple kernels (FIR model) → produces 'stim_c0', 'stim_c1'
-        >>> kernels = np.array([[1.0, 0.5], [0.5, 1.0]]).T  # 2 kernels
-        >>> dm_conv = convolve(dm, conv_func=kernels)
+        # Custom 1-D kernel → produces 'stim_c0'
+        kernel = np.array([0.5, 1.0, 0.5])
+        dm_conv = convolve(dm, kernel=kernel)
+
+        # Multiple kernels (FIR model) → produces 'stim_c0', 'stim_c1'
+        kernels = np.array([[1.0, 0.5], [0.5, 1.0]]).T  # 2 kernels
+        dm_conv = convolve(dm, kernel=kernels)
+        ```
 
     Note:
         Convolved columns are always renamed to ``<col>_c{i}``; the source
@@ -53,8 +153,6 @@ def convolve(
         downstream metadata propagation through ``.append()`` stays in
         sync with the dataframe.
     """
-    from nltools.algorithms.hrf import glover_hrf
-
     if dm.sampling_freq is None:
         raise ValueError(
             "DesignMatrix must have sampling_freq set for convolution. "
@@ -76,7 +174,8 @@ def convolve(
             warnings.warn(
                 "All experimental regressors are already convolved; "
                 ".convolve() is a no-op.",
-                stacklevel=3,
+                DesignMatrixWarning,
+                stacklevel=find_stack_level(),
             )
             return dm
     else:
@@ -97,43 +196,47 @@ def convolve(
             )
         columns_to_convolve = list(columns)
 
-    # Get the convolution kernel
-    if isinstance(conv_func, str):
-        if conv_func != "hrf":
+    # Decide between a nilearn HRF model and a caller-supplied kernel array
+    hrf_model = None
+    kernels_2d = None
+    if isinstance(kernel, str):
+        if kernel not in _KERNELS:
             raise ValueError(
-                f"String conv_func must be 'hrf', got '{conv_func}'. "
-                "Use conv_func='hrf' or provide a numpy array. "
-                "Tip: Use nltools.utils.glover_hrf() to generate custom HRFs."
+                f"Unknown kernel {kernel!r}. Accepted HRF model names are "
+                f"{_kernel_names()}, or pass a numpy array of your own "
+                "kernel(s) — 1D (samples,) or 2D (samples, n_kernels)."
             )
-        # Generate Glover HRF at this sampling frequency
-        # TR = 1 / sampling_freq
-        conv_func = glover_hrf(1.0 / dm.sampling_freq, oversampling=1.0)
-    elif isinstance(conv_func, np.ndarray):
-        if len(conv_func.shape) > 2:
+        hrf_model = _KERNELS[kernel]
+    elif isinstance(kernel, np.ndarray):
+        if len(kernel.shape) > 2:
             raise ValueError(
-                f"HRF function must be 1D (shape: (samples,)) or 2D (shape: (samples, n_kernels)). "
-                f"Got shape: {conv_func.shape}. "
-                "Tip: Use nltools.utils.glover_hrf() to generate HRFs."
+                f"A kernel array must be 1D (shape: (samples,)) or 2D (shape: (samples, n_kernels)). "
+                f"Got shape: {kernel.shape}. "
+                "Tip: Use nilearn.glm.first_level.glover_hrf() to generate HRFs."
             )
+        # Normalize to 2-D (samples, n_kernels) so 1-D and 2-D paths share code.
+        kernels_2d = kernel.reshape(-1, 1) if kernel.ndim == 1 else kernel
     else:
         raise TypeError(
-            f"conv_func must be 'hrf' (str) or numpy array, got {type(conv_func).__name__}. "
-            "Tip: Use conv_func='hrf' for canonical HRF."
+            f"kernel must be an HRF model name ({_kernel_names()}) or a numpy "
+            f"array, got {type(kernel).__name__}."
         )
 
-    # Normalize to 2-D (samples, n_kernels) so 1-D and 2-D paths share code.
-    kernels_2d = conv_func.reshape(-1, 1) if conv_func.ndim == 1 else conv_func
-    n_kernels = kernels_2d.shape[1]
     n_rows = dm.shape[0]
 
     convolved_series: list[pl.Series] = []
     new_convolved: list[str] = []
     for col in columns_to_convolve:
-        # NECESSARY: np.convolve requires numpy arrays (no Polars equivalent)
+        # NECESSARY: both paths require numpy arrays (no Polars equivalent)
         col_data = dm.data[col].to_numpy()
-        for k_idx in range(n_kernels):
-            kernel = kernels_2d[:, k_idx]
-            result = np.convolve(col_data, kernel)[:n_rows]
+        if kernels_2d is None:
+            results = [_hrf_regressor(col_data, dm.sampling_freq, hrf_model)]
+        else:
+            results = [
+                np.convolve(col_data, kernels_2d[:, k])[:n_rows]
+                for k in range(kernels_2d.shape[1])
+            ]
+        for k_idx, result in enumerate(results):
             new_name = f"{col}_c{k_idx}"
             convolved_series.append(pl.Series(new_name, result))
             new_convolved.append(new_name)
@@ -157,18 +260,19 @@ def add_poly(
     """Add Legendre polynomial drift terms.
 
     Args:
-        dm: DesignMatrix to add polynomials to.
+        dm (DesignMatrix): DesignMatrix to add polynomials to.
         order (int): Polynomial order (0=intercept, 1=linear, 2=quadratic, ...).
             Default: 0.
         include_lower (bool): If True, include all orders from 0 to order.
             Default: True.
 
     Returns:
-        DesignMatrix: New DesignMatrix with polynomial columns appended.
+        DesignMatrix: New DesignMatrix with polynomial columns appended, named
+            ``.nl_poly_{order}`` in the reserved namespace (see `RESERVED_PREFIX`).
 
     Raises:
-        ValueError: If order < 0 or if ambiguous polynomials exist from a
-            previous append operation.
+        ValueError: If order < 0, or if the design already carries run-separated
+            drift terms from a previous multi-run append.
     """
     from scipy.special import legendre
 
@@ -178,13 +282,13 @@ def add_poly(
             "Common orders: 0 (intercept only), 1 (linear trend), 2 (quadratic), 3 (cubic)."
         )
 
-    # Check for ambiguous polynomials from previous append operations
-    if dm.confounds and any(elem.count("_") == 2 for elem in dm.confounds):
+    # Adding a global drift term on top of per-run ones is ambiguous.
+    if has_run_separated_drift(dm):
         raise ValueError(
-            "This Design Matrix contains polynomial terms that were kept "
-            "separate from a previous append operation. This makes it ambiguous "
-            "for adding polynomial terms. Try calling .add_poly() on each "
-            "separate Design Matrix before appending them instead."
+            "This Design Matrix contains run-separated drift terms (polynomial "
+            "or cosine) from a previous append operation, which makes adding "
+            "global polynomial terms ambiguous. Call .add_poly() on each "
+            "single-run Design Matrix before appending them instead."
         )
 
     # Determine which polynomials to add
@@ -193,7 +297,7 @@ def add_poly(
     else:
         orders_to_add = [order]
 
-    # Detect existing intercept columns (constant, poly_0, or any all-ones poly)
+    # Detect existing intercept columns (any all-ones confound)
     _has_intercept = False
     if dm.confounds:
         for p in dm.confounds:
@@ -205,16 +309,18 @@ def add_poly(
     # Check if we already have these polynomials (idempotent)
     new_poly_cols = {}
     for i in orders_to_add:
-        poly_name = f"poly_{i}"
+        poly_name = reserved_name(f"poly_{i}")
         if poly_name in dm.confounds:
             warnings.warn(
                 f"Design Matrix already has {i}th order polynomial...skipping",
-                stacklevel=3,
+                DesignMatrixWarning,
+                stacklevel=find_stack_level(),
             )
         elif i == 0 and _has_intercept:
             warnings.warn(
-                "Design Matrix already has an intercept column...skipping poly_0",
-                stacklevel=3,
+                f"Design Matrix already has an intercept column...skipping {poly_name}",
+                DesignMatrixWarning,
+                stacklevel=find_stack_level(),
             )
         else:
             # Create normalized Legendre polynomial over [-1, 1]
@@ -249,22 +355,23 @@ def add_dct_basis(
     """Add discrete cosine transform basis functions for high-pass filtering.
 
     Args:
-        dm: DesignMatrix to add DCT basis to.
+        dm (DesignMatrix): DesignMatrix to add the DCT basis to.
         duration (float): Filter duration in seconds. Default: 180.
         drop (int): Number of low-frequency bases to drop. Default: 0.
         include_constant (bool): If True, also add a constant/intercept column
-            named ``cosine_0`` (analogous to ``poly_0`` in `add_poly`).
+            named ``.nl_cosine_0`` (analogous to ``.nl_poly_0`` in `add_poly`).
             The underlying DCT basis drops the constant per SPM convention;
             set False to match SPM behavior. Default: True.
 
     Returns:
-        DesignMatrix: New DesignMatrix with DCT basis columns appended.
+        DesignMatrix: New DesignMatrix with DCT basis columns appended, named
+            ``.nl_cosine_{i}`` in the reserved namespace (see `RESERVED_PREFIX`).
 
     Raises:
-        ValueError: If sampling_freq is not set or if ambiguous cosine bases
-            exist from a previous append operation.
+        ValueError: If sampling_freq is not set, or if the design already
+            carries run-separated drift terms from a previous multi-run append.
     """
-    from nltools.stats import make_cosine_basis
+    from nltools.algorithms.signal import make_cosine_basis
 
     if dm.sampling_freq is None:
         raise ValueError(
@@ -272,15 +379,13 @@ def add_dct_basis(
             "Specify sampling_freq when creating: DesignMatrix(..., sampling_freq=0.5)"
         )
 
-    # Check for ambiguous cosine bases from previous append operations
-    if dm.confounds and any(
-        elem.count("_") == 2 and "cosine" in elem for elem in dm.confounds
-    ):
+    # Adding a global drift term on top of per-run ones is ambiguous.
+    if has_run_separated_drift(dm):
         raise ValueError(
-            "This Design Matrix contains cosine bases that were kept "
-            "separate from a previous append operation. This makes it ambiguous "
-            "for adding polynomial terms. Try calling .add_dct_basis() on each "
-            "separate Design Matrix before appending them instead."
+            "This Design Matrix contains run-separated drift terms (polynomial "
+            "or cosine) from a previous append operation, which makes adding "
+            "global cosine bases ambiguous. Call .add_dct_basis() on each "
+            "single-run Design Matrix before appending them instead."
         )
 
     # Create DCT basis matrix using stats function
@@ -288,15 +393,18 @@ def add_dct_basis(
         dm.shape[0], 1.0 / dm.sampling_freq, duration, drop=drop
     )
 
-    # Generate column names (cosine_1, cosine_2, ...)
+    # Generate column names (.nl_cosine_1, .nl_cosine_2, ...)
     # Note: If drop > 0, numbering starts from drop+1 to reflect original indices
-    # e.g., drop=2 -> cosine_3, cosine_4, ... (skipped cosine_1, cosine_2)
-    basis_col_names = [f"cosine_{drop + i + 1}" for i in range(basis_mat.shape[1])]
+    # e.g., drop=2 -> .nl_cosine_3, .nl_cosine_4, ... (skipped 1 and 2)
+    basis_col_names = [
+        reserved_name(f"cosine_{drop + i + 1}") for i in range(basis_mat.shape[1])
+    ]
 
-    # Optionally prepend cosine_0 (constant/intercept) — mirrors poly_0 in add_poly.
+    # Optionally prepend the constant/intercept — mirrors .nl_poly_0 in add_poly.
     # make_cosine_basis drops the constant per SPM; we re-add it here when asked,
     # and skip if an intercept-like confounds column already exists.
     if include_constant:
+        constant_name = reserved_name("cosine_0")
         _has_intercept = False
         if dm.confounds:
             for p in dm.confounds:
@@ -304,13 +412,14 @@ def add_dct_basis(
                 if np.allclose(col_vals, 1.0):
                     _has_intercept = True
                     break
-        if "cosine_0" in (dm.confounds or []) or _has_intercept:
+        if constant_name in (dm.confounds or []) or _has_intercept:
             warnings.warn(
-                "Design Matrix already has an intercept column...skipping cosine_0",
-                stacklevel=3,
+                f"Design Matrix already has an intercept column...skipping {constant_name}",
+                DesignMatrixWarning,
+                stacklevel=find_stack_level(),
             )
         else:
-            basis_col_names.insert(0, "cosine_0")
+            basis_col_names.insert(0, constant_name)
             basis_mat = np.column_stack([np.ones(dm.shape[0]), basis_mat])
 
     # Check which bases we don't already have (idempotent)
@@ -321,11 +430,19 @@ def add_dct_basis(
 
     # If no new bases to add, return dm unchanged
     if not basis_to_add:
-        warnings.warn("All basis functions already exist...skipping", stacklevel=3)
+        warnings.warn(
+            "All basis functions already exist...skipping",
+            DesignMatrixWarning,
+            stacklevel=find_stack_level(),
+        )
         return dm
 
     if len(basis_to_add) < len(basis_col_names):
-        warnings.warn("Some basis functions already exist...skipping", stacklevel=3)
+        warnings.warn(
+            "Some basis functions already exist...skipping",
+            DesignMatrixWarning,
+            stacklevel=find_stack_level(),
+        )
 
     # Add new cosine basis columns
     # Only add the columns we don't already have

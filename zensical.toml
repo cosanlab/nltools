@@ -1,0 +1,188 @@
+# Zensical site configuration. Build: `uv run poe docs-build`. Preview: `uv run poe docs-serve`.
+
+[project]
+site_name = "nltools"
+site_description = "A Python package to analyze neuroimaging data"
+site_url = "https://nltools.org/"
+docs_dir = "docs"
+site_dir = "site"
+repo_url = "https://github.com/cosanlab/nltools"
+extra_css = ["_static/custom.css"]
+# The tutorial pages execute through `scripts/docs_show.py`, so editing the
+# formatter must rebuild them under `zensical serve` the way editing a page does.
+watch = ["scripts/docs_show.py"]
+
+nav = [
+  { "Home" = "index.md" },
+  { "Migrating from v0.5" = "migration-guide.md" },
+  # Old tutorials ported from 0.5.x
+  { "Tutorials" = [
+    { "Overview" = "tutorials/index.md" },
+    { "Basics" = [
+      "tutorials/basics/01_brain_data.md",
+      "tutorials/basics/02_design_matrix.md",
+      "tutorials/basics/03_adjacency.md",
+    ] },
+    { "Data operations" = [
+      "tutorials/data-operations/01_download.md",
+      "tutorials/data-operations/02_masking.md",
+      "tutorials/data-operations/03_brain_space.md",
+      "tutorials/data-operations/04_neurovault.md",
+      "tutorials/data-operations/05_design_matrix.md",
+      "tutorials/data-operations/06_adjacency.md",
+    ] },
+  ] },
+  # Hand-written task pages, one per task, mirroring "Functions by task" below.
+  { "User Guide" = [
+    { "Overview" = "guide/index.md" },
+    "guide/loading.md",
+    "guide/design-and-glm.md",
+    "guide/prediction.md",
+    "guide/similarity-and-rsa.md",
+    "guide/alignment.md",
+    "guide/statistics-and-inference.md",
+    "guide/intersubject.md",
+    "guide/plotting.md",
+    "guide/atlases.md",
+    { "Analysis" = [
+      "tutorials/analysis/01_univariate_regression.md",
+      "tutorials/analysis/02_multivariate_prediction.md",
+      "tutorials/analysis/03_multivariate_classification.md",
+      "tutorials/analysis/04_similarity.md",
+      "tutorials/analysis/05_hyperalignment.md",
+      "tutorials/analysis/06_decomposition.md",
+    ] },
+    { "Workflows" = [
+      "tutorials/workflows/01_glm.md",
+      "tutorials/workflows/02_encoding.md",
+      "tutorials/workflows/03_mvpa.md",
+      "tutorials/workflows/04_isc.md",
+    ] },
+  ] },
+  # Auto-generated API reference
+  { "Reference" = [
+    { "Adjacency" = "api/data/adjacency.md"},
+    { "BrainData" = "api/data/brain_data.md"},
+    { "DesignMatrix" = "api/data/design_matrix.md"},
+    { "ROC" = "api/data/roc.md"},
+    { "Simulator" = "api/data/simulator.md"},
+    ] },
+  { "Development" = [
+    "contributing.md",
+    "changelog.md",
+  ] },
+]
+
+# A broken internal link or a link to a heading that does not exist fails
+# `zensical build --strict`.
+[project.validation]
+invalid_links = true
+invalid_link_anchors = true
+
+# markdown-exec runs the `python exec="on"` fences on the tutorial pages while the
+# site builds. Restricted to Python so an ordinary ```bash or ```md fence on any
+# other page keeps going through the normal highlighter.
+[project.plugins.markdown-exec]
+languages = ["python"]
+
+# mkdocstrings renders every page under docs/api/ from the `:::` directives on
+# those pages. Options here are the project-wide defaults; a page overrides them
+# in its own `options:` block.
+[project.plugins.mkdocstrings]
+default_handler = "python"
+
+[project.plugins.mkdocstrings.handlers.python]
+paths = ["."]
+# Types from these projects are cross-referenced by their public URL. The polars
+# inventory carries method entries only (`polars.DataFrame.join`), not the bare
+# `polars.DataFrame` / `Series` / `Expr` classes, so those still render as text.
+inventories = [
+  "https://docs.python.org/3/objects.inv",
+  "https://numpy.org/doc/stable/objects.inv",
+  "https://docs.pola.rs/api/python/stable/objects.inv",
+  "https://nilearn.github.io/stable/objects.inv",
+  "https://scikit-learn.org/stable/objects.inv",
+]
+
+[project.plugins.mkdocstrings.handlers.python.options]
+docstring_style = "google"
+docstring_options = { ignore_init_summary = true, returns_multiple_items = false, returns_named_value = false }
+docstring_section_style = "table"
+filters = ["!^_"]
+group_by_category = true
+heading_level = 1
+members_order = "alphabetical"
+merge_init_into_class = true
+separate_signature = true
+show_category_heading = true
+show_docstring_examples = true
+show_docstring_raises = true
+show_if_no_docstring = false
+show_object_full_path = false
+show_root_full_path = false
+show_root_heading = true
+show_root_members_full_path = false
+show_signature_annotations = true
+show_submodules = false
+# mkdocstrings' `summary = true` also emits a Modules table, which griffe2md's
+# did not: it listed submodules that have no page of their own.
+summary = { attributes = true, functions = true, classes = true, modules = false }
+# Not offered by griffe2md, and chosen here: signature types link to the page
+# documenting them (the postprocessor used to rewrite those links by hand), and
+# the source listings stay off so a page reads as a reference, not a listing.
+signature_crossrefs = true
+show_source = false
+
+[project.theme]
+variant = "modern"
+features = [
+  "content.code.copy",
+  "navigation.sections",
+  "navigation.top",
+  "search.suggest",
+  "toc.follow",
+]
+
+[[project.theme.palette]]
+media = "(prefers-color-scheme: light)"
+scheme = "default"
+toggle.icon = "lucide/sun"
+toggle.name = "Switch to dark mode"
+
+[[project.theme.palette]]
+media = "(prefers-color-scheme: dark)"
+scheme = "slate"
+toggle.icon = "lucide/moon"
+toggle.name = "Switch to light mode"
+
+[project.markdown_extensions]
+abbr = {}
+admonition = {}
+attr_list = {}
+def_list = {}
+footnotes = {}
+md_in_html = {}
+tables = {}
+toc.permalink = true
+pymdownx.arithmatex.generic = true
+pymdownx.betterem = {}
+pymdownx.caret = {}
+pymdownx.details = {}
+pymdownx.emoji.emoji_generator = "zensical.extensions.emoji.to_svg"
+pymdownx.emoji.emoji_index = "zensical.extensions.emoji.twemoji"
+pymdownx.highlight.anchor_linenums = true
+pymdownx.highlight.line_spans = "__span"
+pymdownx.highlight.pygments_lang_class = true
+pymdownx.inlinehilite = {}
+pymdownx.keys = {}
+pymdownx.magiclink = {}
+pymdownx.mark = {}
+pymdownx.smartsymbols = {}
+pymdownx.snippets = {}
+pymdownx.superfences.custom_fences = [
+  { name = "mermaid", class = "mermaid", format = "pymdownx.superfences.fence_code_format" },
+]
+pymdownx.tabbed.alternate_style = true
+pymdownx.tabbed.combine_header_slug = true
+pymdownx.tasklist.custom_checkbox = true
+pymdownx.tilde = {}

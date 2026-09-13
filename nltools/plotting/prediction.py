@@ -1,12 +1,5 @@
 """Model output visualization — ROC, SVM margin, regression, and logistic plots."""
 
-__all__ = [
-    "plot_dist_from_hyperplane",
-    "plot_probability",
-    "plot_roc",
-    "plot_scatter",
-]
-
 import matplotlib.pyplot as plt
 import seaborn as sns
 
@@ -15,10 +8,11 @@ def plot_dist_from_hyperplane(stats_output):
     """Plot SVM Classification Distance from Hyperplane.
 
     Args:
-        stats_output: pandas DataFrame with prediction output
+        stats_output (pd.DataFrame): Prediction output table (e.g. from
+            `BrainData.predict`).
 
     Returns:
-        a seaborn FacetGrid of distance from hyperplane
+        seaborn.FacetGrid: Distance from the hyperplane per sample.
 
     """
 
@@ -48,10 +42,11 @@ def plot_scatter(stats_output):
     """Plot Prediction Scatterplot.
 
     Args:
-        stats_output: pandas DataFrame with prediction output
+        stats_output (pd.DataFrame): Prediction output table (e.g. from
+            `BrainData.predict`).
 
     Returns:
-        a seaborn FacetGrid scatterplot
+        seaborn.FacetGrid: Scatterplot.
 
     """
 
@@ -69,10 +64,11 @@ def plot_probability(stats_output):
     """Plot Classification Probability.
 
     Args:
-        stats_output: pandas DataFrame with prediction output
+        stats_output (pd.DataFrame): Prediction output table (e.g. from
+            `BrainData.predict`).
 
     Returns:
-        a seaborn FacetGrid scatterplot
+        seaborn.FacetGrid: Scatterplot.
 
     """
     if "Probability_xval" in stats_output.columns:
@@ -89,11 +85,11 @@ def plot_roc(fpr, tpr):
     """Plot 1-Specificity by Sensitivity.
 
     Args:
-        fpr: false positive rate from Roc.calculate
-        tpr: true positive rate from Roc.calculate
+        fpr (np.ndarray): False positive rate per criterion value, from `Roc.calculate`.
+        tpr (np.ndarray): True positive rate per criterion value, from `Roc.calculate`.
 
     Returns:
-        a matplotlib Figure
+        matplotlib.figure.Figure: The ROC figure.
 
     """
 

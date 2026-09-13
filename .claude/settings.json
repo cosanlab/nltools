@@ -1,6 +1,5 @@
 {
   "enabledPlugins": {
-    "hf-cli@huggingface-skills": true,
-    "huggingface-tool-builder@huggingface-skills": true
+    "superpowers@claude-plugins-official": true
   }
 }

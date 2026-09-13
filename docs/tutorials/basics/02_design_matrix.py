@@ -1,23 +1,15 @@
 # /// script
-# requires-python = ">=3.12"
+# requires-python = ">=3.11"
 # dependencies = [
-#     # Only marimo + the emscripten HTTP shim load from this header. nltools and its whole
-#     # runtime stack are micropip-installed by the IN_WASM setup cell (UNPINNED, so Pyodide's
-#     # bundled builds win) — see that cell. Listing the stack here too makes marimo's header
-#     # auto-install redundantly pull unpinned latest scikit-learn/scipy/pandas/matplotlib,
-#     # which drag in `packaging>=26` (absent in Pyodide 0.27.7) and error out.
 #     "marimo",
-#     "pyodide-http; sys_platform == 'emscripten'",
+#     "nltools>=0.6.0",
 # ]
 # ///
-# DesignMatrix basics — runs entirely in the browser via marimo + Pyodide.
-# Source of truth for the docs tutorial; exported to WASM by
-# scripts/build_marimo_wasm.py. `nltools` is micropip-installed in the browser from a
-# build-hosted wheel URL by the IN_WASM setup cell below.
+# DesignMatrix basics — marimo notebook. Source of truth for the docs page; rendered to the docs page by scripts/marimo_to_zensical.py.
 
 import marimo
 
-__generated_with = "0.23.10"
+__generated_with = "0.24.0"
 app = marimo.App(width="medium")
 
 
@@ -30,106 +22,30 @@ def _():
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
-        # DesignMatrix Basics
+    mo.md(r"""
+    # DesignMatrix Basics
 
-        The `DesignMatrix` class is the core data structure for working with
-        csv/tsv/dataframes that capture your experimental design (e.g. a GLM analysis) or
-        a voxel-wise model (e.g. encoding models, group analysis). It's backed by `polars`
-        internally for fast operations but accepts pandas DataFrames, dicts, and numpy
-        arrays as input.
-
-        /// admonition | Running live in your browser
-        This page **is** a running notebook — the cells below execute in a Pyodide kernel
-        inside the page. The first load boots the kernel and installs the scientific
-        stack (about a minute; cached afterwards). Edit any cell and re-run to explore.
-        ///
-        """
-    )
+    The `DesignMatrix` class is the core data structure for working with
+    csv/tsv/dataframes that capture your experimental design (e.g. a GLM analysis) or
+    a voxel-wise model (e.g. encoding models, group analysis). It's backed by `polars`
+    internally for fast operations but accepts pandas DataFrames, dicts, and numpy
+    arrays as input.
+    """)
     return
-
-
-@app.cell(hide_code=True)
-def _():
-    import sys
-
-    IN_WASM = sys.platform == "emscripten"
-    return (IN_WASM,)
-
-
-@app.cell(hide_code=True)
-async def _(IN_WASM):
-    # In-browser only: install nltools + its full runtime stack before any nltools import
-    # runs, then hand `wasm_ready` to every nltools-importing cell to force ordering. We
-    # can't rely on marimo's PEP 723 header auto-install alone: it races cell execution and
-    # marimo never re-runs a cell that already failed with ModuleNotFoundError. Resolve the
-    # wheel against the shared worker origin.
-    wasm_ready = True
-    if IN_WASM:
-        import asyncio
-
-        import micropip
-        import js
-
-        async def _pip(reqs, **kw):
-            # Install packages ONE AT A TIME instead of a single concurrent
-            # micropip.install([...]) call. The big concurrent batch download
-            # occasionally returns a truncated wheel (BadZipFile); micropip then
-            # caches the corrupt bytes so an in-session retry keeps failing — and
-            # marimo never re-runs an errored cell, permanently bricking the
-            # page. Sequential installs keep peak download concurrency low and
-            # sidestep the corruption; a per-package retry still rides out
-            # ordinary network blips. (see nltools#455 investigation)
-            items = [reqs] if isinstance(reqs, str) else list(reqs)
-            for _item in items:
-                for _attempt in range(3):
-                    try:
-                        await micropip.install(_item, **kw)
-                        break
-                    except Exception:  # noqa: BLE001
-                        if _attempt == 2:
-                            raise
-                        await asyncio.sleep(0.75 * (_attempt + 1))
-
-        # Install the stack UNPINNED so micropip takes Pyodide's bundled builds (pinning to
-        # nltools' host versions, e.g. joblib>=1.5.3, fails against Pyodide's bundled
-        # joblib). nilearn is the exception: 0.14+ needs packaging>=26 (absent in Pyodide
-        # 0.27.7), so pin the last 0.13.x. numpy/scipy/pandas/sklearn/matplotlib come in
-        # transitively at their bundled versions.
-        await _pip(
-            [
-                "nibabel",
-                "nilearn==0.13.1",
-                "seaborn",
-                "polars",
-                "pynv",
-                "huggingface-hub",
-                "anywidget",
-            ]
-        )
-        # deps=False installs the wheel without re-checking nltools' own version pins.
-        await _pip(
-            js.location.origin + "__NLTOOLS_WHEEL_URL__", deps=False
-        )
-    return (wasm_ready,)
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
-        ## Basics
+    mo.md(r"""
+    ## Basics
 
-        Let's build a small toy design matrix to learn the basics.
-        """
-    )
+    Let's build a small toy design matrix to learn the basics.
+    """)
     return
 
 
 @app.cell
-def _(wasm_ready):
-    _ = wasm_ready  # ensure the nltools wheel is installed first (WASM)
+def _():
     from nltools.data import DesignMatrix
     import numpy as np
 
@@ -137,12 +53,28 @@ def _(wasm_ready):
     dm = DesignMatrix(
         np.array(
             [
-                [0, 0, 0, 0], [0, 0, 0, 0], [1, 0, 0, 0], [1, 0, 0, 0],
-                [0, 0, 0, 0], [0, 1, 0, 0], [0, 1, 0, 0], [0, 0, 0, 0],
-                [0, 0, 1, 0], [0, 0, 1, 0], [0, 0, 0, 0], [0, 0, 0, 1],
-                [0, 0, 0, 1], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0],
-                [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0],
-                [0, 0, 0, 0], [0, 0, 0, 0],
+                [0, 0, 0, 0],
+                [0, 0, 0, 0],
+                [1, 0, 0, 0],
+                [1, 0, 0, 0],
+                [0, 0, 0, 0],
+                [0, 1, 0, 0],
+                [0, 1, 0, 0],
+                [0, 0, 0, 0],
+                [0, 0, 1, 0],
+                [0, 0, 1, 0],
+                [0, 0, 0, 0],
+                [0, 0, 0, 1],
+                [0, 0, 0, 1],
+                [0, 0, 0, 0],
+                [0, 0, 0, 0],
+                [0, 0, 0, 0],
+                [0, 0, 0, 0],
+                [0, 0, 0, 0],
+                [0, 0, 0, 0],
+                [0, 0, 0, 0],
+                [0, 0, 0, 0],
+                [0, 0, 0, 0],
             ]
         ),
         columns=["face_A", "face_B", "house_A", "house_B"],
@@ -153,10 +85,10 @@ def _(wasm_ready):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        "`DesignMatrix` behaves like a `polars` DataFrame, so familiar methods work — "
-        "`.head()`, `.tail()`, `.select()`, etc."
-    )
+    mo.md("""
+    `DesignMatrix` behaves like a `polars` DataFrame, so familiar methods work —
+    `.head()`, `.tail()`, `.select()`, etc.
+    """)
     return
 
 
@@ -182,10 +114,10 @@ def _(dm):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        "Visualize it as an SPM-style heatmap — rows are time-points, columns are "
-        "regressors:"
-    )
+    mo.md("""
+    Visualize it as an SPM-style heatmap — rows are time-points, columns are
+    regressors:
+    """)
     return
 
 
@@ -197,17 +129,15 @@ def _(dm):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
-        ## HRF convolution
+    mo.md(r"""
+    ## HRF convolution
 
-        The hemodynamic response function (HRF) models the sluggish BOLD response to
-        neural activity. `.convolve()` applies it to your task columns, renaming the
-        convolved columns with a `_c0` suffix (`_c1`, `_c2`, … for multiple kernels) so
-        they can be referenced deterministically. Notice how the regressors are delayed
-        and smeared in time:
-        """
-    )
+    The hemodynamic response function (HRF) models the sluggish BOLD response to
+    neural activity. `.convolve()` applies it to your task columns, renaming the
+    convolved columns with a `_c0` suffix (`_c1`, `_c2`, … for multiple kernels) so
+    they can be referenced deterministically. Notice how the regressors are delayed
+    and smeared in time:
+    """)
     return
 
 
@@ -219,10 +149,10 @@ def _(dm):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        "`.plot(method='timeseries')` draws regressors as line plots. Passing the same "
-        "`ax` to a second call overlays the convolved version on the original:"
-    )
+    mo.md("""
+    `.plot(method='timeseries')` draws regressors as line plots. Passing the same
+    `ax` to a second call overlays the convolved version on the original:
+    """)
     return
 
 
@@ -233,25 +163,22 @@ def _(dm):
     _fig, _ax = plt.subplots(figsize=(8, 4))
     dm.plot(method="timeseries", columns=["face_A"], ax=_ax)
     dm.convolve().plot(method="timeseries", columns=["face_A_c0"], ax=_ax)
-    _fig
-    return (plt,)
+    return
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
-        ## Creating drift regressors
+    mo.md(r"""
+    ## Creating drift regressors
 
-        `DesignMatrix` offers two equivalent ways to add low-frequency "nuisance"
-        regressors for a GLM: `.add_poly()` and `.add_dct_basis()`.
+    `DesignMatrix` offers two equivalent ways to add low-frequency "nuisance"
+    regressors for a GLM: `.add_poly()` and `.add_dct_basis()`.
 
-        ### Polynomials
+    ### Polynomials
 
-        Legendre polynomials capture low-frequency trends by order — 0 = intercept,
-        1 = linear, 2 = quadratic, and so on:
-        """
-    )
+    Legendre polynomials capture low-frequency trends by order — 0 = intercept,
+    1 = linear, 2 = quadratic, and so on:
+    """)
     return
 
 
@@ -264,14 +191,12 @@ def _(dm):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
-        ### DCT high-pass filter
+    mo.md(r"""
+    ### DCT high-pass filter
 
-        A common SPM alternative is a set of discrete-cosine filters. `duration` sets the
-        high-pass cutoff in seconds:
-        """
-    )
+    A common SPM alternative is a set of discrete-cosine filters. `duration` sets the
+    high-pass cutoff in seconds:
+    """)
     return
 
 
@@ -284,20 +209,18 @@ def _(dm):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
-        ## Multicollinearity diagnostics
+    mo.md(r"""
+    ## Multicollinearity diagnostics
 
-        In classic GLM analysis it's **essential** to keep excessive multicollinearity out
-        of your design matrix, so voxel beta-estimates stay stable. `DesignMatrix` gives
-        you two tools: `.vif()` and `.clean()`.
+    In classic GLM analysis it's **essential** to keep excessive multicollinearity out
+    of your design matrix, so voxel beta-estimates stay stable. `DesignMatrix` gives
+    you two tools: `.vif()` and `.clean()`.
 
-        ### Variance Inflation Factor (VIF)
+    ### Variance Inflation Factor (VIF)
 
-        VIF measures how much each regressor's variance is inflated by correlation with the
-        others; values ≥ 5 are classically cause for caution:
-        """
-    )
+    VIF measures how much each regressor's variance is inflated by correlation with the
+    others; values ≥ 5 are classically cause for caution:
+    """)
     return
 
 
@@ -309,7 +232,9 @@ def _(dm):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md("Visualize a correlation matrix of the columns with `.plot(method='corr')`:")
+    mo.md("""
+    Visualize a correlation matrix of the columns with `.plot(method='corr')`:
+    """)
     return
 
 
@@ -321,10 +246,10 @@ def _(dm):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        "`.corr()` returns an nltools `Adjacency` (a labeled similarity matrix), so you "
-        "can hand it to any of the `Adjacency` tools:"
-    )
+    mo.md("""
+    `.corr()` returns an nltools `Adjacency` (a labeled similarity matrix), so you
+    can hand it to any of the `Adjacency` tools:
+    """)
     return
 
 
@@ -336,21 +261,26 @@ def _(dm):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
-        ### Cleaning correlated columns
+    mo.md(r"""
+    ### Cleaning correlated columns
 
-        Let's build a degenerate design by duplicating the columns:
-        """
-    )
+    Let's build a near-degenerate design: a jittered copy of every column, appended
+    column-wise (`axis=1`) under new names. (`append()` refuses *exact* duplicates
+    outright — identical values under different names make the design rank
+    deficient by construction — so we add a little noise to each copy.)
+    """)
     return
 
 
 @app.cell
-def _(dm):
-    # Duplicate the design under new names, then append column-wise (axis=1)
-    dm2 = dm.copy()
-    dm2.columns = ["car_A", "car_B", "dog_A", "dog_B"]
+def _(DesignMatrix, dm, np):
+    # A jittered copy of the design under new names, appended column-wise (axis=1)
+    _rng = np.random.default_rng(0)
+    dm2 = DesignMatrix(
+        dm.to_numpy() + _rng.normal(0, 0.02, dm.shape),
+        columns=["car_A", "car_B", "dog_A", "dog_B"],
+        sampling_freq=dm.sampling_freq,
+    )
     duplicated_dm = dm.append(dm2, axis=1)
     duplicated_dm.plot()
     return (duplicated_dm,)
@@ -358,7 +288,9 @@ def _(dm):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md("The duplicated columns are perfectly correlated:")
+    mo.md("""
+    Each copy is almost perfectly correlated with its original (r > 0.95):
+    """)
     return
 
 
@@ -370,7 +302,9 @@ def _(duplicated_dm):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md("So the VIFs are essentially infinite:")
+    mo.md("""
+    So the variance inflation factors are huge (hundreds, versus ~1 for an orthogonal design):
+    """)
     return
 
 
@@ -382,29 +316,27 @@ def _(duplicated_dm):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        "`.clean()` automatically drops columns whose correlation exceeds a threshold:"
-    )
+    mo.md("""
+    `.clean()` drops columns whose absolute correlation with an earlier column meets a threshold (`thresh=0.95` by default) — the four jittered copies go, the originals stay:
+    """)
     return
 
 
 @app.cell
 def _(duplicated_dm):
-    duplicated_dm.clean(thresh=0.99).plot()
+    duplicated_dm.clean(thresh=0.95).plot()
     return
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
-        ## Combining runs
+    mo.md(r"""
+    ## Combining runs
 
-        `.append(axis=0)` stacks design matrices vertically — e.g. concatenating runs.
-        Polynomial columns are kept separate per run by default (`keep_separate=True`),
-        while task regressors are stacked so a single estimate is computed across runs:
-        """
-    )
+    `.append(axis=0)` stacks design matrices vertically — e.g. concatenating runs.
+    Polynomial columns are kept separate per run by default (`keep_separate=True`),
+    while task regressors are stacked so a single estimate is computed across runs:
+    """)
     return
 
 
@@ -420,18 +352,17 @@ def _(dm):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
-        ## Mixing task regressors with external confounds
+    mo.md(r"""
+    ## Mixing task regressors with external confounds
 
-        Real GLM workflows combine HRF-convolved task regressors with confound regressors
-        from preprocessing — head motion, spike regressors, CSF/WM signals, physio. The
-        canonical pattern is `.append(axis=1)`: it accepts a `DesignMatrix` *or* a raw
-        pandas/polars DataFrame, automatically marks the appended columns as confounds
-        (so `.convolve()` skips them and they stay separate per run on a later vertical
-        append), and merges the `convolved`/`confounds` metadata correctly.
-        """
-    )
+    Real GLM workflows combine HRF-convolved task regressors with confound regressors
+    from preprocessing, such as head motion, spike regressors, CSF/WM signals and physio.
+    Convert pandas inputs to `DesignMatrix` objects with the task design's sampling
+    frequency, then combine them with `.append(axis=1, as_confounds=True)`. The
+    appended columns are marked as confounds, so `.convolve()` skips them and a
+    later vertical append keeps them separate per run. Existing `convolved` and
+    `confounds` metadata are retained.
+    """)
     return
 
 
@@ -462,23 +393,26 @@ def _(dm_task, np):
 
 
 @app.cell
-def _(csf, dm_task, motion, spikes):
-    # 3. Append them all at once, then add drift. Raw DataFrames are auto-wrapped and
-    #    their columns tracked as confounds — no pd.concat round-trip needed.
-    dm_full = dm_task.append([motion, csf, spikes], axis=1).add_poly(order=2)
+def _(DesignMatrix, csf, dm_task, motion, spikes):
+    # 3. Convert the external frames, mark their columns as confounds, then add drift.
+    confound_designs = [
+        DesignMatrix(frame, sampling_freq=dm_task.sampling_freq)
+        for frame in (motion, csf, spikes)
+    ]
+    dm_full = dm_task.append(confound_designs, axis=1, as_confounds=True).add_poly(order=2)
     print(dm_full)
     return (dm_full,)
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        "`dm_full.convolved` records the HRF-convolved task regressors; "
-        "`dm_full.confounds` records the motion / spike / CSF / drift columns. Both are "
-        "managed by `.convolve()` / `.append()` / `.add_poly()` and are read-only "
-        "properties (pass `convolved=` / `confounds=` to the constructor to set initial "
-        "state directly)."
-    )
+    mo.md("""
+    `dm_full.convolved` records the HRF-convolved task regressors;
+    `dm_full.confounds` records the motion / spike / CSF / drift columns. Both are
+    managed by `.convolve()` / `.append()` / `.add_poly()` and are read-only
+    properties (pass `convolved=` / `confounds=` to the constructor to set initial
+    state directly).
+    """)
     return
 
 
@@ -490,11 +424,11 @@ def _(dm_full):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        "If your confounds are already a `DesignMatrix`, pass them the same way — "
-        "`as_confounds=True` is the explicit knob to mark its columns as confounds even "
-        "when its own `confounds` list is empty:"
-    )
+    mo.md("""
+    If your confounds are already a `DesignMatrix`, pass them the same way —
+    `as_confounds=True` is the explicit knob to mark its columns as confounds even
+    when its own `confounds` list is empty:
+    """)
     return
 
 

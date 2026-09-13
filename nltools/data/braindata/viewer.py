@@ -4,20 +4,15 @@
 windowing, slice scrolling, native 4D frame scrubbing, true 3D rendering, and
 optional nltools-atlas overlays (colored regions / outlines / hover labels).
 
-Unlike the previous `ipyniivue` backend, this widget drives the
-`@niivue/niivue` JavaScript library directly through anywidget's **standard**
-model API (see ``viewer.js``). That is the whole point: ipyniivue's custom
-chunked-binary protocol calls a non-standard ``model.onChange`` that only
-exists on a live marimo server, so it dies on a server-less
-``marimo export html-wasm`` page (cosanlab/nltools#455). Staying on the standard
-API makes the viewer render identically in Jupyter, ``marimo edit``, and a
-WASM/Pyodide export — the last is where the tutorials run in-browser.
+The widget drives the `@niivue/niivue` JavaScript library directly through
+anywidget's standard model API (see ``viewer.js``), so it renders identically
+in Jupyter and ``marimo edit`` without depending on any host-specific protocol.
 
 The module is split functional-core / imperative-shell:
 
 - Pure helpers (`resolve_cmap`, `divergent_partner`, `slice_type_for`,
   `qualitative_colors`, `atlas_to_label_lut`, `resolve_background`,
-  `bd_to_nifti_bytes`, `threshold_slider_bounds`) translate BrainData /
+  `bd_to_nifti_bytes`, `compute_display_window`) translate BrainData /
   `Atlas` state into the vocabulary niivue understands.
 - `NiivueViewer` is the thin traitlets widget; `build_viewer` is the assembler
   that fills its traits from a BrainData.
@@ -34,12 +29,15 @@ import functools
 import gzip
 import pathlib
 import warnings
+from dataclasses import dataclass
+from typing import Literal
 
 import anywidget
 import traitlets
 
 from nltools.data.atlases import Atlas, load_atlas
 from nltools.templates.matching import get_bg_image, is_standard_space
+from nltools.utils import find_stack_level
 
 _VIEWER_JS = pathlib.Path(__file__).parent / "viewer.js"
 
@@ -141,12 +139,14 @@ def resolve_cmap(name: str) -> str:
             f"colormap {name!r} is a matplotlib name with no exact niivue "
             f"equivalent; using {mapped!r}. Pass a niivue colormap name to "
             "silence this.",
-            stacklevel=2,
+            UserWarning,
+            stacklevel=find_stack_level(),
         )
         return mapped
     warnings.warn(
         f"colormap {name!r} is not a known niivue colormap; falling back to 'warm'.",
-        stacklevel=2,
+        UserWarning,
+        stacklevel=find_stack_level(),
     )
     return "warm"
 
@@ -186,8 +186,8 @@ def slice_type_for(view: str) -> str:
             ``"sagittal"``, ``"render"``.
 
     Returns:
-        The matching ``SLICE_TYPE`` member name (e.g. ``"MULTIPLANAR"``),
-        which ``viewer.js`` resolves against niivue's enum.
+        str: The matching ``SLICE_TYPE`` member name (e.g. ``"MULTIPLANAR"``),
+            which ``viewer.js`` resolves against niivue's enum.
 
     Raises:
         ValueError: For ``view="surface"`` (dropped — niivue's 3D render is
@@ -256,8 +256,8 @@ def atlas_to_label_lut(atlas: Atlas) -> dict:
         atlas: A loaded deterministic `Atlas`.
 
     Returns:
-        ``{"R", "G", "B", "A", "labels"}`` dict suitable for niivue's
-        ``setColormapLabel``.
+        dict: Keys ``"R"``, ``"G"``, ``"B"``, ``"A"``, ``"labels"``, suitable for
+            niivue's ``setColormapLabel``.
 
     Raises:
         ValueError: If ``atlas`` is probabilistic (4D) — threshold it to a
@@ -307,8 +307,8 @@ def resolve_background(affine, bg_img: str | bool | None) -> str | None:
     """Resolve the ``bg_img`` argument to a background-image path or ``None``.
 
     Args:
-        affine: 4x4 affine of the BrainData (``bd.mask.affine``), used to
-            decide whether auto-MNI applies.
+        affine (np.ndarray): 4x4 affine of the BrainData (``bd.mask.affine``),
+            used to decide whether auto-MNI applies.
         bg_img: ``False`` → no background; a string/path → used as-is;
             ``None``/``True`` (auto) → the matching MNI template when the
             affine is standard space, else ``None``.
@@ -350,7 +350,12 @@ def gzip_nifti(raw: bytes) -> bytes:
     Returns:
         Gzip-compressed NIfTI bytes.
     """
-    return raw if raw[:2] == b"\x1f\x8b" else gzip.compress(raw)
+    # mtime=0: gzip otherwise stamps the wall clock into the header, so the
+    # same volume serialized twice yields different bytes. Static-site
+    # builders (marimo-book) content-address these buffers and re-export a
+    # notebook once per slider value; a deterministic stream lets identical
+    # volumes de-duplicate to one file.
+    return raw if raw[:2] == b"\x1f\x8b" else gzip.compress(raw, mtime=0)
 
 
 def bd_to_nifti_bytes(bd) -> bytes:
@@ -362,7 +367,7 @@ def bd_to_nifti_bytes(bd) -> bytes:
     gzip-compressed to match (see `gzip_nifti`).
 
     Args:
-        bd: A BrainData (3D for a single map, 4D for a stack).
+        bd (BrainData): A single map (3D) or a stack (4D).
 
     Returns:
         The image encoded as gzip-compressed NIfTI-1 bytes.
@@ -371,50 +376,220 @@ def bd_to_nifti_bytes(bd) -> bytes:
 
 
 # --------------------------------------------------------------------------- #
-# Threshold slider bounds
+# Display window (autoscaling)
 # --------------------------------------------------------------------------- #
 
+# Autoscale ceiling percentile over |finite nonzero| — a couple of outlier
+# voxels must not set the whole color scale. 98 is the upper edge of the
+# "robust range" convention: FSL's `fslstats -r` (2%/98% of a 1000-bin
+# histogram) and niivue's own calMinMax ("robust range (2%..98%)",
+# percentileFrac = 0.02). Both take the signed 2%/98%; we take the ceiling
+# only, over magnitudes, because this window is symmetric about zero.
+_AUTOSCALE_CEILING_PCT = 98.0
+# Epsilon floor as a fraction of the ceiling: visually zero (everything above
+# true zero stays visible) while zeros still render transparent. A floor, not
+# a threshold — the robust range's 2% low edge would hide real voxels.
+# (nilearn's plot_stat_map/view_img default to threshold=1e-6 for the same
+# reason.)
+_AUTOSCALE_FLOOR_FRAC = 1e-6
 
-def threshold_slider_bounds(
-    bd, *, cal_min: float | None, cal_max: float | None
-) -> tuple[float, float, float, float, float]:
-    """Compute ``(min, max, value_low, value_high, step)`` for a threshold slider.
 
-    The slider spans the BrainData's finite value range, widened as needed to
-    include an explicit ``cal_min``/``cal_max`` so the requested window is
-    always representable (never silently clamped). Its initial handles sit at
-    ``cal_min``/``cal_max`` when given, else at the data extremes.
+@dataclass(frozen=True)
+class DisplayWindow:
+    """The resolved niivue display window and its threshold-slider bounds.
+
+    Both halves come out of one pass over the data so the slider handles and
+    the rendered window can never disagree.
+
+    Attributes:
+        cal_min (float): Positive-limb threshold (window floor).
+        cal_max (float): Positive-limb saturation endpoint (window ceiling).
+        cal_min_neg (float): Negative-limb saturation endpoint.
+        cal_max_neg (float): Negative-limb threshold endpoint.
+        mirror_negative (bool): Keep the negative endpoints mirrored when the
+            controls move.
+        slider_min (float): Slider lower bound.
+        slider_max (float): Slider upper bound.
+        slider_value_low (float): Initial position of the low handle.
+        slider_value_high (float): Initial position of the high handle.
+        slider_step (float): Slider step size.
+    """
+
+    cal_min: float
+    cal_max: float
+    cal_min_neg: float
+    cal_max_neg: float
+    mirror_negative: bool
+    slider_min: float
+    slider_max: float
+    slider_value_low: float
+    slider_value_high: float
+    slider_step: float
+
+
+def compute_display_window(
+    data,
+    *,
+    autoscale: bool = True,
+    threshold=None,
+    lower=None,
+    upper=None,
+    symmetric: bool | Literal["auto"] = "auto",
+) -> DisplayWindow:
+    """Resolve the viewer's display window and threshold-slider bounds.
+
+    The window is always computed here and passed to niivue explicitly, so
+    the slider handles can never show one window while niivue renders
+    another. Precedence: ``lower``/``upper`` win; otherwise ``threshold``
+    sets the floor; any **unset** edge comes from ``autoscale``:
+
+    - ``True`` (default): ceiling = 98th percentile of the finite nonzero
+      magnitudes (robust to outliers), floor = an epsilon just above zero,
+      never above the smallest nonzero magnitude (zeros render transparent,
+      every real voxel shows — threshold up from there).
+    - ``False``: the raw magnitude range from zero to the largest absolute value.
+
+    For a custom percentile window, pass ``lower``/``upper`` as percentile
+    strings (``lower="60%", upper="98%"``) rather than a second spelling of
+    the same thing on ``autoscale``.
+
+    ``threshold`` / ``lower`` / ``upper`` accept percentile strings
+    (``"98%"``), resolved over the finite nonzero **magnitudes** via
+    `resolve_threshold`: the viewer's window is a divergent magnitude window,
+    so its percentiles are magnitude percentiles.
+
+    ``symmetric='auto'`` mirrors the positive and negative limbs only for
+    mixed-signed data. ``False`` scales each present sign independently;
+    ``True`` always mirrors.
+
+    The slider spans the data's finite value range, widened as needed to
+    include the resolved window so it is always representable (never silently
+    clamped), with its handles at the window edges.
 
     Args:
-        bd: The BrainData being viewed.
-        cal_min: Requested window floor, or ``None``.
-        cal_max: Requested window ceiling, or ``None``.
+        data (np.ndarray): The BrainData's data array.
+        autoscale (bool): See above.
+        threshold (float | str | None): Symmetric magnitude floor (ignored when
+            ``lower``/``upper`` are given).
+        lower (float | str | None): Explicit window floor.
+        upper (float | str | None): Explicit window ceiling.
+        symmetric (bool | str): ``True``, ``False``, or ``'auto'``. See above.
 
     Returns:
-        ``(lo_bound, hi_bound, value_low, value_high, step)`` — all floats.
+        DisplayWindow: The window endpoints and the slider bounds.
+
+    Raises:
+        TypeError: If ``autoscale`` is not a bool, or ``symmetric`` is not
+            ``True``, ``False``, or ``'auto'``.
     """
     import numpy as np
 
-    data = np.asarray(bd.data, dtype=float)
-    finite = data[np.isfinite(data)]
-    if finite.size == 0:
-        lo_bound, hi_bound = 0.0, 1.0
+    from .utils import resolve_threshold
+
+    if not isinstance(autoscale, bool):
+        raise TypeError("autoscale must be a bool")
+    if not (isinstance(symmetric, bool) or symmetric == "auto"):
+        raise TypeError("symmetric must be True, False, or 'auto'")
+
+    # One pass over the array feeds every population below: the magnitudes the
+    # percentile specs resolve against, the per-sign limbs, and the slider's
+    # finite range.
+    arr = np.asarray(data, dtype=float)
+    finite = arr[np.isfinite(arr)]
+    nonzero = finite[finite != 0]
+    magnitudes = np.abs(nonzero)
+    positive = nonzero[nonzero > 0]
+    negative_magnitudes = np.abs(nonzero[nonzero < 0])
+
+    def _mag_pct(pct: float) -> float:
+        if magnitudes.size == 0:
+            return 0.0
+        return float(np.percentile(magnitudes, pct))
+
+    # Resolve percentile strings against the magnitude distribution.
+    # `magnitudes` (finite nonzero |values|) is exactly the population
+    # resolve_threshold would keep after its own finite/nonzero filtering, so
+    # reuse it instead of materializing np.abs(arr) three times per call
+    # (~540 MB of transients on a 100×228k float64 map).
+    threshold = resolve_threshold(threshold, magnitudes)
+    lower = resolve_threshold(lower, magnitudes)
+    upper = resolve_threshold(upper, magnitudes)
+
+    # Precedence: lower/upper win; else threshold sets the floor.
+    if lower is not None or upper is not None:
+        floor, ceiling = lower, upper
+    elif threshold is not None:
+        floor, ceiling = threshold, None
     else:
-        lo_bound, hi_bound = float(finite.min()), float(finite.max())
+        floor, ceiling = None, None
 
-    # Widen the range to include an explicitly requested window so its handles
-    # land exactly where asked rather than being clamped to the data extremes.
-    extras = [float(x) for x in (cal_min, cal_max) if x is not None]
-    if extras:
-        lo_bound = min(lo_bound, *extras)
-        hi_bound = max(hi_bound, *extras)
-    if lo_bound == hi_bound:
-        hi_bound = lo_bound + 1.0
+    if autoscale is False:
+        ceiling = (
+            float(magnitudes.max()) if ceiling is None and magnitudes.size else ceiling
+        )
+        ceiling = 1.0 if ceiling is None else float(ceiling)
+        floor = 0.0 if floor is None else float(floor)
+    else:
+        if ceiling is None:
+            ceiling = _mag_pct(_AUTOSCALE_CEILING_PCT)
+            if ceiling == 0.0:
+                ceiling = 1.0  # empty / all-zero map: keep a sane window
+        if floor is None:
+            # The default floor exists to make stored zeros transparent, not to
+            # threshold. A bare fraction of the ceiling would start hiding real
+            # voxels once the map's dynamic range exceeds 1 / the fraction, so
+            # clamp it to the smallest nonzero magnitude.
+            epsilon = ceiling * _AUTOSCALE_FLOOR_FRAC
+            floor = (
+                min(epsilon, float(magnitudes.min())) if magnitudes.size else epsilon
+            )
+        floor, ceiling = float(floor), float(ceiling)
 
-    value_low = float(cal_min) if cal_min is not None else lo_bound
-    value_high = float(cal_max) if cal_max is not None else hi_bound
-    step = (hi_bound - lo_bound) / 200.0 or 0.01
-    return lo_bound, hi_bound, value_low, value_high, step
+    cal_min = floor
+    use_symmetric = symmetric is True or (
+        symmetric == "auto" and positive.size > 0 and negative_magnitudes.size > 0
+    )
+
+    if use_symmetric:
+        cal_max, cal_min_neg, cal_max_neg = ceiling, -ceiling, -cal_min
+    else:
+        explicit_ceiling = upper is not None
+
+        def _ceiling(sign_values, fallback):
+            if explicit_ceiling or sign_values.size == 0:
+                return float(fallback)
+            if autoscale:
+                return float(np.percentile(sign_values, _AUTOSCALE_CEILING_PCT))
+            return float(sign_values.max())
+
+        cal_max = _ceiling(positive, ceiling)
+        cal_min_neg = -_ceiling(negative_magnitudes, ceiling)
+        cal_max_neg = -cal_min
+
+    if finite.size == 0:
+        slider_min, slider_max = 0.0, 1.0
+    else:
+        slider_min, slider_max = float(finite.min()), float(finite.max())
+
+    # Widen the range to include the resolved window so its handles land
+    # exactly where asked rather than being clamped to the data extremes.
+    slider_min = min(slider_min, cal_min, cal_max)
+    slider_max = max(slider_max, cal_min, cal_max)
+    if slider_min == slider_max:
+        slider_max = slider_min + 1.0
+
+    return DisplayWindow(
+        cal_min=cal_min,
+        cal_max=cal_max,
+        cal_min_neg=cal_min_neg,
+        cal_max_neg=cal_max_neg,
+        mirror_negative=use_symmetric,
+        slider_min=slider_min,
+        slider_max=slider_max,
+        slider_value_low=cal_min,
+        slider_value_high=cal_max,
+        slider_step=(slider_max - slider_min) / 200.0 or 0.01,
+    )
 
 
 # --------------------------------------------------------------------------- #
@@ -428,7 +603,8 @@ class NiivueViewer(anywidget.AnyWidget):
     Holds the volume stack as byte traits (``bg_bytes`` / ``statmap_bytes`` /
     ``atlas_bytes``, any empty and skipped) plus display-parameter traits that
     ``viewer.js`` reads to configure niivue. Scalar traits (``cal_min`` /
-    ``cal_max`` / ``slice_type`` / ``colorbar`` / ``atlas_outline``) are
+    ``cal_max`` / negative endpoints / ``slice_type`` / ``colorbar`` /
+    ``atlas_outline``) are
     reactive: set them from Python and the frontend updates in place; the
     in-widget threshold slider writes ``cal_min`` / ``cal_max`` back.
 
@@ -451,6 +627,9 @@ class NiivueViewer(anywidget.AnyWidget):
     # Reactive stat-map window; None == niivue auto (percentile-derived).
     cal_min = traitlets.Float(None, allow_none=True).tag(sync=True)
     cal_max = traitlets.Float(None, allow_none=True).tag(sync=True)
+    cal_min_neg = traitlets.Float(None, allow_none=True).tag(sync=True)
+    cal_max_neg = traitlets.Float(None, allow_none=True).tag(sync=True)
+    mirror_negative = traitlets.Bool(True).tag(sync=True)
 
     slice_type = traitlets.Unicode("MULTIPLANAR").tag(sync=True)
     colorbar = traitlets.Bool(True).tag(sync=True)
@@ -459,7 +638,7 @@ class NiivueViewer(anywidget.AnyWidget):
     # Controls + layout.
     controls = traitlets.Bool(True).tag(sync=True)
     slider_bounds = traitlets.Dict().tag(sync=True)
-    height = traitlets.Int(400).tag(sync=True)
+    height = traitlets.Int(600).tag(sync=True)
 
     # Extra niivue ConfigOptions forwarded verbatim to ``new Niivue(opts)``.
     niivue_opts = traitlets.Dict().tag(sync=True)
@@ -468,10 +647,9 @@ class NiivueViewer(anywidget.AnyWidget):
 def build_viewer(
     bd,
     *,
+    window: DisplayWindow,
     view: str = "ortho",
-    cal_min: float | None = None,
-    cal_max: float | None = None,
-    cmap: str = "warm",
+    cmap: str | None = None,
     atlas: str | Atlas | None = None,
     bg_img: str | bool | None = None,
     opacity: float = 1.0,
@@ -484,14 +662,17 @@ def build_viewer(
 
     Builds the volume stack ``[background?, statmap, atlas?]`` (atlas on top
     so its outlines/opacity keep the stat map readable) as byte + parameter
-    traits, computes the threshold-slider bounds, and sets the slice type.
+    traits, and sets the slice type.
 
     Args:
-        bd: BrainData to view.
+        bd (BrainData): BrainData to view.
+        window: The resolved display window and slider bounds. Required, and
+            must be built from ``bd.data`` with `compute_display_window` — the
+            slider handles and the rendered window come from it together, so
+            they can never disagree.
         view: See `slice_type_for`.
-        cal_min: Window floor (threshold), or ``None`` for auto.
-        cal_max: Window ceiling, or ``None`` for auto.
-        cmap: Positive colormap (niivue or matplotlib name).
+        cmap: Positive colormap (niivue or matplotlib name). ``None`` uses the
+            sign-aware red-positive/blue-negative default.
         atlas: Atlas name, `Atlas`, or ``None``.
         bg_img: See `resolve_background`.
         opacity: Stat-map (and filled-atlas) opacity.
@@ -502,13 +683,15 @@ def build_viewer(
             suppressed by the frontend.
         controls: Render the in-widget threshold slider (default ``True``).
         niivue_opts: Extra kwargs forwarded verbatim to ``new Niivue(opts)``.
-            A ``height`` key sets the canvas height; an ``is_colorbar`` key
-            overrides ``colorbar``.
+            A ``height`` key overrides the 600px ortho and 400px single-view
+            defaults; an ``is_colorbar`` key overrides ``colorbar``.
 
     Returns:
-        A configured `NiivueViewer` ready to display.
+        NiivueViewer: A configured widget ready to display.
     """
-    cmap_resolved = resolve_cmap(cmap)
+    # niivue selects the positive/negative limb from the voxel sign, so this
+    # pair is already sign-aware without swapping colormap names per map.
+    cmap_resolved = "warm" if cmap is None else resolve_cmap(cmap)
     cmap_negative = divergent_partner(cmap_resolved)
     slice_name = slice_type_for(view)
     atlas_obj = _coerce_atlas(atlas)
@@ -518,14 +701,10 @@ def build_viewer(
     # raises before we serialize any image bytes.
     atlas_lut = atlas_to_label_lut(atlas_obj) if atlas_obj is not None else {}
 
-    lo, hi, vlo, vhi, step = threshold_slider_bounds(
-        bd, cal_min=cal_min, cal_max=cal_max
-    )
-
     # Pull height / is_colorbar out of the forwarded niivue opts: height is a
     # canvas-layout trait, and an explicit is_colorbar wins over colorbar=.
     opts = dict(niivue_opts or {})
-    height = int(opts.pop("height", 400))
+    height = int(opts.pop("height", 600 if view == "ortho" else 400))
     if "is_colorbar" in opts:
         colorbar = bool(opts.pop("is_colorbar"))
 
@@ -543,18 +722,21 @@ def build_viewer(
         },
         atlas_name=atlas_obj.name if atlas_obj is not None else "",
         atlas_lut=atlas_lut,
-        cal_min=cal_min,
-        cal_max=cal_max,
+        cal_min=window.cal_min,
+        cal_max=window.cal_max,
+        cal_min_neg=window.cal_min_neg,
+        cal_max_neg=window.cal_max_neg,
+        mirror_negative=window.mirror_negative,
         slice_type=slice_name,
         colorbar=bool(colorbar),
         atlas_outline=float(outline) if atlas_obj is not None else 0.0,
         controls=bool(controls),
         slider_bounds={
-            "min": lo,
-            "max": hi,
-            "value_low": vlo,
-            "value_high": vhi,
-            "step": step,
+            "min": window.slider_min,
+            "max": window.slider_max,
+            "value_low": window.slider_value_low,
+            "value_high": window.slider_value_high,
+            "step": window.slider_step,
         },
         height=height,
         niivue_opts=opts,

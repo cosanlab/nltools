@@ -164,19 +164,11 @@ class TestDesignMatrixPassthrough:
             ("sample", (), {"n": 3, "seed": 0}),
         ],
     )
-    def test_unwrapping_row_methods_return_polars(self, method, args, kwargs):
-        """head/tail/sample unwrap to polars — they're not on the allowlist.
-
-        Keeping these unwrapped is the v0.6 design: only methods that clearly
-        preserve DesignMatrix semantics (row-aligned subsetting by the user's
-        own slice/filter/select predicate) are re-wrapped. Inspection helpers
-        like head/tail/sample hand back the raw polars DataFrame so users can
-        chain directly into polars idioms.
-        """
+    def test_eager_row_methods_return_designmatrix(self, method, args, kwargs):
+        """Every eager frame result stays a DesignMatrix."""
         dm = self._dm()
         result = getattr(dm, method)(*args, **kwargs)
-        assert isinstance(result, pl.DataFrame)
-        assert not isinstance(result, DesignMatrix)
+        assert isinstance(result, DesignMatrix)
         assert list(result.columns) == ["a", "b", "poly_0"]
 
     def test_raw_passthrough_for_informational_attrs(self):
@@ -186,12 +178,11 @@ class TestDesignMatrixPassthrough:
         assert dm.schema == dm.data.schema
 
     def test_raw_passthrough_for_methods_outside_allowlist(self):
-        """Methods not in the allowlist return raw polars results."""
+        """Unknown eager operations return a DesignMatrix with cleared metadata."""
         dm = self._dm()
-        # describe() returns a pl.DataFrame but isn't in allowlist — stays raw
+        # Statistical summaries have different row meaning.
         result = dm.describe()
-        assert isinstance(result, pl.DataFrame)
-        assert not isinstance(result, DesignMatrix)
+        assert isinstance(result, DesignMatrix)
 
     def test_unknown_attribute_raises(self):
         """Unknown attrs raise AttributeError (not silently forwarded)."""

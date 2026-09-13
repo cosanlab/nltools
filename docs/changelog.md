@@ -79,43 +79,170 @@ All notable changes to nltools are documented here.
 - <span class="badge badge-feature">Feature</span> rewrite GLM tutorial and auto-detect duplicate intercept in add_poly
 - <span class="badge badge-feature">Feature</span> restore BrainData.ttest / add ttest2
 - ⚠ **Breaking** <span class="badge badge-feature">Feature</span> replace parallel kwarg with device on user-facing methods
+
+    - **Breaking:** BrainCollection.{permutation_test,permutation_test2,isc,isc_test,align} now take device='cpu'|'gpu' and n_jobs, instead of the old parallel='cpu'|'gpu'|None. Use n_jobs=1 for single-threaded execution. Returned dict key 'parallel' renamed to 'device'.
 - ⚠ **Breaking** <span class="badge badge-feature">Feature</span> standardize progress flag to progress_bar; default False
+
+    - **Breaking:** All show_progress kwargs across BrainData, BrainCollection, and their submodules renamed to progress_bar. Defaults flipped from True to False to match scikit-learn convention. verbose retained where it controls log-level output (sklearn warning suppression in standardize, info prints in DesignMatrix.clean/append).
 - ⚠ **Breaking** <span class="badge badge-feature">Feature</span> standardize algorithm-choice kwarg to method
+
+    - **Breaking:** rename algorithm/icc_type/extract_type/scheme/kind/noise_model/mode to `method` on user-facing BrainData, Adjacency, BrainCollection methods. Adjacency.similarity perm_type renamed to permutation_method to avoid collision with metric. Algorithm-layer APIs (CVScheme.scheme, Glm.noise_model, compute_icc_voxelwise.icc_type, LocalAlignment.scheme) retain their names; the class facades translate at the boundary. predict.estimator unchanged (would collide with existing method= on that signature).
 - ⚠ **Breaking** <span class="badge badge-feature">Feature</span> rename plot thr_upper/thr_lower to upper/lower
+
+    - **Breaking:** BrainData.plot now accepts upper/lower (matching the canonical threshold method signature used across BrainData/Adjacency/BrainCollection) instead of thr_upper/thr_lower. The convenience scalar `threshold` kwarg is unchanged.
 - ⚠ **Breaking** <span class="badge badge-feature">Feature</span> standardize permutation count kwarg to n_permute
+
+    - **Breaking:** Adjacency.generate_permutations now takes `n_permute` instead of `n_perm`, matching the convention already used in Adjacency.similarity, plot_silhouette, stats_label_distance, and BrainCollection.isc_test/permutation_test[2]. BrainCollection.align's `n_iter` stays (optimizer iterations, not permutations).
 - ⚠ **Breaking** <span class="badge badge-feature">Feature</span> flip similarity diagonal flag to include_diag
+
+    - **Breaking:** Adjacency.similarity now takes `include_diag=False` instead of `ignore_diagonal=False`. The polarity is flipped to match Adjacency.distance's kwarg, AND the default is changed: self-similarity on the diagonal is trivially 1.0 and uninformative, so directed matrices now exclude it by default. Symmetric matrices never store the diagonal, so this is a no-op for them.
 - ⚠ **Breaking** <span class="badge badge-feature">Feature</span> rename user-facing radius kwargs to radius_mm
+
+    - **Breaking:** All user-facing `radius` kwargs taking a sphere/searchlight radius in millimeters are renamed to `radius_mm` for unit clarity.
 - <span class="badge badge-feature">Feature</span> restore legacy h5 read support for nltools <= 0.5.1 files
 - <span class="badge badge-feature">Feature</span> add load_haxby_example offline demo dataset
 - <span class="badge badge-feature">Feature</span> append(axis=1) accepts pandas/polars DataFrames
 - <span class="badge badge-feature">Feature</span> construct from a numpy array + explicit mask
 - ⚠ **Breaking** <span class="badge badge-feature">Feature</span> ttest returns {mean, t, z, p} uniformly
+
+    - **Breaking:** the returned dict keys have changed. Parametric callers that read result["t"]/result["p"] continue to work unchanged. Permutation callers previously got {"mean", "p"} — "p" still works, and "mean" still works; no keys were removed.
 - <span class="badge badge-feature">Feature</span> compute_contrasts(contrast_type="all") + glm_ docs
 - ⚠ **Breaking** <span class="badge badge-feature">Feature</span> load from BIDS file paths + rename polys→confounds
+
+    - **Breaking:** - `nltools.io.onsets_to_dm` and `nltools.io.file_reader` are removed.   Use `DesignMatrix(path, run_length=N, TR=t)` (or `events_to_dm`   for in-memory frames) + explicit `.convolve()`. - `DesignMatrix.polys` → `DesignMatrix.confounds` (attribute + init   kwarg). `DesignMatrix.vif(exclude_polys=)` → `exclude_confounds=`.   `DesignMatrix.clean(exclude_polys=)` → `exclude_confounds=`. - `DesignMatrix.write()` to HDF5 stores `confounds` metadata attr   (was `polys`). No DM HDF5 reader exists, so no legacy files to   migrate.
 - ⚠ **Breaking** <span class="badge badge-feature">Feature</span> lazy-fetch niftis from HF dataset
+
+    - **Breaking:** huggingface-hub is a new runtime dep. First template access requires network. Wheel no longer ships niftis. Missing-file exception changed from FileNotFoundError to huggingface_hub.errors.EntryNotFoundError (LocalEntryNotFoundError when offline-and-uncached). Pyodide async path is a NotImplementedError stub for now.
 - ⚠ **Breaking** <span class="badge badge-feature">Feature</span> default model='glm' in fit(); tighten validation
+
+    - **Breaking:** Error type for unknown model changed from ValueError to TypeError. Calls passing model=None previously raised TypeError("model must be provided"); now they succeed using glm.
 - ⚠ **Breaking** <span class="badge badge-feature">Feature</span> add design_clean kwargs to fit() for GLM validation
+
+    - **Breaking:** GLM designs containing regressors with abs(r) >= 0.95 are now auto-cleaned by default. Pass design_clean=False to preserve the previous behavior of keeping all regressors regardless of collinearity.
 - <span class="badge badge-feature">Feature</span> pyodide async seed + sync fetch
 - ⚠ **Breaking** <span class="badge badge-feature">Feature</span> add `limit` kwarg + change slices default view to "z"
+
+    - **Breaking:** `BrainData.plot()` returns `list[Figure]` for multi-image glass/slices plots instead of a single Figure. The default slices `view` changed from `"xyz"` to `"z"`; pass `view="xyz"` to restore the prior three-figure layout.
 - <span class="badge badge-feature">Feature</span> IDBFS-backed persistent cache for pyodide
 - ⚠ **Breaking** <span class="badge badge-feature">Feature</span> gate MNI-only plot paths on standard-space data
+
+    - **Breaking:** bd.plot(method='glass') and bd.plot_flatmap()/plot_surf() now raise ValueError on non-standard-space data instead of silently rendering against MNI scaffolding. bd.plot(method='slices') without bg_img also raises (previously warned + fell back to the MNI 2mm template). Pass bg_img=<your subject anatomical> for native-space data, or call bd.resample() to bring data into standard space first. The one
 - ⚠ **Breaking** <span class="badge badge-feature">Feature</span> per-voxel α + held-out predictions through BrainData CV path
+
+    - **Breaking:** - cv_results_["best_alpha"] is now a (n_voxels,) array (was scalar)   when local_alpha=True. Pass local_alpha=False for the legacy   scalar-α-shared-across-voxels behavior. - BrainData.fit's signature is now keyword-only after `model` (the *   marker after the primary positional arg).
 - ⚠ **Breaking** <span class="badge badge-feature">Feature</span> copy-constructor + read-only convolved/confounds
+
+    - **Breaking:** ``dm.convolved = […]`` and ``dm.confounds = […]`` now raise ``AttributeError``. Pass via the ``convolved=`` / ``confounds=`` constructor kwargs, or use ``.append(other, axis=1)`` (raw DataFrames are auto-marked as confounds; ``as_confounds=True`` promotes a DesignMatrix's columns).
 - ⚠ **Breaking** <span class="badge badge-feature">Feature</span> HRF-convolve events files by default
+
+    - **Breaking:** DesignMatrix(events_path, run_length=N, TR=t) previously returned boxcar regressors; now returns HRF-convolved by default. Callers that relied on the boxcar output (e.g., to build interaction terms before convolution) need to add hrf_model=None.
 - <span class="badge badge-feature">Feature</span> with_columns + pl.Expr in __setitem__
 - ⚠ **Breaking** <span class="badge badge-feature">Feature</span> find_spikes returns DesignMatrix
+
+    - **Breaking:** Code that did `find_spikes(data).iloc[:, 1:]` or `spikes.drop('TR', axis=1)` will break — drop the index manipulation and use the returned DesignMatrix directly via .append(spikes, axis=1).
 - <span class="badge badge-feature">Feature</span> list_resources() for HF dataset discoverability
 - ⚠ **Breaking** <span class="badge badge-feature">Feature</span> rebuild iplot() as anywidget viewer with 4D step-through
+
+    - **Breaking:** `iplot(surface=True, anatomical=...)` → `iplot(view='surface', bg_img=...)`. The `view=` kwarg is canonical with `view='ortho'` (default). `bg_img=` matches nilearn naming. The `nltools[interactive_plots]` extra is gone — `anywidget` is now a hard dep.
 - ⚠ **Breaking** <span class="badge badge-feature">Feature</span> iplot threshold panel + drag-end render fix
+
+    - **Breaking:** BrainViewerWidget.threshold / threshold_min / threshold_max / threshold_step traitlets are gone — replaced by lower / upper / vmax_abs / data_min / data_max / pct_table_*. Direct widget users need to update; iplot() callers passing threshold= are unaffected.
 - ⚠ **Breaking** <span class="badge badge-feature">Feature</span> rewrite BrainData.predict() with kwargs API + Predict dataclass
+
+    - **Breaking:** - BrainData.predict(y=) returns Predict dataclass instead of BrainData;   result['weight_map'] → result.weight_map. - estimator= renamed to model= (mirrors bd.fit(model=)). - 'ridge' shortcut now means Ridge regressor; for RidgeClassifier use   'ridge_classifier'. - scoring='auto' default replaces hardcoded 'accuracy'. - BrainData.cv() and the .cv().normalize().reduce().pipe().predict()   fluent chain removed; pass cv=, standardize=, reduce='pca', and/or   model=Pipeline(...) on bd.predict() instead. - n_jobs default 1 (was -1) for searchlight/roi.
 - ⚠ **Breaking** <span class="badge badge-feature">Feature</span> brain-space Predict fields + ROI per-fold scores + decoding tutorial
+
+    - **Breaking:** - Predict.weight_map / fold_weight_maps / final_weight_map / accuracy_map   are BrainData, not ndarray. Numpy via .data. - bd.predict(..., inplace=True) attaches with predict_ prefix   (bd.predict_weight_map, etc.), not flat names. - ROI dispatch repurposes scores/mean_score/std_score with array shapes   (n_folds,n_rois)/(n_rois,) instead of leaving them None. - model=Pipeline(...) auto-flips standardize to False (with warning);   pass standardize=True explicitly to keep the old wrapping behavior.
 - ⚠ **Breaking** <span class="badge badge-feature">Feature</span> ROI dispatch produces voxel-space weight maps
 - ⚠ **Breaking** <span class="badge badge-feature">Feature</span> spatial_scale axis for ROI/searchlight RSA + predict rename
+
+    - **Breaking:** predict() no longer accepts method= for spatial scope; use spatial_scale=. method= is reserved for algorithm choice.
 - <span class="badge badge-feature">Feature</span> implement distance(searchlight) and align(roi)
 - <span class="badge badge-feature">Feature</span> cluster reports with anatomical labeling
 - ⚠ **Breaking** <span class="badge badge-feature">Feature</span> rebuild BrainData.iplot() on ipyniivue (niivue)
 
+    - **Breaking:** BrainData.iplot() signature changed. Removed: mode=, units=, cut_coords=, symmetric_cmap=, and view="surface" (raises, pointing to view="render" / plot_flatmap / plot_surf). cmap default RdBu_r -> warm (matplotlib names auto-mapped with a warning). lower/upper reinterpreted as window endpoints. New: atlas=, opacity=, outline=. **kwargs now forward to ipyniivue.NiiVue(). Returns ipyniivue.NiiVue, not BrainViewerWidget.
+- <span class="badge badge-feature">Feature</span> add marimo->ipynb converter for JupyterLite tutorials
+- <span class="badge badge-feature">Feature</span> add poe docs-jupyterlite task to build the tutorial JupyterLite bundle
+- <span class="badge badge-feature">Feature</span> make GLM + MVPA tutorials run in JupyterLite on trimmed HF data
+- <span class="badge badge-feature">Feature</span> add "Try it live" JupyterLite nav link + deploy-ready build
+- ⚠ **Breaking** <span class="badge badge-feature">Feature</span> iplot() colorbar + interactive threshold slider
+
+    - **Breaking:** iplot() now returns an ipywidgets.VBox by default (with .viewer and .threshold_slider) instead of an ipyniivue.NiiVue. Access the widget via .viewer, or pass controls=False for the bare NiiVue.
+- ⚠ **Breaking** <span class="badge badge-feature">Feature</span> host pain dataset on HF so fetch_pain() works in Pyodide
+
+    - **Breaking:** fetch_pain() signature changed from (data_dir=None, verbose=1) to (verbose=0). The data_dir arg is removed — cache location is now governed by huggingface_hub (HF_HOME). fetch_pain().X columns changed from the raw Neurovault metadata to the curated schema above.
+- ⚠ **Breaking** <span class="badge badge-feature">Feature</span> host emotion-rating dataset on HF for fetch_emotion_ratings()
+
+    - **Breaking:** fetch_emotion_ratings() signature changed from (data_dir=None, verbose=1) to (verbose=0); data_dir removed (HF cache governs location). X columns are the curated Neurovault table keyed by a new `filename` column.
+- <span class="badge badge-feature">Feature</span> serve tutorials as interactive marimo/WASM notebooks
+- <span class="badge badge-feature">Feature</span> land core helpers, __init__, indexing, parallel _apply
+- <span class="badge badge-feature">Feature</span> implement load/unload/write/read/cleanup + memory_estimate
+- <span class="badge badge-feature">Feature</span> GLM fit + HDF5 bundles + compute_contrasts
+- <span class="badge badge-feature">Feature</span> reductions, perm tests, ISC, align, from_bids/from_glob, predict dispatch
+- <span class="badge badge-feature">Feature</span> ridge fit bundles + bc.predict(X_new=) per-subject path
+- <span class="badge badge-feature">Feature</span> stage encoding + ISC datasets for nltools/niftis
+- <span class="badge badge-feature">Feature</span> wire max_gpu_memory_gb into ridge_svd GPU batching (F022)
+- ⚠ **Breaking** <span class="badge badge-feature">Feature</span> user-controlled scale/standardize preprocessing
+
+    - **Breaking:** BrainData.fit / BrainCollection.fit drop `scale_value`; `scale` default changes from True (grand-mean) to 'auto' (off). GLM no longer mean-scales by default (betas now in native units unless scale=True; t/z/p unaffected). Ridge now z-scores its targets by default. Bundle schema 1->2 (old fit caches invalid).
+- <span class="badge badge-feature">Feature</span> GLM predict(X)/coef_ parity + nilearn report (F182)
+- ⚠ **Breaking** <span class="badge badge-feature">Feature</span> append(axis=1) refuses bitwise-duplicate columns
+
+    - **Breaking:** DesignMatrix.append(axis=1) raises ValueError when an appended column's values are bitwise identical to another column's, where it previously appended silently. Drop or modify one of the columns first.
+- <span class="badge badge-feature">Feature</span> make the rank-deficiency warning diagnostic and actionable
+- ⚠ **Breaking** <span class="badge badge-feature">Feature</span> machine-enforce the canonical kwarg vocabulary from api-vocabulary.yml
+
+    - **Breaking:** BrainData.fit defaults progress_bar=False and no longer inherits bd.verbose when unset (verbose is reserved for log-level only). SphereNeighborhoods.iter_neighborhoods takes progress_bar keyword-only. Deliberate deviations are now recorded as manifest exemptions with reasons (BrainData.predict n_jobs=1 memory guard; align n_iter solver iterations).
+- ⚠ **Breaking** <span class="badge badge-feature">Feature</span> one canonical tail= vocabulary across every p-value (#474)
+
+    - **Breaking:** the v0.5 -1/'upper'/'lower' public forms now raise ValueError (negate the data / swap groups / flip the contrast for the negative direction; _compute_pvalue keeps them internally for forced-tail sites). BrainData.ttest and Adjacency.ttest previously ignored tail= on the parametric path (always two-sided); tail now maps onto scipy's alternative=, and the z map matches the requested tail.
+- ⚠ **Breaking** <span class="badge badge-feature">Feature</span> reserve the .nl_ namespace for generated columns
+
+    - **Breaking:** all generated DesignMatrix / find_spikes column names gained the `.nl_` prefix, and run-separated columns changed shape from `{run}_{col}` to `.nl_r{run}_{col}`. Code selecting generated columns by name must be updated; see the (reserved-column-prefix) section of the migration guide.
+- ⚠ **Breaking** <span class="badge badge-feature">Feature</span> one core GPU execution layer — measured budgets, OOM recovery, run-or-raise
+
+    - **Breaking:** SRM/DetSRM.fit() no longer accepts max_gpu_memory_gb and parallel='gpu' raises; LocalAlignment rejects unknown parallel= values and gpu-without-torch; max_gpu_memory_gb defaults changed from 4.0 to None (measured) across inference/ridge/braindata entry points; seeded null distributions from BrainCollection.permutation_test/ permutation_test2 change (engine RNG replaces the hand-rolled loop).
+- ⚠ **Breaking** <span class="badge badge-feature">Feature</span> carve out predict_group(); remove the legacy cv() pipeline
+
+    - **Breaking:** BrainCollection.predict(y=...) raises (use predict_group); BrainCollection.cv() and BrainCollectionPipeline are removed. Migration guide: (predict-group).
+- ⚠ **Breaking** <span class="badge badge-feature">Feature</span> iplot robust autoscaling + shared zero-aware percentile thresholds
+
+    - **Breaking:** threshold(upper="98%") results change on any map containing zeros (percentile now over nonzero voxels); iplot's default window is autoscaled rather than min/max. Migration guide: (iplot-autoscale).
+- ⚠ **Breaking** <span class="badge badge-feature">Feature</span> sklearn-style cv names — 'logo'/'loo' replace 'loso'/'loro'
+
+    - **Breaking:** cv='loso'/'loro' removed; use cv='logo' with groups=. predict_group(cv=<int>) with a classifier now stratifies folds.
+- ⚠ **Breaking** <span class="badge badge-feature">Feature</span> predict() decodes against the stored .Y slot — labels travel with the data
+
+    - **Breaking:** predict(cv=<int>, groups=...) now group-aware; previously groups was ignored for int cv specs.
+- <span class="badge badge-feature">Feature</span> PredictCollection — per-subject decoding results container
+- ⚠ **Breaking** <span class="badge badge-feature">Feature</span> predict(y=) maps per-subject decoding — closes the #478 map-reduce gap
+
+    - **Breaking:** predict(y=...) previously raised (and before that, aggregated across subjects — that operation is predict_group since the phase-1 carve-out). predict() with no arguments now decodes stored .Y instead of raising for a missing X_new.
+- ⚠ **Breaking** <span class="badge badge-feature">Feature</span> predict_group permutation null for roi and searchlight
+
+    - **Breaking:** Predict.permutation_pvalue is no longer always float | None — a per-ROI ndarray for spatial_scale='roi' and a BrainData map for 'searchlight' (both previously crashed, so no working code changes meaning). Whole-brain results are numerically unchanged for a given random_state.
+- <span class="badge badge-feature">Feature</span> warn on near-collinear full-rank designs
+
 ### Improvements
+- <span class="badge badge-improvement">Improvement</span> `concatenate` is a top-level name
+    - `from nltools import concatenate` replaces `from nltools.utils import concatenate`. The function is unchanged; it stacks a list of `BrainData` or `Adjacency` objects.
+- <span class="badge badge-improvement">Improvement</span> `get_resource_path` moved to `nltools.datasets`
+    - `from nltools.datasets import get_resource_path` replaces `from nltools.utils import get_resource_path`. It still returns the path to the bundled `nltools/resources/` directory.
+- <span class="badge badge-improvement">Improvement</span> drop `nltools.utils.all_same`
+    - A one-line `np.array_equal` fold with no caller left in the library. Use `all(np.array_equal(x, items[0]) for x in items)`.
+- <span class="badge badge-improvement">Improvement</span> each helper now lives with the domain it serves
+    - `nltools.utils` is down to warning attribution, the two warning categories, optional imports and progress bars. The searchlight neighborhoods moved to `nltools.algorithms.neighborhoods`, the reserved-column-name helpers into the `DesignMatrix` package, and the shared copy, frame-validation and concatenation helpers to `nltools/data/`. Every user-facing import path is unchanged apart from the two named above.
+- <span class="badge badge-improvement">Improvement</span> the surface plotters render one fixed look
+    - `plot_surf` and `plot_flatmap` (and their `BrainData` methods) no longer take `radius`, `interpolation`, `axes`, `zoom`, `bg_on_data`, `with_curvature`, `curvature_contrast`, `curvature_brightness` or `colorbar_orientation`. Every default is now the behaviour: a 3 mm linear `vol_to_surf` ball, a curvature underlay, and one horizontal colorbar on a figure the plotter owns. The keywords people actually tune (`hemi`, `view`, `surface`, `template`, `threshold`, `cmap`, `vmin`, `vmax`, `transparency`, `colorbar`, `figsize`, `title`, `save`) are unchanged.
+- <span class="badge badge-improvement">Improvement</span> `plot_flatmap` no longer raises on a percentile that matches no vertices
+    - A `threshold='95%'` with nothing above it raised `TypeError`; it now renders unthresholded, matching `plot_surf`. Both plotters also reject empty and native-space data through the same check, so `BrainData.plot_flatmap` and `BrainData.plot_surf` fail identically.
+- ⚠ **Breaking** <span class="badge badge-improvement">Improvement</span> drop the HRF wrappers from `nltools.algorithms`
+    - `glover_hrf`, `spm_hrf`, and the time and dispersion derivatives only forwarded to nilearn. Import them from `nilearn.glm.first_level` instead. `DesignMatrix(..., TR=t)` and `.convolve()` still apply the canonical Glover HRF with no import on the caller's part.
+- ⚠ **Breaking** <span class="badge badge-improvement">Improvement</span> drop the single-valued `method=` keyword from the OLS entry points
+    - `regress`, `compute_multivariate_similarity`, and `BrainData.multivariate_similarity` accepted only `method='ols'`. Passing the keyword now raises `TypeError`. `Adjacency.regress(method=)` is unaffected.
+- <span class="badge badge-improvement">Improvement</span> unfitted `Ridge` and `Glm` raise sklearn's `NotFittedError`
+    - It subclasses `ValueError`, so existing `except ValueError` handlers still catch it.
 - <span class="badge badge-improvement">Improvement</span> refactor and improve brain data dunder math. improve first tutorial
 - <span class="badge badge-improvement">Improvement</span> refactor onsets_to_dm to wrap new nilearn functionality instead
 - <span class="badge badge-improvement">Improvement</span> Convert .shape(), .isempty(), .dtype() to properties + quick fixes
@@ -197,8 +324,14 @@ All notable changes to nltools are documented here.
 - <span class="badge badge-improvement">Improvement</span> drop glover_hrf lambda wrapper in onsets_to_dm
 - ⚠ **Breaking** <span class="badge badge-improvement">Improvement</span> canonical trailing-kwarg order across facades
 - ⚠ **Breaking** <span class="badge badge-improvement">Improvement</span> replace **kwargs passthroughs with explicit signatures (1/2)
+
+    - **Breaking:** Remove **kwargs catch-all from user-facing methods that delegate internally; expose previously hidden kwargs explicitly.
 - ⚠ **Breaking** <span class="badge badge-improvement">Improvement</span> replace **kwargs passthroughs with explicit signatures (2/2)
+
+    - **Breaking:** Expose previously hidden permutation and bootstrap kwargs explicitly instead of forwarding via **kwargs.
 - ⚠ **Breaking** <span class="badge badge-improvement">Improvement</span> keyword-only marker for __init__ and complex methods
+
+    - **Breaking:** Enforce keyword-only args after the primary data arg for all four data-class __init__ methods, plus selected public methods with many optional kwargs. Callers passing these positionally must update.
 - <span class="badge badge-improvement">Improvement</span> route progress_bar to nilearn verbose
 - <span class="badge badge-improvement">Improvement</span> simplify extract_roi PCA, stop mutating caller headers
 - <span class="badge badge-improvement">Improvement</span> broaden check_brain_data to accept Niimg-like inputs
@@ -206,7 +339,11 @@ All notable changes to nltools are documented here.
 - <span class="badge badge-improvement">Improvement</span> expand ruff with UP/C4/PIE/RUF022/RET/SIM families
 - <span class="badge badge-improvement">Improvement</span> improve first tutorial and make plotting fixes
 - ⚠ **Breaking** <span class="badge badge-improvement">Improvement</span> polars passthrough, unify data attr, drop details()
+
+    - **Breaking:** DesignMatrix._df is now .data. DesignMatrix.details() is removed — use print(dm) or repr(dm) instead.
 - ⚠ **Breaking** <span class="badge badge-improvement">Improvement</span> drop fetch_haxby; migrate GLM tutorial to localizer
+
+    - **Breaking:** nltools.datasets.fetch_haxby removed. Use nilearn directly (fetch_localizer_first_level, fetch_spm_auditory, etc.) and convert events.tsv to a DesignMatrix with nltools.io.onsets_to_dm.
 - <span class="badge badge-improvement">Improvement</span> rename fetch_nifti → fetch_resource
 - <span class="badge badge-improvement">Improvement</span> extract indexing helpers to indexing.py
 - <span class="badge badge-improvement">Improvement</span> extract aggregation helpers to aggregation.py
@@ -215,11 +352,121 @@ All notable changes to nltools are documented here.
 - <span class="badge badge-improvement">Improvement</span> consolidate stateless helpers in core.py
 - <span class="badge badge-improvement">Improvement</span> drop unused TypeVar import
 - ⚠ **Breaking** <span class="badge badge-improvement">Improvement</span> scaffold v0.6.0 BrainCollection redesign
+
+    - **Breaking:** BrainCollection is being rewritten from scratch. Removes FittedBrainCollection, BrainCollectionCVResult (CV results are now plain BrainData), fit_glm/fit_from_events/fit_ridge (one .fit() instead), to_stacked/from_stacked/to_list/to_tensor, axis= on reductions, output=/save= on fit, checkpoint(), and the per-axis _map_axis0/1/2 / _aggregate_axis0/1/2 handlers. Shape semantics drop the 3D framing; mean()/std()/etc. collapse subjects only. Old test files for the removed APIs are deleted.
 - ⚠ **Breaking** <span class="badge badge-improvement">Improvement</span> tighten decompose signature
+
+    - **Breaking:** BrainData.decompose and analysis.decompose are now keyword-only after the data arg. Positional calls beyond `self`/`bd` (which were silently swallowed by the old `*args`) now raise TypeError.
 - ⚠ **Breaking** <span class="badge badge-improvement">Improvement</span> drop final_weight_map, weight_map = all-data refit
+
+    - **Breaking:** - Predict.final_weight_map field removed (folded into weight_map). - Predict.final_estimator renamed to Predict.estimator. - bd.predict(refit=...) kwarg removed; the all-data fit is always-on. - bd.predict(inplace=True) now attaches bd.predict_estimator (was   bd.predict_final_estimator) and no longer attaches predict_final_*.
 - ⚠ **Breaking** <span class="badge badge-improvement">Improvement</span> generalize .plot() into method= dispatcher; add .corr()
 
+    - **Breaking:** DesignMatrix.plot()'s first positional arg is now `method` (was `figsize`). Pass figsize=... as a keyword. dm.plot() with no args is unchanged.
+- ⚠ **Breaking** <span class="badge badge-improvement">Improvement</span> rename BrainCollectionPipeline.normalize → standardize
+
+    - **Breaking:** ``BrainCollection.cv(...).normalize(...)`` is now ``standardize(...)``.
+- ⚠ **Breaking** <span class="badge badge-improvement">Improvement</span> BrainCollectionPipeline.predict returns BrainData
+
+    - **Breaking:** ``BrainCollectionPipeline.predict`` no longer returns ``BrainCollectionCVResult``; that class is removed. Downstream code reading ``.mean_score`` / ``.scores`` continues to work since the attributes live on the BrainData now (note: ``.scores`` is renamed to ``.cv_scores`` to mirror the BrainData CV path).
+- ⚠ **Breaking** <span class="badge badge-improvement">Improvement</span> align bc.predict with new BD.predict + GLM tutorial
+
+    - **Breaking:** BrainCollection.predict kwargs estimator=/return_weights= removed; use model= to match BrainData.predict.
+- <span class="badge badge-improvement">Improvement</span> memoize fetch_resource, skip network revalidation
+- <span class="badge badge-improvement">Improvement</span> add coalesced_gc() and wrap masking-heavy operations
+- <span class="badge badge-improvement">Improvement</span> validate GLM-fit result mask once per map-list
+- ⚠ **Breaking** <span class="badge badge-improvement">Improvement</span> remove superseded standalone Pipeline/MultiSubject orchestration
+
+    - **Breaking:** nltools.pipelines.Pipeline, MultiSubjectPipeline, NestedCVScheme, the *Terminal and *Result classes, and PooledData.cv() are removed. Multi-subject CV now lives on BrainCollection (bc.cv().standardize().reduce().predict()); custom single-dataset preprocessing uses model=make_pipeline(...) on BrainData.predict().
+- <span class="badge badge-improvement">Improvement</span> extract API-doc postprocess into its own module
+- ⚠ **Breaking** <span class="badge badge-improvement">Improvement</span> remove dead standalone pipeline surface
+
+    - **Breaking:** nltools.pipelines no longer exports AlignStep, FittedAlign, or Terminal.
+- ⚠ **Breaking** <span class="badge badge-improvement">Improvement</span> strip ICC functionality entirely (F012/F048/F140/F177/F194)
+
+    - **Breaking:** BrainData.icc(), nltools.stats.compute_icc, and nltools.algorithms.inference.compute_icc_voxelwise are removed. Compute ICC externally (e.g. pingouin.intraclass_corr) on extracted values. See the migration guide.
+- ⚠ **Breaking** <span class="badge badge-improvement">Improvement</span> canonical-kwarg sweep — banned-kwarg renames + **kwargs hygiene
+
+    - **Breaking:** renamed public kwargs — permutation tests parallel=->device=, BrainCollection.align scheme=->spatial_scale=, regress mode=->method=, BrainCollectionPipeline.predict algorithm=->method=, compute_contrasts contrast_type=->method=. DesignMatrix.up/downsample and Roc.plot no longer accept **kwargs.
+- ⚠ **Breaking** <span class="badge badge-improvement">Improvement</span> add keyword-only `*` marker to 61 public functions (F-kwonly)
+
+    - **Breaking:** kwargs on the following are now keyword-only (positional calls TypeError). Callers overwhelmingly already used keywords; positional callers and facade→backing delegations were converted.
+- ⚠ **Breaking** <span class="badge badge-improvement">Improvement</span> rename compute_contrasts statistic selector method→statistic
+
+    - **Breaking:** compute_contrasts(..., method='t'|'beta'|'all') → statistic=.
+- ⚠ **Breaking** <span class="badge badge-improvement">Improvement</span> canonicalize remaining kwarg names across facades
+
+    - **Breaking:** many public kwargs renamed to the v0.6.0 canonical vocabulary (see list above). Notably: DesignMatrix.clean now defaults to silent (progress_bar=False, was verbose=True); BrainData.standardize uses suppress_warnings=False (was verbose=True); BrainCollection.isc_test uses n_samples=; BrainCollection.align uses roi_mask=; Roc uses method=; Adjacency.cluster_summary/similarity/plot_mds and stats.isc/compute_similarity kwargs renamed.
+- ⚠ **Breaking** <span class="badge badge-improvement">Improvement</span> close AUDIT-0.6.0 dead-code bucket (23 findings)
+
+    - **Breaking:** BrainData.regress(), BrainData.predict_multi(), StatResult.to_nifti(), and FittedBrainCollection are removed. Use fit(model='glm', X=...) for regression and predict(y=...) for whole-brain MVPA (see migration guide).
+- ⚠ **Breaking** <span class="badge badge-improvement">Improvement</span> remove orphaned pool.py two-stage aggregation (F118/F111)
+
+    - **Breaking:** nltools.pipelines no longer exports PooledData, StatResult, or ResultDict; the two-stage bc.fit(...).pool() GLM aggregation workflow is removed.
+- <span class="badge badge-improvement">Improvement</span> functional GLM map extraction, no per-contrast round-trips
+- <span class="badge badge-improvement">Improvement</span> functional compute_contrasts, no Nifti round-trip
+- <span class="badge badge-improvement">Improvement</span> annotate models layer + fix Any/hint gaps (F107/F009/F017/F046/F085)
+- <span class="badge badge-improvement">Improvement</span> single-source helpers + frozen dataclass cleanups (F006/F061/F154/F183/F192)
+- ⚠ **Breaking** <span class="badge badge-improvement">Improvement</span> co-locate pipeline primitives under data/collection/pipesteps
+
+    - **Breaking:** nltools.pipelines is removed; import the primitives from nltools.data.collection.pipesteps (or its .base/.cv/.steps submodules) instead.
+- ⚠ **Breaking** <span class="badge badge-improvement">Improvement</span> canonicalize spatial_scale vocab in LocalAlignment
+
+    - **Breaking:** LocalAlignment now takes spatial_scale=('searchlight'|'roi') and roi_mask= instead of scheme=('searchlight'|'piecewise') and parcellation=. No compat aliases. BrainCollection.align(spatial_scale='whole_brain') now raises NotImplementedError instead of leaking a LocalAlignment ValueError.
+- <span class="badge badge-improvement">Improvement</span> remove 7 dead validation/utility functions
+- <span class="badge badge-improvement">Improvement</span> rewrite as a speed+memory harness over the current API
+- ⚠ **Breaking** <span class="badge badge-improvement">Improvement</span> canonicalize device selection to device= across facades
+
+    - **Breaking:** Ridge(backend=) -> Ridge(device=); BrainData.fit(model='ridge') backend=/parallel= in **kwargs now raise TypeError (use device=); BrainData.bootstrap(backend=) -> device=; nltools.stats.phase_randomize(backend=) -> device=.
+- <span class="badge badge-improvement">Improvement</span> run pairwise ISC bootstrap on the GPU
+- ⚠ **Breaking** <span class="badge badge-improvement">Improvement</span> rebuild BrainData.iplot() on a self-owned niivue anywidget
+
+    - **Breaking:** BrainData.iplot() now returns a NiivueViewer (anywidget.AnyWidget) instead of an ipyniivue.NiiVue / ipywidgets.VBox. The `.viewer` and `.threshold_slider` attributes are gone; the threshold window is reactive via the `cal_min`/`cal_max` traits. `ipyniivue` is no longer a dependency.
+- <span class="badge badge-improvement">Improvement</span> make find_spikes deduplication unconditional; drop clean=
+- ⚠ **Breaking** <span class="badge badge-improvement">Improvement</span> stop cleaning the design in fit(); warn on rank deficiency
+
+    - **Breaking:** `BrainData.fit()` no longer accepts `design_clean`, `design_clean_thresh`, `design_clean_exclude_confounds`, or `design_clean_fill_na`, and no longer runs `DesignMatrix.clean()` implicitly. It estimates exactly the design it is given. Callers who want columns dropped call `DesignMatrix.clean()` explicitly. `fit()` now emits a UserWarning when the design matrix is rank deficient.
+- <span class="badge badge-improvement">Improvement</span> make maybe_tqdm/make_progress_bar the single library-wide progress mechanism
+- ⚠ **Breaking** <span class="badge badge-improvement">Improvement</span> enforce the keyword-only marker convention uniformly across the package
+
+    - **Breaking:** options on the newly-marked public functions must now be passed by keyword (e.g. KFoldStratified(5, True) -> KFoldStratified(5, shuffle=True)).
+- ⚠ **Breaking** <span class="badge badge-improvement">Improvement</span> remove nltools.stats; consolidate the functional core into nltools.algorithms
+
+    - **Breaking:** nltools.stats is removed. Implementations moved: corrections.py, outliers.py, regression.py as-is; timeseries.py -> algorithms/signal.py and correlation.py -> algorithms/similarity.py (avoids name echoes with the inference engine's modules); intersubject.py -> algorithms/inference/; alignment.py -> algorithms/alignment/procrustes.py. stats/permutation.py is deleted outright — the nltools.algorithms permutation exports ARE the algorithms.inference engine functions (identity, no wrapper layer), so facade/engine drift is structurally impossible.
+    - **Breaking:** the inference engine speaks the canonical device= vocabulary directly. parallel= -> device= on every algorithms.inference entry point (values unchanged: 'cpu' | 'gpu' | None), validate_parallel_parameter -> validate_device_parameter, and result dicts report a 'device' key instead of 'parallel'. phase_randomize(backend='numpy'|'torch') is now keyword-only device='cpu'|'gpu'|'auto' with warn-and-fallback on unknown values. The ridge and alignment layers keep parallel= internally (documented Backend abstraction); facades still translate at those boundaries.
+- ⚠ **Breaking** <span class="badge badge-improvement">Improvement</span> canonicalize the ISC vocabulary (summary=/metric=/null_dist)
+
+    - **Breaking:** isc_permutation_test / isc_group_permutation_test rename metric= (the 'median'|'mean' central-tendency choice) to summary=, and sim_metric= (the similarity metric) to metric= — `metric` now means the same thing here as everywhere else in the API. isc_group() and BrainCollection.isc/.isc_test likewise take summary= instead of metric= (isc() already used summary=).
+    - **Breaking:** every ISC result — engines, the isc/isc_group wrappers, and BrainCollection — exposes the null under the engine-standard 'null_dist' key; the legacy 'null_distribution' key is removed.
+- ⚠ **Breaking** <span class="badge badge-improvement">Improvement</span> canonicalize cluster_summary and extract_roi kwargs
+
+    - **Breaking:** Adjacency.cluster_summary renames method= -> summary= ('mean'|'median'|None central tendency) and its old summary= (within/between scope) -> scope=. BrainData.extract_roi renames metric= -> method= ('mean'|'median'|'pca' selects an extraction variant; metric stays reserved for similarity metrics). Closes the last two mean/median-vocabulary violations flagged in the #474 consolidation follow-up.
+- ⚠ **Breaking** <span class="badge badge-improvement">Improvement</span> GPU execution means ridge only — delete the GPU permutation and ISC paths
+
+    - **Breaking:** `device=` and `max_gpu_memory_gb=` are gone from the seven inference engines (`one_sample_permutation_test`, `two_sample_permutation_test`, `correlation_permutation_test`, `timeseries_correlation_permutation_test`, `matrix_permutation_test`, `isc_permutation_test`, `isc_group_permutation_test`), `phase_randomize` is now `phase_randomize(data, *, random_state=None)`, and every permutation and ISC result dict drops its `'device'` key. Each engine has one execution path — joblib workers sized by `n_jobs` — and a seeded run is bit-identical at every worker count, so nothing numerical changes. All 0.6.0-dev-only names no v0.5.1 user can see.
+    - **Breaking:** `Adjacency.bootstrap` drops `memory_budget_gb=`; the engine measures the host. Also 0.6.0-dev-only.
+    - Deletes the torch permutation batchers, the ISC GPU kernels, `inference/utils._auto_batch_size`, the two `validate_device_parameter*` validators, and seventeen uncalled `Backend` methods. GPU execution is now exactly Himalaya ridge fitting (`Ridge(device='gpu')`, `BrainData.fit(ridge_device='gpu')`) and the ridge bootstrap (`BrainData.bootstrap(device='gpu')`), which are unchanged and still run-or-raise.
+- <span class="badge badge-feature">Feature</span> `isc()` gains `summary_statistic=` and documents 3D input
+
+    - `isc(data, summary_statistic='leave-one-out')` correlates each subject with the mean of the others; the default stays `'pairwise'`, so every v0.5.1 call is unaffected. `data` may also be `(n_observations, n_subjects, n_voxels)`, which the engine already accepted, and then `'isc'`, `'p'` and both `'ci'` bounds are arrays of length `n_voxels`.
+- <span class="badge badge-improvement">Improvement</span> flatten the bootstrap validation layer
+
+    - `validate_n_samples`, `validate_confidence_level` and `validate_memory_budget` move into `nltools/algorithms/inference/validation.py` beside the other shared checks, the two one-line shims in the bootstrap engine are gone, and `BrainData.bootstrap` no longer re-runs the range checks the engine runs. No message, signature, default or exception type changes. The engines now run their quality advisories after validation, so a rejected argument no longer emits a stray low-`n_samples` warning on its way to raising.
+- <span class="badge badge-improvement">Improvement</span> isc_test p-values via the shared _compute_pvalue helper
+- <span class="badge badge-improvement">Improvement</span> thread tail through the bootstrap engines; drop the facade closures
+- <span class="badge badge-improvement">Improvement</span> one GPU bootstrap driver, two thin wrappers
+- <span class="badge badge-improvement">Improvement</span> stop materializing np.abs(arr) three times per iplot window
+- <span class="badge badge-improvement">Improvement</span> one shared manifest module for the lint-api trio
+- ⚠ **Breaking** <span class="badge badge-improvement">Improvement</span> pare the alignment package back to the v0.5.1 surface
+
+    - Removes `HyperAlignment`, `LocalAlignment` and `RoiNeighborhoods`, the `parallel=`/`n_jobs=`/`pad_samples=` knobs on `SRM`/`DetSRM`, `BrainData.align(spatial_scale='searchlight', radius=)`, and `backends.auto_n_jobs_for_arrays` — all 0.6.0-dev-only names no v0.5.1 user can see. The Procrustes template loop moves into `nltools.algorithms.alignment.procrustes` as the internal `_hyperalign`, which `align(method='procrustes')` calls; every value it returns is numerically unchanged.
+    - Retains the F001 fix: `_hyperalign` zero-pads the feature axis up to the largest subject instead of truncating to the smallest, so no subject's features are silently dropped. Subjects with unequal sample counts now raise, as they did in v0.5.1.
+    - **Breaking:** `BrainData.align(target, method='procrustes')` stores `transformation_matrix` transposed, so back-projection is `transformed @ T.T` — the rule its v0.5.1 docstring already documented and its code did not honor, and the rule `nltools.algorithms.align` uses. `nltools.algorithms.align(..., method='procrustes')` on numpy input is transposed to match. `transformed`, `common_model`, `disparity` and `scale` are byte-identical on every path.
+    - **Breaking:** `nltools.algorithms.align(..., method='procrustes', axis=1)` on `BrainData` input now raises `ValueError`. The axis=1 transform spans images on both axes, so it has no voxel axis to be returned on; the call previously produced a `BrainData` whose matrix width did not match its own mask. numpy input at `axis=1` is unaffected.
+
 ### Bug Fixes
+- ⚠ **Breaking** <span class="badge badge-fix">Bug Fix</span> `compute_multivariate_similarity` takes its standard errors from a pseudo-inverse
+    - Rank-deficient predictor images used to give `nan` or wildly inflated standard errors; they now give the least-norm solution, matching `regress`. Full-rank results are unchanged.
 - <span class="badge badge-fix">Bug Fix</span> fix formatting
 - <span class="badge badge-fix">Bug Fix</span> fix warnings 1
 - <span class="badge badge-fix">Bug Fix</span> fix warnings 2
@@ -282,16 +529,110 @@ All notable changes to nltools are documented here.
 - <span class="badge badge-fix">Bug Fix</span> rewrite mvpa_roi for correct per-ROI MVPA decoding
 - <span class="badge badge-fix">Bug Fix</span> serialize polars frames to h5 via Arrow IPC
 - ⚠ **Breaking** <span class="badge badge-fix">Bug Fix</span> make out-of-mask voxels transparent in BrainData.plot
+
+    - **Breaking:** `plot(threshold=t)` is now nilearn's absolute-value transparency cutoff (hide voxels with |value| < t) instead of a signed remap to upper/lower. Negative thresholds raise. Use `upper=` / `lower=` for one-sided data thresholding.
 - <span class="badge badge-fix">Bug Fix</span> make slices + flatmap plotting usable again
 - <span class="badge badge-fix">Bug Fix</span> fixup plotting and add plot_surf()
 - <span class="badge badge-fix">Bug Fix</span> fix up design matrix, autoscale for plotting, include constant for .add_dct_basis by default to match .add_poly
 - <span class="badge badge-fix">Bug Fix</span> fix up design mat
 - ⚠ **Breaking** <span class="badge badge-fix">Bug Fix</span> compute_contrasts returns real t-stats, not beta sums
+
+    - **Breaking:** compute_contrasts default behavior now returns t-statistics. Code that treated the old return as effect sizes must pass contrast_type="beta" explicitly.
 - ⚠ **Breaking** <span class="badge badge-fix">Bug Fix</span> return matplotlib Figure from BrainData/DesignMatrix .plot()
+
+    - **Breaking:** BrainData.plot() returns matplotlib.figure.Figure, not a nilearn Display. DesignMatrix.plot() returns matplotlib.figure.Figure, not Axes.
 - <span class="badge badge-fix">Bug Fix</span> honor fit_intercept and CV splitters; add BrainData.size
 - <span class="badge badge-fix">Bug Fix</span> re-stub predict_multi; bounds-trim default slice cut_coords
 - ⚠ **Breaking** <span class="badge badge-fix">Bug Fix</span> always suffix convolved columns with _c{i}
+
+    - **Breaking:** column lookups by trial-type name after a `.convolve()` chain need `_c0` appended (notably `compute_contrasts("A - B")` becomes `compute_contrasts("A_c0 - B_c0")`).
 - <span class="badge badge-fix">Bug Fix</span> make .convolve() idempotent over already-convolved columns
+- <span class="badge badge-fix">Bug Fix</span> relax accidental numpy floor; pin nilearn in pyodide smoke test
+- <span class="badge badge-fix">Bug Fix</span> restore the interactive_plots optional extra (ipywidgets)
+- <span class="badge badge-fix">Bug Fix</span> deterministic cell ids for generated tutorial notebooks
+- <span class="badge badge-fix">Bug Fix</span> deterministic tiebreak for same-second step subdirs
+- <span class="badge badge-fix">Bug Fix</span> strip leaked RST directives from re-exported docstrings
+- <span class="badge badge-fix">Bug Fix</span> correct Attributes-section removal over-match in API generation
+- <span class="badge badge-fix">Bug Fix</span> correct invalid p-values/CIs and permutation nulls (0.6.0 audit)
+- <span class="badge badge-fix">Bug Fix</span> crashes/silent-empty on realistic inputs (0.6.0 audit)
+- <span class="badge badge-fix">Bug Fix</span> silent metadata loss and threshold/stack bugs (0.6.0 audit)
+- <span class="badge badge-fix">Bug Fix</span> seaborn 0.13.2 crashes, dropped returns, triangle swap (0.6.0 audit)
+- <span class="badge badge-fix">Bug Fix</span> always-raising ctor, copy-paste + wrong SE bugs (0.6.0 audit)
+- <span class="badge badge-fix">Bug Fix</span> schema check + non-integer downsample ratios (0.6.0 audit)
+- <span class="badge badge-fix">Bug Fix</span> __all__ attribute errors and mutable default (0.6.0 audit)
+- <span class="badge badge-fix">Bug Fix</span> filter crash, resource leaks, CV-index + MVPA seed bugs (0.6.0 audit)
+- <span class="badge badge-fix">Bug Fix</span> NaN-poisoning, silent-wrong + crash bugs (0.6.0 audit)
+- <span class="badge badge-fix">Bug Fix</span> n_subjects referenced nonexistent BrainCollection.n_images (0.6.0 audit)
+- <span class="badge badge-fix">Bug Fix</span> restore ISC bootstrap null centering dropped in refactor (F066)
+- <span class="badge badge-fix">Bug Fix</span> HyperAlignment auto_pad zero-pads instead of truncating (F001)
+- <span class="badge badge-fix">Bug Fix</span> implement PooledData.repool for real fitted_state shapes (F111)
+- <span class="badge badge-fix">Bug Fix</span> share one integer cluster_id space between peaks and clusters (F043)
+- <span class="badge badge-fix">Bug Fix</span> complete parallel→device + contrast_type→method renames missed in 9b1b0eb4
+- ⚠ **Breaking** <span class="badge badge-fix">Bug Fix</span> drop invalid permutation CVScheme, add predict(n_permute=) null (F112)
+
+    - **Breaking:** CVScheme no longer accepts scheme='permutation' / cv(method='permutation'). Use BrainCollectionPipeline.predict(n_permute=N) for the permutation-accuracy null.
+- ⚠ **Breaking** <span class="badge badge-fix">Bug Fix</span> stop advertising kwargs that do nothing (F068/F021/F182)
+
+    - **Breaking:** BrainCollection.isc/isc_test no longer accept radius_mm, device, n_jobs or progress_bar (they were silently ignored); roi_mask now actually scopes the computation and the returned maps carry the ROI mask, so results from code that passed roi_mask will CHANGE (previously whole-brain). The ridge solvers no longer accept n_jobs.
+- <span class="badge badge-fix">Bug Fix</span> apply_mask inherits target space for raw Niimg masks
+- <span class="badge badge-fix">Bug Fix</span> clearer errors + robust input handling (F098/F031/F159/F157)
+- <span class="badge badge-fix">Bug Fix</span> to_nifti preserves data precision instead of quantizing to mask dtype
+- <span class="badge badge-fix">Bug Fix</span> align feeds LocalAlignment correct orientation + wire cache= (F073)
+- <span class="badge badge-fix">Bug Fix</span> repair docstring rendering bugs in API reference
+- <span class="badge badge-fix">Bug Fix</span> make marimo-WASM tutorials boot in Pyodide
+- <span class="badge badge-fix">Bug Fix</span> run GPU legs on CUDA hosts, not just MPS
+- <span class="badge badge-fix">Bug Fix</span> stream leave-one-out ISC instead of materializing all subjects
+- <span class="badge badge-fix">Bug Fix</span> correct regress standard errors, all_same, copy() docs
+- ⚠ **Breaking** <span class="badge badge-fix">Bug Fix</span> wire GPU into pairwise ISC; fail fast on unsupported metric
+
+    - **Breaking:** isc_permutation_test(parallel='gpu', summary_statistic='pairwise', sim_metric != 'correlation') now raises ValueError instead of silently running on CPU.
+- <span class="badge badge-fix">Bug Fix</span> sequential micropip install for marimo-WASM; adopt niivue viewer
+- <span class="badge badge-fix">Bug Fix</span> use Python # comments in Pyodide micropip.install string
+- <span class="badge badge-fix">Bug Fix</span> make h5py a core dependency; BrainCollection.fit() requires it
+- <span class="badge badge-fix">Bug Fix</span> stop find_spikes() emitting duplicate spike regressors
+- <span class="badge badge-fix">Bug Fix</span> a design matrix with no regressors keeps its row count
+- <span class="badge badge-fix">Bug Fix</span> make n_rows survive copies and reject conflicting values
+- <span class="badge badge-fix">Bug Fix</span> point the rank-deficiency warning at regularization, not deletion
+- ⚠ **Breaking** <span class="badge badge-fix">Bug Fix</span> add progress_bar to the permutation and bootstrap family
+
+    - **Breaking:** progress bars are now off by default. isc_permutation_test and isc_group_permutation_test previously defaulted to progress_bar=True and now default to False; every other function in the family previously had no way to disable its bar. Pass progress_bar=True to restore the old output.
+- <span class="badge badge-fix">Bug Fix</span> thread progress_bar through the bootstrap and Adjacency stat facades
+- ⚠ **Breaking** <span class="badge badge-fix">Bug Fix</span> make options keyword-only across the inference layer
+
+    - **Breaking:** options must now be passed by keyword. `one_sample_permutation_test(data, 5000)` becomes `one_sample_permutation_test(data, n_permute=5000)`. The leading data arguments remain positional.
+- ⚠ **Breaking** <span class="badge badge-fix">Bug Fix</span> make write() and the file constructor round-trip
+
+    - **Breaking:** `write()` to a `.csv` now emits comma-separated data (it emitted tabs before, which its own reader could not parse). Code parsing nltools-written `.csv` files with an explicit tab delimiter must switch to comma or pass `sep="\t"` to `write()`.
+- <span class="badge badge-fix">Bug Fix</span> compare OOM-recovered results at float32-ulp tolerance, not bitwise
+- ⚠ **Breaking** <span class="badge badge-fix">Bug Fix</span> timeseries GPU draws match CPU exactly; conjugate pairing fixed in batched phase randomization
+
+    - **Breaking:** GPU null distributions for timeseries_correlation_permutation_ test change (they now equal the CPU nulls for a given seed).
+- <span class="badge badge-fix">Bug Fix</span> relay worker warnings to the parent — deduplicated, categories preserved
+- <span class="badge badge-fix">Bug Fix</span> adjacency plots rendered twice
+- ⚠ **Breaking** <span class="badge badge-fix">Bug Fix</span> GPU Spearman ranks ties correctly; device validation is run-or-raise
+
+    - **Breaking:** GPU-computed Spearman correlations and null distributions over tied data (integer ratings, discrete scores) change — they were wrong and now match the CPU/scipy path; continuous untied data is unaffected. phase_randomize with an invalid device= now raises ValueError instead of warning and falling back to CPU.
+- <span class="badge badge-fix">Bug Fix</span> one-tailed z maps stay finite; single shared z-from-p helper
+- ⚠ **Breaking** <span class="badge badge-fix">Bug Fix</span> ttest(popmean=X, permutation=True) tests mean != popmean
+
+    - **Breaking:** BrainData.ttest(popmean=X, permutation=True) with X != 0 returns different (now correct) p-values and a popmean-subtracted 'mean' map. popmean=0 calls are numerically unchanged.
+- <span class="badge badge-fix">Bug Fix</span> string class labels decode and persist end to end
+- <span class="badge badge-fix">Bug Fix</span> predict worker closures no longer capture the collection
+- <span class="badge badge-fix">Bug Fix</span> classify .h5 items by bundle_kind, not bare suffix
+- <span class="badge badge-fix">Bug Fix</span> predict-bundle model_spec is a real refit spec, not a repr
+- <span class="badge badge-fix">Bug Fix</span> plot_between_label_distance crashed on its default permutation path
+- <span class="badge badge-fix">Bug Fix</span> validate the separator-recovery re-parse instead of trusting the header hint
+- <span class="badge badge-fix">Bug Fix</span> translate pre-.nl_ generated names when loading a legacy h5
+- <span class="badge badge-fix">Bug Fix</span> make the GPU bootstrap per-sample hooks private
+- <span class="badge badge-fix">Bug Fix</span> qualify vocabulary suppressions by module path
+- <span class="badge badge-fix">Bug Fix</span> move check_kwonly's inline EXEMPT dict into the vocabulary manifest
+- <span class="badge badge-fix">Bug Fix</span> move the _NullProgressBar nosemgrep suppressions into the semgrep config
+- <span class="badge badge-fix">Bug Fix</span> serialize in-memory masks in BrainData h5 files
+- <span class="badge badge-fix">Bug Fix</span> GPU bootstrap guard accepts torch-cuda
+- <span class="badge badge-fix">Bug Fix</span> keep refit alpha indices on the compute device
+- <span class="badge badge-fix">Bug Fix</span> cap measured-budget batch sizing at a saturation ceiling
+- <span class="badge badge-fix">Bug Fix</span> bench_inference GPU leg passed the harness probe string as device=
+- <span class="badge badge-fix">Bug Fix</span> provenance label auto-detects the GPU; record the benchmarked commit
 
 ### Documentation
 - <span class="badge badge-docs">Docs</span> Streamline CLAUDE.md and add token-efficient pytest guidance
@@ -369,6 +710,52 @@ All notable changes to nltools are documented here.
 - <span class="badge badge-docs">Docs</span> consolidate workflows into 4 standardized notebooks
 - <span class="badge badge-docs">Docs</span> remove broken BrainCollection basics card
 - <span class="badge badge-docs">Docs</span> align API doc generation with the uv-cleanup module layout
+- <span class="badge badge-docs">Docs</span> standardize docstrings to Google/Markdown, automate changelog, fix migration guide
+- <span class="badge badge-docs">Docs</span> fix broken cross-reference links in generated API docs
+- <span class="badge badge-docs">Docs</span> document iplot() colorbar + threshold slider; ipywidgets in JupyterLite
+- <span class="badge badge-docs">Docs</span> explicit page-scoped MyST targets to silence heading-ref warnings
+- <span class="badge badge-docs">Docs</span> silence remaining mystmd build warnings (frontmatter, grid, docstrings)
+- <span class="badge badge-docs">Docs</span> regenerate API reference (fetch_pain signature + docstring fixes)
+- <span class="badge badge-docs">Docs</span> update SPEC status header to reflect implemented state
+- <span class="badge badge-docs">Docs</span> regenerate API reference after BrainCollection bring-over
+- <span class="badge badge-docs">Docs</span> regenerate collection_core after seq-tiebreak
+- <span class="badge badge-docs">Docs</span> regenerate API reference for statistic rename + permutation removal
+- <span class="badge badge-docs">Docs</span> fix docstring/RST-leakage bucket + regenerate API reference
+- <span class="badge badge-docs">Docs</span> regenerate API reference (F068/F021/F182 + owed drift)
+- <span class="badge badge-docs">Docs</span> wire encoding + isc notebooks for in-browser WASM data (#3673)
+- <span class="badge badge-docs">Docs</span> commit the 0.6.0 pre-release hygiene audit record
+- <span class="badge badge-docs">Docs</span> fix stale Adjacency.similarity/regress/isc claims
+- ⚠ **Breaking** <span class="badge badge-docs">Docs</span> reorder summary tables to Parameters/Attributes/Classes/Methods
+
+    - **Breaking:** visible API-doc section order changes across many pages.
+- <span class="badge badge-docs">Docs</span> reconcile Args/Returns docstrings with actual signatures
+- <span class="badge badge-docs">Docs</span> tidy module docstrings (dedupe, drop leftover headings)
+- <span class="badge badge-docs">Docs</span> tidy first-line docstring summaries for griffe tables
+- <span class="badge badge-docs">Docs</span> add BrainCollection basics notebook
+- <span class="badge badge-docs">Docs</span> normalize docstring style (Note: header, typos, models blank line)
+- <span class="badge badge-docs">Docs</span> add interactive design tour + wire standalone-page build
+- <span class="badge badge-docs">Docs</span> add static-markdown tutorial build mode (default) + simplify docs poe tasks
+- <span class="badge badge-docs">Docs</span> trim CLAUDE.md to load-bearing guidance
+- <span class="badge badge-docs">Docs</span> clean up and fix stale references
+- <span class="badge badge-docs">Docs</span> remind to use vendored nilearn/marimo skills
+- <span class="badge badge-docs">Docs</span> delete superseded SPEC.md and ridge design docs; repoint to docs/development
+- <span class="badge badge-docs">Docs</span> reconcile docstrings/comments with implementation across data/stats
+- <span class="badge badge-docs">Docs</span> fix similarity result-key docs to 'correlation'; add semgrep guard
+- <span class="badge badge-docs">Docs</span> reconcile remaining algorithm-layer docstrings with implementation
+- <span class="badge badge-docs">Docs</span> generate canonical-kwarg vocab from a single source
+- <span class="badge badge-docs">Docs</span> regenerate API docs (griffe2md)
+- <span class="badge badge-docs">Docs</span> integrate pikachu CUDA run, make perf doc host-aware
+- <span class="badge badge-docs">Docs</span> correct the nilearn cluster-forming threshold scale
+- <span class="badge badge-docs">Docs</span> batched regeneration — API sources, changelog, tail-docstring cleanup
+- <span class="badge badge-docs">Docs</span> per-subject predict + sklearn cv names — migration guide, execution model, vocabulary
+- ⚠ **Breaking** <span class="badge badge-docs">Docs</span> plain marimo notebooks, executed previews; defer browser support to 0.6.1
+
+    - **Breaking:** removed nltools.templates.seed_resources and the Pyodide/IDBFS fetch path, nltools.datasets.PAIN_RESOURCES / EMOTION_METADATA / emotion_resources, scripts/build_marimo_wasm.py, the docs-wasm and test-pyodide poe tasks, the pyodide CI job, and nltools/tests/pyodide. All of it is preserved on the 0.6.1-browser branch.
+- <span class="badge badge-docs">Docs</span> regenerate changelog for the commits since the batched docs pass
+- <span class="badge badge-docs">Docs</span> close the gaps found by the breaking-commit audit
+- <span class="badge badge-docs">Docs</span> regenerate API sources and changelog for the review-fix commits
+- <span class="badge badge-docs">Docs</span> refresh pikachu CUDA baseline at 55e44f06
+- <span class="badge badge-docs">Docs</span> regenerate API reference and changelog for the CUDA-verification and benchmark commits
 
 
 ## 0.5.0 (2023-10-31)

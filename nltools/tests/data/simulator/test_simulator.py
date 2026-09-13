@@ -51,6 +51,82 @@ def test_plot_grid_simulation_already_fit():
     assert sim.thresholded is not None
 
 
+def test_plot_grid_simulation_forwards_correction_to_run_multiple_simulations():
+    """C3 (q31x trs9, row 16): plot_grid_simulation must forward `correction` to
+    the `run_multiple_simulations` call it makes internally.
+
+    `self.thresholded` is set beforehand so `plot_grid_simulation` skips its own
+    `threshold_simulation` call (which *does* forward `correction` today) and the
+    only remaining path for `correction` to reach validation is the
+    `run_multiple_simulations` call — isolating exactly the dropped forward.
+    """
+    sim = SimulateGrid(grid_width=10, n_subjects=10, random_state=0)
+    sim.fit()
+    sim.threshold_simulation(threshold=0.05, threshold_type="p")
+    assert sim.thresholded is not None
+
+    with pytest.raises(ValueError, match="correction"):
+        sim.plot_grid_simulation(
+            threshold=0.05, threshold_type="p", n_simulations=5, correction="bogus"
+        )
+
+
+def test_plot_grid_simulation_correction_matches_explicit_call():
+    """C3 (q31x trs9, row 16): the forwarded `correction` must produce the same
+    `multiple_fp`/`fpr` as calling `run_multiple_simulations` directly."""
+    grid_kwargs = {
+        "grid_width": 20,
+        "signal_width": 6,
+        "n_subjects": 15,
+        "signal_amplitude": 1.0,
+        "random_state": 0,
+    }
+
+    explicit = SimulateGrid(**grid_kwargs)
+    explicit.fit()
+    explicit.run_multiple_simulations(
+        threshold=0.05, threshold_type="q", n_simulations=20, correction="fdr"
+    )
+
+    plotted = SimulateGrid(**grid_kwargs)
+    plotted.plot_grid_simulation(
+        threshold=0.05, threshold_type="q", n_simulations=20, correction="fdr"
+    )
+
+    np.testing.assert_array_equal(plotted.multiple_fp, explicit.multiple_fp)
+    assert plotted.fpr == explicit.fpr
+
+
+def test_run_multiple_simulations_rejects_unknown_correction():
+    """C3 (q31x trs9, row 17): an unsupported correction must raise, naming the
+    supported values, instead of being silently ignored."""
+    sim = SimulateGrid(grid_width=10, n_subjects=10, random_state=0)
+    sim.fit()
+    with pytest.raises(ValueError, match=r"correction must be one of"):
+        sim.run_multiple_simulations(
+            threshold=0.05, threshold_type="p", n_simulations=5, correction="bogus"
+        )
+
+
+def test_threshold_simulation_rejects_unknown_correction():
+    """C3 (q31x trs9, row 17): same validation on the single-simulation entry point."""
+    sim = SimulateGrid(grid_width=10, n_subjects=10, random_state=0)
+    sim.fit()
+    with pytest.raises(ValueError, match=r"correction must be one of"):
+        sim.threshold_simulation(threshold=0.05, threshold_type="p", correction="bogus")
+
+
+def test_correction_permutation_is_rejected():
+    """C3 (q31x trs9, row 17): the dropped v0.5.1 `correction='permutation'` is
+    rejected by the same membership check as any other unsupported value."""
+    sim = SimulateGrid(grid_width=10, n_subjects=10, random_state=0)
+    sim.fit()
+    with pytest.raises(ValueError, match=r"correction must be one of"):
+        sim.threshold_simulation(
+            threshold=0.05, threshold_type="p", correction="permutation"
+        )
+
+
 def test_sphere_builds_binary_region():
     """F189: sphere() returns a 0/1 volume centered at p with the mask's shape."""
     sim = Simulator(brain_mask=_small_mask())
@@ -171,3 +247,101 @@ def test_simulategrid_fdr(tmpdir):
     assert np.mean(simulation.multiple_fdr) < thresh
     assert simulation.signal_width == signal_width
     assert simulation.correction == "fdr"
+
+
+def _isotropic_mask(voxel_size, extent_mm=72.0):
+    """An all-ones cubic brain mask with isotropic `voxel_size` mm voxels centered on the origin."""
+    n = int(round(extent_mm / voxel_size))
+    shape = (n, n, n)
+    affine = np.diag([voxel_size, voxel_size, voxel_size, 1.0])
+    affine[:3, 3] = -voxel_size * (np.array(shape) // 2)
+    return nib.Nifti1Image(np.ones(shape, dtype=np.float32), affine)
+
+
+@pytest.mark.parametrize("voxel_size", [1.0, 3.0])
+def test_n_spheres_radius_is_millimeters(voxel_size):
+    """Simulator radii are millimeters, so a sphere's volume does not depend on the grid."""
+    sim = Simulator(brain_mask=_isotropic_mask(voxel_size))
+    radius = 9.0
+
+    volume = sim.n_spheres(radius, [0.0, 0.0, 0.0]).sum() * voxel_size**3
+
+    analytic = 4.0 / 3.0 * np.pi * radius**3
+    assert abs(volume - analytic) / analytic < 0.15
+
+
+@pytest.mark.parametrize("voxel_size", [1.0, 3.0])
+def test_n_spheres_center_is_a_world_coordinate(voxel_size):
+    """Simulator sphere centers are world (MNI) millimeters, resolved through the affine."""
+    mask = _isotropic_mask(voxel_size)
+    sim = Simulator(brain_mask=mask)
+    center = [12.0, -10.0, 8.0]
+
+    sphere = sim.n_spheres(9.0, center)
+
+    world = nib.affines.apply_affine(mask.affine, np.argwhere(sphere > 0))
+    assert np.allclose(world.mean(axis=0), center, atol=voxel_size)
+
+
+def test_n_spheres_default_center_is_the_world_grid_center():
+    """center=None places the sphere at the world coordinate of the grid center."""
+    mask = _isotropic_mask(3.0)
+    sim = Simulator(brain_mask=mask)
+
+    sphere = sim.n_spheres(9.0, None)
+
+    grid_center = nib.affines.apply_affine(mask.affine, np.array(mask.shape) // 2)
+    world = nib.affines.apply_affine(mask.affine, np.argwhere(sphere > 0))
+    assert np.allclose(world.mean(axis=0), grid_center, atol=3.0)
+
+
+@pytest.mark.parametrize("voxel_size", [1.0, 3.0])
+@pytest.mark.parametrize("isotropic_scalar", [False, True])
+def test_gaussian_mu_is_world_and_sigma_is_millimeters(voxel_size, isotropic_scalar):
+    """`gaussian` takes a world-millimeter center and millimeter widths.
+
+    `sigma` may be a bare scalar (isotropic) or one width per axis.
+    """
+    mask = _isotropic_mask(voxel_size)
+    sim = Simulator(brain_mask=mask)
+    mu = [6.0, -6.0, 0.0]
+    sigma = 9.0
+
+    blob = sim.gaussian(
+        mu=mu,
+        sigma=sigma if isotropic_scalar else np.array([sigma] * 3),
+        i_tot=100.0,
+    )
+
+    ijk = np.argwhere(np.ones_like(blob, dtype=bool))
+    world = nib.affines.apply_affine(mask.affine, ijk)
+    weights = blob[tuple(ijk.T)]
+    weights = weights / weights.sum()
+    centroid = (world * weights[:, None]).sum(axis=0)
+    spread = np.sqrt((((world - centroid) ** 2) * weights[:, None]).sum(axis=0))
+
+    assert np.allclose(centroid, mu, atol=voxel_size)
+    assert np.allclose(spread, sigma, rtol=0.15)
+
+
+def test_create_data_radius_and_center_are_millimeters():
+    """create_data forwards millimeter geometry to the same sphere builder as n_spheres."""
+    mask = _isotropic_mask(3.0)
+    sim = Simulator(brain_mask=mask, random_state=0)
+    center = [12.0, -10.0, 8.0]
+
+    data = sim.create_data([1, -1], 0.0, radius=9.0, center=center, reps=1)
+
+    expected = int(sim.n_spheres(9.0, center).sum())
+    assert int(np.sum(np.abs(data[0].to_nifti().get_fdata()) > 1e-6)) == expected
+
+
+@pytest.mark.filterwarnings("error::UserWarning")
+def test_zero_sigma_noise_stays_floating_point():
+    """sigma=0 must build a float volume, not an int64 one nibabel downcasts to int32."""
+    sim = Simulator(brain_mask=_small_mask(), random_state=0)
+
+    noise = sim.normal_noise(0, 0)
+
+    assert noise.dtype.kind == "f"
+    assert not noise.any()

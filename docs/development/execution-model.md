@@ -3,13 +3,18 @@ title: Execution model (BrainCollection)
 description: How BrainCollection runs per-subject work in parallel — caching, HDF5 bundles, pickling, and write safety.
 ---
 
+> Deferred 0.6.1 design evidence. BrainCollection and this collection-only execution
+> subsystem are absent from 0.6.0. This document preserves the earlier implementation
+> design; the approved collection specification governs future implementation.
+
+
 # Execution model — `BrainCollection`
 
 `BrainCollection` saves users from writing for-loops over `BrainData`. It is a
 parallel, lazy iterator of `BrainData` whose API mirrors `BrainData`, with first-class
 `(BrainData, DesignMatrix)` pairing. This page documents the execution machinery that
-makes it memory-efficient. It is design reference, not API documentation — for method
-signatures see the [BrainCollection API](../api/data/brain_collection.md).
+makes it memory-efficient. This page is design reference. For the approved future contract, see the
+[BrainCollection specification](specs/braincollection.md).
 
 The machinery lives under `nltools/data/collection/`:
 
@@ -20,15 +25,16 @@ The machinery lives under `nltools/data/collection/`:
 | `io.py` | constructors (BIDS/glob/paths), `write`, `read`, `load`/`unload`, cache plumbing, `memory_estimate` |
 | `execution.py` | parallel `_apply`, materialization, cache/step bookkeeping, HDF5 bundle IO |
 | `inference.py` | group reductions (`ttest`, `anova`, `permutation_test`), `isc`, `align` |
-| `pipeline.py` | `BrainCollectionPipeline`, used by `cv()` (backed by `pipesteps/`) |
 
 ## Path-backed by default
 
-After any parallel op (`fit`, `compute_contrasts`, `smooth`, `standardize`, `detrend`,
-`threshold`, `resample`, `predict`, `map`, `apply`), the returned collection is
-**path-backed**: workers write each per-subject result to disk and the parent never
-accumulates per-subject `BrainData` in RAM. Peak memory stays at roughly
-`n_workers × 1 subject`.
+After any collection-returning parallel op (`fit`, `compute_contrasts`, `smooth`,
+`standardize`, `detrend`, `threshold`, `resample`, `predict(X_new=)`, `map`, `apply`),
+the returned collection is **path-backed**: workers write each per-subject result to
+disk and the parent never accumulates per-subject `BrainData` in RAM. Peak memory stays
+at roughly `n_workers × 1 subject`. (`predict(y=)` runs through the same machinery but
+returns a `PredictCollection` of per-subject decoding results — see the predict-bundle
+section.)
 
 Reductions (`concat`, `mean`, `std`, `ttest`, `anova`, `isc(method='loo')`, …) stream
 from path-backed inputs and produce a small in-memory `BrainData` (or dict of them). They
@@ -138,6 +144,32 @@ Two HPC patterns are explicitly supported:
 2. **Cache directly on network storage** (slower but persistent across job restarts).
    Default `./.nltools_cache` works when cwd is on the network mount.
 
+## Warnings from workers
+
+Warnings raised inside `_apply` workers would otherwise die on the worker
+process's stderr — invisible to `warnings.catch_warnings`, `pytest.warns`, and
+`filterwarnings("error")` in the parent, and usually invisible entirely in
+notebook front-ends. `_wrap_worker` captures them (as pickle-safe
+`_WorkerWarning` records — the category travels as import-path strings, never a
+class object), and `_apply` relays them through the parent's warning machinery
+via `warnings.warn(..., stacklevel=find_stack_level())`:
+
+- **Attributed to the caller** — a worker's own stack bottoms out in
+  joblib/loky or nltools, never in user code, so the worker-side location is
+  not kept; the relayed warning points at the user's `bc.fit(...)` line, the
+  same as every other nltools warning.
+- **Deduplicated across subjects** — one relay per unique (category, message),
+  annotated with who raised it (`[raised for 3/20 subjects; first: idx=4
+  (sub-0005)]`). The serial `n_jobs=1` fast path goes through the same
+  capture/relay, so warning behavior is identical at any `n_jobs`.
+- **Categories preserved** — parent-side filters (`ignore`, `error`,
+  `pytest.warns(RankDeficientDesignWarning)`) work on relayed warnings. A
+  category that can't be re-imported parent-side falls back to `UserWarning`
+  with the original class name kept in the message text.
+- **Timing caveat** — `filterwarnings("error")` promotes at relay time, after
+  the parallel step completes; it does not abort workers mid-run. Warnings
+  raised before a worker *exception* are dropped — the error supersedes them.
+
 ## Eager, no fused chains
 
 Each step is eager. `bc.smooth().standardize()` produces *two* on-disk steps (smoothed
@@ -148,7 +180,7 @@ lazy/fused chain machinery.
 
 | Output shape | Format | Used by |
 |---|---|---|
-| Bundle (multiple arrays + state per subject) | HDF5 (`sub-XXXX_fit.h5`) | `fit(model='glm')`, `fit(model='ridge')` |
+| Bundle (multiple arrays + state per subject) | HDF5 (`sub-XXXX_fit.h5` / `sub-XXXX.h5`) | `fit(model='glm')`, `fit(model='ridge')`, `predict(y=)` |
 | Single image per subject | NIfTI via `BrainData.write()` (`sub-XXXX.nii.gz`) | `smooth`, `standardize`, `detrend`, `threshold`, `resample`, `compute_contrasts`, `predict(X_new=)`, `align`, `map`, `apply` |
 
 ## HDF5 fit bundle
@@ -164,6 +196,7 @@ lazy/fused chain machinery.
 ├── /X            (n_obs, n_regressors)
 ├── /mask         (embedded NIfTI bytes — bundle is portable)
 └── attrs:
+    ├── bundle_kind='glm'
     ├── affine, regressor_names, scale, standardize, model_kwargs
     ├── nltools_version, bundle_schema_version
     └── step_id, parent_step_id, op, kwargs (JSON-encoded)
@@ -179,9 +212,51 @@ gets a `sub-XXXX.json` sidecar carrying the same lineage attrs. The contrast str
 parser supports coefficients (e.g. `"2*A - B"`), not just `"A - B"`.
 
 `fit(model='ridge')` writes a parallel HDF5 bundle holding `weights`, `cv_scores`,
-`predictions`, `scores`, and `intercept`, with the same versioning + lineage attrs.
-`predict(X_new=)` reads the bundle and writes per-subject prediction NIfTIs
-(`X_new @ weights + intercept`, with JSON sidecars).
+`predictions`, `scores`, and `intercept`, with the same versioning + lineage attrs
+(`bundle_kind='ridge'`). `predict(X_new=)` reads the bundle and writes per-subject
+prediction NIfTIs (`X_new @ weights + intercept`, with JSON sidecars).
+
+**Bundle-kind detection.** Every bundle writer stamps a `bundle_kind` attr
+(`'glm'` | `'ridge'` | `'predict'`), and `execution.detect_bundle_kind(path)` is the one
+shared "what kind of `.h5` is this?" helper: it reads the attr, falls back to a dataset
+sniff for dev-cycle bundles written before the attr existed (`weights` → ridge, `betas`
+→ glm), and returns `None` for anything else — including a user-saved `BrainData` `.h5`,
+which is a plain image, not a bundle. Every item-classification site
+(`predict_group`, `predict(y=)`, `predict(X_new=)` — eager check and worker) uses this
+helper; nothing classifies by file suffix alone. Adding the attr was additive, so the
+schema version stayed at 2 and pre-attr bundles remain readable.
+
+## HDF5 predict bundle
+
+`predict(y=)` — per-subject decoding — is the one parallel op whose per-subject result
+is a `Predict` dataclass rather than an image, so it returns a `PredictCollection`
+(never a path-backed `BrainCollection`). When caching, each worker also writes a
+predict bundle holding the result's **ingredients**:
+
+```text
+{step_dir}/sub-XXXX.h5
+├── /predictions, /scores, /cv_folds, ...      (whichever array fields are populated)
+├── /mean_score, /std_score                    (scalar or per-ROI array)
+├── /weight_map, /fold_weight_maps, /accuracy_map   (.data of the BrainData fields)
+├── /mask         (embedded NIfTI bytes)
+└── attrs:
+    ├── bundle_kind='predict', present_fields, scalar_summaries
+    ├── model_spec (JSON — refit ingredients; its `model` entry is a
+    │   structured spec: shortcut name, or estimator class + params, or an
+    │   explicit `refittable: false` marker when params can't serialize)
+    ├── permutation_pvalue (when set), affine
+    ├── nltools_version, bundle_schema_version
+    └── step_id, parent_step_id, op, kwargs (JSON-encoded)
+```
+
+The fitted sklearn `estimator` is deliberately **not** persisted (pickled estimators are
+version-fragile and rarely used — refit from the stored spec on demand via
+`braindata.prediction._model_from_spec`; a spec marked `refittable: false` must be
+rebuilt by hand). For
+consistency, the in-memory results of a caching run mirror the bundle
+(`estimator=None`); only uncached runs keep live estimators. `read_predict_bundle`
+rebuilds a `Predict` with `BrainData` maps on the embedded mask, and refuses fit
+bundles (`bundle_kind` check) with a pointer to the right reader.
 
 **On read:** `bundle_schema_version` mismatch raises with a clear migration message
 (schema is currently at version 2). `nltools_version` mismatch logs a warning but does
@@ -267,7 +342,7 @@ thread oversubscription inside each worker.
   path-backed data in the main process — faster than the pickling overhead.
 - **Alignment** has its own parallel scheme inside `nltools.algorithms.*`. The
   collection passes `n_jobs`/`device` through but doesn't double-wrap. (ISC runs in
-  `inference.py` and takes only `method`/`roi_mask`/`metric` — no `n_jobs`/`device`.)
+  `inference.py` and takes only `method`/`roi_mask`/`summary` — no `n_jobs`/`device`.)
 
 > **Note.** `isc(method='loo')` streams: pass 1 accumulates the subject sum (one `T×V`
 > array), pass 2 re-streams forming each subject's template `(sum − subject)/(n−1)` and

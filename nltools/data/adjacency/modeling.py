@@ -8,267 +8,196 @@ import numpy as np
 
 def bootstrap(
     adj,
-    stat,
+    statistic,
     *,
     n_samples=5000,
-    save_boots=False,
-    percentiles=(2.5, 97.5),
+    confidence_level=0.95,
+    return_samples=False,
     n_jobs=-1,
     random_state=None,
+    progress_bar=False,
 ):
-    """Bootstrap statistics using efficient online algorithms.
+    """Bootstrap an aggregate statistic across a stack of matrices.
 
-    Uses memory-efficient bootstrap infrastructure with CPU parallelization.
-    Supports simple aggregation statistics (mean, std, median, sum, min, max).
+    Resamples matrices with replacement and aggregates the replicates as they
+    complete, so what the run holds is the retained tail — about
+    `(1 - confidence_level)` of the replicates per edge — plus one dispatch
+    window, rather than all `n_samples` matrices.
 
     Args:
-        adj: (Adjacency) Adjacency instance containing multiple matrices
-        stat: (str) Statistic to bootstrap. Options:
-            - Simple stats: 'mean', 'median', 'std', 'sum', 'min', 'max'
-        n_samples: (int) Number of bootstrap iterations. Default: 5000
-        save_boots: (bool) If True, store all bootstrap samples (memory intensive).
-                   Default: False
-        percentiles: (tuple) Percentiles for confidence intervals. Default: (2.5, 97.5)
-        n_jobs: (int) Number of CPU cores for parallelization. -1 means all CPUs.
-        random_state: (int, optional) Random seed for reproducibility
+        adj (Adjacency): Adjacency instance containing multiple matrices.
+        statistic (str): Statistic to bootstrap: `'mean'`, `'median'`, `'std'`,
+            `'sum'`, `'min'`, or `'max'` — each the corresponding NumPy
+            reduction over matrices, with `'std'` at `ddof=0`.
+        n_samples (int): Number of bootstrap replicates, at least two. Default
+            5000.
+        confidence_level (float): Confidence level of the reported interval,
+            strictly between zero and one. Default 0.95.
+        return_samples (bool): Retain and return every replicate. Default
+            False.
+        n_jobs (int): CPU worker ceiling. -1 (default) means all cores.
+        random_state (int | None): Random seed for reproducibility.
+        progress_bar (bool): If True, show a progress bar. Default False.
 
     Returns:
-        dict: Dictionary with keys: 'Z', 'p', 'mean', 'std', 'ci_lower', 'ci_upper'
-              (all Adjacency objects). If save_boots=True, also includes 'samples'.
+        BootstrapResult: `estimate`, `standard_error`, `ci_lower` and
+            `ci_upper` as single-matrix `Adjacency` objects, plus `samples` as
+            a NumPy array with the bootstrap axis first when
+            `return_samples=True`.
+
+    Raises:
+        ValueError: If `statistic` is unknown, an argument is out of range, or
+            the retained output cannot fit the measured memory budget.
 
     Examples:
-        >>> # Simple aggregation
-        >>> boot = bootstrap(adj, stat='mean', n_samples=1000)
-        >>> assert 'mean' in boot
-        >>> assert isinstance(boot['mean'], Adjacency)
+        ```python
+        boot = bootstrap(adj, "mean", n_samples=1000)
+        boot.estimate  # → Adjacency
+        ```
     """
     from nltools.algorithms.inference.bootstrap import (
         _bootstrap_simple_cpu_parallel,
     )
 
-    # Validate stat parameter
     SIMPLE_STATS = ["mean", "median", "std", "sum", "min", "max"]
-    if stat not in SIMPLE_STATS:
+    if statistic not in SIMPLE_STATS:
         raise ValueError(
-            f"Unsupported stat '{stat}'. Supported simple stats: {SIMPLE_STATS}."
+            f"Unsupported statistic '{statistic}'. "
+            f"Supported basic statistics: {SIMPLE_STATS}."
         )
 
-    # Get data as numpy array
-    # Adjacency.data shape: (n_matrices, n_features)
-    data = adj.data  # Shape: (n_samples, n_features)
-
-    # Route to bootstrap function
+    # Adjacency.data shape: (n_matrices, n_edges)
     result = _bootstrap_simple_cpu_parallel(
-        data,
-        method=stat,
+        adj.data,
+        method=statistic,
         n_samples=n_samples,
-        save_boots=save_boots,
+        confidence_level=confidence_level,
+        return_samples=return_samples,
         n_jobs=n_jobs,
         random_state=random_state,
-        percentiles=percentiles,
+        progress_bar=progress_bar,
     )
 
-    # Convert result to Adjacency format
-    return convert_bootstrap_results_to_adjacency(adj, result, save_boots=save_boots)
+    return convert_bootstrap_results_to_adjacency(adj, result)
 
 
-def convert_bootstrap_results_to_adjacency(adj, result, save_boots=False):
-    """Convert bootstrap results dictionary to Adjacency format.
-
-    Helper function to convert numpy arrays from bootstrap functions into
-    Adjacency objects.
+def convert_bootstrap_results_to_adjacency(adj, result):
+    """Wrap an engine's arrays as a `BootstrapResult` of single-matrix `Adjacency`.
 
     Args:
-        adj: (Adjacency) Adjacency instance (used for matrix_type metadata)
-        result: (dict) Result dictionary from bootstrap function with keys:
-                'mean', 'std', 'Z', 'p', 'ci_lower', 'ci_upper', and optionally 'samples'
-        save_boots: (bool) If True, include 'samples' key in output
+        adj (Adjacency): Instance supplying matrix kind and node labels.
+        result (dict): Engine output with `'estimate'`, `'standard_error'`,
+            `'ci_lower'`, `'ci_upper'`, and optionally `'samples'`.
 
     Returns:
-        dict: Dictionary with Adjacency objects for each statistic
+        BootstrapResult: The four summaries as `Adjacency`, and the retained
+            replicates as a NumPy array when present.
     """
-    from nltools.data.adjacency import Adjacency
+    import polars as pl
 
-    out = {}
-    for key in ["mean", "std", "Z", "p", "ci_lower", "ci_upper"]:
-        if key in result:
-            # Convert numpy array to Adjacency
-            # Result shape: (n_features,) for aggregated stats
-            adj_data = result[key]
-            if adj_data.ndim == 0:
-                # Scalar - convert to 1D array
-                adj_data = np.array([adj_data])
-            elif adj_data.ndim == 1:
-                # Already 1D - reshape to (1, n_features) for Adjacency
-                adj_data = adj_data.reshape(1, -1)
-            # adj_data is now (1, n_features)
+    from nltools.data.results import BootstrapResult
 
-            out[key] = Adjacency(
-                data=adj_data,
-                matrix_type=adj.matrix_type + "_flat",
-            )
+    from .state import common_labels, result as adjacency_result
 
-    if save_boots and "samples" in result:
-        # Samples shape: (n_samples, n_features)
-        out["samples"] = result["samples"]
+    labels = common_labels(adj)
 
-    return out
+    def _map(values):
+        return adjacency_result(
+            adj,
+            np.asarray(values).reshape(-1),
+            labels=labels,
+            Y=pl.DataFrame(),
+        )
+
+    return BootstrapResult(
+        estimate=_map(result["estimate"]),
+        standard_error=_map(result["standard_error"]),
+        ci_lower=_map(result["ci_lower"]),
+        ci_upper=_map(result["ci_upper"]),
+        samples=result.get("samples"),
+    )
 
 
-def regress(adj, X, method="ols"):
+def regress(adj, X, method="ols", tail=2):
     """Run a regression on an adjacency instance.
-    You can decompose an adjacency instance with another adjacency instance.
-    You can also decompose each pixel by passing a design_matrix instance.
+
+    Pass an `Adjacency` as `X` to decompose `adj` with other matrices, or a
+    `DesignMatrix` to regress each cell across a stack of matrices.
 
     Args:
-        adj: (Adjacency) Adjacency instance
-        X: Design matrix can be an Adjacency or DesignMatrix instance
-        method: type of regression (default: ols) - only 'ols' is currently supported
+        adj (Adjacency): Adjacency instance.
+        X (Adjacency | DesignMatrix): Design matrix.
+        method (str): Type of regression; only `'ols'` is currently supported.
+        tail (int | str): `2`/`'two'` for two-tailed (default); `1`/`'one'` for
+            one-tailed (beta > 0; negate a regressor for the other direction).
 
     Returns:
-        stats: (dict) dictionary of stats outputs.
+        dict: Coefficient fields `beta`, `sigma` (coefficient standard error),
+            `t`, and `p` are predictor Adjacency maps for DesignMatrix input and
+            native predictor arrays/scalars for Adjacency input. `df` is scalar;
+            `residual` is an Adjacency retaining the response shape and metadata.
     """
+    import polars as pl
+    from nltools.algorithms.regression import regress as ols_regress
     from nltools.data.adjacency import Adjacency
     from nltools.data.designmatrix import DesignMatrix
-    from scipy.stats import t as t_dist
+    from nltools.algorithms.validation import validate_tail_parameter
+    from .state import common_labels, result, validate_compatible
 
+    validate_tail_parameter(tail)
     if method != "ols":
         raise ValueError(
             "Only 'ols' method is currently supported for Adjacency.regress()"
         )
-
-    stats = {}
     if isinstance(X, Adjacency):
-        if X.n_nodes != adj.n_nodes:
-            raise ValueError("Adjacency instances must be the same size.")
-        # Convert to numpy arrays for regression
-        X_data = X.data.T
-        Y_data = adj.data
-
-        # Ensure Y is 2D
-        if len(Y_data.shape) == 1:
-            Y_data = Y_data[:, np.newaxis]
-
-        # OLS regression: b = (X'X)^-1 X'Y
-        # X_data shape: (n_features, n_regressors)
-        # Y_data shape: (n_features, 1)
-        # b shape: (n_regressors, 1)
-        b = np.dot(np.linalg.pinv(X_data), Y_data)
-        res = Y_data - np.dot(X_data, b)
-
-        # Unbiased estimator of residual standard error: sqrt(RSS / df)
-        # This is correct for both intercept and intercept-free models
-        # See GH #287 for details on why np.std(res, ddof=p) is biased
-        n, p = X_data.shape
-        sigma = np.sqrt(np.sum(res**2, axis=0) / (n - p))
-        if sigma.ndim == 0:
-            sigma = sigma[np.newaxis]
-
-        stderr = (
-            np.sqrt(np.diag(np.linalg.pinv(np.dot(X_data.T, X_data))))[:, np.newaxis]
-            * sigma[np.newaxis, :]
-        )
-
-        # t-statistics
-        t = np.zeros_like(b)
-        t[stderr > 1.0e-6] = b[stderr > 1.0e-6] / stderr[stderr > 1.0e-6]
-
-        # p-values
-        df = np.array([X_data.shape[0] - X_data.shape[1]] * t.shape[1])
-        p = 2 * (1 - t_dist.cdf(np.abs(t), df))
-
-        # Create Adjacency objects for each stat
-        # For Adjacency X, b has shape (n_regressors, 1), so we need to reshape
-        # to match Adjacency data format which expects (n_matrices, n_features)
-        stats["beta"] = adj.copy()
-        stats["sigma"] = adj.copy()
-        stats["t"] = adj.copy()
-        stats["p"] = adj.copy()
-        stats["df"] = adj.copy()
-        stats["residual"] = adj.copy()
-
-        # Assign data - ensure 2D shape for Adjacency compatibility
-        b_flat = b.squeeze()
-        if b_flat.ndim == 0:
-            b_flat = np.array([b_flat])
-        stats["beta"].data = b_flat
-        stats["sigma"].data = (
-            stderr.squeeze().T if stderr.shape[0] > 1 else stderr.squeeze()
-        )
-        stats["t"].data = t.squeeze().T if t.shape[0] > 1 else t.squeeze()
-        stats["p"].data = p.squeeze().T if p.shape[0] > 1 else p.squeeze()
-        stats["df"].data = df.squeeze()
-        stats["residual"].data = res.squeeze().T if res.shape[1] == 1 else res.squeeze()
-
+        if not adj.is_single_matrix:
+            raise ValueError("Adjacency predictors require a single response matrix.")
+        validate_compatible(adj, X)
+        response_labels = common_labels(adj)
+        predictor_labels = common_labels(X)
+        if response_labels != predictor_labels or X.labels and not predictor_labels:
+            raise ValueError("Predictor and response node ordering must match.")
+        design = np.atleast_2d(X.data).T
+        response = adj.data[:, None]
     elif isinstance(X, DesignMatrix):
         if X.shape[0] != len(adj):
             raise ValueError(
                 "Design matrix must have same number of observations as Adjacency"
             )
-        # Convert Polars DesignMatrix to numpy
-        X_data = X.to_numpy()
-        Y_data = adj.data
-
-        # Ensure Y is 2D
-        if len(Y_data.shape) == 1:
-            Y_data = Y_data[:, np.newaxis]
-
-        # OLS regression: b = (X'X)^-1 X'Y
-        b = np.dot(np.linalg.pinv(X_data), Y_data)
-        res = Y_data - np.dot(X_data, b)
-
-        # Unbiased estimator of residual standard error: sqrt(RSS / df)
-        # This is correct for both intercept and intercept-free models
-        # See GH #287 for details on why np.std(res, ddof=p) is biased
-        n, p = X_data.shape
-        sigma = np.sqrt(np.sum(res**2, axis=0) / (n - p))
-        if sigma.ndim == 0:
-            sigma = sigma[np.newaxis]
-
-        stderr = (
-            np.sqrt(np.diag(np.linalg.pinv(np.dot(X_data.T, X_data))))[:, np.newaxis]
-            * sigma[np.newaxis, :]
-        )
-
-        # t-statistics
-        t = np.zeros_like(b)
-        t[stderr > 1.0e-6] = b[stderr > 1.0e-6] / stderr[stderr > 1.0e-6]
-
-        # p-values
-        df = np.array([X_data.shape[0] - X_data.shape[1]] * t.shape[1])
-        p = 2 * (1 - t_dist.cdf(np.abs(t), df))
-
-        stats["beta"], stats["sigma"], stats["t"] = [adj.copy() for _ in range(3)]
-        stats["p"], stats["df"], stats["residual"] = [adj.copy() for _ in range(3)]
-
-        # Assign data - ensure proper shape for DesignMatrix case
-        # For DesignMatrix, b has shape (n_regressors, n_features)
-        # We need to reshape to (n_features, n_regressors) to match Adjacency format
-        # where each row is a matrix (feature) and columns are regressors
-        # But since we only have one regressor, we need (n_features,) shape
-        # to match the original Adjacency data format
-        if b.shape[0] == 1:
-            # Single regressor case: b is (1, n_features), transpose to (n_features,)
-            # Result is a single matrix of coefficients
-            for key in ["beta", "sigma", "t", "p", "df", "residual"]:
-                stats[key].is_single_matrix = True
-            stats["beta"].data = b.squeeze()
-            stats["sigma"].data = stderr.squeeze()
-            stats["t"].data = t.squeeze()
-            stats["p"].data = p.squeeze()
-            stats["df"].data = df.squeeze() if df.ndim > 0 else df
-            stats["residual"].data = res.squeeze()
-        else:
-            # Multiple regressors: b is (n_regressors, n_features), transpose to (n_features, n_regressors)
-            stats["beta"].data = b.T
-            stats["sigma"].data = stderr.T
-            stats["t"].data = t.T
-            stats["p"].data = p.T
-            stats["df"].data = df
-            stats["residual"].data = res.T
+        design = X.to_numpy()
+        response = np.atleast_2d(adj.data)
     else:
         raise ValueError("X must be a DesignMatrix or Adjacency Instance.")
 
+    # The shared OLS is the single implementation; it squeezes every output, so
+    # restore the (n_regressors, n_targets) and (n_samples, n_targets) shapes the
+    # result assembly below indexes by axis.
+    beta, stderr, t, p, _, residual = ols_regress(design, response, tail=tail)
+    coefficient_shape = (design.shape[1], response.shape[1])
+    beta, stderr, t, p = (
+        np.reshape(value, coefficient_shape) for value in (beta, stderr, t, p)
+    )
+    residual = np.reshape(residual, (design.shape[0], response.shape[1]))
+    df = int(design.shape[0] - design.shape[1])
+    stats = {"df": df}
+    for key, values in [("beta", beta), ("sigma", stderr), ("t", t), ("p", p)]:
+        if isinstance(X, Adjacency):
+            stats[key] = values[:, 0].copy() if len(values) > 1 else values[0, 0].item()
+        else:
+            stats[key] = result(
+                adj,
+                values[0] if len(values) == 1 else values,
+                labels=common_labels(adj),
+                Y=pl.DataFrame(),
+            )
+    residual_values = (
+        residual[:, 0]
+        if isinstance(X, Adjacency)
+        else residual[0]
+        if adj.is_single_matrix
+        else residual
+    )
+    stats["residual"] = result(adj, residual_values, labels=adj.labels, Y=adj.Y)
     return stats
 
 
@@ -281,29 +210,28 @@ def social_relations_model(adj, summarize_results=True, nan_replace=True):
     $\\alpha_i$ is person i's actor effect, $\\beta_j$ is person j's partner effect, $g_{ij}$
     is the relationship effect and $\\epsilon_{ijl}$ is the error in measure l for actor i and partner j.
 
-    This model is primarily concerned with partioning the variance of the various effects.
+    This model is primarily concerned with partitioning the variance of the various
+    effects. The implementation follows Chapter 8 of Kenny, Kashy, & Cook (2006) and
+    the tests replicate the book's examples. Actor scores are rows (lower triangle)
+    and partner scores are columns (upper triangle). The minimal sample size to
+    estimate these effects is 4.
 
-    Code is based on implementation presented in Chapter 8 of Kenny, Kashy, & Cook (2006).
-    Tests replicate examples  presented in the book. Note, that this method assumes that
-    actor scores are rows (lower triangle), while partner scores are columnns (upper triangle).
-    The minimal sample size to estimate these effects is 4.
-
-    Model Assumptions:
-     - Social interactions are exclusively dyadic
-     - People are randomly sampled from population
-     - No order effects
-     - The effects combine additively and relationships are linear
-
-    In the future we might update the formulas and standard errors based on
-    Bond and Lashley, 1996
+    **Model assumptions:** social interactions are exclusively dyadic; people are
+    randomly sampled from the population; there are no order effects; the effects
+    combine additively and relationships are linear.
 
     Args:
-        adj: (Adjacency) can be a single matrix or many matrices for each group
-        summarize_results: (bool) will provide a formatted summary of model results
-        nan_replace: (bool) will replace nan values with row and column means
+        adj (Adjacency): A single matrix, or one matrix per group.
+        summarize_results (bool): If True, print a formatted summary of model results.
+        nan_replace (bool): If True, replace NaN values with row and column means.
 
     Returns:
-        estimated effects: (pd.Series/pd.DataFrame) All of the effects estimated using SRM
+        pd.Series | pd.DataFrame: All of the effects estimated using SRM (a Series
+            for a single matrix, a DataFrame with one row per matrix otherwise).
+
+    References:
+        Kenny, D. A., Kashy, D. A., & Cook, W. L. (2006). *Dyadic data analysis*.
+        Guilford Press.
     """
     import pandas as pd
 
@@ -615,17 +543,19 @@ def generate_permutations(adj, n_permute, random_state=None):
     This is useful for iterative comparisons.
 
     Args:
-        adj: (Adjacency) Adjacency instance
-        n_permute (int): number of permutations
-        random_state (int or np.random.RandomState, optional): random seed for reproducibility. Defaults to None.
-
-    Examples:
-        >>> for perm in generate_permutations(adj, 1000):
-        >>>     out = neural_distance_mat.similarity(perm)
-        >>>     ...
+        adj (Adjacency): Adjacency instance.
+        n_permute (int): Number of permutations.
+        random_state (int | np.random.RandomState, optional): Random seed for
+            reproducibility. Defaults to None.
 
     Yields:
-        Adjacency: permuted version of adj
+        Adjacency: Permuted version of `adj`.
+
+    Examples:
+        ```python
+        for perm in generate_permutations(adj, 1000):
+            out = neural_distance_mat.similarity(perm)
+        ```
     """
     from nltools.data.adjacency import Adjacency
     from sklearn.utils import check_random_state

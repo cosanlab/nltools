@@ -1,15 +1,11 @@
 # /// script
-# requires-python = ">=3.12"
+# requires-python = ">=3.11"
 # dependencies = [
-#     # Only marimo + the emscripten HTTP shim load from this header. nltools and its whole
-#     # runtime stack are micropip-installed by the IN_WASM setup cell (UNPINNED, so Pyodide's
-#     # bundled builds win) — see that cell. Listing the stack here too makes marimo's header
-#     # auto-install redundantly pull unpinned latest scikit-learn/scipy/pandas/matplotlib,
-#     # which drag in `packaging>=26` (absent in Pyodide 0.27.7) and error out.
 #     "marimo",
-#     "pyodide-http; sys_platform == 'emscripten'",
+#     "nltools>=0.6.0",
 # ]
 # ///
+# GLM Analysis — marimo notebook. Source of truth for the docs page; rendered to the docs page by scripts/marimo_to_zensical.py.
 import marimo
 
 __generated_with = "0.23.9"
@@ -21,70 +17,6 @@ def _():
     import marimo as mo
 
     return (mo,)
-
-
-@app.cell(hide_code=True)
-def _():
-    import sys
-
-    IN_WASM = sys.platform == "emscripten"
-    return (IN_WASM,)
-
-
-@app.cell(hide_code=True)
-async def _(IN_WASM):
-    # In-browser only: install nltools + its full runtime stack before any nltools import
-    # runs, then hand `wasm_ready` to every nltools-importing cell to force ordering. We
-    # can't rely on marimo's PEP 723 header auto-install alone: it races cell execution and
-    # marimo never re-runs a cell that already failed with ModuleNotFoundError.
-    wasm_ready = True
-    if IN_WASM:
-        import asyncio
-
-        import micropip
-        import js
-
-        async def _pip(reqs, **kw):
-            # Install packages ONE AT A TIME instead of a single concurrent
-            # micropip.install([...]) call. The big concurrent batch download
-            # occasionally returns a truncated wheel (BadZipFile); micropip then
-            # caches the corrupt bytes so an in-session retry keeps failing — and
-            # marimo never re-runs an errored cell, permanently bricking the
-            # page. Sequential installs keep peak download concurrency low and
-            # sidestep the corruption; a per-package retry still rides out
-            # ordinary network blips. (see nltools#455 investigation)
-            items = [reqs] if isinstance(reqs, str) else list(reqs)
-            for _item in items:
-                for _attempt in range(3):
-                    try:
-                        await micropip.install(_item, **kw)
-                        break
-                    except Exception:  # noqa: BLE001
-                        if _attempt == 2:
-                            raise
-                        await asyncio.sleep(0.75 * (_attempt + 1))
-
-        # Install the stack UNPINNED so micropip takes Pyodide's bundled builds (pinning
-        # to nltools' host versions, e.g. joblib>=1.5.3, fails against Pyodide's bundled
-        # joblib). nilearn is the exception: 0.14+ needs packaging>=26 (absent in Pyodide
-        # 0.27.7), so pin the last 0.13.x. numpy/scipy/pandas/sklearn/matplotlib come in
-        # transitively at their bundled versions.
-        await _pip(
-            [
-                "nibabel",
-                "nilearn==0.13.1",
-                "seaborn",
-                "polars",
-                "pynv",
-                "huggingface-hub",
-                "anywidget",
-            ]
-        )
-        # deps=False installs the wheel without re-checking nltools' own version pins.
-        await _pip(
-            js.location.origin + "__NLTOOLS_WHEEL_URL__", deps=False
-        )
-    return (wasm_ready,)
 
 
 @app.cell(hide_code=True)
@@ -117,19 +49,19 @@ def _(mo):
 
 
 @app.cell
-def _(wasm_ready):
-    _ = wasm_ready  # ensure the nltools wheel is installed first (WASM)
+def _():
     import numpy as np
     from joblib import Memory
+    from scipy.signal import detrend
 
     from nltools.data import BrainData, DesignMatrix
-    from nltools.stats import fdr, threshold
-    from nltools.utils import concatenate
+    from nltools.algorithms import fdr, threshold
+    from nltools import concatenate
 
     # Memoize per-subject fits to disk (.cache/ is git-ignored) so re-running
     # the notebook reloads results instead of refitting every voxel.
-    memory = Memory(".cache/tutorials", verbose=0)
-    return BrainData, DesignMatrix, concatenate, fdr, memory, np, threshold
+    memory = Memory(".tutorial-cache", verbose=0)
+    return BrainData, DesignMatrix, concatenate, detrend, fdr, memory, np, threshold
 
 
 @app.cell(hide_code=True)
@@ -138,98 +70,55 @@ def _(mo):
         r"""
     ## How to do it
 
-    We use the **language localizer demo** from `nilearn` — 10 subjects viewing blocks of sentences (`language`) vs. consonant strings (`string`). Each subject's BIDS derivatives give us three files: the preprocessed BOLD, an events TSV, and a confounds TSV. In the browser (Pyodide), the same analysis uses a trimmed copy of the eight subjects fitted below so it runs without a server.
+    We use the **language localizer demo** from `nilearn` — 10 subjects viewing blocks of sentences (`language`) vs. consonant strings (`string`). Each subject's BIDS derivatives give us three files: the preprocessed BOLD, an events TSV, and a confounds TSV.
+
+    The BOLD is already MNI-normalized, but on a 4.5 mm grid rather than the bundled 1/2/3 mm template grids. Interpolating every subject up to 3 mm would add voxels without adding information, so we analyze on the data's own grid: one MNI152 brain mask resampled down to it, shared by every subject so their maps stack directly, and the MNI152 T1 as the plotting background (`bg_img=`).
     """
     )
     return
 
 
-@app.cell(hide_code=True)
-async def _(IN_WASM, wasm_ready):
-    # In-browser only: seed the trimmed BIDS subset into the IDBFS cache and
-    # resolve each subject's files from it. `browser_get_sub_files` stays None
-    # locally, where the visible cell below loads from nilearn instead. Imports
-    # are underscore-aliased to keep them cell-local (marimo defines each name
-    # once across cells).
-    _ = wasm_ready  # ensure the nltools wheel is installed first (WASM)
-    browser_get_sub_files = None
-    if IN_WASM:
-        import json as _json
-        from pathlib import Path as _Path
-
-        from nltools.templates import fetch_resource as _fetch, seed_resources as _seed
-
-        _pyodide_subjects = [f"{_subject:02d}" for _subject in range(1, 9)]
-
-        def _resource_paths(sub: str) -> dict:
-            stem = f"sub-{sub}_task-languagelocalizer"
-            return {
-                "bold": f"tutorials/glm/derivatives/sub-{sub}/func/{stem}_desc-preproc_bold.nii.gz",
-                "sidecar": f"tutorials/glm/derivatives/sub-{sub}/func/{stem}_desc-preproc_bold.json",
-                "confounds": f"tutorials/glm/derivatives/sub-{sub}/func/{stem}_desc-confounds_regressors.tsv",
-                "events": f"tutorials/glm/sub-{sub}/func/{stem}_events.tsv",
-            }
-
-        _glm_resources = [
-            _relpath
-            for _sub in _pyodide_subjects
-            for _relpath in _resource_paths(_sub).values()
-        ] + [
-            # MNI templates the resample + slice plots fetch — pre-seed in Pyodide.
-            # Both 2mm (BrainData default brainspace) and 3mm are covered.
-            "default/2mm-MNI152-2009fsl-mask.nii.gz",
-            "default/2mm-MNI152-2009fsl-brain.nii.gz",
-            "default/2mm-MNI152-2009fsl-T1.nii.gz",
-            "default/3mm-MNI152-2009fsl-mask.nii.gz",
-            "default/3mm-MNI152-2009fsl-brain.nii.gz",
-            "default/3mm-MNI152-2009fsl-T1.nii.gz",
-        ]
-        await _seed(_glm_resources)
-
-        _pyodide_files = {}
-        for _sub in _pyodide_subjects:
-            _relpaths = _resource_paths(_sub)
-            _sidecar = _fetch(_relpaths["sidecar"])
-            _pyodide_files[_sub] = {
-                "bold": _fetch(_relpaths["bold"]),
-                "events": _fetch(_relpaths["events"]),
-                "confounds": _fetch(_relpaths["confounds"]),
-                "TR": _json.loads(_Path(_sidecar).read_text())["RepetitionTime"],
-            }
-
-        def browser_get_sub_files(sub: str) -> dict:
-            """Resolve one subject's trimmed browser-ready tutorial files."""
-            return _pyodide_files[sub]
-
-    return (browser_get_sub_files,)
-
-
 @app.cell
-def _(IN_WASM, browser_get_sub_files):
+def _():
     import json
     from pathlib import Path
 
-    from nilearn.datasets import fetch_language_localizer_demo_dataset
+    from nilearn.datasets import (
+        fetch_language_localizer_demo_dataset,
+        load_mni152_brain_mask,
+        load_mni152_template,
+    )
+    from nilearn.image import resample_to_img
     from nilearn.interfaces.bids import get_bids_files
 
-    if IN_WASM:
-        get_sub_files = browser_get_sub_files
-    else:
-        DATASET = fetch_language_localizer_demo_dataset(verbose=0)
-        DATA_DIR = Path(DATASET["data_dir"])
+    DATASET = fetch_language_localizer_demo_dataset(verbose=0)
+    DATA_DIR = Path(DATASET["data_dir"])
 
-        def get_sub_files(sub: str) -> dict:
-            """Resolve one subject's BOLD, events, confounds, and TR from BIDS."""
-            derivatives = DATA_DIR / "derivatives"
-            sidecar = get_bids_files(derivatives, file_tag="bold", file_type="json", sub_label=sub)[0]
-            return {
-                "bold": get_bids_files(derivatives, file_tag="bold", file_type="nii.gz", sub_label=sub)[0],
-                "events": get_bids_files(DATA_DIR, file_tag="events", file_type="tsv", sub_label=sub)[0],
-                "confounds": get_bids_files(derivatives, file_type="tsv", modality_folder="func", sub_label=sub)[0],
-                "TR": json.loads(Path(sidecar).read_text())["RepetitionTime"],
-            }
+    def get_sub_files(sub: str) -> dict:
+        """Resolve one subject's BOLD, events, confounds, and TR from BIDS."""
+        derivatives = DATA_DIR / "derivatives"
+        sidecar = get_bids_files(
+            derivatives, file_tag="bold", file_type="json", sub_label=sub
+        )[0]
+        return {
+            "bold": get_bids_files(
+                derivatives, file_tag="bold", file_type="nii.gz", sub_label=sub
+            )[0],
+            "events": get_bids_files(
+                DATA_DIR, file_tag="events", file_type="tsv", sub_label=sub
+            )[0],
+            "confounds": get_bids_files(
+                derivatives, file_type="tsv", modality_folder="func", sub_label=sub
+            )[0],
+            "TR": json.loads(Path(sidecar).read_text())["RepetitionTime"],
+        }
 
-    return (get_sub_files,)
+    # All subjects share one 4.5 mm MNI grid; nearest-neighbour keeps the mask binary.
+    MNI_MASK = resample_to_img(
+        load_mni152_brain_mask(), get_sub_files("01")["bold"], interpolation="nearest"
+    )
+    MNI_T1 = load_mni152_template(resolution=2)
+    return MNI_MASK, MNI_T1, get_sub_files
 
 
 @app.cell(hide_code=True)
@@ -238,28 +127,32 @@ def _(mo):
         r"""
     ### First level (single subject)
 
-    The recipe for one subject: load the BOLD (`BrainData` resamples to standard MNI automatically), build the design, and fit. Building a `DesignMatrix` from a BIDS events file creates boxcar regressors and **convolves them with the canonical (Glover) HRF for you** — columns come back as `language_c0` / `string_c0` (pass `hrf_model=None` for raw boxcars to `.convolve()` yourself). We append the motion confounds as nuisance columns and add polynomial drift. Wrapping it in `memory.cache` means each subject is fit once, then reloaded from disk.
+    The recipe for one subject: load the BOLD with the shared mask, build the design, and fit. Building a `DesignMatrix` from a BIDS events file hands the events to nilearn and **convolves them with the canonical (Glover) HRF for you** — columns come back as `language_c0` / `string_c0` (pass `hrf_model=None` for raw boxcars to `.convolve()` yourself). We append the six motion parameters as nuisance columns and add polynomial drift terms. Motion estimates drift slowly themselves, so we detrend them first — otherwise the drift would be modeled twice, once by the polynomials and again by the motion columns, and the two sets of regressors would be nearly collinear. Wrapping it in `memory.cache` means each subject is fit once, then reloaded from disk.
     """
     )
     return
 
 
 @app.cell
-def _(BrainData, DesignMatrix, get_sub_files, memory):
+def _(BrainData, DesignMatrix, MNI_MASK, detrend, get_sub_files, memory):
     @memory.cache
     def first_level(sub: str, contrast: str = "language_c0 - string_c0"):
-        """Fit one subject's GLM; return its design and the contrast bundle.
+        """Fit one subject's GLM; return its design and the contrast result.
 
         We return only the lightweight design and contrast maps (not the
         fitted model, which carries residuals and a copy of the data) so the
         on-disk cache stays small.
         """
         f = get_sub_files(sub)
-        brain = BrainData(f["bold"])
+        brain = BrainData(f["bold"], mask=MNI_MASK)
         events = DesignMatrix(f["events"], run_length=brain.shape[0], TR=f["TR"])
-        confounds = DesignMatrix(f["confounds"], run_length="infer", TR=f["TR"])
-        brain.fit(X=events.append(confounds, axis=1, as_confounds=True).add_poly(2))
-        return brain.design_matrix, brain.compute_contrasts(contrast, statistic="all")
+        motion = DesignMatrix(f["confounds"], run_length="infer", TR=f["TR"])
+        motion = DesignMatrix(
+            detrend(motion.to_numpy(), axis=0), columns=motion.columns, TR=f["TR"]
+        )
+        design = events.append(motion, axis=1, as_confounds=True).add_poly(2)
+        brain.fit(X=design)
+        return design, brain.compute_contrasts(contrast, inference=True)
 
     return (first_level,)
 
@@ -275,15 +168,20 @@ def _(first_level):
 def _(mo):
     mo.md(
         r"""
-    The helper returns the `language > string` contrast as a bundle — `beta`, `t`, `z`, `p`, `se` — computed in one call with `statistic="all"`, so we can threshold the t-map here *and* reuse the β map for the group analysis below.
+    The helper returns the `language > string` contrast as a `ContrastResult` — `effect`, `variance`, `standard_error`, `statistic`, `z_score`, `p_value`, and `degrees_of_freedom` — from one `inference=True` call, so we can threshold the t-map here *and* reuse the effect map for the group analysis below. Without `inference=True`, `compute_contrasts` returns the effect map alone, which is all a second-level model needs.
     """
     )
     return
 
 
 @app.cell
-def _(contrasts):
-    contrasts["t"].plot(method="slices", threshold=3.09, title="sub-01: language > string (t)")
+def _(MNI_T1, contrasts):
+    contrasts.statistic.plot(
+        method="slices",
+        threshold=3.09,
+        bg_img=MNI_T1,
+        title="sub-01: language > string (t)",
+    )
     return
 
 
@@ -291,7 +189,7 @@ def _(contrasts):
 def _(mo):
     mo.md(
         r"""
-    Even at one subject the left-lateralized fronto-temporal language network is visible (`|t| > 3.09`, two-tailed p ≈ 0.001).
+    Even at one subject the left-lateralized fronto-temporal language network is visible (`|t| > 3.09`, uncorrected p ≈ 0.002 two-tailed).
 
     ### Second level (group)
 
@@ -307,7 +205,7 @@ def _(first_level):
     beta_maps = []
     for sub in SUBJECTS:
         _, sub_contrasts = first_level(sub)
-        beta_maps.append(sub_contrasts["beta"])
+        beta_maps.append(sub_contrasts.effect)
     return (beta_maps,)
 
 
@@ -315,18 +213,22 @@ def _(first_level):
 def _(mo):
     mo.md(
         r"""
-    `concatenate` stacks the per-subject maps into one `(n_subjects, n_voxels)` `BrainData`. `BrainData.ttest` runs a voxelwise one-sample test, returning the effect-size `mean`, the parametric `t`, a signed `z`, and `p`. `nltools.stats.threshold` keeps the `z` values whose `p` clears a cutoff — here voxelwise `p < 0.001`.
+    `concatenate` stacks the per-subject maps into one `(n_subjects, n_voxels)` `BrainData`. `BrainData.ttest` runs a voxelwise one-sample test, returning the effect-size `mean`, the parametric `t`, a signed `z`, and `p`. `nltools.algorithms.threshold` keeps the `z` values whose `p` clears a cutoff — here voxelwise `p < 0.001`.
     """
     )
     return
 
 
 @app.cell
-def _(beta_maps, concatenate, threshold):
+def _(MNI_T1, beta_maps, concatenate, threshold):
     group = concatenate(beta_maps)
     group_result = group.ttest()
     group_z = threshold(group_result["z"], group_result["p"], thr=0.001)
-    group_z.plot(method="slices", title="Group: language > string (voxelwise p < 0.001)")
+    group_z.plot(
+        method="slices",
+        bg_img=MNI_T1,
+        title="Group: language > string (voxelwise p < 0.001)",
+    )
     return (group_result,)
 
 
@@ -336,7 +238,7 @@ def _(mo):
         r"""
     ### Multiple-comparisons correction
 
-    That `p < 0.001` map is *uncorrected* — it ignores that we ran tens of thousands of tests. `nltools.stats.fdr` returns the p-threshold controlling the false-discovery rate. Whole-brain correction is stringent: on a ten-subject demo, far fewer voxels survive than at the uncorrected threshold — exactly the inflation that correction guards against. Restricting the search to an ROI (see the [MVPA tutorial](workflows-03_mvpa.html)) recovers power.
+    That `p < 0.001` map is *uncorrected* — it ignores that we ran tens of thousands of tests. `nltools.algorithms.fdr` returns the p-threshold controlling the false-discovery rate. Whole-brain correction is stringent: with eight subjects, few or no voxels survive FDR or Bonferroni even though dozens pass the uncorrected threshold — exactly the inflation that correction guards against. Restricting the search to an ROI (see the [MVPA tutorial](03_mvpa.md)) recovers power.
     """
     )
     return
@@ -370,18 +272,18 @@ def _(mo):
     |---|---|---|
     | Build design | BIDS events → HRF-convolved regressors + confounds + drift | `DesignMatrix(events, run_length=, TR=)`, `.append(confounds, axis=1, as_confounds=True)`, `.add_poly()` |
     | First level | OLS at every voxel | `brain.fit(X=design)` |
-    | Contrast | Linear combination of βs (effect size + inference) | `brain.compute_contrasts("A - B", statistic="all")` |
+    | Contrast | Linear combination of βs (effect by default, `inference=True` for statistics) | `brain.compute_contrasts("A - B", inference=True)` |
     | Stack subjects | Concatenate first-level β maps | `concatenate([...])` |
     | Group test | Voxelwise one-sample t-test → `{mean, t, z, p}` | `group.ttest()` |
-    | Correction | FDR threshold | `nltools.stats.fdr`, `nltools.stats.threshold` |
+    | Correction | FDR threshold | `nltools.algorithms.fdr`, `nltools.algorithms.threshold` |
 
-    The per-subject loop is the explicit path; `BrainCollection` will wrap multi-subject fitting into a single call once it lands on this branch.
+    The per-subject loop fits each design and extracts its contrast. Concatenating those maps gives one row per subject for the group test.
 
     **Next steps**
 
-    - [Encoding models](workflows-02_encoding.html) — predict brain activity *from* stimulus features (GLM vs. Ridge).
-    - [Multivariate pattern analysis](workflows-03_mvpa.html) — decode conditions and compare representational geometry.
-    - [Inter-subject correlation](workflows-04_isc.html) — shared responses to naturalistic stimuli.
+    - [Encoding models](02_encoding.md) — predict brain activity *from* stimulus features (GLM vs. Ridge).
+    - [Multivariate pattern analysis](03_mvpa.md) — decode conditions and compare representational geometry.
+    - [Inter-subject correlation](04_isc.md) — shared responses to naturalistic stimuli.
     """
     )
     return

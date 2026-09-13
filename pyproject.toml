@@ -1,6 +1,6 @@
 [project]
 name = "nltools"
-version = "0.5.1"
+version = "0.6.0"
 requires-python = ">=3.11"
 description = "A Python package to analyze neuroimaging data"
 readme = "README.md"
@@ -20,26 +20,47 @@ classifiers = [
 keywords=["neuroimaging", "preprocessing", "analysis", "machine-learning"]
 dependencies = [
     "anywidget>=0.9",
-    # BrainCollection.fit() always writes HDF5 fit bundles
-    # (data/collection/execution.py imports h5py unguarded), so h5py is
-    # required for core functionality, not an optional add-on. hdf5plugin
-    # stays in the `h5` extra: it only registers blosc/zstd/lz4 filters for
-    # reading compressed legacy files, and nltools/io/h5.py already guards
-    # that import with an actionable error.
+    # Shared BrainData, DesignMatrix, and Adjacency HDF5 persistence.
     "h5py>=3.15",
+    "himalaya>=0.4.11,<0.5",
     "huggingface-hub>=0.30",
     "joblib>=1.5.3",
-    "nilearn>=0.12",
+    # Imported directly for plotting (not only reached through nilearn[plotting]);
+    # >=3.8.0 matches nilearn's own plotting-extra floor, above every matplotlib
+    # API nltools calls (figure/subplots/pyplot basics).
+    "matplotlib>=3.8.0",
+    # Imported directly throughout (BrainData, mask, atlases, simulator, ...);
+    # >=5.2.0 matches nilearn's floor, above every nibabel API nltools calls
+    # (Nifti1Image, load, save, affines, FileHolder).
+    "nibabel>=5.2.0",
+    # >=0.14 for the non-deprecated `residuals_`/`predicted_`/`r_square_` GLM accessors.
+    "nilearn>=0.14.1",
     "numpy>=2.0.2",
-    "polars>=1.18",
+    # Imported directly throughout (designmatrix, mask, plotting, ...); >=2.3.0
+    # matches nilearn's floor, above every pandas API nltools calls (DataFrame,
+    # Series, pd.NA, pd.api.types.is_numeric_dtype).
+    "pandas>=2.3.0",
+    # >=1.42.1 for `pl.concat(how="horizontal_extend")`.
+    "polars>=1.42.1",
     "pynv>=0.3",
+    # Imported directly throughout (cross_validation, ridge, MDS, ...); >=1.8 for
+    # the current MDS kwargs (metric='precomputed', metric_mds, init).
+    "scikit-learn>=1.8",
+    # Imported directly throughout (algorithms, adjacency, roc, ...); >=1.11.1
+    # matches nilearn's floor, above the newest scipy API nltools calls
+    # (stats.binomtest, added in scipy 1.7.0).
+    "scipy>=1.11.1",
     "seaborn>=0.13.2",
+    # Used by maybe_tqdm/make_progress_bar (nltools.utils) on the progress_bar=True
+    # path; version matches the existing dev-group pin.
+    "tqdm>=4.67.1",
 ]
 
 [project.optional-dependencies]
-# h5py is a core dependency (see above); kept listed here so `nltools[h5]`
+# h5py is a core dependency (see above); the extra is kept as an alias so
+# `pip install nltools[h5]` — what the missing-h5py error tells users to run —
 # keeps resolving for anyone who already pins it.
-h5 = ["h5py>=3.15", "hdf5plugin>=6.0.0"]
+h5 = ["h5py>=3.15"]
 graph = ["networkx>=3.5"]
 interactive_plots = ["ipywidgets>=8.1.7"]
 all = ["nltools[h5,graph,interactive_plots]"]
@@ -48,13 +69,12 @@ all = ["nltools[h5,graph,interactive_plots]"]
 [dependency-groups]
 dev = [
     "git-cliff>=2.0",
-    "griffe2md>=1.3.0",
     "h5py>=3.15",
-    "hdf5plugin>=6.0.0",
     "ipywidgets>=8.1.7",
     "jupyter-book>=2.1.4",
-    "jupytext>=1.18.1",
     "marimo>=0.23",
+    "markdown-exec>=1.12.3",
+    "mkdocstrings-python>=2.0.8",
     "mystmd>=1.10.1",
     "networkx>=3.5",
     "poethepoet>=0.40.0",
@@ -67,6 +87,7 @@ dev = [
     "torch>=2.9.0",
     "tqdm>=4.67.1",
     "ty>=0.0.4",
+    "zensical>=0.0.60",
 ]
 
 [project.urls]
@@ -124,7 +145,6 @@ markers = [
     "integration: End-to-end pipelines on real data (skipped by default)",
     "gpu: Tests requiring CUDA/GPU hardware",
 ]
-# Only collect the package suite; benchmarks/ carries its own scripts + smoke tests.
 testpaths = ["nltools/tests"]
 # Default: fast unit tests only. Skip slow + integration for iteration speed.
 # Run slow tests:        pytest -m slow
@@ -161,13 +181,23 @@ too-many-positional-arguments = "ignore" # seaborn deprecated positional args
 # call-non-callable = "error"          # (default)
 # not-iterable = "error"               # (default)
 
+[tool.poe.tasks.ok]
+help = "Run the project gate: lint, format, types, API conventions, and tests"
+sequence = [
+    { cmd = "ruff check nltools/" },
+    { cmd = "ruff format --check nltools/" },
+    { cmd = "ty check nltools/" },
+    { ref = "lint-api" },
+    { ref = "test" },
+]
+
 [tool.poe.tasks.lint]
 help = "Fix, format, and type-check (ruff check --fix -> ruff format -> ty check)"
 shell = """ruff check nltools --fix && ruff format nltools && ty check nltools"""
 
 [tool.poe.tasks.lint-api]
-help = "Enforce v0.6.0 canonical-kwarg API conventions (semgrep rules + keyword-only `*` marker check + design-tour/docs vocab drift check)"
-shell = """semgrep scan --config .semgrep/rules.yml --error --metrics off nltools/ && python scripts/check_kwonly.py && python scripts/build_api_vocabulary.py --check"""
+help = "Enforce public API conventions (vocabulary manifest checker + semgrep rules + keyword-only `*` marker check + docs vocab drift check)"
+shell = """python scripts/check_api_vocabulary.py && semgrep scan --config .semgrep/rules.yml --error --metrics off nltools/ && python scripts/check_kwonly.py && python scripts/build_api_vocabulary.py --check"""
 
 [tool.poe.tasks.test]
 help = "Run default fast test suite (parallel)"
@@ -189,13 +219,9 @@ cmd = "pytest nltools/tests/data/adjacency nltools/tests/plotting/test_adjacency
 help = "Test DesignMatrix class"
 cmd = "pytest nltools/tests/data/designmatrix -n auto --maxprocesses=4 -x"
 
-[tool.poe.tasks.test-collection]
-help = "Test BrainCollection class"
-cmd = "pytest nltools/tests/data/collection -n auto --maxprocesses=4 -x"
-
-[tool.poe.tasks.test-stats]
-help = "Test stats module"
-cmd = "pytest nltools/tests/stats -n auto --maxprocesses=4 -x"
+[tool.poe.tasks.test-algorithms]
+help = "Test consolidated algorithms modules (corrections/outliers/signal/similarity/regression/intersubject/procrustes)"
+cmd = "pytest nltools/tests/core/test_algorithms -n auto --maxprocesses=4 -x"
 
 [tool.poe.tasks.test-core]
 help = "Test core algorithms"
@@ -217,78 +243,104 @@ cmd = "pytest nltools/tests/plotting -n auto --maxprocesses=4 -x"
 help = "Test support utilities"
 cmd = "pytest nltools/tests/support -n auto --maxprocesses=4 -x"
 
-[tool.poe.tasks.test-pyodide]
-help = "Build wheel and run Pyodide/WASM smoke tests (requires node)"
-shell = "uv build --wheel && cd nltools/tests/pyodide && npm install --silent && node test_runner.mjs"
-
+# Leaves `.tutorial-cache/` alone: that holds the tutorials' joblib fits, which
+# `tutorials-clean-cache` (and `docs-build-fresh`) drop deliberately.
 [tool.poe.tasks.docs-clean]
-help = "Clean built docs (preserves execute cache so unchanged cells don't re-run)"
-shell = """cd docs && myst clean --site --html --temp --logs --cache --exports --templates -y"""
-
-[tool.poe.tasks.docs-clean-cache]
-help = "Clear MyST execute cache to force re-running all code cells on next build"
-shell = """cd docs && myst clean --execute -y"""
-
-[tool.poe.tasks.docs-generate]
-help = "Generate API docs (griffe2md) and tutorial markdown (marimo → MyST-NB) from source"
-shell = """
-set -eu
-python scripts/build_api_docs.py
-python scripts/build_api_vocabulary.py
-python scripts/marimo_to_myst.py --all
-"""
-
-# Build + EXECUTE the MyST site: runs every tutorial code-cell through a Jupyter
-# kernel to bake outputs (figures, prints). Set BASE_URL (e.g. /nltools) to deploy
-# under a GitHub Pages subpath; leave it unset for a root/local build.
-[tool.poe.tasks.docs-site]
-help = "Build the MyST site and execute tutorials to bake outputs (set BASE_URL=/nltools for a subpath deploy)"
-shell = """
-set -eu
-# MyST executes tutorial code-cells through a Jupyter kernel named `python3` (see
-# each page's kernelspec). Register it into the active venv so a fresh env (CI, a
-# new clone) can execute — idempotent, and a no-op harm if already present.
-python -m ipykernel install --sys-prefix --name python3 --display-name 'Python 3' >/dev/null 2>&1 || true
-cd docs
-myst build --site --html --execute
-# Standalone interactive Design Tour page (not a MyST page; copied verbatim).
-cp public/design-tour.html _build/html/design-tour.html
-# MyST does not apply BASE_URL to literal url: TOC/card links (the interactive
-# tutorial links + the Design Tour link). On a subpath deploy, prefix them. The
-# (?<![\\w-]) guard keeps it idempotent (skips already-prefixed links).
-if [ -n "${BASE_URL:-}" ]; then
-  find _build/html -type f -name '*.html' -exec perl -pi -e 's{(?<![\\w-])/tutorials/((?:basics|workflows)-)}{$ENV{BASE_URL}/tutorials/$1}g; s{(?<![\\w-])/design-tour\\.html}{$ENV{BASE_URL}/design-tour.html}g' {} +
-  find _build/html -type f -name '*.json' -exec perl -pi -e 's{(?<![\\w-])/tutorials/((?:basics|workflows)-)}{$ENV{BASE_URL}/tutorials/$1}g; s{(?<![\\w-])/design-tour\\.html}{$ENV{BASE_URL}/design-tour.html}g' {} +
-fi
-"""
-
-[tool.poe.tasks.docs-wasm]
-help = "Export the marimo tutorials to interactive WASM pages under _build/html/tutorials (honors BASE_URL)"
-shell = """python scripts/build_marimo_wasm.py ${BASE_URL:+--base-url ${BASE_URL}/}"""
-
-[tool.poe.tasks.docs-build]
-help = "Full docs build: regenerate sources → build + execute the site → add interactive WASM pages (set BASE_URL=/nltools for GitHub Pages)"
+help = "Remove the built site (site/), the generated tutorial pages and the build leftovers under docs/"
 sequence = [
-  { ref = "docs-generate" },
-  { ref = "docs-site" },
-  { ref = "docs-wasm" },
+  { shell = """
+set -eu
+rm -r site 2>/dev/null || true
+rm docs/tutorials/*/[0-9]*_*.md 2>/dev/null || true
+""" },
+  { ref = "docs-prune" },
 ]
 
-[tool.poe.tasks.docs-preview]
-help = "Live preview the MyST site (API reference + tutorial gallery)"
-shell = """cd docs && myst start"""
+[tool.poe.tasks.docs-generate]
+help = "Generate the API vocabulary tables and the tutorial pages (marimo → markdown-exec) from source"
+shell = """
+set -eu
+python scripts/build_api_vocabulary.py
+python scripts/marimo_to_zensical.py --all
+"""
+
+# Zensical builds every file under `docs_dir` into the site and offers no way to
+# exclude one, so whatever else lands there ships with the site: marimo's editor
+# session state (several MB of cached notebook outputs) and, until the MyST
+# toolchain is removed, its rendered output (thousands of intermediate files).
+[tool.poe.tasks.docs-prune]
+help = "Drop the build leftovers under docs/ that zensical would otherwise copy into the site"
+shell = """
+set -eu
+if [ -d docs/_build ]; then rm -r docs/_build; fi
+rm -r docs/tutorials/*/__marimo__ 2>/dev/null || true
+"""
+
+# Build + EXECUTE the site: markdown-exec runs every tutorial cell in the build
+# process to produce its outputs (figures, tables, prints). `-c` drops zensical's
+# page cache and `DOCS_EXEC=all` bypasses the tutorials' own output records, so
+# every build really re-executes: both caches are keyed on page content, which
+# does not change when the library under test does, and a build that skips the
+# tutorials also skips the gate that judges them. Run it from the repo root — the
+# notebooks cache their fits in `Memory(".tutorial-cache")`, a path relative to
+# the working directory, so a build started anywhere else recomputes every fit
+# into a new cache. A cell that raises, or that writes to stderr, fails the build
+# (scripts/docs_show.py).
+[tool.poe.tasks.docs-build]
+help = "Full docs build from the repo root: regenerate sources → build the zensical site into site/, re-executing every tutorial against the cached fits, with strict link checking"
+sequence = [
+  { ref = "docs-generate" },
+  { ref = "docs-prune" },
+  { shell = """
+set -eu
+# The tutorial pages import scripts/docs_show.py while they execute.
+export PYTHONPATH="$PWD/scripts${PYTHONPATH:+:$PYTHONPATH}"
+export DOCS_EXEC=all
+zensical build --strict -c
+""" },
+]
+
+# The preview regenerates the sources first, so the tutorial pages exist and
+# match their notebooks, then serves with live reload. A tutorial executes only
+# when its cells changed since `.tutorial-cache/pages/` last recorded them
+# (scripts/docs_show.py); every other rebuild, including the whole-site rebuild
+# zensical does after a config edit, replays the records in seconds. Outputs go
+# stale when the library changes: `docs-build` re-executes everything, and so
+# does `DOCS_EXEC=all uv run poe docs-serve`.
+[tool.poe.tasks.docs-serve]
+help = "Live preview the zensical site at http://localhost:8000 from the repo root: regenerate sources, then serve with live reload, executing a tutorial only when its cells changed (DOCS_EXEC=all executes every page)"
+sequence = [
+  { ref = "docs-generate" },
+  { ref = "docs-prune" },
+  { shell = """
+set -eu
+# The tutorial pages import scripts/docs_show.py while they execute.
+export PYTHONPATH="$PWD/scripts${PYTHONPATH:+:$PYTHONPATH}"
+zensical serve
+""" },
+]
+
+# What CI runs (docs-deploy.yml). A fresh checkout has no caches, so this is a
+# no-op there; locally it guarantees every tutorial cell really re-executes and
+# every joblib-cached fit really recomputes before the build judges them.
+[tool.poe.tasks.docs-build-fresh]
+help = "Cold docs build, as CI runs it: drop the tutorials' fit caches and recorded outputs, then run the docs build so every fit really recomputes"
+sequence = [
+  { ref = "tutorials-clean-cache" },
+  { ref = "docs-build" },
+]
 
 [tool.poe.tasks.tutorials-check]
 help = "Lint tutorial marimo notebooks (static checks, no execution)"
-shell = """for nb in docs/tutorials/basics/[0-9]*.py docs/tutorials/workflows/[0-9]*.py; do echo "check $nb"; marimo check "$nb" || exit 1; done"""
+shell = """for nb in docs/tutorials/basics/[0-9]*.py docs/tutorials/data-operations/[0-9]*.py docs/tutorials/analysis/[0-9]*.py docs/tutorials/workflows/[0-9]*.py; do echo "check $nb"; marimo check "$nb" || exit 1; done"""
 
 [tool.poe.tasks.tutorials-run]
 help = "Execute each tutorial marimo notebook as a script to verify it runs end-to-end"
-shell = """for nb in docs/tutorials/basics/[0-9]*.py docs/tutorials/workflows/[0-9]*.py; do echo "run  $nb"; python "$nb" || exit 1; done"""
+shell = """for nb in docs/tutorials/basics/[0-9]*.py docs/tutorials/data-operations/[0-9]*.py docs/tutorials/analysis/[0-9]*.py docs/tutorials/workflows/[0-9]*.py; do echo "run  $nb"; python "$nb" || exit 1; done"""
 
 [tool.poe.tasks.tutorials-clean-cache]
-help = "Clear the joblib fit cache used by the tutorial notebooks (forces recompute)"
-shell = """rm -rf .cache/tutorials docs/.cache/tutorials"""
+help = "Clear .tutorial-cache/: the tutorials' joblib fit caches and their recorded page outputs (forces recompute). Memory('.tutorial-cache') is cwd-relative, and both `poe tutorials-run` and the docs build run from the repo root, so one cache serves both"
+shell = """rm -r .tutorial-cache 2>/dev/null || true"""
 
 [tool.poe.tasks.tutorials]
 help = "Static-check tutorial notebooks, then verify they run end-to-end"
@@ -307,21 +359,3 @@ cmd = "python scripts/release.py --target ${target}"
 args = [
     { name = "target", options = ["--target"], choices = ["pypi", "testpypi"], default = "pypi" },
 ]
-
-[tool.griffe2md]
-docstring_style = "google"
-show_docstring_examples = true
-show_signature_annotations = true
-separate_signature = true
-merge_init_into_class = true
-group_by_category = true
-show_category_heading = true
-members_order = "alphabetical"
-heading_level = 2
-filters = ["!^_"]
-docstring_section_style = "table"
-summary = true
-show_docstring_raises = false
-show_root_full_path = false
-show_root_members_full_path = false
-show_object_full_path = false

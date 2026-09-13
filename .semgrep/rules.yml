@@ -1,13 +1,20 @@
-# nltools structural lint — enforces the v0.6.0 canonical-kwarg API conventions
-# from CLAUDE.md programmatically. Mirrors the bossanova .semgrep/ setup.
+# nltools structural lint — the semgrep half of the v0.6.0 API-convention gates.
+#
+# Division of labor (all wired into `poe lint-api`):
+#   - scripts/check_api_vocabulary.py — the canonical-kwarg vocabulary (banned
+#     alias kwargs + per-kwarg semantic contracts), driven by the machine-readable
+#     manifest in docs/_data/api-vocabulary.yml. The banned-kwarg semgrep rules
+#     that used to live here migrated there so the banned lists have one home.
+#   - scripts/check_kwonly.py — the structural keyword-only `*`-marker check.
+#   - THIS FILE — the checks semgrep's pattern language is genuinely better at:
+#     result-dict KEY conventions and `**kwargs` in public signatures.
 #
 # Scope model: the conventions bind the PUBLIC API surface — the four data-class
-# facades (BrainData, Adjacency, DesignMatrix, BrainCollection) plus public
-# stats/mask/datasets functions. The functional-core / algorithm-layer internals
-# (algorithms/, pipelines/, and underscore-prefixed helpers) may keep legacy
-# names because the facades translate at the boundary (CLAUDE.md "Facade
-# translation" rule). Rules therefore (a) match only public defs via the
-# `^[^_]` name filter and (b) exclude the algorithm/pipeline internals by path.
+# facades (BrainData, Adjacency, DesignMatrix, BrainCollection) plus the
+# consolidated `nltools.algorithms` functions. Only the alignment subsystem may
+# keep legacy names because the facades translate at their boundary (CLAUDE.md
+# "Facade translation" rule). Rules therefore (a) match only public defs via the
+# `^[^_]` name filter and (b) exclude alignment/pipeline internals by path.
 #
 # IMPORTANT (semgrep structure): the `metavariable-regex` name filter must be
 # ANDed with `pattern-either` under a single `patterns:` block. A top-level
@@ -15,207 +22,22 @@
 # semgrep, so the `^[^_]` underscore exemption only takes effect when nested
 # this way. (Verified 2026-07-17 — the flat form flagged `_private` helpers.)
 #
-# Suppress a genuine false positive with a trailing `# nosemgrep: <rule-id>` and
-# a one-line reason.
-#
-# NOTE (known gap): the "keyword-only `*` marker required in __init__ and any
-# public method with 3+ kwargs" convention is a structural-absence check that
-# semgrep patterns cannot express cleanly; it is enforced separately (see
-# scripts/check_kwonly.py, wired into the same `lint-api` task).
+# Suppress a genuine false positive with a `# nosemgrep: <rule-id>` trailing
+# comment ON THE `def` LINE and a one-line reason (semgrep ignores suppressions
+# that ruff wraps onto a continuation line).
 
 rules:
-  # ── Banned kwarg names: algorithm/variant choice must be `method` ──────────
-  - id: banned-kwarg-method-family
-    languages: [python]
-    severity: ERROR
-    message: >-
-      Public API uses a banned kwarg name for an algorithm/variant choice.
-      The canonical name is `method` (CLAUDE.md API table). Banned:
-      algorithm / scheme / kind / estimator / icc_type / extract_type /
-      perm_type / mode. Rename the public parameter to `method` and translate
-      to the internal name at the facade boundary. `metric` (distance/similarity)
-      and `spatial_scale` (whole_brain/roi/searchlight) are distinct canonical
-      names — use those where they apply, not `method`.
-    patterns:
-      - pattern-either:
-          - pattern: "def $F(..., algorithm=$X, ...): ..."
-          - pattern: "def $F(..., algorithm: $T = $X, ...): ..."
-          - pattern: "def $F(..., algorithm: $T, ...): ..."
-          - pattern: "def $F(..., scheme=$X, ...): ..."
-          - pattern: "def $F(..., scheme: $T = $X, ...): ..."
-          - pattern: "def $F(..., scheme: $T, ...): ..."
-          - pattern: "def $F(..., kind=$X, ...): ..."
-          - pattern: "def $F(..., kind: $T = $X, ...): ..."
-          - pattern: "def $F(..., kind: $T, ...): ..."
-          - pattern: "def $F(..., estimator=$X, ...): ..."
-          - pattern: "def $F(..., estimator: $T = $X, ...): ..."
-          - pattern: "def $F(..., estimator: $T, ...): ..."
-          - pattern: "def $F(..., icc_type=$X, ...): ..."
-          - pattern: "def $F(..., icc_type: $T = $X, ...): ..."
-          - pattern: "def $F(..., icc_type: $T, ...): ..."
-          - pattern: "def $F(..., extract_type=$X, ...): ..."
-          - pattern: "def $F(..., extract_type: $T = $X, ...): ..."
-          - pattern: "def $F(..., extract_type: $T, ...): ..."
-          - pattern: "def $F(..., perm_type=$X, ...): ..."
-          - pattern: "def $F(..., perm_type: $T = $X, ...): ..."
-          - pattern: "def $F(..., perm_type: $T, ...): ..."
-          - pattern: "def $F(..., contrast_type=$X, ...): ..."
-          - pattern: "def $F(..., contrast_type: $T = $X, ...): ..."
-          - pattern: "def $F(..., contrast_type: $T, ...): ..."
-          - pattern: "def $F(..., mode=$X, ...): ..."
-          - pattern: "def $F(..., mode: $T = $X, ...): ..."
-          - pattern: "def $F(..., mode: $T, ...): ..."
-      - metavariable-regex:
-          metavariable: $F
-          regex: '^[^_]'
-    paths:
-      exclude:
-        - "**/tests/**"
-        - "nltools/algorithms/"
-        - "nltools/pipelines/"
-        - "scripts/"
-
-  # ── Parallel execution must be `n_jobs: int` ───────────────────────────────
-  - id: banned-kwarg-parallel
-    languages: [python]
-    severity: ERROR
-    message: >-
-      Public API uses `parallel=` for parallel execution. The canonical name is
-      `n_jobs: int = -1` (CLAUDE.md). The stats/algorithm-layer internals may
-      keep `parallel=`, but the public facade must expose `n_jobs` and translate.
-    patterns:
-      - pattern-either:
-          - pattern: "def $F(..., parallel=$X, ...): ..."
-          - pattern: "def $F(..., parallel: $T = $X, ...): ..."
-          - pattern: "def $F(..., parallel: $T, ...): ..."
-      - metavariable-regex:
-          metavariable: $F
-          regex: '^[^_]'
-    paths:
-      exclude:
-        - "**/tests/**"
-        - "nltools/algorithms/"
-        - "nltools/pipelines/"
-        - "scripts/"
-
-  # ── Device selection must be `device: str = "cpu"` ─────────────────────────
-  # Banning `backend=` as a *kwarg* (device selector) closes the gap the ridge
-  # audit surfaced: `parallel=` was already banned, but `backend=` slipped
-  # through and leaked to the Ridge / bootstrap facades. Canonical is
-  # `device: str = "cpu"` ('cpu'/'gpu'/'auto'); the facade translates to the
-  # algorithm layer's `parallel=`. This bans the kwarg only — a `'backend'`
-  # result-dict KEY (a reported backend name like 'torch-cuda') and the fitted
-  # `backend_` attribute are distinct concepts and are NOT matched here.
-  # The Backend class + resolve_backend live under algorithms/ (path-excluded),
-  # so their legitimate `backend=` constructor param is unaffected.
-  - id: banned-kwarg-device
-    languages: [python]
-    severity: ERROR
-    message: >-
-      Public API uses `backend=` to select a compute device. The canonical name
-      is `device: str = "cpu"` ('cpu'/'gpu'/'auto'; CLAUDE.md API table). The
-      algorithm layer may keep `backend=`/`parallel=`, but the public facade must
-      expose `device` and translate at the boundary. (A reported backend *name*
-      under a result-dict key or the `backend_` fitted attribute is fine.)
-    patterns:
-      - pattern-either:
-          - pattern: "def $F(..., backend=$X, ...): ..."
-          - pattern: "def $F(..., backend: $T = $X, ...): ..."
-          - pattern: "def $F(..., backend: $T, ...): ..."
-      - metavariable-regex:
-          metavariable: $F
-          regex: '^[^_]'
-    paths:
-      exclude:
-        - "**/tests/**"
-        - "nltools/algorithms/"
-        - "nltools/pipelines/"
-        - "scripts/"
-
-  # ── Permutation count must be `n_permute` (bootstrap: `n_samples`) ──────────
-  - id: banned-kwarg-permutation-count
-    languages: [python]
-    severity: ERROR
-    message: >-
-      Public API uses a banned permutation/iteration kwarg. Permutation count is
-      `n_permute`; bootstrap sample count is `n_samples` (semantically distinct).
-      Banned: n_perm / n_iter. (`n_iter` meaning solver iterations in the
-      algorithm layer is exempt via the path exclusion.)
-    patterns:
-      - pattern-either:
-          - pattern: "def $F(..., n_perm=$X, ...): ..."
-          - pattern: "def $F(..., n_perm: $T = $X, ...): ..."
-          - pattern: "def $F(..., n_perm: $T, ...): ..."
-          - pattern: "def $F(..., n_iter=$X, ...): ..."
-          - pattern: "def $F(..., n_iter: $T = $X, ...): ..."
-          - pattern: "def $F(..., n_iter: $T, ...): ..."
-      - metavariable-regex:
-          metavariable: $F
-          regex: '^[^_]'
-    paths:
-      exclude:
-        - "**/tests/**"
-        - "nltools/algorithms/"
-        - "nltools/pipelines/"
-        - "scripts/"
-
-  # ── Progress indicator must be `progress_bar: bool` ────────────────────────
-  - id: banned-kwarg-progress
-    languages: [python]
-    severity: ERROR
-    message: >-
-      Public API uses `show_progress=` for a progress indicator. The canonical
-      name is `progress_bar: bool = False` (CLAUDE.md). `verbose` is reserved for
-      log-level only and must not double as a progress flag.
-    patterns:
-      - pattern-either:
-          - pattern: "def $F(..., show_progress=$X, ...): ..."
-          - pattern: "def $F(..., show_progress: $T = $X, ...): ..."
-          - pattern: "def $F(..., show_progress: $T, ...): ..."
-      - metavariable-regex:
-          metavariable: $F
-          regex: '^[^_]'
-    paths:
-      exclude:
-        - "**/tests/**"
-        - "nltools/algorithms/"
-        - "nltools/pipelines/"
-        - "scripts/"
-
-  # ── Diagonal flag must be `include_diag: bool` ─────────────────────────────
-  - id: banned-kwarg-diagonal
-    languages: [python]
-    severity: ERROR
-    message: >-
-      Public API uses `ignore_diagonal=`. The canonical name is
-      `include_diag: bool` (CLAUDE.md) — note the inverted sense.
-    patterns:
-      - pattern-either:
-          - pattern: "def $F(..., ignore_diagonal=$X, ...): ..."
-          - pattern: "def $F(..., ignore_diagonal: $T = $X, ...): ..."
-          - pattern: "def $F(..., ignore_diagonal: $T, ...): ..."
-      - metavariable-regex:
-          metavariable: $F
-          regex: '^[^_]'
-    paths:
-      exclude:
-        - "**/tests/**"
-        - "nltools/algorithms/"
-        - "nltools/pipelines/"
-        - "scripts/"
-
   # ── Result-dict key: observed correlation must be `'correlation'` ──────────
   # A return-value convention (not a kwarg one), so this rule is NOT path-scoped
   # to public defs — result dicts are built in the algorithm layer, and the
   # convention binds every layer that emits a correlation result. The canonical
-  # keys are `'correlation'` (observed correlation) + `'p'` + `'parallel'`,
-  # matching correlation_permutation_test / matrix_permutation_test and the
+  # keys are `'correlation'` (observed correlation) and `'p'`, matching
+  # correlation_permutation_test / matrix_permutation_test and the
   # `Adjacency.similarity` contract. The banned alias is `'r'` (which drifted
   # into docstrings; the code was already consistent — this keeps it that way).
   # Distance correlation is the documented exception: it uses `'dcorr'`.
-  # The parallel/device field is `'parallel'`; `'backend'` is intentionally NOT
-  # banned because the ridge/backends layer legitimately reports a backend *name*
-  # (e.g. 'torch-cuda') under that key — a distinct concept from the selector.
+  # `'backend'` is intentionally NOT banned because the backends layer
+  # legitimately reports a backend *name* (e.g. 'torch-cuda') under that key.
   - id: banned-result-key-correlation
     languages: [python]
     severity: ERROR
@@ -260,7 +82,6 @@ rules:
     paths:
       exclude:
         - "**/tests/**"
-        - "nltools/algorithms/"
         - "nltools/pipelines/"
         - "scripts/"
         # Plotting = legitimate matplotlib/seaborn/nilearn passthrough (see note above)

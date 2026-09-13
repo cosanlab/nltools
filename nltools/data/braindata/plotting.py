@@ -1,9 +1,12 @@
-"""BrainData plotting functions."""
+"""Glass-brain, slice, flatmap, timeseries, and histogram plots for `BrainData`."""
 
 import os
 import warnings
 
 import numpy as np
+
+from nltools.utils import find_stack_level
+from .utils import _result_from_array
 
 
 DEFAULT_SLICE_CUT_COORDS = {
@@ -37,23 +40,6 @@ def _image_world_bounds(nifti_img, axis_letter: str) -> tuple[float, float]:
     return float(world[:, axis_idx].min()), float(world[:, axis_idx].max())
 
 
-def _require_standard_space(bd, op_name: str, *, remedy: str) -> None:
-    """Raise if ``bd`` is not in a standard MNI space supported by templates.
-
-    Used to gate plotting paths that draw against MNI-aligned scaffolding
-    (glass-brain outlines, fsaverage surfaces, template backgrounds).
-    Native-space data would render in misleading positions.
-    """
-    from nltools.templates import is_standard_space
-
-    ok, reason = is_standard_space(bd.mask.affine)
-    if ok:
-        return
-    raise ValueError(
-        f"{op_name} requires data in standard MNI space, but {reason}. {remedy}"
-    )
-
-
 def plot_brain(
     bd,
     *,
@@ -77,16 +63,15 @@ def plot_brain(
     """Plot BrainData instance using nilearn visualization or matplotlib.
 
     Args:
-        bd: BrainData instance.
+        bd (BrainData): Data to plot.
         method (str): Visualization type ('glass', 'slices', 'timeseries', 'histogram').
-        upper (str/float, optional): Upper threshold applied to the data
+        upper (str | float | None): Upper threshold applied to the data
             (nltools semantics; may be a percentile string like ``"95%"``).
-        lower (str/float, optional): Lower threshold applied to the data
+        lower (str | float | None): Lower threshold applied to the data
             (nltools semantics).
-        threshold (float, optional): Absolute-value transparency cutoff
-            forwarded to the underlying nilearn plot function. Voxels with
-            ``|value| < threshold`` are rendered transparent. Must be >= 0.
-            Use ``upper``/``lower`` for one-sided data thresholding.
+        threshold (float | str, optional): Absolute-value transparency cutoff
+            forwarded to nilearn. Percentile strings such as ``"95%"`` are
+            resolved over finite, nonzero magnitudes. Must be >= 0.
         view (str): For ``method="slices"``, any non-empty combination of
             ``"x"``, ``"y"``, ``"z"`` (e.g. ``"xyz"``, ``"xz"``, ``"y"``).
             Default: ``"z"``.
@@ -96,7 +81,9 @@ def plot_brain(
             matches ``view``, or a dict keyed by axis letter (``{"x": [...],
             "z": [...]}``) from which entries for each axis in ``view`` are
             looked up.
-        cmap (str, optional): Colormap name.
+        cmap (str, optional): Colormap name. By default, positive-only maps use
+            ``"Reds"``, negative-only maps use ``"Blues_r"``, and mixed maps
+            use ``"RdBu_r"``.
         bg_img (Nifti1Image or str, optional): Background image for slice views.
         ax (matplotlib.axes.Axes, optional): Matplotlib axis to plot on.
         figsize (tuple, optional): default figure size if no axis (8, 6)
@@ -111,15 +98,16 @@ def plot_brain(
             ``limit``. Ignored for single-image data and for matplotlib-based
             methods (``"timeseries"``, ``"histogram"``), which already
             aggregate across images.
-        **kwargs: Additional arguments passed to nilearn plot functions.
+        **kwargs (dict): Additional arguments forwarded to
+            `nilearn.plotting.plot_glass_brain` / `plot_stat_map`.
 
     Returns:
-        matplotlib.figure.Figure or list[matplotlib.figure.Figure]: For
-        single-image data, the figure object (last one created if
-        ``method="slices"`` produced multiple per-axis figures). For
-        multi-image data with ``method`` in ``{"glass", "slices"}``, a list
-        of figures (one per image for glass; one per image-and-view pair for
-        slices). All figures auto-display in notebooks.
+        matplotlib.figure.Figure | list[matplotlib.figure.Figure]: For
+            single-image data, the figure object (last one created if
+            `method="slices"` produced multiple per-axis figures). For
+            multi-image data with `method` in `{"glass", "slices"}`, a list of
+            figures (one per image for glass; one per image-and-view pair for
+            slices). All figures auto-display in notebooks.
     """
     import matplotlib.pyplot as plt
     from nilearn.plotting import plot_glass_brain, plot_stat_map
@@ -130,7 +118,7 @@ def plot_brain(
     if bd.is_empty:
         raise ValueError("Cannot plot empty BrainData object")
 
-    if threshold is not None and threshold < 0:
+    if threshold is not None and not isinstance(threshold, str) and threshold < 0:
         raise ValueError(
             f"`threshold` is an absolute-value cutoff and must be >= 0 "
             f"(got {threshold}). Use `upper` / `lower` for one-sided data "
@@ -198,7 +186,7 @@ def plot_brain(
                 f"{n_to_plot}. Pass `limit={n_total}` (or higher) to plot "
                 "more, or index/aggregate before calling .plot().",
                 UserWarning,
-                stacklevel=2,
+                stacklevel=find_stack_level(),
             )
         sub_objs = [bd[i] for i in range(n_to_plot)]
     else:
@@ -220,7 +208,7 @@ def plot_brain(
                     f"falling back to method='slices' with the bg_img you "
                     "provided.",
                     UserWarning,
-                    stacklevel=2,
+                    stacklevel=find_stack_level(),
                 )
                 method = "slices"
             else:
@@ -256,8 +244,31 @@ def plot_brain(
         else:
             obj = sub
 
-        cmap_use = cmap if cmap is not None else auto_select_colormap(obj.data)
+        from .utils import resolve_threshold
+
+        threshold_use = resolve_threshold(threshold, np.abs(obj.data))
+        if threshold_use is not None and threshold_use < 0:
+            raise ValueError(
+                f"`threshold` is an absolute-value cutoff and must be >= 0 "
+                f"(got {threshold_use}). Use `upper` / `lower` for one-sided "
+                f"data thresholding."
+            )
+        displayed_data = obj.data
+        if threshold_use is not None:
+            displayed_data = displayed_data[np.abs(displayed_data) >= threshold_use]
+        cmap_use = cmap if cmap is not None else auto_select_colormap(displayed_data)
         save_paths = prepare_save_paths(save, idx if multi else None) if save else None
+
+        # A plot cannot show NaN/inf; nilearn zero-fills them itself but warns
+        # every time, which is noise for ROI maps and tSNR (NaN outside parcels
+        # or where std == 0). Zero-fill up front so the result is identical
+        # and silent.
+        if not np.all(np.isfinite(obj.data)):
+            obj = _result_from_array(
+                obj,
+                np.nan_to_num(obj.data, nan=0.0, posinf=0.0, neginf=0.0),
+                rows="preserve",
+            )
 
         try:
             nifti_img = obj.to_nifti()
@@ -275,8 +286,8 @@ def plot_brain(
             sub_title = title
         if sub_title:
             plot_kwargs["title"] = sub_title
-        if threshold is not None:
-            plot_kwargs["threshold"] = threshold
+        if threshold_use is not None:
+            plot_kwargs["threshold"] = threshold_use
         plot_kwargs.setdefault("transparency", obj.mask)
 
         if method == "glass":
@@ -334,113 +345,22 @@ def plot_brain(
     return figures[-1]
 
 
-def plot_flatmap_brain(
-    bd,
-    *,
-    threshold=None,
-    cmap="RdBu_r",
-    vmax=None,
-    vmin=None,
-    template="fsaverage5",
-    with_curvature=True,
-    curvature_contrast=0.5,
-    curvature_brightness=0.5,
-    transparency="auto",
-    colorbar=True,
-    colorbar_orientation="horizontal",
-    figsize=(12, 6),
-    title=None,
-    radius_mm=3.0,
-    interpolation="linear",
-    axes=None,
-    save=None,
-):
-    """Plot brain data on cortical flatmap.
-
-    Args:
-        bd: BrainData instance.
-        threshold (float, optional): Values below this absolute threshold
-            are masked.
-        cmap (str): Matplotlib colormap for data. Default: 'RdBu_r'.
-        vmax (float, optional): Maximum value for colormap.
-        vmin (float, optional): Minimum value for colormap.
-        template (str): fsaverage resolution. Default: 'fsaverage5'.
-        with_curvature (bool): Show sulcal/gyral pattern. Default: True.
-        curvature_contrast (float): Contrast of curvature. Default: 0.5.
-        curvature_brightness (float): Mean brightness of curvature.
-            Default: 0.5.
-        transparency (str or float or array-like): Transparency/alpha applied
-            to the surface data. ``'auto'`` (default) lets the renderer choose.
-        colorbar (bool): Show colorbar. Default: True.
-        colorbar_orientation (str): 'horizontal' or 'vertical'.
-            Default: 'horizontal'.
-        figsize (tuple): Figure size. Default: (12, 6).
-        title (str, optional): Figure title.
-        radius_mm (float): sampling radius in mm for vol_to_surf.
-            Default: 3.0.
-        interpolation (str): Interpolation for vol_to_surf.
-            Default: 'linear'.
-        axes (matplotlib.axes.Axes, optional): Existing axes to plot on.
-        save (str, optional): File path to save figure.
-
-    Returns:
-        matplotlib.figure.Figure
-    """
-    from nltools.plotting import plot_flatmap
-
-    if bd.is_empty:
-        raise ValueError("Cannot plot empty BrainData object")
-
-    _require_standard_space(
-        bd,
-        "plot_flatmap",
-        remedy=(
-            "Flatmap projection samples vol_to_surf at fsaverage (MNI-"
-            "aligned) coordinates and produces garbage on native-space "
-            "data. Use bd.plot(method='slices', bg_img=<your subject "
-            "anatomical>) instead, or call bd.resample() to bring data "
-            "into standard space first."
-        ),
-    )
-
-    return plot_flatmap(
-        brain=bd,
-        threshold=threshold,
-        cmap=cmap,
-        vmax=vmax,
-        vmin=vmin,
-        template=template,
-        with_curvature=with_curvature,
-        curvature_contrast=curvature_contrast,
-        curvature_brightness=curvature_brightness,
-        transparency=transparency,
-        colorbar=colorbar,
-        colorbar_orientation=colorbar_orientation,
-        figsize=figsize,
-        title=title,
-        radius_mm=radius_mm,
-        interpolation=interpolation,
-        axes=axes,
-        save=save,
-    )
-
-
 def _plot_matplotlib(
     bd, method, stat="mean", figsize=(8, 6), ax=None, title=None, save=None
 ):
     """Plot using matplotlib (timeseries or histogram).
 
     Args:
-        bd: BrainData instance.
-        method (str): 'timeseries' or 'histogram'
-        stat (str): Statistic for timeseries ('mean', 'median', 'std')
-        figsize (tuple, optional): default figure size if no axis (8, 6)
-        ax: Matplotlib axis.
-        title (str, optional): Plot title.
-        save (str, optional): Path to save figure.
+        bd (BrainData): Data to plot.
+        method (str): 'timeseries' or 'histogram'.
+        stat (str): Statistic for timeseries ('mean', 'median', 'std').
+        figsize (tuple): Figure size when no axis is given. Default: (8, 6).
+        ax (matplotlib.axes.Axes | None): Existing axis to plot on.
+        title (str | None): Plot title.
+        save (str | None): Path to save the figure.
 
     Returns:
-        matplotlib.figure.Figure
+        matplotlib.figure.Figure: The rendered figure.
     """
     import matplotlib.pyplot as plt
 
@@ -521,10 +441,11 @@ def auto_select_colormap(data):
     """Auto-select colormap based on data characteristics.
 
     Args:
-        data (np.ndarray): numpy array of brain data
+        data (np.ndarray): Brain data values.
 
     Returns:
-        str: Colormap name
+        str: ``'Reds'`` for positive-only data, ``'Blues_r'`` for
+            negative-only data, otherwise ``'RdBu_r'``.
     """
     # Flatten data for analysis
     if data.ndim > 1:
@@ -532,21 +453,16 @@ def auto_select_colormap(data):
     else:
         data_flat = data
 
-    # Remove NaN/Inf
-    data_flat = data_flat[np.isfinite(data_flat)]
+    # Stored zeros are background, not evidence that a map is mixed-signed.
+    data_flat = data_flat[np.isfinite(data_flat) & (data_flat != 0)]
 
     if len(data_flat) == 0:
         return "RdBu_r"  # Default fallback
 
-    # Check data range for colormap selection
-    # If mostly positive (> 90% positive), use hot/reds
-    positive_ratio = np.sum(data_flat > 0) / len(data_flat)
-    if positive_ratio > 0.9:
-        return "hot"
-    # If mostly negative (> 90% negative), use cool/blues
-    if (1 - positive_ratio) > 0.9:
-        return "cool"
-    # Otherwise use bipolar
+    if np.all(data_flat > 0):
+        return "Reds"
+    if np.all(data_flat < 0):
+        return "Blues_r"
     return "RdBu_r"
 
 
@@ -554,12 +470,14 @@ def prepare_save_paths(save, idx=None):
     """Prepare save paths for multiple plot outputs.
 
     Args:
-        save: Base save path (str or Path)
-        idx (int, optional): Image index appended as ``_img{idx}`` to the
-            base filename. Used to disambiguate saves across multiple images.
+        save (str | Path): Base save path; its extension is reused (default
+            `png`).
+        idx (int | None): Image index appended as ``_img{idx}`` to the base
+            filename, to disambiguate saves across multiple images.
 
     Returns:
-        dict: Dictionary with 'glass' and 'slices' keys containing save paths
+        dict: `'glass'` maps to one path; `'slices'` maps to a dict of per-axis
+            (`'x'`, `'y'`, `'z'`) paths.
     """
     save = str(save)  # Convert Path objects to strings
     path, filename = os.path.split(save)

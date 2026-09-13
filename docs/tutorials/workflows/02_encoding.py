@@ -1,15 +1,11 @@
 # /// script
-# requires-python = ">=3.12"
+# requires-python = ">=3.11"
 # dependencies = [
-#     # Only marimo + the emscripten HTTP shim load from this header. nltools and its whole
-#     # runtime stack are micropip-installed by the IN_WASM setup cell (UNPINNED, so Pyodide's
-#     # bundled builds win) — see that cell. Listing the stack here too makes marimo's header
-#     # auto-install redundantly pull unpinned latest scikit-learn/scipy/pandas/matplotlib,
-#     # which drag in `packaging>=26` (absent in Pyodide 0.27.7) and error out.
 #     "marimo",
-#     "pyodide-http; sys_platform == 'emscripten'",
+#     "nltools>=0.6.0",
 # ]
 # ///
+# Encoding Models — marimo notebook. Source of truth for the docs page; rendered to the docs page by scripts/marimo_to_zensical.py.
 import marimo
 
 __generated_with = "0.23.9"
@@ -21,74 +17,6 @@ def _():
     import marimo as mo
 
     return (mo,)
-
-
-@app.cell(hide_code=True)
-def _():
-    import sys
-
-    IN_WASM = sys.platform == "emscripten"
-    return (IN_WASM,)
-
-
-@app.cell(hide_code=True)
-async def _(IN_WASM):
-    # In-browser only: install nltools + its full runtime stack before any nltools import
-    # runs, then hand `wasm_ready` to every nltools-importing cell to force ordering. We
-    # can't rely on marimo's PEP 723 header auto-install alone: it races cell execution and
-    # marimo never re-runs a cell that already failed with ModuleNotFoundError.
-    #
-    # The dataset (nilearn Miyawaki) is hosted as a trimmed subset under
-    # tutorials/encoding/ in the nltools/niftis HF dataset; the data cell seeds it
-    # into the IDBFS cache in the browser and reads from local nilearn otherwise.
-    wasm_ready = True
-    if IN_WASM:
-        import asyncio
-
-        import micropip
-        import js
-
-        async def _pip(reqs, **kw):
-            # Install packages ONE AT A TIME instead of a single concurrent
-            # micropip.install([...]) call. The big concurrent batch download
-            # occasionally returns a truncated wheel (BadZipFile); micropip then
-            # caches the corrupt bytes so an in-session retry keeps failing — and
-            # marimo never re-runs an errored cell, permanently bricking the
-            # page. Sequential installs keep peak download concurrency low and
-            # sidestep the corruption; a per-package retry still rides out
-            # ordinary network blips. (see nltools#455 investigation)
-            items = [reqs] if isinstance(reqs, str) else list(reqs)
-            for _item in items:
-                for _attempt in range(3):
-                    try:
-                        await micropip.install(_item, **kw)
-                        break
-                    except Exception:  # noqa: BLE001
-                        if _attempt == 2:
-                            raise
-                        await asyncio.sleep(0.75 * (_attempt + 1))
-
-        # Install the stack UNPINNED so micropip takes Pyodide's bundled builds (pinning
-        # to nltools' host versions, e.g. joblib>=1.5.3, fails against Pyodide's bundled
-        # joblib). nilearn is the exception: 0.14+ needs packaging>=26 (absent in Pyodide
-        # 0.27.7), so pin the last 0.13.x. numpy/scipy/pandas/sklearn/matplotlib come in
-        # transitively at their bundled versions.
-        await _pip(
-            [
-                "nibabel",
-                "nilearn==0.13.1",
-                "seaborn",
-                "polars",
-                "pynv",
-                "huggingface-hub",
-                "anywidget",
-            ]
-        )
-        # deps=False installs the wheel without re-checking nltools' own version pins.
-        await _pip(
-            js.location.origin + "__NLTOOLS_WHEEL_URL__", deps=False
-        )
-    return (wasm_ready,)
 
 
 @app.cell(hide_code=True)
@@ -109,30 +37,28 @@ def _(mo):
 def _(mo):
     mo.md(
         r"""
-    **How it works.** Compared with the [GLM](workflows-01_glm.html), an encoding model flips the question and the machinery:
+    **How it works.** Compared with the [GLM](01_glm.md), an encoding model flips the question and the machinery:
 
     - **GLM** assumes a canonical HRF, uses a few categorical regressors, and asks *which voxels respond* (β / t / p).
-    - **Encoding** uses many features (often hundreds), lets the data estimate the response shape, and asks *how well features predict each voxel* (cross-validated R²).
+    - **Encoding** uses many features (often hundreds), lets the data estimate the response shape, and asks *how well features predict each voxel* (R² on data the model never saw).
 
-    Two ideas make it work: a **FIR (finite impulse response)** feature bank — lagged copies of the stimulus, so ridge learns the per-voxel HRF instead of assuming one — and **ridge regularization with per-voxel α**, since hundreds of features would make ordinary least squares overfit. We compare an optimistic in-sample fit against an honest cross-validated one.
+    Two ideas make it work: a **FIR (finite impulse response)** feature bank — lagged copies of the stimulus, so ridge learns the per-voxel HRF instead of assuming one — and **ridge regularization with per-voxel α**, since hundreds of features would make ordinary least squares overfit. We compare an optimistic in-sample fit against an honest held-out one.
     """
     )
     return
 
 
 @app.cell
-def _(wasm_ready):
-    _ = wasm_ready  # ensure the nltools wheel is installed first (WASM)
+def _():
     import numpy as np
     from joblib import Memory
 
     from nltools.data import BrainData
-    from nltools.templates import fetch_resource, seed_resources
-    from nltools.utils import concatenate
+    from nltools import concatenate
 
     # Memoize the (slow) multi-run load to disk (.cache/ is git-ignored).
-    memory = Memory(".cache/tutorials", verbose=0)
-    return BrainData, Memory, concatenate, fetch_resource, memory, np, seed_resources
+    memory = Memory(".tutorial-cache", verbose=0)
+    return BrainData, Memory, concatenate, memory, np
 
 
 @app.cell(hide_code=True)
@@ -147,47 +73,11 @@ def _(mo):
     return
 
 
-@app.cell(hide_code=True)
-async def _(IN_WASM, wasm_ready, fetch_resource, seed_resources):
-    # In-browser only: seed the trimmed run subset and wrap it in a Bunch that
-    # mimics nilearn's fetch_miyawaki2008() (.func/.label/.mask/.background).
-    # `browser_encoding` stays None locally, where the visible cell below loads
-    # from nilearn. Imports/vars are underscore-aliased to stay cell-local
-    # (marimo defines each name once across cells).
-    _ = wasm_ready  # ensure the nltools wheel is installed first (WASM)
-    browser_encoding = None
-    if IN_WASM:
-        from sklearn.utils import Bunch as _Bunch
-
-        _runs = [f"{_i:02d}" for _i in range(1, 9)]
-        _encoding_resources = (
-            [f"tutorials/encoding/run-{_r}_bold.nii.gz" for _r in _runs]
-            + [f"tutorials/encoding/run-{_r}_label.csv" for _r in _runs]
-            + ["tutorials/encoding/mask.nii.gz", "tutorials/encoding/background.nii.gz"]
-        )
-        await seed_resources(_encoding_resources)
-        browser_encoding = _Bunch(
-            func=[
-                fetch_resource(f"tutorials/encoding/run-{_r}_bold.nii.gz")
-                for _r in _runs
-            ],
-            label=[
-                fetch_resource(f"tutorials/encoding/run-{_r}_label.csv") for _r in _runs
-            ],
-            mask=fetch_resource("tutorials/encoding/mask.nii.gz"),
-            background=fetch_resource("tutorials/encoding/background.nii.gz"),
-        )
-    return (browser_encoding,)
-
-
 @app.cell
-def _(IN_WASM, browser_encoding, BrainData, concatenate, memory, np):
+def _(BrainData, concatenate, memory, np):
     from nilearn.datasets import fetch_miyawaki2008
 
-    if IN_WASM:
-        DATASET = browser_encoding
-    else:
-        DATASET = fetch_miyawaki2008(verbose=0)
+    DATASET = fetch_miyawaki2008(verbose=0)
 
     @memory.cache
     def load_runs(n_runs: int):
@@ -219,17 +109,19 @@ def _(mo):
 
 
 @app.cell
-def _(stim):
+def _(np, stim):
     import matplotlib.pyplot as plt
 
+    # Each stimulus is held on screen for several TRs, so show the first TR of
+    # four *different* stimuli rather than four copies of the same one.
     on_frames = (stim.sum(axis=1) > 0).nonzero()[0]
+    first_seen = sorted(np.unique(stim[on_frames], axis=0, return_index=True)[1])
     stim_fig, stim_axes = plt.subplots(1, 4, figsize=(9, 2.6))
-    for stim_ax, frame in zip(stim_axes, on_frames[:4]):
+    for stim_ax, frame in zip(stim_axes, on_frames[first_seen[:4]]):
         stim_ax.imshow(stim[frame].reshape(10, 10), cmap="gray", vmin=0, vmax=1)
         stim_ax.set_title(f"TR {frame}")
         stim_ax.axis("off")
-    stim_fig.suptitle("Stimulus frames (10×10 binary contrast)", y=1.05)
-    stim_fig
+    _ = stim_fig.suptitle("Stimulus frames (10×10 binary contrast)", y=1.05)
     return (plt,)
 
 
@@ -264,63 +156,84 @@ def _(np, stim):
 def _(mo):
     mo.md(
         r"""
-    ### Fit ridge: in-sample vs. cross-validated
+    ### Fit ridge: in-sample vs. held-out
 
-    Standard encoding preprocessing: demean each voxel (ridge here has no intercept) and skip the GLM's percent-signal scaling (`scale=False`). A fixed-α fit with no CV gives `ridge_scores` — an *in-sample* R², which is optimistically biased.
+    Standard encoding preprocessing: z-score each voxel explicitly, since `fit` never preprocesses the response and ridge fits no intercept. A fixed-α fit with no CV gives `ridge_r2` — an *in-sample* R², which is optimistically biased.
     """
     )
     return
 
 
 @app.cell
-def _(X_fir, bold, np):
-    bold.data = bold.data - bold.data.mean(axis=0, keepdims=True)  # voxelwise demean
-    bold.fit(model="ridge", X=X_fir, alpha=1.0, scale=False)
-    in_sample = bold.ridge_scores.data.ravel()
+def _(X_fir, bold):
+    # `fit` never preprocesses the response, so standardize explicitly: ridge
+    # fits no intercept, and a shared alpha should regularize voxels comparably.
+    # The standardized data gets its own name so every later cell that needs it
+    # depends on it by name rather than on `bold` having been mutated.
+    bold_z = bold.standardize(method="zscore")
+    bold_z.fit(model="ridge", X=X_fir, ridge_alpha=1.0)
+    in_sample = bold_z.ridge_r2.data.ravel()
     print(f"in-sample R²  — mean {in_sample.mean():.3f}  max {in_sample.max():.3f}")
-    return
+    return (bold_z,)
 
 
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(
         r"""
-    The honest version: `alpha="auto"` + `cv=K` sweeps an α grid and picks the best α **per voxel** (`local_alpha=True`, the default) — high-SNR visual voxels want little regularization, noisier voxels want more. `cv_results_` then carries the cross-validated `mean_score`, per-fold `scores`, and selected `best_alpha`.
+    The honest version holds out the last run entirely and fits on the other seven. A *sequence* of candidate alphas plus a `ridge_cv` sweeps the grid and picks the best α **per voxel** (`ridge_per_target_alpha=True`, the default) — high-SNR visual voxels want little regularization, noisier voxels want more. Scoring the fitted model on the untouched run gives a genuinely out-of-sample R². Both blocks are standardized on their own statistics — explicitly, since `fit` does no preprocessing — because ridge fits no intercept and a new run carries its own offset.
     """
     )
     return
 
 
 @app.cell
-def _(X_fir, bold, np):
+def _(X_fir, bold_z, np):
     from sklearn.model_selection import KFold
 
     ALPHAS = np.logspace(-1, 4, 20)
-    bold.fit(
-        model="ridge",
-        X=X_fir,
-        alpha="auto",
-        alphas=ALPHAS,
-        cv=KFold(n_splits=5, shuffle=True, random_state=0),
-        scale=False,
+    n_test = bold_z.shape[0] // 8  # last of the 8 concatenated runs
+    train, test = slice(0, -n_test), slice(-n_test, None)
+
+    trained = (
+        bold_z[train]
+        .standardize(method="zscore")
+        .fit(
+            model="ridge",
+            X=X_fir[train],
+            ridge_alpha=ALPHAS,
+            ridge_cv=KFold(n_splits=5, shuffle=True, random_state=0),
+            inplace=False,
+        )
     )
-    cv_r2 = bold.cv_results_["mean_score"]
-    print(f"CV R²        — mean {cv_r2.mean():.3f}  max {cv_r2.max():.3f}")
-    print(f"voxels with CV R² > 0.10: {(cv_r2 > 0.10).sum()} / {cv_r2.size}")
-    return (ALPHAS,)
+    held_out = bold_z[test].standardize(method="zscore")
+    held_out_r2 = trained.model_.score(X_fir[test], held_out.data)
+    print(
+        f"held-out R²  — median {np.median(held_out_r2):.3f}  "
+        f"max {held_out_r2.max():.3f}"
+    )
+    print(
+        f"voxels with held-out R² > 0.10: "
+        f"{(held_out_r2 > 0.10).sum()} / {held_out_r2.size}"
+    )
+    return ALPHAS, held_out_r2, trained
 
 
 @app.cell
-def _(DATASET, bold):
-    cv_map = bold.ridge_scores.copy()
-    cv_map.data = bold.cv_results_["mean_score"].reshape(1, -1)
-    cv_map.plot(
+def _(DATASET, bold_z, held_out_r2, np):
+    held_out_map = bold_z.ridge_r2.copy()
+    # Most voxels do not track the stimulus at all, so their held-out R² is
+    # negative. Floor the map at zero and let the threshold hide the rest —
+    # a diverging map here would be a wall of colour with no signal in it.
+    held_out_map.data = np.clip(held_out_r2, 0, None).reshape(1, -1)
+    held_out_map.plot(
         method="slices",
         view="z",
         cut_coords=[[-12, -6, 0, 6, 12]],
         bg_img=DATASET.background,
-        title="Ridge cross-validated R² (per-voxel α, FIR lags 1–3)",
-        cmap="hot",
+        title="Ridge held-out R² (per-voxel α, FIR lags 1–3; R² > 0.05)",
+        cmap="viridis",
+        threshold=0.05,
     )
     return
 
@@ -329,21 +242,24 @@ def _(DATASET, bold):
 def _(mo):
     mo.md(
         r"""
-    CV R² is smaller than in-sample (held-out is harder) and concentrates in the visual cortex that actually tracks the stimulus. Finally, the spread of selected α confirms why per-voxel regularization matters — voxels disagree:
+    Held-out R² is smaller than in-sample (a new run is harder) and concentrates in the visual cortex that actually tracks the stimulus. Finally, the spread of selected α confirms why per-voxel regularization matters — voxels disagree:
     """
     )
     return
 
 
 @app.cell
-def _(ALPHAS, bold, np, plt):
-    best_alpha = np.asarray(bold.cv_results_["best_alpha"]).ravel()
+def _(ALPHAS, np, plt, trained):
+    best_alpha = np.asarray(trained.model_.alpha_).ravel()
+    # One bin per grid value, edges at the midpoints between neighbouring alphas.
+    log_grid = np.log10(ALPHAS)
+    step = log_grid[1] - log_grid[0]
+    edges = np.concatenate([log_grid - step / 2, [log_grid[-1] + step / 2]])
     alpha_fig, alpha_ax = plt.subplots(figsize=(7, 3))
-    alpha_ax.hist(np.log10(best_alpha), bins=len(ALPHAS), color="steelblue")
+    alpha_ax.hist(np.log10(best_alpha), bins=edges, color="steelblue")
     alpha_ax.set_xlabel(r"$\log_{10}(\alpha)$ selected per voxel")
     alpha_ax.set_ylabel("voxel count")
-    alpha_ax.set_title("Per-voxel ridge α — voxels disagree on regularization")
-    alpha_fig
+    _ = alpha_ax.set_title("Per-voxel ridge α — voxels disagree on regularization")
     return
 
 
@@ -357,15 +273,15 @@ def _(mo):
     |---|---|---|
     | Load runs | Concatenate BOLD + stimulus across runs | `concatenate([...])` |
     | Features | FIR lag bank (learn the HRF, don't assume it) | `lag_features(stim, [1, 2, 3])` |
-    | In-sample fit | Fixed-α ridge → optimistic R² | `bold.fit(model="ridge", X=, alpha=1.0, scale=False)` |
-    | Honest fit | Per-voxel α via CV → out-of-sample R² | `bold.fit(model="ridge", X=, alpha="auto", alphas=, cv=)` |
-    | Inspect | CV R² map + selected α per voxel | `bold.cv_results_["mean_score"]`, `["best_alpha"]` |
+    | In-sample fit | Fixed-α ridge → optimistic R² | `bold_z.fit(model="ridge", X=, ridge_alpha=1.0)` |
+    | Honest fit | Per-voxel α via CV, scored on a held-out run | `bold_z[train].fit(model="ridge", X=, ridge_alpha=ALPHAS, ridge_cv=KFold(5), inplace=False)` |
+    | Inspect | Held-out R² map + selected α per voxel | `trained.model_.score(X_test, Y_test)`, `trained.model_.alpha_` |
 
     **Next steps**
 
-    - [GLM analysis](workflows-01_glm.html) — the inferential counterpart: which voxels respond.
-    - [Multivariate pattern analysis](workflows-03_mvpa.html) — decode the stimulus from brain patterns.
-    - [Inter-subject correlation](workflows-04_isc.html) — shared responses to naturalistic stimuli.
+    - [GLM analysis](01_glm.md) — the inferential counterpart: which voxels respond.
+    - [Multivariate pattern analysis](03_mvpa.md) — decode the stimulus from brain patterns.
+    - [Inter-subject correlation](04_isc.md) — shared responses to naturalistic stimuli.
     """
     )
     return

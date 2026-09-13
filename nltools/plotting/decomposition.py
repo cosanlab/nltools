@@ -1,7 +1,5 @@
 """ICA/PCA component viewer — interactive decomposition explorer."""
 
-__all__ = ["component_viewer"]
-
 import matplotlib.pyplot as plt
 import numpy as np
 import sklearn
@@ -13,7 +11,6 @@ from nltools.utils import attempt_to_import
 # Optional dependencies
 ipywidgets = attempt_to_import(
     "ipywidgets",
-    name="ipywidgets",
     fromlist=["interact", "fixed", "widgets", "BoundedFloatText", "BoundedIntText"],
 )
 
@@ -22,11 +19,12 @@ def component_viewer(output, tr=2.0):
     """Interactively view the results of a `BrainData.decompose()` run.
 
     Args:
-        output: (dict) output dictionary from running BrainData.decompose()
-        tr: (float) repetition time of data
+        output (dict): Output dictionary from `BrainData.decompose()` (keys
+            `'components'`, `'weights'`, `'decomposition_object'`).
+        tr (float): Repetition time of the data in seconds. Default 2.0.
 
-    Returns:
-        None (renders interactive widgets inline)
+    Note:
+        Returns nothing; the interactive widgets render inline.
     """
 
     if ipywidgets is None:
@@ -42,17 +40,28 @@ def component_viewer(output, tr=2.0):
         Returns:
             None (renders matplotlib figures inline)
 
-        Example:
-
-            from ipywidgets import BoundedFloatText, BoundedIntText
-            from ipywidgets import interact
+        Examples:
+            ```python
+            from ipywidgets import BoundedFloatText, BoundedIntText, interact
 
             tr = 2.4
-            output = data_filtered_smoothed.decompose(method='ica', n_components=30, axis='images', whiten=True)
+            output = data_filtered_smoothed.decompose(
+                method='ica', n_components=30, axis='images', whiten=True
+            )
 
-            interact(component_inspector, component=BoundedIntText(description='Component', value=0, min=0, max=len(output['components'])-1),
-                  threshold=BoundedFloatText(description='Threshold', value=2.0, min=0, max=4, step=.1))
-
+            interact(
+                component_inspector,
+                component=BoundedIntText(
+                    description='Component',
+                    value=0,
+                    min=0,
+                    max=len(output['components']) - 1,
+                ),
+                threshold=BoundedFloatText(
+                    description='Threshold', value=2.0, min=0, max=4, step=0.1
+                ),
+            )
+            ```
         """
         _, ax = plt.subplots(nrows=3, figsize=(12, 8))
         thresholded = (

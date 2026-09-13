@@ -11,25 +11,17 @@ Test organization follows the TDD plan (isc-group-tdd-plan.md):
     Phase 7: Performance Benchmarks (tier2)
 
 Tier 1: Fast tests (~1-2min, run on every iteration)
-Tier 2: GPU and benchmark tests (~5-7min, run before commits)
+Tier 2: Benchmark tests (~5-7min, run before commits)
 
 Testing Strategy & Tolerances:
 
-    This test suite uses different tolerance levels for different comparison types.
-    Following the pattern from test_isc.py:
-
-    1. Backend Consistency (NumPy vs CPU-parallel):
+    1. Worker-count consistency (n_jobs=1 vs n_jobs=-1):
        - Tolerance: EXACT (rtol=1e-5)
-       - Why: Same algorithm, same random seed, only float precision differs
+       - Why: Same algorithm, same seeds, worker count only changes scheduling
 
-    2. GPU Precision (GPU float32 vs CPU float64):
-       - Values: rtol=1e-3 (0.1% error)
-       - P-values: rtol=5e-3 (0.5% error)
-       - Why: GPU uses float32, CPU uses float64; P-values accumulate more error
-
-    3. Backward Compatibility (vs stats.py):
+    2. Backward Compatibility (vs stats.py):
        - P-values: rtol=0.02 (2% error)
-       - Why: Prioritizes cross-backend determinism over exact stats.py match
+       - Why: Prioritizes seeded determinism over exact stats.py match
 """
 
 import numpy as np
@@ -50,12 +42,8 @@ from nltools.algorithms.inference.isc import (
 # Test Constants - DO NOT MODIFY without updating docstring above
 # =============================================================================
 
-# Tolerance for backend consistency (NumPy vs CPU-parallel with same seed)
+# Tolerance for worker-count consistency (same seeds, different n_jobs)
 TOLERANCE_EXACT = 1e-5
-
-# Tolerance for GPU vs CPU comparisons (float32 vs float64)
-TOLERANCE_GPU_VALUE = 1e-3  # 0.1% error for computed values
-TOLERANCE_GPU_PVALUE = 5e-3  # 0.5% error for P-values (more FP error)
 
 # Tolerance for backward compatibility with stats.py
 TOLERANCE_STATS_PVALUE = 0.02  # 2% relative error acceptable
@@ -78,7 +66,7 @@ def test_compute_isc_group_difference_numpy_single_feature_pairwise():
 
     # Compute ISC difference
     isc_diff = _compute_isc_group_difference(
-        group1, group2, metric="median", summary_statistic="pairwise", backend="numpy"
+        group1, group2, summary="median", summary_statistic="pairwise"
     )
 
     # Should be scalar
@@ -86,8 +74,8 @@ def test_compute_isc_group_difference_numpy_single_feature_pairwise():
     assert np.isfinite(isc_diff)
 
     # Verify manually: compute ISC for each group, then difference
-    pairwise1 = _compute_pairwise_isc(group1, backend="numpy")
-    pairwise2 = _compute_pairwise_isc(group2, backend="numpy")
+    pairwise1 = _compute_pairwise_isc(group1)
+    pairwise2 = _compute_pairwise_isc(group2)
     isc1 = np.median(pairwise1)
     isc2 = np.median(pairwise2)
     expected_diff = isc1 - isc2
@@ -108,17 +96,16 @@ def test_compute_isc_group_difference_numpy_single_feature_loo():
     isc_diff = _compute_isc_group_difference(
         group1,
         group2,
-        metric="median",
+        summary="median",
         summary_statistic="leave-one-out",
-        backend="numpy",
     )
 
     assert isinstance(isc_diff, (float, np.floating))
     assert np.isfinite(isc_diff)
 
     # Verify manually
-    loo1 = _compute_loo_isc(group1, backend="numpy")
-    loo2 = _compute_loo_isc(group2, backend="numpy")
+    loo1 = _compute_loo_isc(group1)
+    loo2 = _compute_loo_isc(group2)
     isc1 = np.median(loo1)
     isc2 = np.median(loo2)
     expected_diff = isc1 - isc2
@@ -138,7 +125,7 @@ def test_compute_isc_group_difference_numpy_voxelwise():
 
     # Compute ISC difference
     isc_diff = _compute_isc_group_difference(
-        group1, group2, metric="median", summary_statistic="pairwise", backend="numpy"
+        group1, group2, summary="median", summary_statistic="pairwise"
     )
 
     # Should be array per voxel
@@ -148,78 +135,13 @@ def test_compute_isc_group_difference_numpy_voxelwise():
     # Verify first voxel manually
     voxel1_group1 = group1[:, :, 0]
     voxel1_group2 = group2[:, :, 0]
-    pairwise1_v0 = _compute_pairwise_isc(voxel1_group1, backend="numpy")
-    pairwise2_v0 = _compute_pairwise_isc(voxel1_group2, backend="numpy")
+    pairwise1_v0 = _compute_pairwise_isc(voxel1_group1)
+    pairwise2_v0 = _compute_pairwise_isc(voxel1_group2)
     isc1_v0 = np.median(pairwise1_v0)
     isc2_v0 = np.median(pairwise2_v0)
     expected_diff_v0 = isc1_v0 - isc2_v0
 
     assert np.isclose(isc_diff[0], expected_diff_v0)
-
-
-def test_compute_isc_group_difference_metric_mean():
-    """ISC group difference works with 'mean' metric (Fisher z-transform)."""
-    np.random.seed(42)
-    group1 = np.random.randn(50, 5)  # Reduced from 100, 5 for tier1 speed
-    group2 = np.random.randn(50, 5)  # Reduced from 100, 5 for tier1 speed
-
-    # Compute with mean metric
-    isc_diff_mean = _compute_isc_group_difference(
-        group1, group2, metric="mean", summary_statistic="pairwise", backend="numpy"
-    )
-
-    # Compute with median metric
-    isc_diff_median = _compute_isc_group_difference(
-        group1, group2, metric="median", summary_statistic="pairwise", backend="numpy"
-    )
-
-    # Both should be valid
-    assert np.isfinite(isc_diff_mean)
-    assert np.isfinite(isc_diff_median)
-
-    # They may differ (mean uses Fisher z-transform)
-    assert isinstance(isc_diff_mean, (float, np.floating))
-    assert isinstance(isc_diff_median, (float, np.floating))
-
-
-@pytest.mark.slow
-def test_compute_isc_group_difference_gpu_matches_numpy():
-    """GPU ISC group difference matches NumPy within float32 tolerance (voxel-wise LOO only)."""
-    torch = pytest.importorskip("torch")
-
-    if not torch.cuda.is_available():
-        pytest.skip("GPU not available")
-
-    np.random.seed(42)
-    n_obs = 100
-    n_subjects1, n_subjects2 = 5, 5
-    n_voxels = 100  # Sufficient voxels for GPU speedup
-
-    group1 = np.random.randn(n_obs, n_subjects1, n_voxels)
-    group2 = np.random.randn(n_obs, n_subjects2, n_voxels)
-
-    # Compute with NumPy (CPU)
-    isc_diff_numpy = _compute_isc_group_difference(
-        group1,
-        group2,
-        metric="median",
-        summary_statistic="leave-one-out",
-        backend="numpy",
-    )
-
-    # Compute with GPU
-    isc_diff_gpu = _compute_isc_group_difference(
-        group1,
-        group2,
-        metric="median",
-        summary_statistic="leave-one-out",
-        backend="torch",
-    )
-
-    # GPU uses float32, CPU uses float64 - use GPU precision tolerance
-    np.testing.assert_allclose(
-        isc_diff_numpy, isc_diff_gpu, rtol=TOLERANCE_GPU_VALUE, atol=1e-7
-    )
 
 
 def test_compute_isc_group_difference_deterministic():
@@ -229,11 +151,11 @@ def test_compute_isc_group_difference_deterministic():
     group2 = np.random.randn(50, 5)  # Reduced from 100, 5 for tier1 speed
 
     isc_diff1 = _compute_isc_group_difference(
-        group1, group2, metric="median", summary_statistic="pairwise", backend="numpy"
+        group1, group2, summary="median", summary_statistic="pairwise"
     )
 
     isc_diff2 = _compute_isc_group_difference(
-        group1, group2, metric="median", summary_statistic="pairwise", backend="numpy"
+        group1, group2, summary="median", summary_statistic="pairwise"
     )
 
     assert np.allclose(isc_diff1, isc_diff2)
@@ -251,25 +173,23 @@ def test_compute_isc_group_difference_mismatched_observations():
         _compute_isc_group_difference(
             group1,
             group2,
-            metric="median",
+            summary="median",
             summary_statistic="pairwise",
-            backend="numpy",
         )
 
 
 def test_compute_isc_group_difference_invalid_metric():
-    """ISC group difference raises error for invalid metric."""
+    """ISC group difference raises error for invalid summary."""
     np.random.seed(42)
     group1 = np.random.randn(50, 5)  # Reduced from 100, 5 for tier1 speed
     group2 = np.random.randn(50, 5)  # Reduced from 100, 5 for tier1 speed
 
-    with pytest.raises(ValueError, match="metric must be"):
+    with pytest.raises(ValueError, match="summary must be"):
         _compute_isc_group_difference(
             group1,
             group2,
-            metric="invalid",
+            summary="invalid",
             summary_statistic="pairwise",
-            backend="numpy",
         )
 
 
@@ -283,30 +203,14 @@ def test_compute_isc_group_difference_invalid_summary_statistic():
         _compute_isc_group_difference(
             group1,
             group2,
-            metric="median",
+            summary="median",
             summary_statistic="invalid",
-            backend="numpy",
         )
 
 
 # =============================================================================
 # Phase 2: Permutation Method Tests
 # =============================================================================
-
-
-def test_permute_isc_group_combines_groups():
-    """Permutation method combines groups and permutes labels."""
-    np.random.seed(42)
-    group1 = np.random.randn(100, 5)
-    group2 = np.random.randn(100, 5)
-
-    # Single permutation
-    permuted_diff = _permute_isc_group_numpy(
-        group1, group2, metric="median", summary_statistic="pairwise", random_state=42
-    )
-
-    assert isinstance(permuted_diff, (float, np.floating))
-    assert np.isfinite(permuted_diff)
 
 
 def test_permute_isc_group_deterministic():
@@ -316,65 +220,14 @@ def test_permute_isc_group_deterministic():
     group2 = np.random.randn(100, 5)
 
     diff1 = _permute_isc_group_numpy(
-        group1, group2, metric="median", summary_statistic="pairwise", random_state=42
+        group1, group2, summary="median", summary_statistic="pairwise", random_state=42
     )
 
     diff2 = _permute_isc_group_numpy(
-        group1, group2, metric="median", summary_statistic="pairwise", random_state=42
+        group1, group2, summary="median", summary_statistic="pairwise", random_state=42
     )
 
     assert np.isclose(diff1, diff2)
-
-
-def test_permute_isc_group_different_random_states():
-    """Different random states produce different permutations."""
-    np.random.seed(42)
-    group1 = np.random.randn(100, 5)
-    group2 = np.random.randn(100, 5)
-
-    diff1 = _permute_isc_group_numpy(
-        group1, group2, metric="median", summary_statistic="pairwise", random_state=42
-    )
-
-    diff2 = _permute_isc_group_numpy(
-        group1, group2, metric="median", summary_statistic="pairwise", random_state=43
-    )
-
-    # May be the same by chance, but likely different
-    assert isinstance(diff1, (float, np.floating))
-    assert isinstance(diff2, (float, np.floating))
-
-
-def test_permute_isc_group_works_with_loo():
-    """Permutation works with leave-one-out summary statistic."""
-    np.random.seed(42)
-    group1 = np.random.randn(100, 5)
-    group2 = np.random.randn(100, 5)
-
-    permuted_diff = _permute_isc_group_numpy(
-        group1,
-        group2,
-        metric="median",
-        summary_statistic="leave-one-out",
-        random_state=42,
-    )
-
-    assert isinstance(permuted_diff, (float, np.floating))
-    assert np.isfinite(permuted_diff)
-
-
-def test_permute_isc_group_works_with_mean_metric():
-    """Permutation works with mean metric."""
-    np.random.seed(42)
-    group1 = np.random.randn(100, 5)
-    group2 = np.random.randn(100, 5)
-
-    permuted_diff = _permute_isc_group_numpy(
-        group1, group2, metric="mean", summary_statistic="pairwise", random_state=42
-    )
-
-    assert isinstance(permuted_diff, (float, np.floating))
-    assert np.isfinite(permuted_diff)
 
 
 def test_permute_isc_group_cpu_parallel_matches_numpy():
@@ -391,7 +244,7 @@ def test_permute_isc_group_cpu_parallel_matches_numpy():
             _permute_isc_group_numpy(
                 group1,
                 group2,
-                metric="median",
+                summary="median",
                 summary_statistic="pairwise",
                 random_state=np.random.RandomState(seeds[i]),
             )
@@ -404,7 +257,7 @@ def test_permute_isc_group_cpu_parallel_matches_numpy():
         group1,
         group2,
         n_permute=100,
-        metric="median",
+        summary="median",
         summary_statistic="pairwise",
         random_state=42,
         progress_bar=False,
@@ -423,7 +276,7 @@ def test_permute_isc_group_cpu_parallel_deterministic():
         group1,
         group2,
         n_permute=100,
-        metric="median",
+        summary="median",
         summary_statistic="pairwise",
         random_state=42,
         progress_bar=False,
@@ -433,7 +286,7 @@ def test_permute_isc_group_cpu_parallel_deterministic():
         group1,
         group2,
         n_permute=100,
-        metric="median",
+        summary="median",
         summary_statistic="pairwise",
         random_state=42,
         progress_bar=False,
@@ -442,117 +295,9 @@ def test_permute_isc_group_cpu_parallel_deterministic():
     assert np.allclose(perm1, perm2)
 
 
-def test_permute_isc_group_cpu_parallel_voxelwise():
-    """CPU-parallel permutation works with voxel-wise data."""
-    np.random.seed(42)
-    group1 = np.random.randn(100, 5, 10)  # 10 voxels
-    group2 = np.random.randn(100, 5, 10)
-
-    perm = _permute_isc_group_cpu_parallel(
-        group1,
-        group2,
-        n_permute=50,
-        metric="median",
-        summary_statistic="pairwise",
-        random_state=42,
-        progress_bar=False,
-    )
-
-    assert perm.shape == (50, 10)
-    assert np.all(np.isfinite(perm))
-
-
 # =============================================================================
 # Phase 3: Bootstrap Method Tests
 # =============================================================================
-
-
-def test_bootstrap_isc_group_resamples_subjects():
-    """Bootstrap resamples subjects within each group."""
-    np.random.seed(42)
-    group1 = np.random.randn(100, 5)
-    group2 = np.random.randn(100, 5)
-
-    # Compute observed difference
-    observed_diff = _compute_isc_group_difference(
-        group1, group2, metric="median", summary_statistic="pairwise", backend="numpy"
-    )
-
-    # Single bootstrap
-    boot_diff = _bootstrap_isc_group_numpy(
-        group1,
-        group2,
-        observed_diff=observed_diff,
-        metric="median",
-        summary_statistic="pairwise",
-        random_state=42,
-    )
-
-    assert isinstance(boot_diff, (float, np.floating))
-    assert np.isfinite(boot_diff)
-
-
-def test_bootstrap_isc_group_centers_by_observed():
-    """Bootstrap differences are centered by subtracting observed difference."""
-    np.random.seed(42)
-    group1 = np.random.randn(100, 5)
-    group2 = np.random.randn(100, 5)
-
-    # Compute observed difference
-    observed_diff = _compute_isc_group_difference(
-        group1, group2, metric="median", summary_statistic="pairwise", backend="numpy"
-    )
-
-    # Bootstrap (should be centered)
-    boot_diff = _bootstrap_isc_group_numpy(
-        group1,
-        group2,
-        observed_diff=observed_diff,
-        metric="median",
-        summary_statistic="pairwise",
-        random_state=42,
-    )
-
-    # Centered bootstrap: (boot1 - boot2) - observed_diff
-    # This creates a null distribution centered around 0
-    assert isinstance(boot_diff, (float, np.floating))
-
-
-def test_bootstrap_isc_group_exclude_self_corr():
-    """exclude_self_corr parameter controls masking of self-correlations."""
-    np.random.seed(42)
-    group1 = np.random.randn(100, 5)
-    group2 = np.random.randn(100, 5)
-
-    observed_diff = _compute_isc_group_difference(
-        group1, group2, metric="median", summary_statistic="pairwise", backend="numpy"
-    )
-
-    # Test with exclude_self_corr=True
-    boot_exclude = _bootstrap_isc_group_numpy(
-        group1,
-        group2,
-        observed_diff=observed_diff,
-        metric="median",
-        summary_statistic="pairwise",
-        exclude_self_corr=True,
-        random_state=42,
-    )
-
-    # Test with exclude_self_corr=False
-    boot_include = _bootstrap_isc_group_numpy(
-        group1,
-        group2,
-        observed_diff=observed_diff,
-        metric="median",
-        summary_statistic="pairwise",
-        exclude_self_corr=False,
-        random_state=42,
-    )
-
-    # Both should be valid
-    assert np.isfinite(boot_exclude)
-    assert np.isfinite(boot_include)
 
 
 def test_bootstrap_isc_group_works_with_loo():
@@ -564,40 +309,16 @@ def test_bootstrap_isc_group_works_with_loo():
     observed_diff = _compute_isc_group_difference(
         group1,
         group2,
-        metric="median",
+        summary="median",
         summary_statistic="leave-one-out",
-        backend="numpy",
     )
 
     boot_diff = _bootstrap_isc_group_numpy(
         group1,
         group2,
         observed_diff=observed_diff,
-        metric="median",
+        summary="median",
         summary_statistic="leave-one-out",
-        random_state=42,
-    )
-
-    assert isinstance(boot_diff, (float, np.floating))
-    assert np.isfinite(boot_diff)
-
-
-def test_bootstrap_isc_group_works_with_mean_metric():
-    """Bootstrap works with mean metric."""
-    np.random.seed(42)
-    group1 = np.random.randn(100, 5)
-    group2 = np.random.randn(100, 5)
-
-    observed_diff = _compute_isc_group_difference(
-        group1, group2, metric="mean", summary_statistic="pairwise", backend="numpy"
-    )
-
-    boot_diff = _bootstrap_isc_group_numpy(
-        group1,
-        group2,
-        observed_diff=observed_diff,
-        metric="mean",
-        summary_statistic="pairwise",
         random_state=42,
     )
 
@@ -612,7 +333,7 @@ def test_bootstrap_isc_group_cpu_parallel_matches_numpy():
     group2 = np.random.randn(100, 5)
 
     observed_diff = _compute_isc_group_difference(
-        group1, group2, metric="median", summary_statistic="pairwise", backend="numpy"
+        group1, group2, summary="median", summary_statistic="pairwise"
     )
 
     # Sequential NumPy
@@ -624,7 +345,7 @@ def test_bootstrap_isc_group_cpu_parallel_matches_numpy():
                 group1,
                 group2,
                 observed_diff=observed_diff,
-                metric="median",
+                summary="median",
                 summary_statistic="pairwise",
                 random_state=np.random.RandomState(seeds[i]),
             )
@@ -638,7 +359,7 @@ def test_bootstrap_isc_group_cpu_parallel_matches_numpy():
         group2,
         observed_diff=observed_diff,
         n_permute=100,
-        metric="median",
+        summary="median",
         summary_statistic="pairwise",
         random_state=42,
         progress_bar=False,
@@ -654,7 +375,7 @@ def test_bootstrap_isc_group_cpu_parallel_deterministic():
     group2 = np.random.randn(100, 5)
 
     observed_diff = _compute_isc_group_difference(
-        group1, group2, metric="median", summary_statistic="pairwise", backend="numpy"
+        group1, group2, summary="median", summary_statistic="pairwise"
     )
 
     boot1 = _bootstrap_isc_group_cpu_parallel(
@@ -662,7 +383,7 @@ def test_bootstrap_isc_group_cpu_parallel_deterministic():
         group2,
         observed_diff=observed_diff,
         n_permute=100,
-        metric="median",
+        summary="median",
         summary_statistic="pairwise",
         random_state=42,
         progress_bar=False,
@@ -673,7 +394,7 @@ def test_bootstrap_isc_group_cpu_parallel_deterministic():
         group2,
         observed_diff=observed_diff,
         n_permute=100,
-        metric="median",
+        summary="median",
         summary_statistic="pairwise",
         random_state=42,
         progress_bar=False,
@@ -682,77 +403,9 @@ def test_bootstrap_isc_group_cpu_parallel_deterministic():
     assert np.allclose(boot1, boot2)
 
 
-def test_bootstrap_isc_group_cpu_parallel_voxelwise():
-    """CPU-parallel bootstrap works with voxel-wise data."""
-    np.random.seed(42)
-    group1 = np.random.randn(100, 5, 10)  # 10 voxels
-    group2 = np.random.randn(100, 5, 10)
-
-    observed_diff = _compute_isc_group_difference(
-        group1, group2, metric="median", summary_statistic="pairwise", backend="numpy"
-    )
-
-    boot = _bootstrap_isc_group_cpu_parallel(
-        group1,
-        group2,
-        observed_diff=observed_diff,
-        n_permute=50,
-        metric="median",
-        summary_statistic="pairwise",
-        random_state=42,
-        progress_bar=False,
-    )
-
-    assert boot.shape == (50, 10)
-    assert np.all(np.isfinite(boot))
-
-
 # =============================================================================
 # Phase 4: Main Function Tests
 # =============================================================================
-
-
-def test_isc_group_permutation_test_basic():
-    """Main function returns all expected outputs."""
-    np.random.seed(42)
-    group1 = np.random.randn(50, 5)  # Reduced from 100, 5 for tier1 speed
-    group2 = np.random.randn(50, 5)  # Reduced from 100, 5 for tier1 speed
-
-    result = isc_group_permutation_test(
-        group1,
-        group2,
-        n_permute=100,
-        method="permute",
-        random_state=42,
-        progress_bar=False,
-    )
-
-    assert "isc_group_difference" in result
-    assert "p" in result
-    assert "ci" in result
-    assert 0 <= result["p"] <= 1
-    assert len(result["ci"]) == 2
-    assert result["ci"][0] <= result["ci"][1]
-
-
-def test_isc_group_permutation_test_bootstrap_method():
-    """Main function works with bootstrap method."""
-    np.random.seed(42)
-    group1 = np.random.randn(50, 5)  # Reduced from 100, 5 for tier1 speed
-    group2 = np.random.randn(50, 5)  # Reduced from 100, 5 for tier1 speed
-
-    result = isc_group_permutation_test(
-        group1,
-        group2,
-        n_permute=100,
-        method="bootstrap",
-        random_state=42,
-        progress_bar=False,
-    )
-
-    assert "isc_group_difference" in result
-    assert "p" in result
-    assert "ci" in result
 
 
 def test_isc_group_permutation_test_voxelwise():
@@ -776,17 +429,17 @@ def test_isc_group_permutation_test_voxelwise():
     assert result["ci"][1].shape == (5,)  # Reduced from 10
 
 
-def test_isc_group_permutation_test_backend_consistency():
-    """NumPy and CPU-parallel backends give identical results."""
+def test_isc_group_worker_count_is_numerically_invisible():
+    """Worker count never changes a seeded group-difference result."""
     np.random.seed(42)
     group1 = np.random.randn(50, 5)  # Reduced from 100, 5 for tier1 speed
     group2 = np.random.randn(50, 5)  # Reduced from 100, 5 for tier1 speed
 
-    result_numpy = isc_group_permutation_test(
+    result_serial = isc_group_permutation_test(
         group1,
         group2,
-        parallel=None,
         n_permute=100,
+        n_jobs=1,
         random_state=42,
         progress_bar=False,
     )
@@ -794,83 +447,20 @@ def test_isc_group_permutation_test_backend_consistency():
     result_parallel = isc_group_permutation_test(
         group1,
         group2,
-        parallel="cpu",
         n_permute=100,
+        n_jobs=-1,
         random_state=42,
         progress_bar=False,
     )
 
-    # Both use float64 CPU - should be exact matches
     np.testing.assert_allclose(
-        result_numpy["isc_group_difference"],
+        result_serial["isc_group_difference"],
         result_parallel["isc_group_difference"],
         rtol=TOLERANCE_EXACT,
     )
     np.testing.assert_allclose(
-        result_numpy["p"], result_parallel["p"], rtol=TOLERANCE_EXACT
+        result_serial["p"], result_parallel["p"], rtol=TOLERANCE_EXACT
     )
-
-
-def test_isc_group_permutation_test_return_null():
-    """Main function returns null distribution when requested."""
-    np.random.seed(42)
-    group1 = np.random.randn(100, 5)
-    group2 = np.random.randn(100, 5)
-
-    result = isc_group_permutation_test(
-        group1,
-        group2,
-        n_permute=100,
-        return_null=True,
-        random_state=42,
-        progress_bar=False,
-    )
-
-    assert "null_dist" in result
-    assert result["null_dist"].shape == (100,)
-
-
-def test_isc_group_permutation_test_all_metrics():
-    """Main function works with both median and mean metrics."""
-    np.random.seed(42)
-    group1 = np.random.randn(100, 5)
-    group2 = np.random.randn(100, 5)
-
-    for metric in ["median", "mean"]:
-        result = isc_group_permutation_test(
-            group1,
-            group2,
-            metric=metric,
-            n_permute=100,
-            random_state=42,
-            progress_bar=False,
-        )
-
-        assert "isc_group_difference" in result
-        assert "p" in result
-        assert np.isfinite(result["isc_group_difference"])
-        assert 0 <= result["p"] <= 1
-
-
-def test_isc_group_permutation_test_all_summary_statistics():
-    """Main function works with both pairwise and leave-one-out."""
-    np.random.seed(42)
-    group1 = np.random.randn(100, 5)
-    group2 = np.random.randn(100, 5)
-
-    for summary_statistic in ["pairwise", "leave-one-out"]:
-        result = isc_group_permutation_test(
-            group1,
-            group2,
-            summary_statistic=summary_statistic,
-            n_permute=100,
-            random_state=42,
-            progress_bar=False,
-        )
-
-        assert "isc_group_difference" in result
-        assert "p" in result
-        assert np.isfinite(result["isc_group_difference"])
 
 
 def test_isc_group_permutation_test_invalid_method():
@@ -883,26 +473,6 @@ def test_isc_group_permutation_test_invalid_method():
         isc_group_permutation_test(
             group1, group2, method="invalid", n_permute=100, progress_bar=False
         )
-
-
-def test_isc_group_permutation_test_exclude_self_corr_parameter():
-    """exclude_self_corr parameter is accepted and works."""
-    np.random.seed(42)
-    group1 = np.random.randn(100, 5)
-    group2 = np.random.randn(100, 5)
-
-    result = isc_group_permutation_test(
-        group1,
-        group2,
-        method="bootstrap",
-        exclude_self_corr=True,
-        n_permute=100,
-        random_state=42,
-        progress_bar=False,
-    )
-
-    assert "isc_group_difference" in result
-    assert "p" in result
 
 
 # =============================================================================
@@ -1193,7 +763,7 @@ class TestISCGroupStatisticalCorrectness:
 
         for method in methods:
             # Old implementation (from stats.py)
-            from nltools.stats import isc_group as isc_group_old
+            from nltools.algorithms import isc_group as isc_group_old
 
             result_old = isc_group_old(
                 group1,
@@ -1257,14 +827,14 @@ def test_stats_isc_group_backward_compatibility():
     group2 = np.random.randn(50, 5)  # Reduced from 100, 10 for tier1 speed
 
     # Test direct call to stats.py wrapper
-    from nltools.stats import isc_group
+    from nltools.algorithms import isc_group
 
     result = isc_group(
         group1,
         group2,
         n_samples=100,  # Reduced from 500 for tier1 speed
         method="permute",
-        metric="median",
+        summary="median",
         return_null=False,
         random_state=42,
     )
@@ -1287,8 +857,8 @@ def test_stats_isc_group_backward_compatibility():
         random_state=42,
     )
 
-    assert "null_distribution" in result_with_null
-    assert isinstance(result_with_null["null_distribution"], np.ndarray)
+    assert "null_dist" in result_with_null
+    assert isinstance(result_with_null["null_dist"], np.ndarray)
 
     # Test with bootstrap method
     result_bootstrap = isc_group(

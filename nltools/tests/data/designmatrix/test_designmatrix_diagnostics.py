@@ -72,7 +72,7 @@ class TestDesignMatrixDiagnostics:
         Rationale: Polynomials are expected to be correlated (e.g., linear and quadratic)
         """
         dm = DesignMatrix({"a": [1, 2, 3, 4, 5]}, sampling_freq=1)
-        dm = dm.add_poly(order=2)  # Adds poly_0, poly_1, poly_2
+        dm = dm.add_poly(order=2)  # Adds .nl_poly_0, .nl_poly_1, .nl_poly_2
 
         vifs = dm.vif(exclude_confounds=True)
 
@@ -140,14 +140,14 @@ class TestDesignMatrixDiagnostics:
         Rationale: Polynomial trends naturally correlated, but needed for modeling
         """
         dm = DesignMatrix({"a": [1, 2, 3, 4]}, sampling_freq=1)
-        dm = dm.add_poly(order=2)  # poly_1 and poly_2 might be correlated
+        dm = dm.add_poly(order=2)  # .nl_poly_1 and .nl_poly_2 might be correlated
 
         dm_clean = dm.clean(exclude_confounds=True)
 
         # All polynomials should be retained
-        assert "poly_0" in dm_clean.columns
-        assert "poly_1" in dm_clean.columns
-        assert "poly_2" in dm_clean.columns
+        assert ".nl_poly_0" in dm_clean.columns
+        assert ".nl_poly_1" in dm_clean.columns
+        assert ".nl_poly_2" in dm_clean.columns
 
     def test_clean_fillna_before_checking(self):
         """
@@ -204,7 +204,7 @@ class TestDesignMatrixUtilities:
 
         assert "sampling_freq=2" in text
         assert "shape=(3, 2)" in text or "(3, 2)" in text
-        assert "poly_0" in text or "confounds" in text
+        assert ".nl_poly_0" in text or "confounds" in text
         assert "convolved" in text
 
     def test_replace_data_keeps_metadata_and_confounds(self):
@@ -220,7 +220,7 @@ class TestDesignMatrixUtilities:
         Use case: Substitute stimulus regressors while keeping drift terms
         """
         dm = DesignMatrix({"a": [1, 2, 3], "b": [4, 5, 6]}, sampling_freq=2)
-        dm = dm.add_poly(order=0)  # Adds poly_0
+        dm = dm.add_poly(order=0)  # Adds .nl_poly_0
 
         # Replace data with new columns
         new_data = np.array([[10, 20], [30, 40], [50, 60]])
@@ -236,8 +236,8 @@ class TestDesignMatrixUtilities:
         assert "b" not in dm_replaced.columns
 
         # Polynomials should be preserved
-        assert "poly_0" in dm_replaced.columns
-        assert dm_replaced["poly_0"].to_list() == dm["poly_0"].to_list()
+        assert ".nl_poly_0" in dm_replaced.columns
+        assert dm_replaced[".nl_poly_0"].to_list() == dm[".nl_poly_0"].to_list()
 
         # Metadata should be preserved
         assert dm_replaced.sampling_freq == 2
@@ -260,31 +260,6 @@ class TestDesignMatrixUtilities:
 
         with pytest.raises(ValueError):
             _ = dm.replace_data(new_data, column_names=["x"])
-
-    # NOTE: since polars dataframes don't have comprehensive plotting abilities like pandas and we don't want additional dependencies, the method should use seaborn heatmap + matplotlib under-the-hood
-    def test_plot_visualization(self):
-        """
-        .plot() should create matplotlib visualization.
-
-        Expected behavior:
-        - Creates plot without error
-        - Returns matplotlib axes object (optional)
-
-        Note: We don't test visual output, just that it doesn't crash
-        """
-        dm = DesignMatrix(
-            np.random.randn(20, 3), sampling_freq=1, columns=["a", "b", "c"]
-        )
-        dm = dm.add_poly(order=1)
-
-        # Should not raise error
-        try:
-            dm.plot()
-            import matplotlib.pyplot as plt
-
-            plt.close("all")  # Clean up
-        except Exception as e:
-            pytest.fail(f"plot() raised unexpected error: {e}")
 
 
 class TestDesignMatrixCorr:
@@ -383,3 +358,62 @@ class TestDesignMatrixPlotMethods:
         out = tmp_path / "dm.png"
         self._toy().plot(method="corr", save=str(out))
         assert out.exists()
+
+
+class TestVifInterceptExclusion:
+    """`vif(exclude_confounds=False)` drops generated intercepts, and only those.
+
+    An all-ones intercept has zero variance, so leaving it in makes the
+    correlation matrix singular and VIF undefined. Which columns are
+    intercepts is knowable from the reserved namespace nltools generates
+    (``.nl_poly_0``, ``.nl_cosine_0``, and their run-separated variants), so
+    the exclusion keys on that rather than on a substring match that both
+    misses the DCT constant and catches user columns by coincidence.
+    """
+
+    def test_excludes_generated_polynomial_intercept(self):
+        rng = np.random.default_rng(0)
+        dm = DesignMatrix(
+            {"a": rng.standard_normal(20), "b": rng.standard_normal(20)},
+            sampling_freq=1,
+        ).add_poly(0)
+
+        vifs = dm.vif(exclude_confounds=False)
+        assert len(vifs) == 2, "intercept should be dropped, leaving a and b"
+
+    def test_excludes_generated_cosine_intercept(self):
+        """The DCT constant is an intercept too — same zero-variance problem."""
+        rng = np.random.default_rng(0)
+        dm = DesignMatrix(
+            {"a": rng.standard_normal(60), "b": rng.standard_normal(60)},
+            sampling_freq=0.5,
+        ).add_dct_basis(duration=40)
+
+        vifs = dm.vif(exclude_confounds=False)
+        included = dm.shape[1] - 1  # every column but .nl_cosine_0
+        assert len(vifs) == included
+
+    def test_excludes_run_separated_intercepts(self):
+        def run(seed):
+            rng = np.random.default_rng(seed)
+            return DesignMatrix(
+                {"a": rng.standard_normal(10)}, sampling_freq=1
+            ).add_poly(0)
+
+        multi = run(0).append(run(1), axis=0)
+        vifs = multi.vif(exclude_confounds=False)
+        assert len(vifs) == 1, "both run intercepts dropped, leaving a"
+
+    def test_keeps_user_column_that_merely_looks_like_an_intercept(self):
+        """A user column named 'poly_0' is data, not nltools machinery."""
+        rng = np.random.default_rng(0)
+        dm = DesignMatrix(
+            {
+                "a": rng.standard_normal(20),
+                "my_poly_0_estimate": rng.standard_normal(20),
+            },
+            sampling_freq=1,
+        )
+
+        vifs = dm.vif(exclude_confounds=False)
+        assert len(vifs) == 2, "user columns are never treated as intercepts"

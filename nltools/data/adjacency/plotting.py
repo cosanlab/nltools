@@ -3,40 +3,36 @@
 import numpy as np
 
 
-def plot_adjacency(adj, limit=3, axes=None, *args, **kwargs):
-    """Create Heatmap of Adjacency Matrix.
-
-    Can pass in any ``sns.heatmap`` argument.
+def plot_adjacency(adj, *, limit=3, ax=None, **kwargs):
+    """Create a heatmap of an Adjacency matrix.
 
     Args:
         adj (Adjacency): Adjacency object to plot.
-        limit (int): Number of heatmaps to plot if object contains multiple adjacencies (default: 3).
-        axes: Matplotlib axis handle.
-
-    Returns:
-        None
+        limit (int): Number of heatmaps to plot if the object contains multiple
+            matrices. Default 3.
+        ax (matplotlib.axes.Axes, optional): Axis to draw on (single matrix only).
+        **kwargs (dict): Forwarded to `seaborn.heatmap`.
     """
     import matplotlib.pyplot as plt
     import seaborn as sns
 
     if adj.is_single_matrix:
-        if axes is None:
-            _, axes = plt.subplots(nrows=1, figsize=(7, 5))
+        if ax is None:
+            _, ax = plt.subplots(nrows=1, figsize=(7, 5))
         if adj.labels:
             sns.heatmap(
                 adj.squareform(),
                 square=True,
-                ax=axes,
+                ax=ax,
                 xticklabels=adj.labels,
                 yticklabels=adj.labels,
-                *args,
                 **kwargs,
             )
         else:
-            sns.heatmap(adj.squareform(), square=True, ax=axes, *args, **kwargs)
+            sns.heatmap(adj.squareform(), square=True, ax=ax, **kwargs)
     else:
-        if axes is not None:
-            print("axes is ignored when plotting multiple images")
+        if ax is not None:
+            print("ax is ignored when plotting multiple images")
         n_subs = np.minimum(len(adj), limit)
         _, a = plt.subplots(nrows=n_subs, figsize=(7, len(adj) * 5))
         for i in range(n_subs):
@@ -47,11 +43,10 @@ def plot_adjacency(adj, limit=3, axes=None, *args, **kwargs):
                     xticklabels=adj.labels[i],
                     yticklabels=adj.labels[i],
                     ax=a[i],
-                    *args,
                     **kwargs,
                 )
             else:
-                sns.heatmap(adj[i].squareform(), square=True, ax=a[i], *args, **kwargs)
+                sns.heatmap(adj[i].squareform(), square=True, ax=a[i], **kwargs)
     return
 
 
@@ -69,25 +64,24 @@ def plot_mds(
     n_jobs=-1,
     **kwargs,
 ):
-    """Plot Multidimensional Scaling.
+    """Plot multidimensional scaling.
 
     Args:
-        adj (Adjacency): Adjacency object to plot (must be a distance matrix).
-        n_components (int): Number of dimensions to project (can be 2 or 3).
-        metric_mds (bool): Perform metric (True) or non-metric (False) dimensional scaling. Default True.
-        labels (list): Can override labels stored in Adjacency Class.
-        labels_color (list): List of colors for labels.
-        cmap: Colormap instance (default: ``plt.cm.hot_r``).
-        view (tuple): View for 3-Dimensional plot. Default (30, 20).
+        adj (Adjacency): Adjacency object to plot (must be a single distance matrix).
+        n_components (int): Number of dimensions to project (2 or 3).
+        metric_mds (bool): Perform metric (True) or non-metric (False) scaling.
+            Default True.
+        labels (list, optional): Overrides the labels stored on `adj`.
+        labels_color (list, optional): One color per label.
+        cmap (matplotlib.colors.Colormap, optional): Colormap. Default `plt.cm.hot_r`.
+        view (tuple): Elevation/azimuth for a 3-D plot. Default (30, 20).
         figsize (list): Figure size. Default [12, 8].
-        ax: Matplotlib axis handle.
+        ax (matplotlib.axes.Axes, optional): Axis to draw on.
         n_jobs (int): Number of parallel jobs.
-
-    Returns:
-        None
+        **kwargs (dict): Forwarded to `sklearn.manifold.MDS`.
     """
     import matplotlib.pyplot as plt
-    from sklearn.manifold import MDS
+    from sklearn.manifold import MDS, ClassicalMDS
 
     if cmap is None:
         cmap = plt.cm.hot_r
@@ -113,15 +107,30 @@ def plot_mds(
         if len(labels) != len(labels_color):
             raise ValueError("Length of labels_color must match self.labels.")
 
-    # Run MDS
+    # Run MDS (sklearn >= 1.8 API). The classical-MDS starting configuration is
+    # built here, at the requested width, and passed to `fit_transform`, which
+    # takes precedence over the constructor's `init` — sklearn skips building
+    # its own, so this is computed once. Asking the constructor for it instead
+    # gives a 2-D start whatever `n_components` says, because it builds its
+    # `ClassicalMDS` with that class's own default, and `smacof` then adopts the
+    # start's width: a 3-D request would silently come back 2-D. `init` and
+    # `n_init` are still named because omitting either warns until they become
+    # sklearn's defaults in 1.9/1.10; classical MDS is deterministic, so one run
+    # suffices.
+    square = adj.squareform()
+    init = ClassicalMDS(n_components=n_components, metric="precomputed").fit_transform(
+        square
+    )
     mds = MDS(
         n_components=n_components,
-        metric=metric_mds,
+        metric_mds=metric_mds,
         n_jobs=n_jobs,
-        dissimilarity="precomputed",
+        metric="precomputed",
+        init="classical_mds",
+        n_init=1,
         **kwargs,
     )
-    proj = mds.fit_transform(adj.squareform())
+    proj = mds.fit_transform(square, init=init)
 
     # Create Plot
     if ax is None:  # Create axis

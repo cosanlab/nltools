@@ -1,20 +1,80 @@
 """Cross-cutting utilities used across the nltools package."""
 
-__all__ = [
-    "all_same",
-    "attempt_to_import",
-    "coalesced_gc",
-    "concatenate",
-    "get_resource_path",
-]
+__all__ = ["DesignMatrixWarning", "ResamplingWarning"]
 
-import collections
-import gc
-import os
-from contextlib import contextmanager
+import contextlib
+import inspect
 from os.path import dirname, join, sep as pathsep
 
-import numpy as np
+
+# ---------------------------------------------------------------------------
+# Warnings: attribution and library-wide categories
+# ---------------------------------------------------------------------------
+
+_PACKAGE_DIR = dirname(__file__) + pathsep
+_TESTS_DIR = join(_PACKAGE_DIR, "tests") + pathsep
+# ``@coalesced_gc()`` (a contextmanager used as a decorator) wraps facade
+# methods in a stdlib contextlib frame; it is nltools plumbing, not user code.
+_PLUMBING_FILES = frozenset({contextlib.__file__})
+
+
+def _is_library_frame(filename: str) -> bool:
+    if filename in _PLUMBING_FILES:
+        return True
+    return filename.startswith(_PACKAGE_DIR) and not filename.startswith(_TESTS_DIR)
+
+
+def find_stack_level() -> int:
+    """Return the ``stacklevel`` that attributes a warning to the caller's code.
+
+    Walks up from the caller until the first frame outside the nltools package
+    (``nltools/tests/`` counts as outside: tests are the library's users; the
+    stdlib ``contextlib`` frame that ``@coalesced_gc()`` inserts counts as
+    inside), so a ``warnings.warn`` deep inside a facade lands on the user's
+    line rather than on nltools internals — the same pattern nilearn and pandas
+    use. Every ``warnings.warn`` in the library passes
+    ``stacklevel=find_stack_level()``; a source-scan test enforces it.
+
+    Returns:
+        int: Value for the ``stacklevel`` argument of ``warnings.warn``.
+
+    Examples:
+        ```python
+        warnings.warn("message", UserWarning, stacklevel=find_stack_level())
+        ```
+    """
+    frame = inspect.currentframe()
+    level = 0
+    try:
+        while frame is not None and _is_library_frame(inspect.getfile(frame)):
+            frame = frame.f_back
+            level += 1
+    finally:
+        del frame
+    return level
+
+
+class ResamplingWarning(UserWarning):
+    """Data is (or will be) resampled to a different space than it arrived in.
+
+    Raised when a data image does not match the mask/template it is loaded
+    against — a detected template at another resolution, or a mask in a
+    different space — and nltools resamples to reconcile them. Subclasses
+    ``UserWarning`` so it participates in default filtering while staying
+    individually silenceable:
+    ``warnings.filterwarnings("ignore", category=ResamplingWarning)``.
+    """
+
+
+class DesignMatrixWarning(UserWarning):
+    """A ``DesignMatrix`` operation was a no-op or partially skipped.
+
+    Raised by regressor builders (``add_poly``, ``add_dct_basis``,
+    ``convolve``) when the requested columns already exist and are skipped.
+    Subclasses ``UserWarning`` so it participates in default filtering while
+    staying individually silenceable:
+    ``warnings.filterwarnings("ignore", category=DesignMatrixWarning)``.
+    """
 
 
 # ---------------------------------------------------------------------------
@@ -22,56 +82,7 @@ import numpy as np
 # ---------------------------------------------------------------------------
 
 
-@contextmanager
-def coalesced_gc():
-    """Collapse nilearn's forced per-copy ``gc.collect()`` calls into ONE per operation.
-
-    nilearn calls ``gc.collect()`` after every masked-array copy
-    (``_utils/niimg.py:safe_get_data``); a masking-heavy op — a GLM fit that
-    re-validates the same mask and builds several result maps — fires dozens.
-    With torch/nilearn/sklearn resident each sweep costs ~0.1s, so the storm
-    dominates the wall-clock of otherwise-trivial numerical work.
-
-    This no-ops the interim collects and runs a single real collect on exit,
-    so peak memory stays bounded to one operation's worth of cyclic garbage
-    (the ``gc.collect()`` nilearn calls is a peak-memory optimization, not a
-    correctness requirement — suppressing it only defers reclamation). Opt out
-    with ``NLTOOLS_NO_GC_COALESCE=1``.
-
-    Because ``@contextmanager`` results double as decorators, this can also be
-    used as ``@coalesced_gc()`` on an operation-boundary method.
-
-    Nesting is safe: each frame restores whatever it saved, so only the
-    outermost frame restores the real ``gc.collect`` and runs the final sweep;
-    inner frames' exit-time collect is a no-op.
-
-    Caveat: this swaps a process-global builtin. It is safe under the default
-    loky (process) worker backend — each worker has its own ``gc``. Under a
-    *threading* backend there is a brief window where a concurrent thread sees
-    the no-op collect; ``NLTOOLS_NO_GC_COALESCE=1`` is the escape hatch there.
-    """
-    if os.environ.get("NLTOOLS_NO_GC_COALESCE"):
-        yield
-        return
-    saved = gc.collect  # may already be the no-op if we're nested
-    gc.collect = lambda *a, **k: 0
-    try:
-        yield
-    finally:
-        gc.collect = saved  # only the outermost frame restores the real collect
-        gc.collect()  # no-op if still nested; one real sweep at the top
-
-
-def get_resource_path():
-    """Get path to nltools resource directory."""
-    return join(dirname(__file__), "resources") + pathsep
-
-
-module_names = {}
-Dependency = collections.namedtuple("Dependency", "package value")
-
-
-def attempt_to_import(dependency, name=None, fromlist=None):
+def attempt_to_import(dependency, fromlist=None):
     """Attempt to import an optional dependency, returning None if unavailable.
 
     This function is used to handle optional dependencies gracefully. If the
@@ -79,58 +90,102 @@ def attempt_to_import(dependency, name=None, fromlist=None):
     allowing the calling code to check and handle missing dependencies.
 
     Args:
-        dependency: The module name to import (e.g., 'torch', 'cupy').
-        name: Optional name to store the dependency under in module_names.
-            Defaults to the dependency name.
-        fromlist: Optional list of names to import from the module.
+        dependency (str): The module name to import (e.g. `'torch'`, `'cupy'`).
+        fromlist (list[str], optional): Names to import from the module (passed to
+            `__import__`).
 
     Returns:
-        The imported module, or None if the import failed.
+        ModuleType | None: The imported module, or None if the import failed.
 
     Examples:
-        >>> torch = attempt_to_import('torch')
-        >>> if torch is not None:
-        ...     # Use torch
-        ...     pass
+        ```python
+        torch = attempt_to_import("torch")
+        if torch is not None:
+            ...  # use torch
+        ```
     """
-    if name is None:
-        name = dependency
     try:
         mod = __import__(dependency, fromlist=fromlist)
     except ImportError:
         mod = None
-    module_names[name] = Dependency(dependency, mod)
     return mod
 
 
-def all_same(items):
-    """Check if all items in a sequence are equal to the first item.
+# ---------------------------------------------------------------------------
+# Progress bars — the single library-wide mechanism
+# ---------------------------------------------------------------------------
+
+
+class _NullProgressBar:
+    """No-op stand-in for `tqdm` used when `progress_bar=False`.
+
+    Supports the subset of the tqdm interface nltools relies on, so call sites
+    that drive a bar manually need no branching.
+    """
+
+    def update(self, n: int = 1) -> None:
+        pass
+
+    def close(self) -> None:
+        pass
+
+    def __enter__(self) -> "_NullProgressBar":
+        return self
+
+    def __exit__(self, *exc_info) -> bool:
+        return False
+
+
+def maybe_tqdm(iterable, *, progress_bar: bool, **tqdm_kwargs):
+    """Wrap `iterable` in a tqdm progress bar only when `progress_bar` is True.
+
+    tqdm writes to stderr, so an unconditional bar makes functions noisy when
+    called in a loop (a 100-iteration calibration study would emit 100 bars).
+    Importing tqdm lazily also keeps it off the import path when unused. Uses
+    `tqdm.auto`, so notebooks get widget bars and terminals get text bars.
 
     Args:
-        items: A sequence of items to compare.
+        iterable (Iterable): The iterable to wrap.
+        progress_bar (bool): Whether to display a progress bar.
+        **tqdm_kwargs (dict): Forwarded to `tqdm` (e.g. `desc`, `unit`, `total`).
 
     Returns:
-        bool: True if all items equal the first item, False otherwise.
+        Iterable: The original iterable, or a `tqdm`-wrapped version of it.
 
     Examples:
-        >>> all_same([1, 1, 1])
-        True
-        >>> all_same([1, 2, 1])
-        False
+        ```python
+        for i in maybe_tqdm(range(n_permute), progress_bar=progress_bar,
+                            desc="CPU parallel perms", unit="perm"):
+            ...
+        ```
     """
-    return all(np.array_equal(x, items[0]) for x in items)
+    if not progress_bar:
+        return iterable
+
+    from tqdm.auto import tqdm
+
+    return tqdm(iterable, **tqdm_kwargs)
 
 
-def concatenate(data):
-    """Concatenate a list of BrainData() or Adjacency() objects."""
+def make_progress_bar(*, progress_bar: bool, **tqdm_kwargs):
+    """Build a progress bar, or a no-op stand-in when `progress_bar` is False.
 
-    if not isinstance(data, list):
-        raise ValueError("Make sure you are passing a list of objects.")
+    Use this for call sites that drive the bar manually via `.update()` rather
+    than by iteration. Uses `tqdm.auto`, so notebooks get widget bars and
+    terminals get text bars.
 
-    if all(isinstance(x, data[0].__class__) for x in data):
-        out = data[0].__class__()
-        for i in data:
-            out = out.append(i)
-    else:
-        raise ValueError("Make sure all objects in the list are the same type.")
-    return out
+    Args:
+        progress_bar (bool): Whether to display a progress bar.
+        **tqdm_kwargs (dict): Forwarded to `tqdm` (e.g. `total`, `desc`, `unit`).
+
+    Returns:
+        tqdm | _NullProgressBar: A `tqdm` instance, or a `_NullProgressBar` exposing
+            the same subset of its interface (`update`, `close`, and the
+            context-manager protocol).
+    """
+    if not progress_bar:
+        return _NullProgressBar()
+
+    from tqdm.auto import tqdm
+
+    return tqdm(**tqdm_kwargs)

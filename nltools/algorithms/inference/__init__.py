@@ -1,87 +1,50 @@
-"""GPU-accelerated statistical inference for neuroimaging.
+"""Permutation tests, bootstrap resampling, and intersubject statistics.
 
-This module provides fast permutation testing and bootstrap resampling using
-optional GPU acceleration via PyTorch. When GPU is unavailable, efficiently
-uses CPU parallelization.
-
-Inspired by BROCCOLI's GPU permutation testing (Eklund et al. 2014).
-
-Key Features:
-    - 10-100× speedup for permutation tests with GPU
-    - Efficient CPU parallelization when GPU unavailable
-    - Transparent CPU/GPU support via Backend abstraction
-    - Drop-in replacement for nltools.stats functions
+Every test here runs on plain numpy arrays and returns a dict of results. The
+one-, two-sample, correlation, matrix, and timeseries permutation tests share
+one execution model: permutations run on joblib workers, `n_jobs` sets how
+many, and a given `random_state` gives the same result at every worker count.
+The intersubject statistics (`isc`, `isc_group`, `isfc`, `isps` in
+`nltools.algorithms`) are built on the same engine.
 
 Examples:
-    >>> import numpy as np
-    >>> from nltools.algorithms.inference import one_sample_permutation_test
+    ```python
+    import numpy as np
+    from nltools.algorithms.inference import one_sample_permutation_test
 
-    >>> # Simple one-sample test
-    >>> data = np.random.randn(30)  # 30 subjects
-    >>> result = one_sample_permutation_test(data, n_permute=5000)
-    >>> print(f"p-value: {result['p']:.3f}")
+    data = np.random.randn(30)  # 30 subjects
+    result = one_sample_permutation_test(data, n_permute=5000)
+    result["p"]  # → two-sided p-value
 
-    >>> # Voxel-wise test with GPU acceleration
-    >>> data = np.random.randn(30, 50000)  # 30 subjects, 50K voxels
-    >>> result = one_sample_permutation_test(data, n_permute=10000, parallel='gpu')
-    >>> print(f"Significant voxels: {(result['p'] < 0.05).sum()}")
+    # Voxel-wise test
+    data = np.random.randn(30, 50000)  # 30 subjects, 50K voxels
+    result = one_sample_permutation_test(data, n_permute=10000)
+    (result["p"] < 0.05).sum()  # → number of significant voxels
+    ```
 
-Performance:
-    - CPU (NumPy): Good for small problems (< 5K permutations)
-    - GPU (PyTorch): Excellent for large problems (> 5K permutations)
-    - CPU Parallel (joblib): Efficient fallback when GPU unavailable
-    - Select with parallel='cpu' | 'gpu' | None (no 'auto' selector)
-
-References:
-    Eklund, A., Dufort, P., Villani, M., & LaConte, S. M. (2014).
-    BROCCOLI: Software for fast fMRI analysis on many-core CPUs and GPUs.
-    Frontiers in Neuroinformatics, 8, 24.
-
-Notes:
-    This module is part of the "functional core" of nltools. For integration
-    with BrainData objects, see nltools.data.brain_data.
+Note:
+    These are the functional core. The data classes wrap them —
+    `BrainData.ttest`, `BrainData.bootstrap`, `Adjacency.ttest` — and handle
+    masking and result reshaping for you.
 """
 
-# Import public API functions
-from .one_sample import one_sample_permutation_test
-from .two_sample import two_sample_permutation_test
-from .correlation import correlation_permutation_test
-from .timeseries import (
+# Engine entry points, re-exported so `nltools.algorithms.inference` is the one
+# import path for the whole family.
+from .one_sample import one_sample_permutation_test  # noqa: F401
+from .two_sample import two_sample_permutation_test  # noqa: F401
+from .correlation import correlation_permutation_test  # noqa: F401
+from .timeseries import (  # noqa: F401
     circle_shift,
     phase_randomize,
     timeseries_correlation_permutation_test,
 )
-from .matrix import (
+from .matrix import (  # noqa: F401
     matrix_permutation_test,
-    double_center,
-    u_center,
     distance_correlation,
 )
-from .isc import isc_permutation_test, isc_group_permutation_test
 
-# Import utility functions (for testing and internal use)
-from .utils import _generate_sign_flips, _compute_pvalue, _auto_batch_size
-
-# Import bootstrap utilities
-from .bootstrap import OnlineBootstrapStats
-
-# Define public exports
-__all__ = [
-    "OnlineBootstrapStats",
-    "_auto_batch_size",
-    "_compute_pvalue",
-    # Private functions (exported for testing)
-    "_generate_sign_flips",
-    "circle_shift",
-    "correlation_permutation_test",
-    "distance_correlation",
-    "double_center",
-    "isc_group_permutation_test",
-    "isc_permutation_test",
-    "matrix_permutation_test",
-    "one_sample_permutation_test",
-    "phase_randomize",
-    "timeseries_correlation_permutation_test",
-    "two_sample_permutation_test",
-    "u_center",
-]
+# NOTE: the intersubject statistics (`isc`, `isc_group`, `isfc`, `isps`) live in
+# `.intersubject` and are exported flat from `nltools.algorithms` —
+# re-exporting the `isc` *function* here would shadow the `.isc` engine
+# *module* on this package.
+from .isc import isc_permutation_test, isc_group_permutation_test  # noqa: F401

@@ -1,43 +1,27 @@
 """
-Tests for GPU-accelerated Intersubject Correlation (ISC) module.
+Tests for the Intersubject Correlation (ISC) module.
 
-Test organization follows the TDD plan (2025-10-30-isc-tdd-plan.md):
+Test organization:
     Phase 1: Leave-One-Out (LOO) Computation
     Phase 2: Pairwise Computation
     Phase 3: LOO Bootstrap
     Phase 4: Pairwise Bootstrap
     Phase 5: Main Function
     Integration Tests
-    Performance Benchmarks (tier2)
-
-Tier 1: Fast tests (~1-2min, run on every iteration)
-Tier 2: GPU and benchmark tests (~5-7min, run before commits)
 
 Testing Strategy & Tolerances:
 
-    This test suite uses different tolerance levels for different comparison types.
-    Following the pattern from test_inference.py:
-
-    1. Backend Consistency (NumPy vs PyTorch):
-       - Tolerance: EXACT (rtol=1e-5)
-       - Why: Same algorithm, same random seed, only float precision differs
-       - Tests verify implementations are mathematically identical
-
-    2. GPU Precision (GPU float32 vs CPU float64):
-       - Values: rtol=1e-3 (0.1% error)
-       - P-values: rtol=5e-3 (0.5% error)
-       - Why: GPU uses float32, CPU uses float64; P-values accumulate more error
+    Worker-count consistency (n_jobs=1 vs n_jobs=-1):
+        Tolerance: EXACT (rtol=1e-5). Seeds are drawn before the joblib block
+        and consumed in index order, so the worker count only changes
+        scheduling, never arithmetic.
 """
-
-import time
 
 import numpy as np
 import pytest
 from scipy.spatial.distance import squareform
 
 from nltools.algorithms.inference.isc import (
-    _batch_correlation_gpu,
-    _batch_corrcoef_gpu,
     _bootstrap_loo_cpu_parallel,
     _bootstrap_loo_numpy,
     _bootstrap_pairwise_cpu_parallel,
@@ -52,13 +36,8 @@ from nltools.algorithms.inference.isc import (
 # Test Constants - DO NOT MODIFY without updating docstring above
 # =============================================================================
 
-# Tolerance for backend consistency (NumPy vs PyTorch with same seed)
-# These should be EXACT matches (same algorithm, only precision differs)
+# Tolerance for worker-count consistency (same seeds, different n_jobs)
 TOLERANCE_EXACT = 1e-5
-
-# Tolerance for GPU vs CPU comparisons (float32 vs float64)
-TOLERANCE_GPU_VALUE = 1e-3  # 0.1% error for computed values
-TOLERANCE_GPU_PVALUE = 5e-3  # 0.5% error for P-values (more FP error)
 
 
 # =============================================================================
@@ -71,7 +50,7 @@ def test_compute_loo_isc_single_feature_basic():
     np.random.seed(42)
     data = np.random.randn(100, 5)  # 100 timepoints, 5 subjects
 
-    loo_values = _compute_loo_isc(data, backend="numpy")
+    loo_values = _compute_loo_isc(data)
 
     assert loo_values.shape == (5,)
 
@@ -87,29 +66,14 @@ def test_compute_loo_isc_voxelwise_shape():
     np.random.seed(42)
     data = np.random.randn(100, 5, 10)  # 10 voxels
 
-    loo_values = _compute_loo_isc(data, backend="numpy")
+    loo_values = _compute_loo_isc(data)
 
     assert loo_values.shape == (5, 10)
 
     # Each voxel computed independently
     for v in range(10):
-        voxel_loo = _compute_loo_isc(data[:, :, v], backend="numpy")
+        voxel_loo = _compute_loo_isc(data[:, :, v])
         assert np.allclose(loo_values[:, v], voxel_loo)
-
-
-@pytest.mark.slow
-def test_compute_loo_isc_gpu_matches_numpy():
-    """GPU LOO matches NumPy within float32 tolerance."""
-    _ = pytest.importorskip("torch")
-
-    np.random.seed(42)
-    data = np.random.randn(100, 10, 100)  # 100 voxels (smaller for testing)
-
-    loo_numpy = _compute_loo_isc(data, backend="numpy")
-    loo_gpu = _compute_loo_isc(data, backend="torch")
-
-    # GPU uses float32, CPU uses float64 - use GPU precision tolerance
-    np.testing.assert_allclose(loo_numpy, loo_gpu, rtol=TOLERANCE_GPU_VALUE, atol=1e-7)
 
 
 def test_compute_loo_isc_deterministic():
@@ -117,34 +81,10 @@ def test_compute_loo_isc_deterministic():
     np.random.seed(42)
     data = np.random.randn(100, 5, 10)
 
-    loo1 = _compute_loo_isc(data, backend="numpy")
-    loo2 = _compute_loo_isc(data, backend="numpy")
+    loo1 = _compute_loo_isc(data)
+    loo2 = _compute_loo_isc(data)
 
     assert np.array_equal(loo1, loo2)
-
-
-@pytest.mark.slow
-def test_batch_correlation_gpu_correctness():
-    """Batch correlation on GPU matches manual computation."""
-    torch = pytest.importorskip("torch")
-
-    np.random.seed(42)
-    # Create simple test data
-    x = np.random.randn(100, 5)  # 100 observations, 5 features
-    y = np.random.randn(100, 5)
-
-    # Convert to GPU
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    x_gpu = torch.tensor(x, dtype=torch.float32, device=device)
-    y_gpu = torch.tensor(y, dtype=torch.float32, device=device)
-
-    # Compute on GPU
-    corr_gpu = _batch_correlation_gpu(x_gpu, y_gpu).cpu().numpy()
-
-    # Verify against NumPy for each feature
-    for i in range(5):
-        expected = np.corrcoef(x[:, i], y[:, i])[0, 1]
-        assert np.isclose(corr_gpu[i], expected, rtol=1e-5)
 
 
 # =============================================================================
@@ -157,7 +97,7 @@ def test_compute_pairwise_isc_single_feature_condensed():
     np.random.seed(42)
     data = np.random.randn(100, 5)
 
-    pairwise = _compute_pairwise_isc(data, backend="numpy")
+    pairwise = _compute_pairwise_isc(data)
 
     # 5 subjects → 10 pairs
     assert pairwise.shape == (10,)
@@ -173,53 +113,14 @@ def test_compute_pairwise_isc_voxelwise_shape():
     np.random.seed(42)
     data = np.random.randn(100, 5, 10)
 
-    pairwise = _compute_pairwise_isc(data, backend="numpy")
+    pairwise = _compute_pairwise_isc(data)
 
     assert pairwise.shape == (10, 10)  # 10 pairs × 10 voxels
 
     # Verify each voxel independently
     for v in range(10):
-        voxel_pair = _compute_pairwise_isc(data[:, :, v], backend="numpy")
+        voxel_pair = _compute_pairwise_isc(data[:, :, v])
         assert np.allclose(pairwise[:, v], voxel_pair)
-
-
-@pytest.mark.slow
-def test_compute_pairwise_isc_gpu_matches_numpy():
-    """GPU pairwise matches NumPy within float32 tolerance."""
-    _ = pytest.importorskip("torch")
-
-    np.random.seed(42)
-    data = np.random.randn(100, 10, 100)  # 100 voxels
-
-    pair_numpy = _compute_pairwise_isc(data, backend="numpy")
-    pair_gpu = _compute_pairwise_isc(data, backend="torch")
-
-    # GPU uses float32, CPU uses float64 - use GPU precision tolerance
-    np.testing.assert_allclose(
-        pair_numpy, pair_gpu, rtol=TOLERANCE_GPU_VALUE, atol=1e-7
-    )
-
-
-@pytest.mark.slow
-def test_batch_corrcoef_gpu_correctness():
-    """Batch corrcoef on GPU matches NumPy."""
-    torch = pytest.importorskip("torch")
-
-    # Create test data (n_voxels, n_subjects, n_observations)
-    np.random.seed(42)
-    data = np.random.randn(5, 10, 100)
-
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    data_gpu = torch.tensor(data, dtype=torch.float32, device=device)
-    corr_gpu = _batch_corrcoef_gpu(data_gpu).cpu().numpy()
-
-    # Verify against NumPy for each voxel
-    # GPU uses float32, CPU uses float64 - use GPU precision tolerance
-    for v in range(5):
-        corr_numpy = np.corrcoef(data[v])
-        np.testing.assert_allclose(
-            corr_gpu[v], corr_numpy, rtol=TOLERANCE_GPU_VALUE, atol=1e-7
-        )
 
 
 # =============================================================================
@@ -233,7 +134,7 @@ def test_bootstrap_loo_resamples_values():
     rng = np.random.RandomState(42)
 
     # Single bootstrap
-    boot_median = _bootstrap_loo_numpy(loo_values, metric="median", random_state=rng)
+    boot_median = _bootstrap_loo_numpy(loo_values, summary="median", random_state=rng)
 
     # Should be median of resampled values
     assert isinstance(boot_median, (float, np.floating))
@@ -245,7 +146,7 @@ def test_bootstrap_loo_fisher_z_transform():
     loo_values = np.array([0.5, 0.6, 0.7, 0.8, 0.9])
     rng = np.random.RandomState(42)
 
-    boot_mean = _bootstrap_loo_numpy(loo_values, metric="mean", random_state=rng)
+    boot_mean = _bootstrap_loo_numpy(loo_values, summary="mean", random_state=rng)
 
     # Manual Fisher z
     rng2 = np.random.RandomState(42)
@@ -263,11 +164,11 @@ def test_bootstrap_loo_cpu_parallel_deterministic():
     loo_values = np.random.randn(50)  # 50 subjects
 
     boot1 = _bootstrap_loo_cpu_parallel(
-        loo_values, n_permute=100, metric="median", random_state=42, progress_bar=False
+        loo_values, n_permute=100, summary="median", random_state=42, progress_bar=False
     )
 
     boot2 = _bootstrap_loo_cpu_parallel(
-        loo_values, n_permute=100, metric="median", random_state=42, progress_bar=False
+        loo_values, n_permute=100, summary="median", random_state=42, progress_bar=False
     )
 
     assert np.allclose(boot1, boot2)
@@ -285,7 +186,7 @@ def test_bootstrap_loo_cpu_parallel_matches_numpy():
         [
             _bootstrap_loo_numpy(
                 loo_values,
-                metric="median",
+                summary="median",
                 random_state=np.random.RandomState(seeds[i]),
             )
             for i in range(100)
@@ -294,7 +195,7 @@ def test_bootstrap_loo_cpu_parallel_matches_numpy():
 
     # Parallel
     boot_parallel = _bootstrap_loo_cpu_parallel(
-        loo_values, n_permute=100, metric="median", random_state=42, progress_bar=False
+        loo_values, n_permute=100, summary="median", random_state=42, progress_bar=False
     )
 
     assert np.allclose(boot_numpy, boot_parallel)
@@ -314,7 +215,7 @@ def test_bootstrap_pairwise_duplicate_masking():
     boot_subjects = np.array([0, 0, 1])
 
     boot_median = _bootstrap_pairwise_numpy(
-        pairwise, metric="median", bootstrap_subjects=boot_subjects
+        pairwise, summary="median", bootstrap_subjects=boot_subjects
     )
 
     # Expected: Matrix [[1.0, 1.0, 0.8],
@@ -353,7 +254,7 @@ def test_bootstrap_pairwise_cpu_parallel_deterministic():
         pairwise,
         n_permute=100,
         n_subjects=10,
-        metric="median",
+        summary="median",
         random_state=42,
         progress_bar=False,
     )
@@ -362,7 +263,7 @@ def test_bootstrap_pairwise_cpu_parallel_deterministic():
         pairwise,
         n_permute=100,
         n_subjects=10,
-        metric="median",
+        summary="median",
         random_state=42,
         progress_bar=False,
     )
@@ -462,65 +363,28 @@ def test_isc_voxelwise_shape():
     assert result["ci"][1].shape == (50,)
 
 
-def test_isc_backend_consistency_numpy_cpu_parallel():
-    """NumPy and CPU-parallel backends give identical results."""
+def test_isc_worker_count_is_numerically_invisible():
+    """Worker count never changes a seeded ISC result."""
     np.random.seed(42)
     data = np.random.randn(100, 10, 20)
 
-    result_numpy = isc_permutation_test(
-        data, parallel=None, n_permute=100, random_state=42, progress_bar=False
+    result_serial = isc_permutation_test(
+        data, n_permute=100, n_jobs=1, random_state=42, progress_bar=False
     )
 
     result_parallel = isc_permutation_test(
-        data, parallel="cpu", n_permute=100, random_state=42, progress_bar=False
+        data, n_permute=100, n_jobs=-1, random_state=42, progress_bar=False
     )
 
-    # Both use float64 CPU - should be exact matches
     np.testing.assert_allclose(
-        result_numpy["isc"], result_parallel["isc"], rtol=TOLERANCE_EXACT, atol=1e-10
+        result_serial["isc"], result_parallel["isc"], rtol=TOLERANCE_EXACT, atol=1e-10
     )
     np.testing.assert_allclose(
-        result_numpy["p"], result_parallel["p"], rtol=TOLERANCE_EXACT, atol=1e-10
+        result_serial["p"], result_parallel["p"], rtol=TOLERANCE_EXACT, atol=1e-10
     )
 
 
-@pytest.mark.slow
-def test_isc_gpu_matches_cpu():
-    """GPU backend matches CPU within float32 tolerance."""
-    _ = pytest.importorskip("torch")
-
-    np.random.seed(42)
-    data = np.random.randn(100, 10, 100)  # 100 voxels
-
-    result_cpu = isc_permutation_test(
-        data,
-        summary_statistic="leave-one-out",
-        parallel="cpu",
-        n_permute=100,
-        random_state=42,
-        progress_bar=False,
-    )
-
-    result_gpu = isc_permutation_test(
-        data,
-        summary_statistic="leave-one-out",
-        parallel="gpu",
-        n_permute=100,
-        random_state=42,
-        progress_bar=False,
-    )
-
-    # GPU uses float32, CPU uses float64 - use GPU precision tolerances
-    np.testing.assert_allclose(
-        result_cpu["isc"], result_gpu["isc"], rtol=TOLERANCE_GPU_VALUE, atol=1e-7
-    )
-    # P-values accumulate more FP error, use GPU p-value tolerance
-    np.testing.assert_allclose(
-        result_cpu["p"], result_gpu["p"], rtol=TOLERANCE_GPU_PVALUE, atol=1e-7
-    )
-
-
-def test_isc_return_null_distribution():
+def test_isc_return_null_dist():
     """ISC with return_null=True includes bootstrap distribution."""
     np.random.seed(42)
     data = np.random.randn(100, 10)
@@ -579,7 +443,7 @@ def test_isc_matches_brainiak_loo_logic():
     result = isc_permutation_test(
         data,
         summary_statistic="leave-one-out",
-        metric="median",
+        summary="median",
         n_permute=1000,
         random_state=42,
         progress_bar=False,
@@ -617,141 +481,6 @@ def test_isc_chen_bootstrap_correctness():
 
     # Mean should be close to observed ISC (unbiased bootstrap)
     assert np.abs(null_mean - result["isc"]) < 0.1
-
-
-# =============================================================================
-# Performance Benchmarks (Tier 2, optional with GPU)
-# =============================================================================
-
-
-@pytest.mark.slow
-def test_isc_gpu_speedup_loo():
-    """GPU provides speedup for voxel-wise LOO computation."""
-    torch = pytest.importorskip("torch")
-
-    if not torch.cuda.is_available():
-        pytest.skip("GPU not available")
-
-    np.random.seed(42)
-    data = np.random.randn(100, 50, 5000)  # 5K voxels
-
-    import time
-
-    start = time.time()
-    _ = isc_permutation_test(
-        data,
-        summary_statistic="leave-one-out",
-        parallel="cpu",
-        n_permute=100,
-        progress_bar=False,
-    )
-    cpu_time = time.time() - start
-
-    start = time.time()
-    _ = isc_permutation_test(
-        data,
-        summary_statistic="leave-one-out",
-        parallel="gpu",
-        n_permute=100,
-        progress_bar=False,
-    )
-    gpu_time = time.time() - start
-
-    speedup = cpu_time / gpu_time
-    print(f"\nLOO GPU Speedup: {speedup:.1f}×")
-
-    # Expect at least 3× speedup (conservative for testing)
-    assert speedup > 3.0
-
-
-@pytest.mark.slow
-def test_isc_gpu_pairwise_matches_cpu():
-    """GPU pairwise ISC matches CPU within float32 tolerance.
-
-    Correctness guard for the fully-GPU pairwise path: `parallel='gpu'` runs the
-    observed compute on the torch backend (on-device upper-triangle extraction)
-    AND the bootstrap on-device (`_bootstrap_pairwise_gpu`). The GPU bootstrap
-    draws the *same* subject resamples the CPU path would (deterministic
-    cross-backend RNG via `_pairwise_bootstrap_indices`), so the ISC and p-value
-    maps agree within float32 tolerance. See `test_isc_gpu_pairwise_speedup` for
-    the performance guard.
-    """
-    _ = pytest.importorskip("torch")
-
-    np.random.seed(42)
-    data = np.random.randn(80, 20, 200)  # (n_obs, n_subjects, n_voxels)
-
-    result_cpu = isc_permutation_test(
-        data,
-        summary_statistic="pairwise",
-        parallel="cpu",
-        n_permute=100,
-        random_state=42,
-        progress_bar=False,
-    )
-    result_gpu = isc_permutation_test(
-        data,
-        summary_statistic="pairwise",
-        parallel="gpu",
-        n_permute=100,
-        random_state=42,
-        progress_bar=False,
-    )
-
-    np.testing.assert_allclose(
-        result_cpu["isc"], result_gpu["isc"], rtol=TOLERANCE_GPU_VALUE, atol=1e-6
-    )
-    np.testing.assert_allclose(
-        result_cpu["p"], result_gpu["p"], rtol=TOLERANCE_GPU_PVALUE, atol=1e-6
-    )
-
-
-@pytest.mark.gpu
-@pytest.mark.slow
-def test_isc_gpu_pairwise_speedup():
-    """GPU pairwise ISC is meaningfully faster than CPU on a whole-brain-scale run.
-
-    Guards the perf goal of the GPU pairwise path (on-device triangle extraction +
-    on-device bootstrap): the bulk of the work — the ``n_permute`` bootstrap
-    iterations — now runs on the GPU instead of a CPU ``squareform`` loop. On a
-    GB10 this measures ~3.8× at (100, 50, 5000) / n_permute=1000; the assertion
-    uses a conservative ~2× floor so it stays green across GPU tiers and shared-box
-    load while still catching a regression back to the CPU-bound behavior.
-
-    Requires CUDA (``@pytest.mark.gpu``); a torch-CPU/MPS box has no GPU bootstrap
-    to accelerate, so the comparison would be meaningless there.
-    """
-    torch = pytest.importorskip("torch")
-    if not torch.cuda.is_available():
-        pytest.skip("CUDA GPU required for the pairwise ISC speedup guard")
-
-    rng = np.random.RandomState(0)
-    data = rng.randn(100, 50, 5000).astype(np.float32)
-    kwargs = {
-        "summary_statistic": "pairwise",
-        "n_permute": 1000,
-        "random_state": 42,
-        "progress_bar": False,
-    }
-
-    # Warm up CUDA context/kernels so the GPU timing excludes one-time init.
-    isc_permutation_test(
-        data[:, :, :100], parallel="gpu", **{**kwargs, "n_permute": 10}
-    )
-
-    t0 = time.perf_counter()
-    isc_permutation_test(data, parallel="cpu", **kwargs)
-    t_cpu = time.perf_counter() - t0
-
-    t0 = time.perf_counter()
-    isc_permutation_test(data, parallel="gpu", **kwargs)
-    t_gpu = time.perf_counter() - t0
-
-    speedup = t_cpu / t_gpu
-    assert speedup > 2.0, (
-        f"GPU pairwise ISC not meaningfully faster: CPU={t_cpu:.2f}s GPU={t_gpu:.2f}s "
-        f"(speedup={speedup:.2f}x, expected > 2x; ~3.8x on a GB10)"
-    )
 
 
 # =============================================================================
@@ -849,8 +578,9 @@ def test_isc_exclude_self_corr_parameter():
     assert isinstance(result_include["isc"], (float, np.floating))
 
 
-def test_isc_exclude_self_corr_affects_bootstrap():
-    """exclude_self_corr parameter affects bootstrap distribution."""
+@pytest.mark.parametrize("n_jobs", [1, -1])
+def test_isc_exclude_self_corr_affects_bootstrap(n_jobs):
+    """exclude_self_corr parameter affects bootstrap distribution at any worker count."""
     # Create data that will produce duplicate subjects in bootstrap
     np.random.seed(42)
     data = np.random.randn(100, 5)  # Small n_subjects increases chance of duplicates
@@ -861,6 +591,7 @@ def test_isc_exclude_self_corr_affects_bootstrap():
         method="bootstrap",
         n_permute=500,
         exclude_self_corr=True,
+        n_jobs=n_jobs,
         random_state=42,
         return_null=True,
         progress_bar=False,
@@ -872,6 +603,7 @@ def test_isc_exclude_self_corr_affects_bootstrap():
         method="bootstrap",
         n_permute=500,
         exclude_self_corr=False,
+        n_jobs=n_jobs,
         random_state=42,
         return_null=True,
         progress_bar=False,
@@ -893,8 +625,8 @@ def test_isc_exclude_self_corr_affects_bootstrap():
     assert len(null_include) == 500
 
 
-def test_isc_sim_metric_parameter():
-    """sim_metric parameter allows different similarity metrics."""
+def test_isc_metric_parameter():
+    """metric parameter allows different similarity metrics."""
     np.random.seed(42)
     data = np.random.randn(100, 10)
 
@@ -902,7 +634,7 @@ def test_isc_sim_metric_parameter():
     result_corr = isc_permutation_test(
         data,
         summary_statistic="pairwise",
-        sim_metric="correlation",
+        metric="correlation",
         n_permute=100,
         random_state=42,
         progress_bar=False,
@@ -912,7 +644,7 @@ def test_isc_sim_metric_parameter():
     result_eucl = isc_permutation_test(
         data,
         summary_statistic="pairwise",
-        sim_metric="euclidean",
+        metric="euclidean",
         n_permute=100,
         random_state=42,
         progress_bar=False,
@@ -933,8 +665,8 @@ def test_isc_sim_metric_parameter():
     assert -1 <= result_corr["isc"] <= 1
 
 
-def test_isc_sim_metric_affects_pairwise_computation():
-    """sim_metric parameter affects pairwise ISC computation."""
+def test_isc_metric_affects_pairwise_computation():
+    """metric parameter affects pairwise ISC computation."""
     np.random.seed(42)
     data = np.random.randn(100, 5)
 
@@ -942,7 +674,7 @@ def test_isc_sim_metric_affects_pairwise_computation():
     result_corr = isc_permutation_test(
         data,
         summary_statistic="pairwise",
-        sim_metric="correlation",
+        metric="correlation",
         n_permute=100,
         random_state=42,
         progress_bar=False,
@@ -951,7 +683,7 @@ def test_isc_sim_metric_affects_pairwise_computation():
     result_cosine = isc_permutation_test(
         data,
         summary_statistic="pairwise",
-        sim_metric="cosine",
+        metric="cosine",
         n_permute=100,
         random_state=42,
         progress_bar=False,
@@ -966,68 +698,6 @@ def test_isc_sim_metric_affects_pairwise_computation():
     # Cosine similarity (1 - cosine distance) should also be in reasonable range
     # but may be different from correlation
     assert isinstance(result_cosine["isc"], (float, np.floating))
-
-
-def test_isc_gpu_pairwise_non_correlation_raises():
-    """GPU pairwise ISC only implements sim_metric='correlation'.
-
-    Requesting `parallel='gpu'` with a non-correlation metric is contradictory —
-    the GPU pairwise kernel computes correlation only. It must fail fast with a
-    clear ValueError (consistent with the sibling `isc_group_permutation_test`),
-    not silently ignore the GPU request. The guard runs before any torch call,
-    so no GPU/CUDA is needed to exercise it.
-
-    (Pre-0.6.0 this asserted a UserWarning + CPU fallback via the removed
-    `backend=` kwarg; that behavior no longer exists.)
-    """
-    np.random.seed(42)
-    data = np.random.randn(100, 10, 50)  # (n_obs, n_subjects, n_voxels)
-
-    with pytest.raises(ValueError, match="only supports sim_metric='correlation'"):
-        isc_permutation_test(
-            data,
-            summary_statistic="pairwise",
-            sim_metric="euclidean",
-            parallel="gpu",
-            n_permute=10,
-            random_state=42,
-            progress_bar=False,
-        )
-
-
-def test_isc_pairwise_gpu_engages_torch_backend(monkeypatch):
-    """parallel='gpu' must route the pairwise compute to the torch backend.
-
-    Regression guard for the wiring fix: the observed pairwise ISC previously
-    hardcoded `backend='numpy'` even under `parallel='gpu'`, making the GPU a
-    silent no-op. Spy on `_compute_pairwise_isc` and assert it's invoked with
-    `backend='torch'`. No CUDA needed — torch falls back to its CPU device.
-    """
-    pytest.importorskip("torch")
-    from nltools.algorithms.inference import isc as isc_mod
-
-    seen = []
-    orig = isc_mod._compute_pairwise_isc
-
-    def _spy(data, backend="numpy", sim_metric="correlation"):
-        seen.append(backend)
-        return orig(data, backend=backend, sim_metric=sim_metric)
-
-    monkeypatch.setattr(isc_mod, "_compute_pairwise_isc", _spy)
-
-    np.random.seed(0)
-    data = np.random.randn(60, 8, 40)
-    isc_mod.isc_permutation_test(
-        data,
-        summary_statistic="pairwise",
-        parallel="gpu",
-        n_permute=10,
-        random_state=0,
-        progress_bar=False,
-    )
-    assert "torch" in seen, (
-        f"pairwise parallel='gpu' used backends {seen}; expected 'torch'."
-    )
 
 
 def test_isc_exclude_self_corr_pairwise_only():
@@ -1060,16 +730,16 @@ def test_isc_exclude_self_corr_pairwise_only():
     assert np.isclose(result_loo["isc"], result_loo_default["isc"])
 
 
-def test_isc_sim_metric_pairwise_only():
-    """sim_metric only applies to pairwise summary_statistic."""
+def test_isc_metric_pairwise_only():
+    """metric only applies to pairwise summary_statistic."""
     np.random.seed(42)
     data = np.random.randn(100, 10)
 
-    # sim_metric should not affect LOO (which computes correlations directly)
+    # metric should not affect LOO (which computes correlations directly)
     result_loo_corr = isc_permutation_test(
         data,
         summary_statistic="leave-one-out",
-        sim_metric="correlation",  # Should be ignored for LOO
+        metric="correlation",  # Should be ignored for LOO
         n_permute=100,
         random_state=42,
         progress_bar=False,
@@ -1078,18 +748,18 @@ def test_isc_sim_metric_pairwise_only():
     result_loo_eucl = isc_permutation_test(
         data,
         summary_statistic="leave-one-out",
-        sim_metric="euclidean",  # Should be ignored for LOO
+        metric="euclidean",  # Should be ignored for LOO
         n_permute=100,
         random_state=42,
         progress_bar=False,
     )
 
-    # LOO results should be identical regardless of sim_metric
+    # LOO results should be identical regardless of metric
     assert np.isclose(result_loo_corr["isc"], result_loo_eucl["isc"])
 
 
-def test_isc_sim_metric_spearman_basic():
-    """Spearman sim_metric works and produces valid ISC results."""
+def test_isc_metric_spearman_basic():
+    """Spearman metric works and produces valid ISC results."""
     np.random.seed(42)
     data = np.random.randn(100, 10)
 
@@ -1097,7 +767,7 @@ def test_isc_sim_metric_spearman_basic():
     result_spearman = isc_permutation_test(
         data,
         summary_statistic="pairwise",
-        sim_metric="spearman",
+        metric="spearman",
         n_permute=100,
         random_state=42,
         progress_bar=False,
@@ -1110,38 +780,6 @@ def test_isc_sim_metric_spearman_basic():
     assert -1 <= result_spearman["isc"] <= 1
 
 
-def test_isc_sim_metric_spearman_vs_correlation():
-    """Spearman and correlation produce different ISC values."""
-    np.random.seed(42)
-    # Create monotonic but non-linear relationship
-    x = np.random.randn(100)
-    data = np.column_stack([x**3 + np.random.randn(100) * 0.1 for _ in range(10)])
-
-    result_corr = isc_permutation_test(
-        data,
-        summary_statistic="pairwise",
-        sim_metric="correlation",
-        n_permute=100,
-        random_state=42,
-        progress_bar=False,
-    )
-
-    result_spearman = isc_permutation_test(
-        data,
-        summary_statistic="pairwise",
-        sim_metric="spearman",
-        n_permute=100,
-        random_state=42,
-        progress_bar=False,
-    )
-
-    # Spearman should handle monotonic relationships better
-    # For non-linear monotonic data, Spearman should be higher
-    assert result_spearman["isc"] != result_corr["isc"]
-    assert -1 <= result_spearman["isc"] <= 1
-    assert -1 <= result_corr["isc"] <= 1
-
-
 def test_compute_pairwise_isc_spearman_single_feature():
     """Spearman pairwise ISC matches manual computation for single feature."""
     from scipy.stats import rankdata
@@ -1151,7 +789,7 @@ def test_compute_pairwise_isc_spearman_single_feature():
     data = np.random.randn(100, 5)  # 100 timepoints, 5 subjects
 
     # Compute using our function
-    result = _compute_pairwise_isc(data, backend="numpy", sim_metric="spearman")
+    result = _compute_pairwise_isc(data, metric="spearman")
 
     # Manual computation: rank-transform then Pearson correlation
     data_ranked = np.array([rankdata(data[:, i], method="average") for i in range(5)]).T
@@ -1171,7 +809,7 @@ def test_compute_pairwise_isc_spearman_voxelwise():
     data = np.random.randn(100, 5, 10)  # 100 timepoints, 5 subjects, 10 voxels
 
     # Compute using our function
-    result = _compute_pairwise_isc(data, backend="numpy", sim_metric="spearman")
+    result = _compute_pairwise_isc(data, metric="spearman")
 
     # Verify shape
     n_pairs = 5 * (5 - 1) // 2
@@ -1187,41 +825,6 @@ def test_compute_pairwise_isc_spearman_voxelwise():
     np.testing.assert_allclose(result[:, 0], expected_v0, rtol=1e-10, atol=1e-10)
 
 
-@pytest.mark.slow
-def test_compute_pairwise_isc_spearman_performance():
-    """Spearman optimization works efficiently and avoids pairwise_distances overhead."""
-    import time
-
-    np.random.seed(42)
-    # Use voxel-wise data where optimization matters most
-    data = np.random.randn(100, 10, 100)  # 100 voxels
-
-    # Time Spearman optimization (rank-transform + corrcoef)
-    start = time.time()
-    result_spearman = _compute_pairwise_isc(
-        data, backend="numpy", sim_metric="spearman"
-    )
-    time_spearman = time.time() - start
-
-    # Time correlation (baseline fast path)
-    start = time.time()
-    result_corr = _compute_pairwise_isc(data, backend="numpy", sim_metric="correlation")
-    time_corr = time.time() - start
-
-    # Verify results are valid
-    assert result_spearman.shape == result_corr.shape
-    assert np.all(np.abs(result_spearman) <= 1)
-    assert np.all(np.abs(result_corr) <= 1)
-
-    # Spearman should complete in reasonable time (within 30× of correlation)
-    # Rank transform adds overhead, but the key benefit is that Spearman now works
-    # (fixes the bug where it previously failed with pairwise_distances)
-    assert time_spearman < 30 * time_corr, (
-        f"Spearman ({time_spearman:.3f}s) should complete reasonably quickly. "
-        f"Rank transform adds overhead but avoids pairwise_distances failure."
-    )
-
-
 def test_compute_pairwise_isc_cosine_single_feature():
     """Cosine pairwise ISC matches sklearn pairwise_distances for single feature."""
     from sklearn.metrics import pairwise_distances
@@ -1231,7 +834,7 @@ def test_compute_pairwise_isc_cosine_single_feature():
     data = np.random.randn(100, 5)  # 100 timepoints, 5 subjects
 
     # Compute using our optimized function
-    result = _compute_pairwise_isc(data, backend="numpy", sim_metric="cosine")
+    result = _compute_pairwise_isc(data, metric="cosine")
 
     # Compute using sklearn (baseline for correctness)
     dist_matrix = pairwise_distances(data.T, metric="cosine")
@@ -1251,7 +854,7 @@ def test_compute_pairwise_isc_cosine_voxelwise():
     data = np.random.randn(100, 5, 10)  # 100 timepoints, 5 subjects, 10 voxels
 
     # Compute using our optimized function
-    result = _compute_pairwise_isc(data, backend="numpy", sim_metric="cosine")
+    result = _compute_pairwise_isc(data, metric="cosine")
 
     # Verify shape
     n_pairs = 5 * (5 - 1) // 2
@@ -1265,36 +868,6 @@ def test_compute_pairwise_isc_cosine_voxelwise():
     np.testing.assert_allclose(result[:, 0], expected_v0, rtol=1e-10, atol=1e-10)
 
 
-def test_isc_sim_metric_cosine_vs_correlation():
-    """Cosine and correlation produce different ISC values."""
-    np.random.seed(42)
-    data = np.random.randn(100, 10)
-
-    result_corr = isc_permutation_test(
-        data,
-        summary_statistic="pairwise",
-        sim_metric="correlation",
-        n_permute=100,
-        random_state=42,
-        progress_bar=False,
-    )
-
-    result_cosine = isc_permutation_test(
-        data,
-        summary_statistic="pairwise",
-        sim_metric="cosine",
-        n_permute=100,
-        random_state=42,
-        progress_bar=False,
-    )
-
-    # Different metrics should produce different ISC values
-    assert result_corr["isc"] != result_cosine["isc"]
-    assert -1 <= result_corr["isc"] <= 1
-    # Cosine similarity should be in [0, 1] range (normalized vectors)
-    assert 0 <= result_cosine["isc"] <= 1
-
-
 def test_compute_pairwise_isc_cosine_handles_zero_norm():
     """Cosine similarity handles zero-norm vectors gracefully."""
     np.random.seed(42)
@@ -1305,46 +878,12 @@ def test_compute_pairwise_isc_cosine_handles_zero_norm():
     data_zero[:, 0] = 0.0  # First subject has zero norm
 
     # Should not raise error
-    result = _compute_pairwise_isc(data_zero, backend="numpy", sim_metric="cosine")
+    result = _compute_pairwise_isc(data_zero, metric="cosine")
 
     # Should produce valid results (may have NaN or 0 for zero-norm pairs)
     assert result.shape == (10,)  # 5*4/2 = 10 pairs
     # Values should be finite or NaN (for zero-norm cases)
     assert np.all(np.isfinite(result) | np.isnan(result))
-
-
-@pytest.mark.slow
-def test_compute_pairwise_isc_cosine_performance():
-    """Cosine optimization is faster than pairwise_distances fallback."""
-    import time
-
-    np.random.seed(42)
-    # Use voxel-wise data where optimization matters most
-    data = np.random.randn(100, 10, 100)  # 100 voxels
-
-    # Time optimized cosine implementation
-    start = time.time()
-    result_cosine_opt = _compute_pairwise_isc(
-        data, backend="numpy", sim_metric="cosine"
-    )
-    time_cosine_opt = time.time() - start
-
-    # Time correlation (baseline fast path)
-    start = time.time()
-    result_corr = _compute_pairwise_isc(data, backend="numpy", sim_metric="correlation")
-    time_corr = time.time() - start
-
-    # Verify results are valid
-    assert result_cosine_opt.shape == result_corr.shape
-    assert np.all(np.abs(result_cosine_opt) <= 1)
-    assert np.all(np.abs(result_corr) <= 1)
-
-    # Cosine should be reasonably fast (within 10× of correlation)
-    # Normalization + matrix multiply is fast, but slightly slower than raw corrcoef
-    assert time_cosine_opt < 10 * time_corr, (
-        f"Optimized cosine ({time_cosine_opt:.3f}s) should be reasonably fast compared "
-        f"to correlation ({time_corr:.3f}s). Matrix multiply is fast but adds overhead."
-    )
 
 
 def test_compute_pairwise_isc_euclidean_single_feature():
@@ -1356,7 +895,7 @@ def test_compute_pairwise_isc_euclidean_single_feature():
     data = np.random.randn(100, 5)  # 100 timepoints, 5 subjects
 
     # Compute using our optimized function
-    result = _compute_pairwise_isc(data, backend="numpy", sim_metric="euclidean")
+    result = _compute_pairwise_isc(data, metric="euclidean")
 
     # Compute using sklearn (baseline for correctness)
     dist_matrix = pairwise_distances(data.T, metric="euclidean")
@@ -1376,7 +915,7 @@ def test_compute_pairwise_isc_euclidean_voxelwise():
     data = np.random.randn(100, 5, 10)  # 100 timepoints, 5 subjects, 10 voxels
 
     # Compute using our optimized function
-    result = _compute_pairwise_isc(data, backend="numpy", sim_metric="euclidean")
+    result = _compute_pairwise_isc(data, metric="euclidean")
 
     # Verify shape
     n_pairs = 5 * (5 - 1) // 2
@@ -1388,70 +927,6 @@ def test_compute_pairwise_isc_euclidean_voxelwise():
     expected_v0 = squareform(sim_matrix_v0, checks=False)
 
     np.testing.assert_allclose(result[:, 0], expected_v0, rtol=1e-10, atol=1e-10)
-
-
-def test_isc_sim_metric_euclidean_vs_correlation():
-    """Euclidean and correlation produce different ISC values."""
-    np.random.seed(42)
-    data = np.random.randn(100, 10)
-
-    result_corr = isc_permutation_test(
-        data,
-        summary_statistic="pairwise",
-        sim_metric="correlation",
-        n_permute=100,
-        random_state=42,
-        progress_bar=False,
-    )
-
-    result_eucl = isc_permutation_test(
-        data,
-        summary_statistic="pairwise",
-        sim_metric="euclidean",
-        n_permute=100,
-        random_state=42,
-        progress_bar=False,
-    )
-
-    # Different metrics should produce different ISC values
-    assert result_corr["isc"] != result_eucl["isc"]
-    assert -1 <= result_corr["isc"] <= 1
-    # Euclidean similarity can be negative (1 - distance, where distance can be > 1)
-    assert isinstance(result_eucl["isc"], (float, np.floating))
-
-
-@pytest.mark.slow
-def test_compute_pairwise_isc_euclidean_performance():
-    """Euclidean optimization is faster than pairwise_distances fallback."""
-    import time
-
-    np.random.seed(42)
-    # Use voxel-wise data where optimization matters most
-    data = np.random.randn(100, 10, 100)  # 100 voxels
-
-    # Time optimized euclidean implementation
-    start = time.time()
-    result_eucl_opt = _compute_pairwise_isc(
-        data, backend="numpy", sim_metric="euclidean"
-    )
-    time_eucl_opt = time.time() - start
-
-    # Time correlation (baseline fast path)
-    start = time.time()
-    result_corr = _compute_pairwise_isc(data, backend="numpy", sim_metric="correlation")
-    time_corr = time.time() - start
-
-    # Verify results are valid
-    assert result_eucl_opt.shape == result_corr.shape
-    assert np.all(np.isfinite(result_eucl_opt))
-    assert np.all(np.isfinite(result_corr))
-
-    # Euclidean should be reasonably fast (within 15× of correlation)
-    # Matrix operations are fast, but sqrt adds overhead
-    assert time_eucl_opt < 15 * time_corr, (
-        f"Optimized euclidean ({time_eucl_opt:.3f}s) should be reasonably fast compared "
-        f"to correlation ({time_corr:.3f}s). Vectorized operations are fast but sqrt adds overhead."
-    )
 
 
 # =============================================================================
@@ -1502,7 +977,7 @@ def _generate_shared_signal_isc(
 
 
 class TestISCStatisticalCorrectness:
-    """Test statistical correctness of ISC permutation tests (not just CPU/GPU consistency)."""
+    """Test statistical correctness of ISC permutation tests."""
 
     @pytest.mark.slow
     @pytest.mark.parametrize("method", ["circle_shift", "phase_randomize"])
@@ -1764,7 +1239,7 @@ class TestISCStatisticalCorrectness:
         )
 
         # Bootstrap distribution should be centered around 0
-        # (return_null returns centered null_distribution: bootstraps - observed_isc)
+        # (return_null returns centered null_dist: bootstraps - observed_isc)
         null_dist = result["null_dist"]
         observed_isc = result["isc"]
 
@@ -1820,7 +1295,7 @@ class TestISCStatisticalCorrectness:
 
         # Verify autocorrelation is preserved in circle_shifted data
         # (by checking that circle_shift function preserves it)
-        from nltools.stats import circle_shift
+        from nltools.algorithms import circle_shift
 
         shifted_data = circle_shift(data, random_state=42)
         autocorr_shifted = []
@@ -1861,7 +1336,7 @@ class TestISCStatisticalCorrectness:
             power_orig.append(np.abs(fft_orig) ** 2)
 
         # Verify phase_randomize preserves power spectrum
-        from nltools.stats import phase_randomize
+        from nltools.algorithms import phase_randomize
 
         randomized_data = phase_randomize(data, random_state=42)
         power_rand = []
@@ -1903,29 +1378,29 @@ class TestISCStatisticalCorrectness:
             n_timepoints, n_subjects, isc_strength, random_state=42
         )
 
-        # Compute ISC with median metric
+        # Compute ISC with median summary
         result_median = isc_permutation_test(
             data,
             summary_statistic="leave-one-out",
-            metric="median",
+            summary="median",
             n_permute=2000,
             random_state=42,
             progress_bar=False,
         )
 
-        # Compute ISC with mean metric
+        # Compute ISC with mean summary
         result_mean = isc_permutation_test(
             data,
             summary_statistic="leave-one-out",
-            metric="mean",
+            summary="mean",
             n_permute=2000,
             random_state=42,
             progress_bar=False,
         )
 
         # Both should detect ISC
-        assert result_median["p"] < 0.05, "Median metric should detect ISC"
-        assert result_mean["p"] < 0.05, "Mean metric should detect ISC"
+        assert result_median["p"] < 0.05, "Median summary should detect ISC"
+        assert result_mean["p"] < 0.05, "Mean summary should detect ISC"
 
         # Both should have positive ISC values
         assert result_median["isc"] > 0, "Median ISC should be positive"
@@ -1939,7 +1414,7 @@ class TestISCStatisticalCorrectness:
         result_median_outlier = isc_permutation_test(
             data_outlier,
             summary_statistic="leave-one-out",
-            metric="median",
+            summary="median",
             n_permute=1000,
             random_state=42,
             progress_bar=False,
@@ -1948,7 +1423,7 @@ class TestISCStatisticalCorrectness:
         result_mean_outlier = isc_permutation_test(
             data_outlier,
             summary_statistic="leave-one-out",
-            metric="mean",
+            summary="mean",
             n_permute=1000,
             random_state=42,
             progress_bar=False,
@@ -1960,7 +1435,7 @@ class TestISCStatisticalCorrectness:
         assert isinstance(result_mean_outlier["isc"], (float, np.floating))
         # Both should still detect ISC from remaining subjects
         assert result_median_outlier["isc"] > 0 or result_mean_outlier["isc"] > 0, (
-            "At least one metric should detect ISC from non-outlier subjects"
+            "At least one summary should detect ISC from non-outlier subjects"
         )
 
     @pytest.mark.slow

@@ -1,4 +1,4 @@
-"""Tests for nltools.data.braindata.validation helpers."""
+"""Tests for the shared frame validation in nltools.data.validation."""
 
 from pathlib import Path
 
@@ -6,7 +6,7 @@ import numpy as np
 import polars as pl
 import pytest
 
-from nltools.data.braindata.validation import validate_frame
+from nltools.data.validation import validate_frame
 
 
 class TestValidateFrame:
@@ -40,7 +40,7 @@ class TestValidateFrame:
         out = validate_frame(dm)
         assert isinstance(out, pl.DataFrame)
         assert out.shape == (3, 3)
-        assert set(out.columns) == {"stim", "drift", "poly_0"}
+        assert set(out.columns) == {"stim", "drift", ".nl_poly_0"}
 
     def test_accepts_numpy_2d(self):
         arr = np.arange(6, dtype=float).reshape(3, 2)

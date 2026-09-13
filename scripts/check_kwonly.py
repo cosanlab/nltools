@@ -15,12 +15,12 @@ keyword-only marker separating them, flag it. ``self``/``cls`` and no-default
 positional data args (e.g. ``fit(X, y)``) are not counted, so sklearn-style
 ``fit(X, y)`` signatures are not flagged.
 
-Scope: the public API surface where the convention binds — the four data-class
-facades plus public stats/models/mask/datasets functions. The algorithm-layer
-internals (``nltools/algorithms``, ``nltools/data/collection/pipesteps``) are
-excluded; a handful
-of public estimators there (SRM/Ridge/Glm) are covered because ``models/`` is in
-scope.
+Scope: the entire ``nltools`` package (tests excluded). The convention binds
+uniformly — facades and algorithm-layer engines alike — because a missing ``*``
+is how a parameter insertion silently shifts an argument at a dispatch site
+regardless of which layer it lives in. The only exceptions are the explicit
+``enforcement.kwonly_exemptions:`` entries in ``docs/_data/api-vocabulary.yml``
+(the single suppression home for all lint-api carve-outs), each with a reason.
 
 Usage:  python scripts/check_kwonly.py [PATH ...]
 Exit status 1 if any violations are found (so it can gate CI).
@@ -32,37 +32,46 @@ import ast
 import sys
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from manifest import VOCAB_YML, iter_py_files, load_vocab, rel_posix  # noqa: E402
+
 # Minimum number of loose (defaulted, non-keyword-only) params to require a `*`.
 THRESHOLD = 3
 
-# Public API roots where the convention binds. Algorithm/pipeline internals are
-# intentionally excluded (facade-translation rule); models/ is included because
-# Ridge/Glm are public estimators the audit flagged (F103, F106). The pipeline
-# primitives under data/collection/pipesteps are internals the BrainCollection
-# facade translates, so they are excluded via EXCLUDE_PARTS below even though
-# they now live under nltools/data.
-DEFAULT_ROOTS = [
-    "nltools/data",
-    "nltools/stats",
-    "nltools/models",
-    "nltools/mask.py",
-    "nltools/datasets.py",
-]
+# The whole package: the convention is uniform (no per-layer carve-outs).
+DEFAULT_ROOTS = ["nltools"]
 
-EXCLUDE_PARTS = {"tests", "pipesteps"}
+EXCLUDE_PARTS = {"tests"}
 
 
-def iter_py_files(roots: list[str]) -> list[Path]:
-    files: list[Path] = []
-    for root in roots:
-        p = Path(root)
-        if p.is_file() and p.suffix == ".py":
-            files.append(p)
-        elif p.is_dir():
-            files.extend(
-                f for f in p.rglob("*.py") if not (EXCLUDE_PARTS & set(f.parts))
-            )
-    return files
+def load_exemptions(vocab_yml: Path = VOCAB_YML) -> dict[tuple[str, str], str]:
+    """Load the ``*``-marker carve-outs from the vocabulary manifest.
+
+    Suppressions live only in ``docs/_data/api-vocabulary.yml``
+    (``enforcement.kwonly_exemptions:``), never inline — the manifest is the
+    single home for every lint-api carve-out. Each entry names the defining
+    module ``path`` (prefix-matched, like the vocabulary checker's), the
+    ``function``, and a required ``reason``.
+
+    Returns:
+        Mapping of ``(path, function)`` to the documented reason.
+    """
+    entries = load_vocab(vocab_yml)["enforcement"].get("kwonly_exemptions", [])
+    exempt: dict[tuple[str, str], str] = {}
+    for entry in entries:
+        try:
+            exempt[(entry["path"], entry["function"])] = entry["reason"]
+        except KeyError as missing:
+            raise SystemExit(
+                f"error: kwonly_exemptions entry {entry!r} is missing the "
+                f"required {missing} field (path, function, reason)."
+            ) from None
+    return exempt
+
+
+def _is_exempt(exempt: dict[tuple[str, str], str], rel: str, name: str) -> bool:
+    """True if a manifest exemption covers this (module path, function)."""
+    return any(name == fn and rel.startswith(prefix) for prefix, fn in exempt)
 
 
 def loose_kwargs(node: ast.FunctionDef | ast.AsyncFunctionDef) -> int:
@@ -89,17 +98,22 @@ def has_star_marker(node: ast.FunctionDef | ast.AsyncFunctionDef) -> bool:
     return node.args.vararg is not None or bool(node.args.kwonlyargs)
 
 
-def check_file(path: Path) -> list[tuple[int, str, int]]:
+def check_file(
+    path: Path, exempt: dict[tuple[str, str], str]
+) -> list[tuple[int, str, int]]:
+    rel = rel_posix(path)
     try:
-        tree = ast.parse(path.read_text(), filename=str(path))
+        tree = ast.parse(path.read_text(), filename=rel)
     except SyntaxError as e:  # pragma: no cover - surfaced to caller
-        print(f"{path}: SyntaxError: {e}", file=sys.stderr)
+        print(f"{rel}: SyntaxError: {e}", file=sys.stderr)
         return []
     violations: list[tuple[int, str, int]] = []
     for node in ast.walk(tree):
         if not isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
             continue
         if node.name.startswith("_") and node.name != "__init__":
+            continue
+        if _is_exempt(exempt, rel, node.name):
             continue
         if has_star_marker(node):
             continue
@@ -111,11 +125,12 @@ def check_file(path: Path) -> list[tuple[int, str, int]]:
 
 def main(argv: list[str]) -> int:
     roots = argv[1:] or DEFAULT_ROOTS
+    exempt = load_exemptions()
     total = 0
-    for path in sorted(iter_py_files(roots)):
-        for lineno, name, n in check_file(path):
+    for path in iter_py_files(roots, exclude_parts=EXCLUDE_PARTS):
+        for lineno, name, n in check_file(path, exempt):
             print(
-                f"{path}:{lineno}: {name}() has {n} loose kwargs and no "
+                f"{rel_posix(path)}:{lineno}: {name}() has {n} loose kwargs and no "
                 f"keyword-only `*` marker (convention: `*` required for 3+ kwargs)"
             )
             total += 1

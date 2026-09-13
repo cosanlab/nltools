@@ -1,23 +1,15 @@
 # /// script
-# requires-python = ">=3.12"
+# requires-python = ">=3.11"
 # dependencies = [
-#     # Only marimo + the emscripten HTTP shim load from this header. nltools and its whole
-#     # runtime stack are micropip-installed by the IN_WASM setup cell (UNPINNED, so Pyodide's
-#     # bundled builds win) — see that cell. Listing the stack here too makes marimo's header
-#     # auto-install redundantly pull unpinned latest scikit-learn/scipy/pandas/matplotlib,
-#     # which drag in `packaging>=26` (absent in Pyodide 0.27.7) and error out.
 #     "marimo",
-#     "pyodide-http; sys_platform == 'emscripten'",
+#     "nltools>=0.6.0",
 # ]
 # ///
-# BrainData basics — runs entirely in the browser via marimo + Pyodide.
-# Source of truth for the docs tutorial; exported to WASM by
-# scripts/build_marimo_wasm.py. `nltools` is micropip-installed in the browser from a
-# build-hosted wheel URL by the IN_WASM setup cells below.
+# BrainData basics — marimo notebook. Source of truth for the docs page; rendered to the docs page by scripts/marimo_to_zensical.py.
 
 import marimo
 
-__generated_with = "0.23.10"
+__generated_with = "0.24.0"
 app = marimo.App(width="medium")
 
 
@@ -30,149 +22,44 @@ def _():
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
-        # BrainData Basics
+    mo.md(r"""
+    # BrainData Basics
 
-        The `BrainData` class is the core data structure in `nltools` for working with
-        neuroimaging data. It stores data as 2D arrays (images x voxels) for efficient
-        computation, automatically handles resampling to standard MNI space (default),
-        and supports standard Python operations like indexing, arithmetic, and iteration.
-
-        /// admonition | Running live in your browser
-        This page **is** a running notebook. The cells below execute in a Pyodide kernel
-        inside the page — no install, no server. The first load boots the kernel and
-        downloads the scientific stack + example data, which takes a minute; it's cached
-        for later visits. Edit any cell and re-run to explore.
-        ///
-        """
-    )
+    The `BrainData` class is the core data structure in `nltools` for working with
+    neuroimaging data. It stores data as 2D arrays (images x voxels) for efficient
+    computation, automatically handles resampling to standard MNI space (default),
+    and supports standard Python operations like indexing, arithmetic, and iteration.
+    """)
     return
 
 
-@app.cell(hide_code=True)
-def _():
-    import sys
-
-    IN_WASM = sys.platform == "emscripten"
-    return (IN_WASM,)
-
-
-@app.cell(hide_code=True)
-async def _(IN_WASM):
-    # In-browser only: install nltools + its full runtime stack before any nltools import
-    # runs. We can't rely on marimo's PEP 723 header auto-install alone: it races cell
-    # execution (cells run before numpy/nibabel/... finish installing) and marimo does not
-    # re-run a cell that already failed with ModuleNotFoundError. So we install everything
-    # *here* and await it, then hand `wasm_ready` to every nltools-importing cell to force
-    # ordering. This cell runs in the Pyodide web worker, where js.location is the worker
-    # script URL — resolve the wheel against the shared origin, not location.href.
-    wasm_ready = True
-    if IN_WASM:
-        import asyncio
-
-        import micropip
-        import js
-
-        async def _pip(reqs, **kw):
-            # Install packages ONE AT A TIME instead of a single concurrent
-            # micropip.install([...]) call. The big concurrent batch download
-            # occasionally returns a truncated wheel (BadZipFile); micropip then
-            # caches the corrupt bytes so an in-session retry keeps failing — and
-            # marimo never re-runs an errored cell, permanently bricking the
-            # page. Sequential installs keep peak download concurrency low and
-            # sidestep the corruption; a per-package retry still rides out
-            # ordinary network blips. (see nltools#455 investigation)
-            items = [reqs] if isinstance(reqs, str) else list(reqs)
-            for _item in items:
-                for _attempt in range(3):
-                    try:
-                        await micropip.install(_item, **kw)
-                        break
-                    except Exception:  # noqa: BLE001
-                        if _attempt == 2:
-                            raise
-                        await asyncio.sleep(0.75 * (_attempt + 1))
-
-        # Install nltools' runtime stack UNPINNED so micropip takes Pyodide's bundled
-        # builds (e.g. joblib 1.4.0) — pinning to nltools' host versions (joblib>=1.5.3)
-        # fails because Pyodide ships one build of each package and micropip won't upgrade
-        # a bundled one. nilearn is the exception: 0.14+ needs packaging>=26 (absent in
-        # Pyodide 0.27.7), so pin the last 0.13.x. numpy/scipy/pandas/sklearn/matplotlib
-        # come in transitively at their bundled versions.
-        await _pip(
-            [
-                "nibabel",
-                "nilearn==0.13.1",
-                "seaborn",
-                "polars",
-                "pynv",
-                "huggingface-hub",
-                "anywidget",
-            ]
-        )
-        # deps=False installs the wheel without re-checking nltools' own version pins
-        # (which would re-trigger the joblib>=1.5.3 conflict above).
-        await _pip(
-            js.location.origin + "__NLTOOLS_WHEEL_URL__", deps=False
-        )
-    return (wasm_ready,)
-
-
-@app.cell(hide_code=True)
-async def _(IN_WASM, wasm_ready):
-    # In-browser only: pre-seed the HF-hosted resources into the IDBFS cache so the
-    # synchronous fetch_resource()/fetch_pain() calls below hit the cache instead of
-    # doing (unsupported) sync HTTP. Persists across reloads via IndexedDB. `seeded`
-    # is threaded into the data-loading cell so fetch_pain() waits for the cache.
-    _ = wasm_ready  # ensure the nltools wheel is installed first (WASM)
-    seeded = True
-    if IN_WASM:
-        from nltools.datasets import PAIN_RESOURCES
-        from nltools.templates import seed_resources
-
-        _ = await seed_resources(
-            [
-                "default/2mm-MNI152-2009fsl-mask.nii.gz",
-                "default/2mm-MNI152-2009fsl-brain.nii.gz",
-                "default/2mm-MNI152-2009fsl-T1.nii.gz",
-                *PAIN_RESOURCES,
-            ]
-        )
-    return (seeded,)
-
-
 @app.cell
-def _(wasm_ready):
-    _ = wasm_ready  # ensure the nltools wheel is installed first (WASM)
+def _():
     from nltools import BrainData
 
     # Empty brain
     BrainData()
-    return (BrainData,)
+    return
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
-        ## Loading data
+    mo.md(r"""
+    ## Loading data
 
-        You pass a file path, a `nilearn`/`nibabel` image, a file URL, or lists of any of
-        those to `BrainData()` — it loads and resamples to MNI space if needed, e.g.
-        `BrainData('myfile.nii.gz')`.
+    You pass a file path, a `nilearn`/`nibabel` image, a file URL, or lists of any of
+    those to `BrainData()` — it loads and resamples to MNI space if needed, e.g.
+    `BrainData('myfile.nii.gz')`.
 
-        To keep things simple we use one of the included datasets. `fetch_pain()`
-        downloads a pain-perception study (Chang et al., 2015): 28 subjects x 3
-        conditions = 84 images.
-        """
-    )
+    To keep things simple we use one of the included datasets. `fetch_pain()`
+    downloads a pain-perception study (Chang et al., 2015): 28 subjects x 3
+    conditions = 84 images.
+    """)
     return
 
 
 @app.cell
-def _(seeded, wasm_ready):
-    _ = wasm_ready, seeded  # wheel installed + resources seeded first (WASM)
+def _():
     from nltools.datasets import fetch_pain
 
     brains = fetch_pain()
@@ -181,10 +68,10 @@ def _(seeded, wasm_ready):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        "The `BrainData` repr shows the shape (images x voxels) and whether metadata "
-        "`polars` DataFrames (X, Y) are attached."
-    )
+    mo.md("""
+    The `BrainData` repr shows the shape (images x voxels) and whether metadata
+    `polars` DataFrames (X, Y) are attached.
+    """)
     return
 
 
@@ -196,7 +83,9 @@ def _(brains):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md("Access the underlying data as a numpy array with the `.data` attribute:")
+    mo.md("""
+    Access the underlying data as a numpy array with the `.data` attribute:
+    """)
     return
 
 
@@ -208,14 +97,12 @@ def _(brains):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
-        `BrainData` also stores metadata as `polars` DataFrames on `.X` and `.Y`:
+    mo.md(r"""
+    `BrainData` also stores metadata as `polars` DataFrames on `.X` and `.Y`:
 
-        - **X**: design matrix / covariates for modeling
-        - **Y**: outcome variables or labels
-        """
-    )
+    - **X**: design matrix / covariates for modeling
+    - **Y**: outcome variables or labels
+    """)
     return
 
 
@@ -228,32 +115,28 @@ def _(brains):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
-        ## Saving data
+    mo.md(r"""
+    ## Saving data
 
-        `BrainData` saves as NIfTI (`.nii.gz`) or HDF5 (`.h5`). HDF5 preserves metadata
-        (X, Y) and masks and produces smaller files:
+    `BrainData` saves as NIfTI (`.nii.gz`) or HDF5 (`.h5`). HDF5 preserves metadata
+    (X, Y) and masks and produces smaller files:
 
-        ```python
-        brains.write("data.nii.gz")   # NIfTI
-        brains.write("data.h5")       # HDF5, with X/Y/mask/etc.
-        ```
-        """
-    )
+    ```python
+    brains.write("data.nii.gz")   # NIfTI
+    brains.write("data.h5")       # HDF5, with X/Y/mask/etc.
+    ```
+    """)
     return
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
-        ## Indexing and slicing
+    mo.md(r"""
+    ## Indexing and slicing
 
-        `BrainData` supports standard Python-style indexing, and all indexing preserves
-        the X/Y metadata.
-        """
-    )
+    `BrainData` supports standard Python-style indexing, and all indexing preserves
+    the X/Y metadata.
+    """)
     return
 
 
@@ -268,7 +151,9 @@ def _(brains):
 def _(brains):
     # Slicing
     first_five = brains[:5]
-    print(f"Sliced: {first_five.shape}")
+
+    # Same voxels, space, etc as brains
+    first_five
     return
 
 
@@ -276,19 +161,23 @@ def _(brains):
 def _(brains):
     # List indexing
     selected = brains[[0, 10, 20, 30]]
-    print(f"Selected: {selected.shape}")
+
+    # The 0th, 10th, 20th, and 30th images
+    selected
     return
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md("Boolean indexing filters images by computed properties:")
+    mo.md("""
+    Boolean indexing filters images by computed properties:
+    """)
     return
 
 
 @app.cell
 def _(brains):
-    # Filter images whose global mean exceeds twice their own global mean
+    # Keep the images whose global mean is above the average across images
     # (illustrative boolean-mask indexing)
     _global_mean = brains.mean(axis=1)
     _keep = _global_mean > _global_mean.mean()
@@ -299,7 +188,9 @@ def _(brains):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md("Use `.append()` to concatenate `BrainData` objects:")
+    mo.md("""
+    Use `.append()` to concatenate `BrainData` objects:
+    """)
     return
 
 
@@ -312,14 +203,12 @@ def _(brains):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
-        ## Arithmetic operations
+    mo.md(r"""
+    ## Arithmetic operations
 
-        `BrainData` supports element-wise arithmetic with scalars and other `BrainData`
-        objects.
-        """
-    )
+    `BrainData` supports element-wise arithmetic with scalars and other `BrainData`
+    objects.
+    """)
     return
 
 
@@ -346,14 +235,12 @@ def _(brains):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
-        ## Statistical operations
+    mo.md(r"""
+    ## Statistical operations
 
-        `BrainData` exposes many statistical methods that reduce across images
-        (`axis=0`) or across voxels (`axis=1`).
-        """
-    )
+    `BrainData` exposes many statistical methods that reduce across images
+    (`axis=0`) or across voxels (`axis=1`).
+    """)
     return
 
 
@@ -399,14 +286,16 @@ def _(brains):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md("Threshold by absolute value or percentile, optionally binarizing for a mask:")
+    mo.md("""
+    Threshold by absolute value or percentile, optionally binarizing for a mask:
+    """)
     return
 
 
 @app.cell
 def _(brains):
     # Keep only voxels in the top 5%
-    brains.mean().threshold(upper="95%").plot()
+    brains.mean().threshold(upper="95%").plot(cmap='Blues')
     return
 
 
@@ -420,13 +309,11 @@ def _(brains):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
-        ## Masking
+    mo.md(r"""
+    ## Masking
 
-        Use `apply_mask` to restrict data to a region of interest.
-        """
-    )
+    Use `apply_mask` to restrict data to a region of interest.
+    """)
     return
 
 
@@ -457,55 +344,57 @@ def _(mean_brain, roi_mask, vmax, vmin):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
-        ## Visualization
+    mo.md(r"""
+    ## Visualization
 
-        `BrainData.plot()` supports several visualization types via the `method`
-        argument. Most wrap [`nilearn.plotting`](https://nilearn.github.io/dev/modules/plotting.html),
-        so you can always drop down to `BrainData.to_nifti()` and call nilearn directly.
+    `BrainData.plot()` supports several visualization types via the `method`
+    argument. Most wrap [`nilearn.plotting`](https://nilearn.github.io/dev/modules/plotting.html),
+    so you can always drop down to `BrainData.to_nifti()` and call nilearn directly.
 
-        ### Glass brain (default)
-        """
-    )
+    ### Glass brain (default)
+    """)
     return
 
 
 @app.cell
 def _(masked_data):
-    masked_data.plot(title="Mean Activation")
+    masked_data.plot(title="Mean Activation", cmap='viridis')
     return
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md("### Slices")
+    mo.md("""
+    ### Slices
+    """)
     return
 
 
 @app.cell
 def _(masked_data):
-    # Default: all views
+    # Default: axial (z) slices only
     masked_data.plot(method="slices")
     return
 
 
 @app.cell
 def _(masked_data):
-    # Only the Z view
-    masked_data.plot(method="slices", view="z")
+    # Any combination of x/y/z views, one row per axis
+    masked_data.plot(method="slices", view="xyz")
     return
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md("### Surface & flat-map")
+    mo.md("""
+    ### Surface & flat-map
+    """)
     return
 
 
 @app.cell
 def _(masked_data):
-    masked_data.plot_surf(zoom=1.3)
+    masked_data.plot_surf()
     return
 
 
@@ -517,14 +406,12 @@ def _(masked_data):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
-        ### Timeseries & voxel distribution
+    mo.md(r"""
+    ### Timeseries & voxel distribution
 
-        For multi-image `BrainData`, plot the mean signal over images; `histogram` shows
-        the voxel-intensity distribution.
-        """
-    )
+    For multi-image `BrainData`, plot the mean signal over images; `histogram` shows
+    the voxel-intensity distribution.
+    """)
     return
 
 
@@ -544,32 +431,33 @@ def _(mean_brain):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
-        ### Interactive viewer
+    mo.md(r"""
+    ### Interactive viewer
 
-        `BrainData.iplot()` returns an interactive [niivue](https://niivue.com) viewer —
-        a WebGL `anywidget` that drives `@niivue/niivue` directly: a threshold slider
-        stacked above the viewer, with the stat-map colorbar shown. Drag the slider (or
-        right-drag on the image) to window the map live; scroll through slices, scrub 4D
-        frames, render in 3D, and overlay nltools atlases with hover-to-label. Because it
-        speaks anywidget's standard model API, it renders both in a live kernel and in
-        this notebook's in-browser WASM export — right here.
+    `BrainData.iplot()` returns an interactive [niivue](https://niivue.com) viewer —
+    a WebGL `anywidget` that drives `@niivue/niivue` directly: a threshold slider
+    stacked above the viewer, with the stat-map colorbar shown. Drag the slider (or
+    right-drag on the image) to window the map live; scroll through slices, scrub 4D
+    frames, render in 3D, and overlay nltools atlases with hover-to-label. It speaks
+    anywidget's standard model API, so it renders in any live kernel (marimo, Jupyter).
 
-        Pass `controls=False` to hide the slider (right-drag windowing still works), and
-        `colorbar=False` to hide the colorbar. No `ipywidgets` dependency needed.
-        """
-    )
+    Pass `controls=False` to hide the slider (right-drag windowing still works), and
+    `colorbar=False` to hide the colorbar. No `ipywidgets` dependency needed.
+    """)
     return
 
 
 @app.cell
 def _(masked_data):
-    # Interactive niivue viewer with a threshold slider. The widget drives
-    # @niivue/niivue directly through anywidget's standard model API, so it
-    # renders live here *and* in the in-browser WASM export of this notebook
-    # (the old ipyniivue backend broke under WASM — see nltools#455).
+    # Interactive niivue viewer with a threshold slider (an anywidget driving
+    # @niivue/niivue directly). It needs a live kernel, so on this static page
+    # only a placeholder appears; run the notebook to explore the volume.
     masked_data.iplot()
+    return
+
+
+@app.cell
+def _():
     return
 
 

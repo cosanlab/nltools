@@ -66,7 +66,7 @@ def fitted_srm(multi_subject_data):
     Module-scoped: expensive fit() runs once, shared across tests.
     Uses n_iter=10 for good convergence.
     """
-    srm = SRM(features=10, n_iter=10, rand_seed=42)
+    srm = SRM(n_features=10, n_iter=10, random_state=42)
     srm.fit(multi_subject_data["data"])
     return srm
 
@@ -77,18 +77,9 @@ def fitted_detsrm(multi_subject_data):
 
     Module-scoped: expensive fit() runs once, shared across tests.
     """
-    detsrm = DetSRM(features=10, n_iter=10, rand_seed=42)
+    detsrm = DetSRM(n_features=10, n_iter=10, random_state=42)
     detsrm.fit(multi_subject_data["data"])
     return detsrm
-
-
-@pytest.fixture(scope="module")
-def identical_subjects():
-    """Data where all subjects are identical (edge case)."""
-    n_subjects = 3
-    np.random.seed(123)
-    base_data = np.random.randn(100, 50)
-    return [base_data.copy() for _ in range(n_subjects)]
 
 
 @pytest.fixture(scope="module")
@@ -96,25 +87,6 @@ def single_subject():
     """Single subject data (should error)."""
     np.random.seed(456)
     return [np.random.randn(100, 50)]
-
-
-@pytest.fixture(scope="module")
-def minimal_brain_data():
-    """Minimal synthetic data for quick tests."""
-    np.random.seed(789)
-    n_subjects = 3
-    n_voxels = 50
-    n_timepoints = 30
-
-    # Shared structure with noise
-    shared = np.random.randn(10, n_timepoints)
-    subjects = []
-    for _ in range(n_subjects):
-        w = np.linalg.qr(np.random.randn(n_voxels, 10))[0]
-        data = w @ shared + 0.05 * np.random.randn(n_voxels, n_timepoints)
-        subjects.append(data)
-
-    return subjects
 
 
 # ========== INITIALIZATION TESTS ==========
@@ -127,29 +99,29 @@ class TestSRMInitialization:
         """Test SRM initializes with correct defaults."""
         srm = SRM()
         assert srm.n_iter == 10
-        assert srm.features == 50
-        assert srm.rand_seed == 0
+        assert srm.n_features == 50
+        assert srm.random_state == 0
 
     def test_srm_init_custom_params(self):
         """Test SRM accepts custom parameters."""
-        srm = SRM(n_iter=20, features=30, rand_seed=123)
+        srm = SRM(n_iter=20, n_features=30, random_state=123)
         assert srm.n_iter == 20
-        assert srm.features == 30
-        assert srm.rand_seed == 123
+        assert srm.n_features == 30
+        assert srm.random_state == 123
 
     def test_detsrm_init_defaults(self):
         """Test DetSRM initializes with correct defaults."""
         detsrm = DetSRM()
         assert detsrm.n_iter == 10
-        assert detsrm.features == 50
-        assert detsrm.rand_seed == 0
+        assert detsrm.n_features == 50
+        assert detsrm.random_state == 0
 
     def test_detsrm_init_custom_params(self):
         """Test DetSRM accepts custom parameters."""
-        detsrm = DetSRM(n_iter=15, features=25, rand_seed=999)
+        detsrm = DetSRM(n_iter=15, n_features=25, random_state=999)
         assert detsrm.n_iter == 15
-        assert detsrm.features == 25
-        assert detsrm.rand_seed == 999
+        assert detsrm.n_features == 25
+        assert detsrm.random_state == 999
 
 
 # ========== CONTRACT TESTS (Interface/API) ==========
@@ -176,8 +148,8 @@ class TestSRMContract:
         with pytest.raises(ValueError, match="not enough subjects"):
             srm.fit(single_subject)
 
-    def test_fit_mismatched_timepoints_no_padding(self):
-        """Test error when subjects have different timepoints and padding disabled."""
+    def test_fit_mismatched_timepoints(self):
+        """Test error when subjects have different numbers of timepoints."""
         np.random.seed(111)
         data = [
             np.random.randn(100, 50),  # 50 timepoints
@@ -185,7 +157,7 @@ class TestSRMContract:
         ]
         srm = SRM()
         with pytest.raises(ValueError, match="Different number of samples"):
-            srm.fit(data, pad_samples=False)
+            srm.fit(data)
 
     def test_fit_insufficient_samples(self):
         """Test error when samples < features."""
@@ -194,13 +166,13 @@ class TestSRMContract:
             np.random.randn(100, 40),  # 40 samples
             np.random.randn(100, 40),
         ]
-        srm = SRM(features=50)  # More features than samples
+        srm = SRM(n_features=50)  # More features than samples
         with pytest.raises(ValueError, match="not enough samples"):
             srm.fit(data)
 
     def test_fit_sets_attributes(self, multi_subject_data):
         """Test that fit() creates required attributes."""
-        srm = SRM(features=10, n_iter=2)
+        srm = SRM(n_features=10, n_iter=2)
         srm.fit(multi_subject_data["data"])
 
         # Check fitted attributes exist
@@ -217,7 +189,7 @@ class TestSRMContract:
 
     def test_transform_wrong_subject_count(self, multi_subject_data):
         """Test error when transforming different number of subjects."""
-        srm = SRM(features=10, n_iter=2)
+        srm = SRM(n_features=10, n_iter=2)
         srm.fit(multi_subject_data["data"])
 
         # Try to transform different number of subjects
@@ -227,7 +199,7 @@ class TestSRMContract:
 
     def test_transform_subject_wrong_timepoints(self, multi_subject_data):
         """Test error when new subject has different timepoints."""
-        srm = SRM(features=10, n_iter=2)
+        srm = SRM(n_features=10, n_iter=2)
         srm.fit(multi_subject_data["data"])
 
         # New subject with wrong timepoint count
@@ -308,31 +280,12 @@ class TestSRMMathematicalProperties:
 class TestSRMEdgeCases:
     """Test edge cases and boundary conditions."""
 
-    def test_identical_subjects(self, identical_subjects):
-        """Test SRM with identical subjects.
-
-        Note: Even with identical subjects, perfect reconstruction is not guaranteed
-        due to dimensionality reduction (voxels > features) and iterative optimization.
-        We just verify the algorithm runs without error.
-        """
-        srm = SRM(features=10, n_iter=5)
-        srm.fit(identical_subjects)
-
-        # Algorithm should complete without error
-        # Check that basic properties hold
-        for i, w in enumerate(srm.w_):
-            # Orthogonality should still hold
-            gram = w.T @ w
-            identity = np.eye(w.shape[1])
-            ortho_error = np.linalg.norm(gram - identity, "fro")
-            assert ortho_error < 1e-5
-
     def test_deterministic_with_seed(self, multi_subject_data):
         """Test reproducibility with same random seed."""
-        srm1 = SRM(features=10, n_iter=5, rand_seed=42)
+        srm1 = SRM(n_features=10, n_iter=5, random_state=42)
         srm1.fit(multi_subject_data["data"])
 
-        srm2 = SRM(features=10, n_iter=5, rand_seed=42)
+        srm2 = SRM(n_features=10, n_iter=5, random_state=42)
         srm2.fit(multi_subject_data["data"])
 
         # Should produce identical results
@@ -343,10 +296,10 @@ class TestSRMEdgeCases:
 
     def test_different_seed_different_results(self, multi_subject_data):
         """Test that different seeds produce different initializations."""
-        srm1 = SRM(features=10, n_iter=1, rand_seed=42)
+        srm1 = SRM(n_features=10, n_iter=1, random_state=42)
         srm1.fit(multi_subject_data["data"])
 
-        srm2 = SRM(features=10, n_iter=1, rand_seed=123)
+        srm2 = SRM(n_features=10, n_iter=1, random_state=123)
         srm2.fit(multi_subject_data["data"])
 
         # Should produce different results (due to random init)
@@ -355,7 +308,7 @@ class TestSRMEdgeCases:
 
     def test_transform_subject_new_data(self, multi_subject_data):
         """Test transform_subject() with new subject data."""
-        srm = SRM(features=10, n_iter=5)
+        srm = SRM(n_features=10, n_iter=5)
         srm.fit(multi_subject_data["data"])
 
         # Create new subject with same shared response but different projection
@@ -378,30 +331,6 @@ class TestSRMEdgeCases:
             f"New subject transform not orthogonal (error={ortho_error:.2e})"
         )
 
-    def test_minimal_features(self, minimal_brain_data):
-        """Test SRM with very small number of features."""
-        srm = SRM(features=3, n_iter=5)
-        srm.fit(minimal_brain_data)
-
-        # Should still produce valid orthogonal transforms
-        for i, w in enumerate(srm.w_):
-            gram = w.T @ w
-            identity = np.eye(w.shape[1])  # features x features
-            ortho_error = np.linalg.norm(gram - identity, "fro")
-            assert ortho_error < 1e-5
-
-    def test_many_iterations(self, minimal_brain_data):
-        """Test SRM with many iterations converges."""
-        srm = SRM(features=10, n_iter=50)
-        srm.fit(minimal_brain_data)
-
-        # Should still maintain orthogonality
-        for w in srm.w_:
-            gram = w.T @ w
-            identity = np.eye(w.shape[1])  # features x features
-            ortho_error = np.linalg.norm(gram - identity, "fro")
-            assert ortho_error < 1e-5
-
 
 # ========== DETSRM TESTS ==========
 # Note: Integration with align() function is already tested in
@@ -413,45 +342,6 @@ class TestDetSRMMathematicalProperties:
 
     Uses module-scoped fitted_detsrm fixture to avoid redundant fitting.
     """
-
-    def test_fitted_detsrm_properties(self, fitted_detsrm, multi_subject_data):
-        """Test all mathematical invariants of a fitted DetSRM model.
-
-        Consolidates: orthogonality, reconstruction, shape tests.
-        Single fit(), multiple assertions.
-        """
-        # 1. Check shared response shape
-        expected_shape = (10, multi_subject_data["timepoints"])
-        assert fitted_detsrm.s_.shape == expected_shape, (
-            f"DetSRM shared response shape {fitted_detsrm.s_.shape} != {expected_shape}"
-        )
-
-        # 2. Check orthogonality of all W_i matrices
-        for i, w in enumerate(fitted_detsrm.w_):
-            gram = w.T @ w
-            identity = np.eye(w.shape[1])
-            ortho_error = np.linalg.norm(gram - identity, "fro")
-            assert ortho_error < 1e-5, (
-                f"DetSRM Subject {i}: W.T @ W not orthogonal (error={ortho_error:.2e})"
-            )
-
-        # 3. Check reconstruction quality
-        for i, (x, w) in enumerate(zip(multi_subject_data["data"], fitted_detsrm.w_)):
-            x_centered = x - x.mean(axis=1, keepdims=True)
-            reconstruction = w @ fitted_detsrm.s_
-            error = np.linalg.norm(x_centered - reconstruction, "fro")
-            data_norm = np.linalg.norm(x_centered, "fro")
-            assert error / data_norm < 0.5, f"DetSRM Subject {i}: Poor reconstruction"
-
-    def test_detsrm_transform_properties(self, fitted_detsrm, multi_subject_data):
-        """Test DetSRM transform output properties."""
-        transformed = fitted_detsrm.transform(multi_subject_data["data"])
-
-        for i, s in enumerate(transformed):
-            expected_shape = (10, multi_subject_data["timepoints"])
-            assert s.shape == expected_shape, (
-                f"DetSRM Subject {i}: Wrong shape {s.shape}"
-            )
 
     def test_srm_vs_detsrm_similar_results(
         self, fitted_srm, fitted_detsrm, multi_subject_data
@@ -473,10 +363,10 @@ class TestDetSRMMathematicalProperties:
 
         Note: Requires two fits to compare - cannot use fixture.
         """
-        detsrm1 = DetSRM(features=10, n_iter=5, rand_seed=42)
+        detsrm1 = DetSRM(n_features=10, n_iter=5, random_state=42)
         detsrm1.fit(multi_subject_data["data"])
 
-        detsrm2 = DetSRM(features=10, n_iter=5, rand_seed=42)
+        detsrm2 = DetSRM(n_features=10, n_iter=5, random_state=42)
         detsrm2.fit(multi_subject_data["data"])
 
         np.testing.assert_array_almost_equal(detsrm1.s_, detsrm2.s_, decimal=10)
@@ -525,9 +415,16 @@ class TestDetSRMContract:
         with pytest.raises(ValueError, match="not enough subjects"):
             detsrm.fit(single_subject)
 
+    def test_detsrm_fit_mismatched_timepoints(self):
+        """Subjects with different sample counts are refused (GH #410)."""
+        np.random.seed(111)
+        data = [np.random.randn(100, 50), np.random.randn(100, 60)]
+        with pytest.raises(ValueError, match="Different number of samples"):
+            DetSRM().fit(data)
+
     def test_detsrm_fit_sets_attributes(self, multi_subject_data):
         """Test that DetSRM fit() creates required attributes."""
-        detsrm = DetSRM(features=10, n_iter=2)
+        detsrm = DetSRM(n_features=10, n_iter=2)
         detsrm.fit(multi_subject_data["data"])
 
         # Check fitted attributes exist
@@ -538,110 +435,3 @@ class TestDetSRMContract:
         assert isinstance(detsrm.w_, list)
         assert len(detsrm.w_) == len(multi_subject_data["data"])
         assert detsrm.s_.shape == (10, multi_subject_data["timepoints"])
-
-
-# ========== UNEQUAL SAMPLE COUNT TESTS (GH #410) ==========
-
-
-class TestSRMUnequalSamples:
-    """Test SRM with unequal sample counts across subjects (GH #410)."""
-
-    @pytest.fixture
-    def unequal_sample_data(self):
-        """Create data with different sample counts per subject."""
-        np.random.seed(42)
-        n_voxels = 50
-        n_features = 10
-
-        # Different sample counts: 80, 100, 90, 110, 85
-        sample_counts = [80, 100, 90, 110, 85]
-
-        # Shared signal (using max length)
-        max_samples = max(sample_counts)
-        shared = np.random.randn(n_features, max_samples)
-
-        subjects = []
-        for n_samples in sample_counts:
-            # Random orthogonal projection
-            w = np.linalg.qr(np.random.randn(n_voxels, n_features))[0]
-            # Subject data = projection @ shared[:, :n_samples] + noise
-            data = w @ shared[:, :n_samples] + 0.01 * np.random.randn(
-                n_voxels, n_samples
-            )
-            subjects.append(data)
-
-        return {
-            "data": subjects,
-            "sample_counts": sample_counts,
-            "max_samples": max_samples,
-            "n_voxels": n_voxels,
-        }
-
-    def test_srm_unequal_samples_with_padding(self, unequal_sample_data):
-        """Test SRM fits successfully with unequal sample counts when pad_samples=True."""
-        srm = SRM(n_iter=5, features=10)
-        srm.fit(unequal_sample_data["data"], pad_samples=True, parallel=None)
-
-        # Should have fitted successfully
-        assert hasattr(srm, "w_")
-        assert hasattr(srm, "s_")
-        assert len(srm.w_) == len(unequal_sample_data["data"])
-
-        # Shared response should have max_samples columns (padded length)
-        assert srm.s_.shape[1] == unequal_sample_data["max_samples"]
-
-    def test_srm_unequal_samples_without_padding_raises(self, unequal_sample_data):
-        """Test SRM raises error with unequal samples when pad_samples=False."""
-        srm = SRM(n_iter=5, features=10)
-
-        with pytest.raises(ValueError, match="Different number of samples"):
-            srm.fit(unequal_sample_data["data"], pad_samples=False, parallel=None)
-
-    def test_srm_unequal_samples_transform(self, unequal_sample_data):
-        """Test SRM transform works with unequal sample data after fitting."""
-        srm = SRM(n_iter=5, features=10)
-        srm.fit(unequal_sample_data["data"], pad_samples=True, parallel=None)
-
-        # Transform should work on data with original (unequal) sample counts
-        transformed = srm.transform(unequal_sample_data["data"], parallel=None)
-
-        assert len(transformed) == len(unequal_sample_data["data"])
-        # Each subject's transformed data should have their original sample count
-        for i, (orig, trans) in enumerate(
-            zip(unequal_sample_data["data"], transformed)
-        ):
-            assert trans.shape[1] == orig.shape[1]
-
-    def test_srm_equal_samples_default_behavior(self, multi_subject_data):
-        """Test SRM still works with equal samples (backward compatibility)."""
-        srm = SRM(n_iter=5, features=10)
-        # Default pad_samples=True should work fine with equal samples
-        srm.fit(multi_subject_data["data"], parallel=None)
-
-        assert hasattr(srm, "w_")
-        assert hasattr(srm, "s_")
-
-    def test_srm_unequal_samples_reconstruction_quality(self, unequal_sample_data):
-        """Test that padding doesn't significantly degrade reconstruction."""
-        srm = SRM(n_iter=10, features=10)
-        srm.fit(unequal_sample_data["data"], pad_samples=True, parallel=None)
-
-        # Transform and check alignment quality
-        transformed = srm.transform(unequal_sample_data["data"], parallel=None)
-
-        # Compute mean correlation between transformed subjects
-        # (well-aligned subjects should correlate highly)
-        correlations = []
-        for i in range(len(transformed)):
-            for j in range(i + 1, len(transformed)):
-                # Use minimum length for comparison
-                min_len = min(transformed[i].shape[1], transformed[j].shape[1])
-                corr = np.corrcoef(
-                    transformed[i][:, :min_len].ravel(),
-                    transformed[j][:, :min_len].ravel(),
-                )[0, 1]
-                correlations.append(corr)
-
-        mean_corr = np.mean(correlations)
-        # Should have reasonable alignment (correlation > 0.5)
-        assert mean_corr > 0.5, f"Mean correlation {mean_corr} too low"

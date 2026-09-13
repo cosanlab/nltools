@@ -1,102 +1,111 @@
-"""Bootstrap functions extracted from BrainData methods."""
+"""Bootstrap resampling for `BrainData` — aggregate statistics and Ridge model statistics.
+
+`BrainData.bootstrap` delegates here.
+"""
 
 import numpy as np
 
-from .utils import shallow_copy
+from .utils import _result_from_array
+
+#: Statistics that reduce `bd.data` directly and need no fitted model.
+SIMPLE_STATS = ("mean", "median", "std", "sum", "min", "max")
+
+#: Statistics that resample a fitted `Ridge` and therefore need explicit
+#: training features. `'predict'` additionally needs evaluation features.
+FITTED_STATS = ("weights", "predict")
 
 
 def bootstrap(
     bd,
-    stat,
+    statistic,
     *,
-    n_samples=5000,
-    save_boots=False,
-    percentiles=(2.5, 97.5),
+    X=None,
     X_test=None,
+    n_samples=5000,
+    confidence_level=0.95,
     device="cpu",
-    max_gpu_memory_gb=4.0,
+    memory_budget_gb=None,
+    return_samples=False,
     n_jobs=-1,
     random_state=None,
+    progress_bar=False,
 ):
-    """Bootstrap statistics with CPU parallelization or GPU acceleration.
+    """Bootstrap a statistic and its uncertainty, on CPU workers or a GPU.
 
-    Supports simple aggregation statistics and fitted model statistics (Ridge).
-    Note: the CPU path pre-generates all resample indices and collects every
-    per-sample result, so peak memory grows with ``n_samples`` (it is not a
-    streaming/online accumulator).
+    Resamples observations with replacement and aggregates the replicates as
+    they complete, into a running Welford variance plus just enough retained
+    order statistics per output element to reproduce the exact percentile
+    interval. What the run holds is that retained tail — about
+    `(1 - confidence_level)` of the replicates per element — plus one dispatch
+    window, rather than all `n_samples` maps. This is memory-efficient, not
+    constant-memory: the tail still grows with `n_samples`, and
+    `return_samples=True` keeps the whole distribution.
+
+    A Ridge bootstrap resamples the explicitly supplied training `X` together
+    with `bd.data`, using the same row indices for every feature space, and
+    refits with the fitted model's selected `alpha_` — and, for a banded model,
+    its `feature_space_weights_` — held fixed. It never reruns cross-validation
+    or the banded random search.
 
     Args:
-        bd: BrainData instance.
-        stat: (str) Statistic to bootstrap. Options: Simple stats ('mean', 'median', 'std',
-            'sum', 'min', 'max') or Model stats ('weights' requires fitted Ridge model,
-            'predict' requires fitted Ridge model + X_test).
-        n_samples: (int) Number of bootstrap iterations. Default: 5000
-        save_boots: (bool) If True, store all bootstrap samples (memory intensive).
-                   Default: False
-        percentiles: (tuple) Percentiles for confidence intervals. Default: (2.5, 97.5)
-        X_test: (np.ndarray, optional) Test features for 'predict' bootstrap.
-               Required if stat='predict'
-        device: (str) Compute device for Ridge bootstrap: 'cpu' (default),
-            'gpu' (PyTorch on CUDA/MPS if available), or 'auto' (use a GPU if
-            present, else CPU). Ignored for simple stats. Default: 'cpu'
-        max_gpu_memory_gb: (float) Maximum GPU memory to use when device is 'gpu'
-            or 'auto'. Default: 4.0
-        n_jobs: (int) Number of CPU cores for parallelization. Default: -1 (all CPUs).
-        random_state: (int, optional) Random seed for reproducibility
+        bd (BrainData): Data to resample.
+        statistic (str): Statistic to bootstrap. Basic aggregates: ``'mean'``,
+            ``'median'``, ``'std'``, ``'sum'``, ``'min'``, ``'max'``. Model
+            statistics (require a fitted `Ridge`): ``'weights'`` or
+            ``'predict'``.
+        X (np.ndarray | Mapping[str, np.ndarray] | None): Training features in
+            their original row order, required by both Ridge statistics and
+            rejected by the basic ones. A matrix for ordinary Ridge; a mapping
+            with exactly the fitted feature-space names for banded Ridge.
+        X_test (np.ndarray | Mapping[str, np.ndarray] | None): Evaluation
+            features for ``statistic='predict'``, in the same structure as `X`.
+            It may have any row count.
+        n_samples (int): Number of bootstrap replicates, at least two. Default
+            ``5000``.
+        confidence_level (float): Confidence level of the reported interval,
+            strictly between zero and one. Default ``0.95``.
+        device (str): Compute device for Ridge refits: ``'cpu'`` (default) or
+            ``'gpu'`` (PyTorch on CUDA/MPS; raises if neither is available).
+            Basic statistics reject ``'gpu'``.
+        memory_budget_gb (float | None): Working-memory budget in GB. It
+            governs the output preflight and CPU-worker planning for every
+            statistic, and GPU batch sizing for the Ridge ones. ``None``
+            (default) measures the device.
+        return_samples (bool): Retain and return every replicate. Default
+            ``False``. It changes retention only, never interval semantics.
+        n_jobs (int): CPU worker ceiling. Default ``-1`` (all cores); the
+            planner may use fewer.
+        random_state (int | None): Random seed for reproducibility.
+        progress_bar (bool): Show a progress bar. Default ``False``.
 
     Returns:
-        BrainData or dict:
-            - For simple stats (with ``save_boots=False``): Returns BrainData
-              with bootstrap mean
-            - For model stats: Returns dict with keys: 'mean', 'std', 'Z', 'p',
-              'ci_lower', 'ci_upper' (all BrainData objects)
-            - If ``save_boots=True``: Returns a dict (even for simple stats)
-              with an added 'samples' key holding all samples as a raw ndarray
+        BootstrapResult: `estimate` (the statistic on the unresampled full
+            sample), `standard_error`, `ci_lower` and `ci_upper` as `BrainData`
+            maps of identical shape, plus `samples` as a NumPy array with the
+            bootstrap axis first when ``return_samples=True``.
+
+    Raises:
+        ValueError: If `statistic` is unknown, a basic statistic is given `X`,
+            `X_test`, or ``device='gpu'``, a Ridge statistic is missing `X` (or
+            `X_test` for ``'predict'``), the fitted model is not a `Ridge`, `X`
+            does not match the fitted feature structure and observation count,
+            an argument is out of range, or the retained output cannot fit the
+            memory budget.
 
     Examples:
-        >>> # Simple aggregation
-        >>> boot = brain.bootstrap(stat='mean', n_samples=1000)
-        >>> assert isinstance(boot, BrainData)
+        ```python
+        boot = brain.bootstrap('mean', n_samples=1000)
+        boot.estimate.plot()
 
-        >>> # Ridge weights bootstrap (CPU)
-        >>> brain.fit(X=dm, model='ridge', alpha=1.0)
-        >>> boot = brain.bootstrap(stat='weights', n_samples=1000)
-        >>> assert 'mean' in boot
-        >>> assert isinstance(boot['mean'], BrainData)
-
-        >>> # Ridge weights bootstrap (GPU accelerated)
-        >>> brain.fit(X=dm, model='ridge', alpha=1.0)
-        >>> boot = brain.bootstrap(stat='weights', n_samples=1000, device='gpu')
-        >>> assert 'mean' in boot
-        >>> assert isinstance(boot['mean'], BrainData)
-
-        >>> # Ridge predict bootstrap
-        >>> brain.fit(X=dm, model='ridge', alpha=1.0)
-        >>> boot = brain.bootstrap(stat='predict', X_test=X_new, n_samples=1000)
-        >>> assert 'mean' in boot
-        >>> assert isinstance(boot['mean'], BrainData)
+        brain.fit(model='ridge', X=features, ridge_alpha=1.0)
+        boot = brain.bootstrap('weights', X=features, n_samples=1000)
+        ```
 
     Note:
-        This method replaces the removed `summarize_bootstrap()` function.
-
-        **New API:**
-        >>> # Option 1: Use BrainData.bootstrap() for generating bootstrap samples
-        >>> boot = brain.bootstrap(stat='mean', n_samples=1000, save_boots=False)
-        >>> # Returns BrainData with bootstrap mean
-        >>> # To get Z and p, use stat='weights' or 'predict' which returns dict
-
-        >>> # Option 2: For existing bootstrap samples (BrainData with multiple images),
-        >>> # use OnlineBootstrapStats directly:
-        >>> from nltools.algorithms.inference.bootstrap import OnlineBootstrapStats
-        >>> stats = OnlineBootstrapStats(shape=(brain.shape[1],), save_samples=False)
-        >>> for sample in bootstrap_samples:  # Iterate over samples
-        ...     stats.update(sample.data)
-        >>> result = stats.get_results()
-        >>> # Returns: {'mean': array, 'std': array, 'Z': array, 'p': array,
-        >>> #           'ci_lower': array, 'ci_upper': array}
-        >>> # Convert to BrainData if needed:
-        >>> mean_brain = shallow_copy(brain)
-        >>> mean_brain.data = result['mean']
+        This is an IID row bootstrap: rows must be exchangeable for the
+        interval to mean anything. Fitting retains no hidden copy of the
+        training features, so omitting `X` raises even when the same features
+        were supplied to `fit`.
     """
     from nltools.algorithms.inference.bootstrap import (
         _bootstrap_simple_cpu_parallel,
@@ -105,213 +114,285 @@ def bootstrap(
         _bootstrap_ridge_weights_gpu_batched,
         _bootstrap_ridge_predict_gpu_batched,
     )
-    from nltools.data import DesignMatrix
-    from nltools.algorithms.backends import (
-        Backend,
-        check_gpu_available,
-        auto_select_backend,
-    )
 
-    # Determine if we should use GPU. `device='gpu'` demands a real GPU;
-    # `device='auto'` uses one when present and silently falls back to CPU.
-    # The resolved `Backend` instance is threaded to the algorithm-layer GPU
-    # helpers (which keep the internal `backend=` name).
-    use_gpu = False
-    backend = None
-    if device in ("gpu", "auto"):
-        if check_gpu_available()[0]:
-            use_gpu = True
-            if device == "auto":
-                backend = auto_select_backend(bd.data.shape[0], bd.data.shape[1])
-            else:
-                backend = Backend("torch")
-        elif device == "gpu":
-            raise ValueError(
-                "GPU requested via device='gpu' but no GPU is available. "
-                "Use device='cpu' or device='auto' for CPU fallback."
-            )
+    _validate_statistic(statistic)
+    _validate_device(device)
 
-    # Get data as numpy array
-    data = bd.data  # Shape: (n_samples, n_voxels)
-
-    # Route to appropriate bootstrap function
-    SIMPLE_STATS = ["mean", "median", "std", "sum", "min", "max"]
-    FITTED_STATS = ["weights", "predict"]
-
-    if stat in SIMPLE_STATS:
-        # Simple aggregation bootstrap
+    if statistic in SIMPLE_STATS:
+        _reject_model_arguments(statistic, X, X_test, device)
         result = _bootstrap_simple_cpu_parallel(
-            data,
-            method=stat,
+            bd.data,
+            method=statistic,
             n_samples=n_samples,
-            save_boots=save_boots,
+            confidence_level=confidence_level,
+            memory_budget_gb=memory_budget_gb,
+            return_samples=return_samples,
             n_jobs=n_jobs,
             random_state=random_state,
-            percentiles=percentiles,
+            progress_bar=progress_bar,
         )
+        return _as_bootstrap_result(bd, result)
 
-        # Convert result to BrainData format
-        return convert_bootstrap_results_to_brain_data(
-            bd, result, save_boots=save_boots, return_dict=False
-        )
-
-    if stat not in FITTED_STATS:
+    model = _fitted_ridge(bd, statistic)
+    spaces = _training_feature_spaces(model, X, statistic, bd.shape[0])
+    if statistic == "weights":
+        if X_test is not None:
+            raise ValueError(
+                "bootstrap('weights') summarizes training coefficients and "
+                "takes no X_test; use statistic='predict' to evaluate on new rows."
+            )
+    elif X_test is None:
         raise ValueError(
-            f"Unsupported stat '{stat}'. "
-            f"Supported simple stats: {SIMPLE_STATS}. "
-            f"Supported fitted model stats: {FITTED_STATS}. "
-            f"For fitted stats, you must call .fit() first."
+            "X_test parameter required for bootstrap(statistic='predict'). "
+            "Provide test features: bootstrap('predict', X=..., X_test=...)"
         )
 
-    # Check if model is fitted
-    if not hasattr(bd, "model_") or bd.model_ is None:
-        raise ValueError(
-            f"Must call .fit(model='ridge', X=design_matrix) before bootstrap(stat='{stat}')"
-        )
+    backend = _resolve_device(device)
+    alpha = model.alpha_
+    feature_space_weights = model.feature_space_weights_
+    coefficients = np.asarray(model.coef_, dtype=np.float64)
 
-    # Check if Ridge model
-    if not hasattr(bd.model_, "coef_") or not hasattr(bd.model_, "alpha_"):
-        raise ValueError(
-            f"Bootstrap stat='{stat}' only supports Ridge models. "
-            f"Got model type: {type(bd.model_)}"
-        )
+    shared = {
+        "n_samples": n_samples,
+        "confidence_level": confidence_level,
+        "feature_space_weights": feature_space_weights,
+        "return_samples": return_samples,
+        "random_state": random_state,
+        "progress_bar": progress_bar,
+    }
 
-    # Get design matrix from stored X_
-    if not hasattr(bd, "X_") or bd.X_ is None:
-        raise ValueError(
-            "Design matrix not found. Must call .fit(model='ridge', X=design_matrix) "
-            "with X parameter."
-        )
-
-    # Convert DesignMatrix to numpy if needed
-    if isinstance(bd.X_, DesignMatrix):
-        X = bd.X_.to_numpy()
-    else:
-        X = np.asarray(bd.X_)
-
-    # Get alpha from model
-    alpha = bd.model_.alpha_ if hasattr(bd.model_, "alpha_") else bd.model_.alpha
-
-    if stat == "weights":
-        # Ridge weights bootstrap
-        if use_gpu:
-            result = _bootstrap_ridge_weights_gpu_batched(
-                X,
-                data,
-                alpha=alpha,
-                n_samples=n_samples,
-                save_boots=save_boots,
-                backend=backend,
-                max_gpu_memory_gb=max_gpu_memory_gb,
-                random_state=random_state,
-                percentiles=percentiles,
+    if statistic == "weights":
+        if backend is None:
+            result = _bootstrap_ridge_weights_cpu_parallel(
+                spaces,
+                bd.data,
+                alpha,
+                coefficients,
+                memory_budget_gb=memory_budget_gb,
+                n_jobs=n_jobs,
+                **shared,
             )
         else:
-            result = _bootstrap_ridge_weights_cpu_parallel(
-                X,
-                data,
-                alpha=alpha,
-                n_samples=n_samples,
-                save_boots=save_boots,
-                n_jobs=n_jobs,
-                random_state=random_state,
-                percentiles=percentiles,
+            result = _bootstrap_ridge_weights_gpu_batched(
+                spaces,
+                bd.data,
+                alpha,
+                coefficients,
+                backend=backend,
+                memory_budget_gb=memory_budget_gb,
+                **shared,
             )
+        return _as_bootstrap_result(bd, result)
 
-        return convert_bootstrap_results_to_brain_data(
-            bd, result, save_boots=save_boots, return_dict=True
-        )
+    # `Ridge` owns the alignment of both feature arguments, through the one
+    # seam this facade uses; the engines concatenate in coefficient order.
+    test_spaces = model._aligned_feature_spaces(X_test)
+    predictions = _stacked(test_spaces) @ coefficients
 
-    # stat == "predict"
-    if X_test is None:
-        raise ValueError(
-            "X_test parameter required for bootstrap(stat='predict'). "
-            "Provide test features: bootstrap(stat='predict', X_test=...)"
-        )
-
-    X_test = np.asarray(X_test)
-
-    if use_gpu:
-        result = _bootstrap_ridge_predict_gpu_batched(
-            X,
-            data,
-            X_test,
-            alpha=alpha,
-            n_samples=n_samples,
-            save_boots=save_boots,
-            backend=backend,
-            max_gpu_memory_gb=max_gpu_memory_gb,
-            random_state=random_state,
-            percentiles=percentiles,
+    if backend is None:
+        result = _bootstrap_ridge_predict_cpu_parallel(
+            spaces,
+            bd.data,
+            test_spaces,
+            alpha,
+            predictions,
+            memory_budget_gb=memory_budget_gb,
+            n_jobs=n_jobs,
+            **shared,
         )
     else:
-        result = _bootstrap_ridge_predict_cpu_parallel(
-            X,
-            data,
-            X_test,
-            alpha=alpha,
-            n_samples=n_samples,
-            save_boots=save_boots,
-            n_jobs=n_jobs,
-            random_state=random_state,
-            percentiles=percentiles,
+        result = _bootstrap_ridge_predict_gpu_batched(
+            spaces,
+            bd.data,
+            test_spaces,
+            alpha,
+            predictions,
+            backend=backend,
+            memory_budget_gb=memory_budget_gb,
+            **shared,
         )
 
-    return convert_bootstrap_results_to_brain_data(
-        bd, result, save_boots=save_boots, return_dict=True
-    )
+    return _as_bootstrap_result(bd, result)
 
 
-def convert_bootstrap_results_to_brain_data(
-    bd, result, save_boots=False, return_dict=False
-):
-    """Convert bootstrap results dictionary to BrainData format.
-
-    Helper method to convert numpy arrays from bootstrap functions into
-    BrainData objects or dicts of BrainData objects.
+def _validate_statistic(statistic):
+    """Reject anything outside the closed set of eight supported statistics.
 
     Args:
-        bd: BrainData instance.
-        result: (dict) Result dictionary from bootstrap function with keys:
-                'mean', 'std', 'Z', 'p', 'ci_lower', 'ci_upper', and optionally 'samples'
-        save_boots: (bool) If True, include 'samples' key in output
-        return_dict: (bool) If True, always return dict even for simple stats.
-                    If False, return BrainData for simple stats (when save_boots=False)
+        statistic (str): The requested statistic.
+
+    Raises:
+        ValueError: If `statistic` is not one of the eight names.
+    """
+    if statistic in SIMPLE_STATS or statistic in FITTED_STATS:
+        return
+    raise ValueError(
+        f"Unsupported statistic '{statistic}'. "
+        f"Supported basic statistics: {list(SIMPLE_STATS)}. "
+        f"Supported fitted model statistics: {list(FITTED_STATS)}. "
+        f"For fitted statistics, you must call .fit() first."
+    )
+
+
+def _validate_device(device):
+    """Reject a device name before the statistic decides what to do with it.
+
+    The range checks on `n_samples`, `confidence_level` and `memory_budget_gb`
+    belong to the engine, which every path reaches.
+
+    Args:
+        device (str): Requested compute device.
+
+    Raises:
+        ValueError: If `device` is not ``'cpu'`` or ``'gpu'``.
+    """
+    if device not in ("cpu", "gpu"):
+        raise ValueError(f"device must be 'cpu' or 'gpu', got {device!r}")
+
+
+def _reject_model_arguments(statistic, X, X_test, device):
+    """Reject the arguments a basic statistic has no use for.
+
+    Args:
+        statistic (str): The requested basic statistic, for the message.
+        X (Any): Training features, which must be absent.
+        X_test (Any): Evaluation features, which must be absent.
+        device (str): Requested compute device, which must be ``'cpu'``.
+
+    Raises:
+        ValueError: If features were supplied, or a GPU was requested.
+    """
+    if X is not None or X_test is not None:
+        raise ValueError(
+            f"bootstrap({statistic!r}) reduces the data itself and takes no "
+            f"features; X and X_test belong to statistic='weights' or 'predict'."
+        )
+    if device != "cpu":
+        raise ValueError(
+            f"bootstrap({statistic!r}) is a NumPy reduction over rows and runs "
+            f"on the CPU; device='gpu' applies only to the Ridge statistics."
+        )
+
+
+def _stacked(spaces):
+    """Concatenate aligned feature spaces into one matrix in coefficient order.
+
+    Args:
+        spaces (Sequence[np.ndarray]): One matrix per fitted feature space.
 
     Returns:
-        BrainData or dict:
-            - If return_dict=False and save_boots=False: Returns BrainData with mean
-            - Otherwise: Returns dict with BrainData objects for each statistic.
-              The optional 'samples' entry (when save_boots=True) is a raw
-              ndarray, not a BrainData.
+        np.ndarray: A `(n_rows, n_features)` float64 matrix.
     """
-    if save_boots:
-        # Return dict with samples
-        out = {}
-        for key in ["mean", "std", "Z", "p", "ci_lower", "ci_upper"]:
-            if key in result:
-                out[key] = shallow_copy(bd)
-                # Reshape 1D arrays to 2D (1, n_voxels) for BrainData
-                data_2d = (
-                    result[key] if result[key].ndim == 2 else result[key].reshape(1, -1)
-                )
-                out[key].data = data_2d
-        if "samples" in result:
-            out["samples"] = result["samples"]
-        return out
-    if return_dict:
-        # Return dict format (for model stats)
-        out = {}
-        for key in ["mean", "std", "Z", "p", "ci_lower", "ci_upper"]:
-            if key in result:
-                out[key] = shallow_copy(bd)
-                out[key].data = result[key]
-        return out
-    # Return BrainData with mean (for simple stats)
-    boot_mean = shallow_copy(bd)
-    # Reshape 1D arrays to 2D (1, n_voxels) for BrainData
-    mean_2d = (
-        result["mean"] if result["mean"].ndim == 2 else result["mean"].reshape(1, -1)
+    matrices = [np.asarray(space, dtype=np.float64) for space in spaces]
+    return matrices[0] if len(matrices) == 1 else np.concatenate(matrices, axis=1)
+
+
+def _fitted_ridge(bd, statistic):
+    """Return the fitted `Ridge` a model bootstrap needs, or raise.
+
+    Args:
+        bd (BrainData): The object being resampled.
+        statistic (str): The requested model statistic, for the error message.
+
+    Returns:
+        Ridge: The fitted estimator.
+
+    Raises:
+        ValueError: If nothing is fitted, or the fit is not a `Ridge`.
+    """
+    from nltools.models import Ridge
+
+    model = getattr(bd, "model_", None)
+    if model is None or not getattr(model, "is_fitted_", False):
+        raise ValueError(
+            f"Must call .fit(model='ridge', X=features) before bootstrap('{statistic}')"
+        )
+    if not isinstance(model, Ridge):
+        raise ValueError(
+            f"bootstrap('{statistic}') only supports a fitted Ridge, but this "
+            f"BrainData holds a fitted {type(model).__name__}."
+        )
+    return model
+
+
+def _training_feature_spaces(model, X, statistic, n_obs):
+    """Align the explicit training `X` to the fitted feature-space order.
+
+    Args:
+        model (Ridge): The fitted estimator.
+        X (np.ndarray | Mapping | None): Caller-supplied training features.
+        statistic (str): The requested model statistic, for the error message.
+        n_obs (int): Observation count of the `BrainData` being resampled.
+
+    Returns:
+        list[np.ndarray]: One matrix per fitted feature space, in coefficient
+            order.
+
+    Raises:
+        ValueError: If `X` is missing, does not match the fitted feature
+            structure, or has a different number of rows than the response.
+    """
+    if X is None:
+        raise ValueError(
+            f"bootstrap('{statistic}') requires the training features as X=. "
+            f"Fitting keeps no copy of them, so pass the same features you "
+            f"passed to fit()."
+        )
+    spaces = model._aligned_feature_spaces(X)
+    rows = spaces[0].shape[0]
+    if rows != n_obs:
+        raise ValueError(
+            f"X has {rows} rows, but the fitted BrainData has {n_obs} "
+            f"observations; the training features must be in their original "
+            f"row order."
+        )
+    return spaces
+
+
+def _resolve_device(device):
+    """Resolve the bootstrap `device` request to a GPU backend, or None for CPU.
+
+    Args:
+        device (str): ``'cpu'`` or ``'gpu'``, already checked by
+            `_validate_device`.
+
+    Returns:
+        Backend | None: A resolved GPU backend, or None to stay on the CPU.
+
+    Raises:
+        ValueError: If ``'gpu'`` was requested with no accelerator available.
+    """
+    from nltools.algorithms.backends import check_gpu_available, resolve_backend
+
+    if device == "cpu":
+        return None
+    if not check_gpu_available()[0]:
+        raise ValueError(
+            "GPU requested via device='gpu' but no CUDA or MPS device is "
+            "available. Use device='cpu'."
+        )
+    return resolve_backend("gpu")
+
+
+def _as_bootstrap_result(bd, result):
+    """Wrap an engine's arrays as a `BootstrapResult` of `BrainData` maps.
+
+    Args:
+        bd (BrainData): Template whose mask and spatial state the outputs
+            inherit; row metadata and fitted state are cleared.
+        result (dict): Engine output with `'estimate'`, `'standard_error'`,
+            `'ci_lower'`, `'ci_upper'`, and optionally `'samples'`.
+
+    Returns:
+        BootstrapResult: The four summaries as `BrainData`, and the retained
+            replicates as a NumPy array when present.
+    """
+    from nltools.data.results import BootstrapResult
+
+    return BootstrapResult(
+        estimate=_result_from_array(bd, result["estimate"], rows="clear"),
+        standard_error=_result_from_array(bd, result["standard_error"], rows="clear"),
+        ci_lower=_result_from_array(bd, result["ci_lower"], rows="clear"),
+        ci_upper=_result_from_array(bd, result["ci_upper"], rows="clear"),
+        samples=result.get("samples"),
     )
-    boot_mean.data = mean_2d
-    return boot_mean

@@ -1,240 +1,473 @@
-"""Bootstrap inference utilities with CPU/GPU support."""
+"""Bootstrap resampling for simple statistics and fitted-model outputs.
+
+Resamples observations with replacement `n_samples` times and summarizes the
+resulting distribution with `BootstrapAccumulator`, a streaming aggregator that
+keeps a running Welford variance plus a bounded per-element tail — enough order
+statistics to reproduce the exact percentile interval without retaining every
+replicate. The CPU engines dispatch in bounded windows and fold each one in
+before opening the next, which is what makes that bound real: `joblib.Parallel`
+queues finished results, so collecting the run would hold every replicate at
+once whatever the accumulator does. The engines cover simple aggregations ('mean', 'median', 'std', ...),
+ridge weights, and ridge predictions, each with a CPU-parallel path (`n_jobs`
+workers) and, for ridge, a batched GPU path. `BrainData.bootstrap` and
+`Adjacency.bootstrap` are the user-facing entry points that pick an engine and
+wrap the arrays as a `BootstrapResult`.
+
+Every engine returns the same four arrays — `estimate` (the statistic on the
+unresampled full sample), `standard_error`, `ci_lower`, `ci_upper` — plus
+`samples` when the caller asked to retain the complete distribution. Memory
+budgeting, the output preflight, GPU batch sizing, and CPU worker sizing all
+live in `nltools/algorithms/backends.py`; nothing here does budget arithmetic.
+"""
 
 import numpy as np
 import warnings
-from scipy.stats import norm
 
 from .validation import (
     validate_bootstrap_method,
     validate_bootstrap_data,
-    validate_percentiles,
     validate_array_shape,
     validate_array_shape_range,
+    validate_confidence_level,
+    validate_memory_budget,
+    validate_n_samples,
     validate_shape_compatibility,
 )
-from ..random import generate_bootstrap_indices
+from .random import generate_bootstrap_indices
+from .utils import make_progress_bar
+from nltools.utils import find_stack_level
 
 
 # Constants for supported methods
 SIMPLE_METHODS = ["mean", "median", "std", "sum", "min", "max"]
-FITTED_METHODS = ["weights", "predict"]  # For future use
+FITTED_METHODS = ["weights", "predict"]
 
 
-def _validate_bootstrap_method(method: str) -> None:
-    """Validate bootstrap method name.
+def _advise_on_n_samples(n_samples: int) -> None:
+    """Warn once per run when the replicate count is too low for a stable interval.
 
-    Args:
-        method: Method name to validate.
-
-    Raises:
-        ValueError: If method is not supported.
-    """
-    validate_bootstrap_method(method, SIMPLE_METHODS, FITTED_METHODS)
-
-
-def _validate_bootstrap_data(data: np.ndarray, method: str) -> None:
-    """Validate input data for bootstrapping.
+    The engines are the single emitter: every facade reaches one of them, and a
+    direct engine call still gets advised, so the user sees the sentence exactly
+    once however they entered.
 
     Args:
-        data: Data to validate.
-        method: Bootstrap method.
-
-    Raises:
-        ValueError: If data is invalid (wrong shape, too few samples, etc.).
+        n_samples (int): Number of bootstrap replicates.
     """
-    validate_bootstrap_data(data, method)
+    if n_samples < 1000:
+        warnings.warn(
+            f"n_samples={n_samples} is low. For reliable confidence intervals, "
+            f"use n_samples >= 1000. For hypothesis testing, use n_samples >= 5000.",
+            UserWarning,
+            stacklevel=find_stack_level(),
+        )
 
-    # Warn if very few samples
+
+def _advise_on_sample_size(data: np.ndarray) -> None:
+    """Warn when the sample the bootstrap resamples from is very small.
+
+    Args:
+        data (np.ndarray): The validated 1D or 2D data.
+    """
     n_samples = data.shape[0] if data.ndim == 2 else len(data)
     if n_samples < 10:
         warnings.warn(
             f"Only {n_samples} samples available. Bootstrap works best with n >= 30. "
             f"Results may be unreliable with very small sample sizes.",
             UserWarning,
+            stacklevel=find_stack_level(),
         )
 
 
-def _validate_n_samples(n_samples: int) -> None:
-    """Validate number of bootstrap iterations.
+class BootstrapAccumulator:
+    """Streaming bootstrap aggregator with a bounded, exact percentile tail.
+
+    Holds a running Welford mean and variance plus, per output element, the `k`
+    smallest and `k` largest replicate values seen so far, where
+    `k = ceil((B - 1) * (1 - c) / 2) + 1`. Those are exactly the order
+    statistics NumPy's linear-interpolation percentile can reach at either end,
+    so the interval matches the one the complete distribution would give while
+    storage scales with `(1 - c) * B` instead of `B`.
+
+    Storage is memory-efficient, not constant: `k` grows with `B`. Retaining the
+    complete distribution (`retain_samples=True`) adds the full sample list but
+    changes nothing about how the interval is computed.
 
     Args:
-        n_samples: Number of bootstrap iterations.
+        shape (tuple[int, ...]): Shape of one replicate's output.
+        n_replicates (int): Number of replicates the run will produce, `B`,
+            which fixes the retained tail size.
+        confidence_level (float): Interval confidence level, `c`. Defaults to
+            `0.95`.
+        retain_samples (bool): Keep every replicate as well. Defaults to False.
 
-    Raises:
-        ValueError: If n_samples is invalid.
-    """
-    if not isinstance(n_samples, (int, np.integer)):
-        raise TypeError(f"n_samples must be an integer, got {type(n_samples).__name__}")
-
-    if n_samples < 10:
-        raise ValueError(
-            f"n_samples must be at least 10, got {n_samples}. "
-            f"Bootstrap requires many iterations for stable estimates. "
-            f"Recommended: n_samples >= 1000 for confidence intervals."
-        )
-
-    # Warn if too few for reliable CIs
-    if n_samples < 1000:
-        warnings.warn(
-            f"n_samples={n_samples} is low. For reliable confidence intervals, "
-            f"use n_samples >= 1000. For hypothesis testing, use n_samples >= 5000.",
-            UserWarning,
-        )
-
-
-def _validate_percentiles(percentiles: tuple) -> None:
-    """Validate percentile values for confidence intervals.
-
-    Args:
-        percentiles: Percentile values (lower, upper).
-
-    Raises:
-        ValueError: If percentiles are invalid.
-    """
-    validate_percentiles(percentiles)
-
-
-class OnlineBootstrapStats:
-    """Memory-efficient online statistics aggregator for bootstrap samples.
-
-    Uses Welford's algorithm for numerically stable online computation of
-    mean and variance. Optionally stores all samples for exact percentile CIs.
-
-    Args:
-        shape: Shape of each bootstrap sample.
-        save_samples: If True, store all samples for exact percentile confidence intervals.
-            If False, use normal approximation (much more memory efficient). Defaults to False.
-        percentiles: Percentiles for confidence intervals (e.g., (2.5, 97.5) for 95% CI).
-            Defaults to (2.5, 97.5).
+    Attributes:
+        n (int): Replicates folded in so far.
+        n_replicates (int): Replicates the run was sized for.
+        tail_size (int): Values retained per element at each end.
 
     Examples:
-        >>> stats = OnlineBootstrapStats(shape=(100,), save_samples=False)
-        >>> for i in range(1000):
-        ...     sample = np.random.randn(100)
-        ...     stats.update(sample)
-        >>> results = stats.get_results()
-        >>> print(results.keys())
-        dict_keys(['mean', 'std', 'Z', 'p', 'ci_lower', 'ci_upper'])
+        ```python
+        accumulator = BootstrapAccumulator((100,), n_replicates=1000)
+        for sample in replicates:
+            accumulator.update(sample)
+        summary = accumulator.results()
+        sorted(summary)  # → ['ci_lower', 'ci_upper', 'samples', 'standard_error']
+        ```
     """
 
     def __init__(
         self,
         shape: tuple[int, ...],
-        save_samples: bool = False,
-        percentiles: tuple[float, float] = (2.5, 97.5),
+        *,
+        n_replicates: int,
+        confidence_level: float = 0.95,
+        retain_samples: bool = False,
     ):
-        self.shape = shape
-        self.save_samples = save_samples
-        self.percentiles = percentiles
+        from nltools.algorithms.backends import (
+            BOOTSTRAP_TAIL_FLUSH_BLOCK,
+            bootstrap_retained_tail_size,
+        )
 
-        # Initialize Welford's algorithm variables
-        self.n = 0  # Number of samples seen
-        self.mean = np.zeros(shape, dtype=np.float64)  # Running mean
-        self.M2 = np.zeros(shape, dtype=np.float64)  # Running sum of squared deviations
+        self.shape = tuple(shape)
+        self.confidence_level = float(confidence_level)
+        self.retain_samples = bool(retain_samples)
+        self.n_replicates = int(n_replicates)
+        self.tail_size = bootstrap_retained_tail_size(
+            n_replicates, confidence_level=self.confidence_level
+        )
+        self._flush_block = BOOTSTRAP_TAIL_FLUSH_BLOCK
 
-        # Optional sample storage
-        self.samples = [] if save_samples else None
+        self.n = 0
+        self.mean = np.zeros(self.shape, dtype=np.float64)
+        self.M2 = np.zeros(self.shape, dtype=np.float64)
+
+        # Bounded order statistics, unordered within each block until `results`.
+        self._low = np.empty((0, *self.shape), dtype=np.float64)
+        self._high = np.empty((0, *self.shape), dtype=np.float64)
+        self._pending: list[np.ndarray] = []
+
+        # NaN is dropped by `np.partition`, so a per-element flag reproduces
+        # `np.percentile`'s propagation instead of quietly skipping it.
+        self._has_nan = np.zeros(self.shape, dtype=bool)
+
+        # Preallocated rather than appended-and-stacked: `np.stack` on a list of
+        # `n_replicates` arrays would briefly hold the distribution twice, which
+        # is precisely the peak the preflight is meant to predict.
+        self._samples = (
+            np.empty((self.n_replicates, *self.shape), dtype=np.float64)
+            if self.retain_samples
+            else None
+        )
 
     def update(self, sample: np.ndarray) -> None:
-        """Update statistics with a new bootstrap sample.
-
-        Uses Welford's algorithm for numerical stability.
+        """Fold one replicate into the running statistics and retained tails.
 
         Args:
-            sample: New bootstrap sample with shape matching self.shape.
-        """
-        # Ensure float64 for numerical precision
-        sample = np.asarray(sample, dtype=np.float64)
+            sample (np.ndarray): One replicate's output, shaped like `shape`.
 
-        # Validate shape
+        Raises:
+            ValueError: If the sample's shape does not match `shape`, or the
+                accumulator has already seen `n_replicates` replicates.
+        """
+        sample = np.asarray(sample, dtype=np.float64)
         if sample.shape != self.shape:
             raise ValueError(
                 f"Sample shape {sample.shape} does not match expected shape {self.shape}"
             )
+        if self.n >= self.n_replicates:
+            # The retained tail is sized for exactly `n_replicates`; a further
+            # replicate would make `results()` read past what it kept.
+            raise ValueError(
+                f"This accumulator was sized for {self.n_replicates} replicates "
+                f"and has already seen that many. Size it with the run's total "
+                f"replicate count."
+            )
 
-        # Welford's algorithm for online mean and variance
         self.n += 1
         delta = sample - self.mean
         self.mean += delta / self.n
-        delta2 = sample - self.mean
-        self.M2 += delta * delta2
+        self.M2 += delta * (sample - self.mean)
 
-        # Store sample if requested
-        if self.save_samples:
-            self.samples.append(sample.copy())
+        self._has_nan |= np.isnan(sample)
+        self._pending.append(sample.copy())
+        if self._samples is not None:
+            self._samples[self.n - 1] = sample
+        if len(self._pending) >= self._flush_block:
+            self._flush()
 
-    def get_results(self) -> dict[str, np.ndarray]:
-        """Compute final bootstrap statistics.
+    def _flush(self) -> None:
+        """Fold the buffered replicates into the two bounded tails."""
+        if not self._pending:
+            return
+        block = np.stack(self._pending)
+        self._pending = []
+        self._low = self._keep_smallest(np.concatenate([self._low, block]))
+        self._high = self._keep_largest(np.concatenate([self._high, block]))
+
+    def _keep_smallest(self, values: np.ndarray) -> np.ndarray:
+        """Reduce `values` to the `tail_size` smallest entries per element.
+
+        The slice is copied because a view would keep the whole partition
+        output alive, quietly holding `tail_size + flush block` arrays where
+        the budget charges `tail_size`.
+        """
+        if values.shape[0] <= self.tail_size:
+            return values
+        return np.partition(values, self.tail_size - 1, axis=0)[: self.tail_size].copy()
+
+    def _keep_largest(self, values: np.ndarray) -> np.ndarray:
+        """Reduce `values` to the `tail_size` largest entries per element."""
+        if values.shape[0] <= self.tail_size:
+            return values
+        cut = values.shape[0] - self.tail_size
+        return np.partition(values, cut, axis=0)[cut:].copy()
+
+    @classmethod
+    def _empty_like(cls, reference: "BootstrapAccumulator") -> "BootstrapAccumulator":
+        """An empty accumulator with `reference`'s run shape and retention policy.
+
+        `merge` needs a target sized for the *whole* run, which the public
+        constructor derives from `n_replicates`. Copying the settled values
+        across says that directly instead of re-deriving them.
+        """
+        empty = cls(
+            reference.shape,
+            n_replicates=reference.n_replicates,
+            confidence_level=reference.confidence_level,
+            retain_samples=reference.retain_samples,
+        )
+        empty.tail_size = reference.tail_size
+        return empty
+
+    @staticmethod
+    def merge(
+        first: "BootstrapAccumulator", second: "BootstrapAccumulator"
+    ) -> "BootstrapAccumulator":
+        """Combine two accumulators over disjoint replicate blocks.
+
+        Uses the Chan-Golub-LeVeque parallel variance update and merges the
+        bounded tails, so a run split across workers or memory-driven batches
+        summarizes to the same numbers as one sequential pass. Retained
+        samples are concatenated in `first`-then-`second` order.
+
+        Args:
+            first (BootstrapAccumulator): Accumulator over the earlier block.
+            second (BootstrapAccumulator): Accumulator over the later block.
+                Both must have been sized with the run's total replicate count.
 
         Returns:
-            Dictionary containing:
-            - 'mean': Bootstrap mean
-            - 'std': Bootstrap standard deviation
-            - 'Z': Z-scores (mean/std)
-            - 'p': Two-tailed p-values
-            - 'ci_lower': Lower confidence bound
-            - 'ci_upper': Upper confidence bound
-            - 'samples': All samples (only if save_samples=True)
+            BootstrapAccumulator: A new accumulator holding both blocks.
 
-        Examples:
-            ```python
-            stats = OnlineBootstrapStats(shape=(100,), save_samples=False)
-            for _ in range(1000):
-                stats.update(np.random.randn(100))
-            results = stats.get_results()
-            # results.keys() -> mean, std, Z, p, ci_lower, ci_upper
-            ```
+        Raises:
+            ValueError: If the two accumulators describe different runs.
+        """
+        if first.shape != second.shape:
+            raise ValueError(
+                f"Cannot merge accumulators of shape {first.shape} and {second.shape}."
+            )
+        if first.confidence_level != second.confidence_level:
+            raise ValueError(
+                "Cannot merge accumulators with different confidence levels."
+            )
+        if first.tail_size != second.tail_size:
+            # Both blocks must retain the tail the *whole* run needs, so size
+            # every accumulator with the run's total replicate count.
+            raise ValueError(
+                f"Cannot merge accumulators retaining {first.tail_size} and "
+                f"{second.tail_size} values per tail: both must be sized for "
+                f"the whole run's replicate count."
+            )
+        if first.retain_samples != second.retain_samples:
+            # Merging them could only produce a partial distribution, which is
+            # worse than refusing: `results()` would report `samples=None` for a
+            # run the caller asked to retain.
+            raise ValueError(
+                "Cannot merge one accumulator that retains every replicate with "
+                "one that does not: both blocks of a run must agree on "
+                "retain_samples."
+            )
+
+        merged = BootstrapAccumulator._empty_like(first)
+
+        first._flush()
+        second._flush()
+
+        total = first.n + second.n
+        merged.n = total
+        if total:
+            delta = second.mean - first.mean
+            merged.mean = first.mean + delta * (second.n / total)
+            merged.M2 = (
+                first.M2 + second.M2 + delta * delta * (first.n * second.n / total)
+            )
+        merged._has_nan = first._has_nan | second._has_nan
+        merged._low = merged._keep_smallest(np.concatenate([first._low, second._low]))
+        merged._high = merged._keep_largest(np.concatenate([first._high, second._high]))
+        if merged.retain_samples:
+            merged._samples = np.concatenate(
+                [first._samples[: first.n], second._samples[: second.n]]
+            )
+        return merged
+
+    def results(self) -> dict:
+        """Summarize the replicates seen so far.
+
+        Returns:
+            dict: `'standard_error'` (elementwise `ddof=1` deviation across
+                replicates), `'ci_lower'` and `'ci_upper'` (the central
+                percentile interval by linear interpolation), and `'samples'`
+                (every replicate, bootstrap axis first, or None).
+
+        Raises:
+            ValueError: If fewer than two replicates have been folded in.
         """
         if self.n < 2:
             raise ValueError(
-                f"Need at least 2 bootstrap samples, got {self.n}. "
-                "Cannot compute variance with fewer than 2 samples."
+                f"Need at least 2 bootstrap replicates, got {self.n}. "
+                "A standard error cannot be computed from fewer."
             )
+        self._flush()
 
-        # Compute sample variance and standard deviation
-        # Using n-1 for sample variance (Bessel's correction)
-        variance = self.M2 / (self.n - 1)
-        std = np.sqrt(variance)
-
-        # Compute Z-scores (mean / std)
-        # Use errstate to handle division by zero gracefully
-        with np.errstate(invalid="ignore", divide="ignore"):
-            z = self.mean / std
-
-        # Compute two-tailed p-values from Z-scores
-        p = 2 * (1 - norm.cdf(np.abs(z)))
-
-        # Build result dictionary
-        result = {
-            "mean": self.mean,
-            "std": std,
-            "Z": z,
-            "p": p,
+        standard_error = np.sqrt(self.M2 / (self.n - 1))
+        ci_lower, ci_upper = self._interval()
+        samples = self._samples[: self.n] if self._samples is not None else None
+        return {
+            "standard_error": standard_error,
+            "ci_lower": ci_lower,
+            "ci_upper": ci_upper,
+            "samples": samples,
         }
 
-        # Compute confidence intervals
-        if self.save_samples and self.samples:
-            # Exact percentile CIs from stored samples
-            samples_array = np.array(self.samples)  # Shape: (n_samples, *shape)
-            result["ci_lower"] = np.percentile(
-                samples_array, self.percentiles[0], axis=0
-            )
-            result["ci_upper"] = np.percentile(
-                samples_array, self.percentiles[1], axis=0
-            )
-            result["samples"] = samples_array
-        else:
-            # Normal approximation CIs
-            # For (2.5, 97.5) percentiles → 95% CI → z_crit ≈ 1.96
-            # General formula: z_crit = norm.ppf(1 - alpha/2)
-            # where alpha = (100 - (upper - lower)) / 100
-            alpha = (100 - (self.percentiles[1] - self.percentiles[0])) / 100
-            z_crit = norm.ppf(1 - alpha / 2)
+    def _interval(self) -> tuple[np.ndarray, np.ndarray]:
+        """Central percentile interval read off the two retained tails."""
+        half_alpha = (1 - self.confidence_level) / 2
+        position = (self.n - 1) * half_alpha
 
-            result["ci_lower"] = self.mean - z_crit * std
-            result["ci_upper"] = self.mean + z_crit * std
+        low_sorted = np.sort(self._low, axis=0)
+        high_sorted = np.sort(self._high, axis=0)
+        ci_lower = _interpolate_order_statistic(low_sorted, position, offset=0)
+        ci_upper = _interpolate_order_statistic(
+            high_sorted,
+            (self.n - 1) - position,
+            offset=self.n - high_sorted.shape[0],
+        )
 
-        return result
+        # `np.percentile` returns NaN for any element whose distribution holds
+        # one, and the spec requires the same propagation here.
+        ci_lower = np.where(self._has_nan, np.nan, ci_lower)
+        ci_upper = np.where(self._has_nan, np.nan, ci_upper)
+        return ci_lower, ci_upper
+
+
+def _interpolate_order_statistic(
+    tail_sorted: np.ndarray, position: float, *, offset: int
+) -> np.ndarray:
+    """Read one linearly interpolated order statistic out of a retained tail.
+
+    Args:
+        tail_sorted (np.ndarray): Retained values, sorted ascending along axis 0.
+        position (float): Fractional index into the *complete* sorted
+            distribution, as NumPy's linear interpolation defines it.
+        offset (int): Complete-distribution index of `tail_sorted[0]`.
+
+    Returns:
+        np.ndarray: The interpolated value per output element.
+    """
+    lower_index = int(np.floor(position))
+    fraction = position - lower_index
+    local = lower_index - offset
+    lower = tail_sorted[local]
+    if fraction == 0:
+        return lower.copy()
+    return lower + fraction * (tail_sorted[local + 1] - lower)
+
+
+def _run_replicates(
+    compute_one,
+    n_samples: int,
+    accumulator: BootstrapAccumulator,
+    *,
+    n_jobs: int,
+    window: int,
+    desc: str,
+    progress_bar: bool,
+) -> None:
+    """Evaluate every replicate on CPU workers, aggregating one window at a time.
+
+    Bounding the pipeline is the whole point. `joblib.Parallel` dispatches
+    eagerly and queues finished results, so neither `pre_dispatch` nor
+    `return_as="generator"` limits how many replicate arrays are alive at once —
+    collecting the whole run, the obvious spelling, makes peak memory `O(B)` and
+    turns `bootstrap_memory_preflight` into a budget the run ignores. Instead
+    each window of `window` replicates is folded into the accumulator and
+    released before the next window is dispatched, so peak memory is the
+    accumulator's retained tail plus one window.
+
+    Windows are consecutive and folded in submission order, so replicate order,
+    the reported failure index, and Welford's accumulation order are identical
+    to a sequential run — worker count stays numerically invisible.
+
+    Args:
+        compute_one (Callable): `(index) -> np.ndarray` for one replicate.
+        n_samples (int): Number of replicates.
+        accumulator (BootstrapAccumulator): Aggregator to fold results into.
+        n_jobs (int): Worker count, already planned against the budget.
+        window (int): Replicates dispatched before the next aggregation, from
+            `backends.bootstrap_replicate_window`.
+        desc (str): Progress-bar description.
+        progress_bar (bool): Show a progress bar over replicates.
+
+    Raises:
+        RuntimeError: If a replicate fails, naming its index.
+    """
+    from joblib import Parallel, delayed
+
+    def _guarded(index):
+        try:
+            return compute_one(index)
+        except Exception as error:  # noqa: BLE001 - re-raised with the index
+            raise RuntimeError(
+                f"bootstrap replicate {index} failed: {error}"
+            ) from error
+
+    pbar = make_progress_bar(
+        progress_bar=progress_bar, total=n_samples, desc=desc, unit="iter"
+    )
+    # One pool for the whole run; the context manager keeps workers alive
+    # across windows so bounding memory does not cost a respawn per window.
+    with Parallel(n_jobs=n_jobs) as parallel:
+        for start in range(0, n_samples, window):
+            stop = min(start + window, n_samples)
+            for sample in parallel(
+                delayed(_guarded)(index) for index in range(start, stop)
+            ):
+                accumulator.update(sample)
+            # The bar advances on completed replicates, not dispatched ones.
+            pbar.update(stop - start)
+    pbar.close()
+
+
+def _summarize(accumulator: BootstrapAccumulator, estimate: np.ndarray) -> dict:
+    """Assemble the engine result from an accumulator and the full-sample estimate.
+
+    Args:
+        accumulator (BootstrapAccumulator): Aggregator over every replicate.
+        estimate (np.ndarray): The statistic on the unresampled full sample.
+
+    Returns:
+        dict: `'estimate'`, `'standard_error'`, `'ci_lower'`, `'ci_upper'`, and
+            `'samples'` when the complete distribution was retained.
+    """
+    summary = accumulator.results()
+    result = {
+        "estimate": np.asarray(estimate, dtype=np.float64),
+        "standard_error": summary["standard_error"],
+        "ci_lower": summary["ci_lower"],
+        "ci_upper": summary["ci_upper"],
+    }
+    if summary["samples"] is not None:
+        result["samples"] = summary["samples"]
+    return result
 
 
 def _bootstrap_simple_method_worker(
@@ -242,26 +475,32 @@ def _bootstrap_simple_method_worker(
     method: str,
     indices: np.ndarray,
 ) -> np.ndarray:
-    """Worker function for bootstrapping simple aggregation methods.
+    """Apply one simple aggregation to a resampled copy of the data.
+
+    The single home of the six basic reductions, used both for the replicates
+    and — with the identity index — for the full-sample estimate. `'std'` is
+    the population deviation (`ddof=0`), matching `BrainData.std()`.
 
     Args:
-        data: Data to bootstrap (n_samples, n_features).
-        method: Aggregation method: 'mean', 'median', 'std', 'sum', 'min', 'max'.
-        indices: Bootstrap indices (n_samples,).
+        data (np.ndarray): Data to bootstrap, shape (n_obs, n_features).
+        method (str): Aggregation method, one of 'mean', 'median', 'std', 'sum',
+            'min', or 'max'.
+        indices (np.ndarray): Row indices of the replicate, shape (n_obs,).
 
     Returns:
-        Aggregated result (n_features,) or scalar.
+        np.ndarray: Aggregated result, shape (n_features,).
+
+    Raises:
+        ValueError: If `method` is not one of the supported aggregations.
     """
-    # Resample data
     data_boot = data[indices]
 
-    # Apply aggregation method
     if method == "mean":
         return np.mean(data_boot, axis=0)
     if method == "median":
         return np.median(data_boot, axis=0)
     if method == "std":
-        return np.std(data_boot, axis=0, ddof=1)
+        return np.std(data_boot, axis=0, ddof=0)
     if method == "sum":
         return np.sum(data_boot, axis=0)
     if method == "min":
@@ -275,409 +514,481 @@ def _bootstrap_simple_cpu_parallel(
     data: np.ndarray,
     method: str,
     n_samples: int = 5000,
-    save_boots: bool = False,
+    *,
+    confidence_level: float = 0.95,
+    memory_budget_gb: float | None = None,
+    return_samples: bool = False,
     n_jobs: int = -1,
     random_state: int | None = None,
-    percentiles: tuple[float, float] = (2.5, 97.5),
+    progress_bar: bool = False,
 ) -> dict[str, np.ndarray]:
-    """Bootstrap simple aggregation methods using CPU parallelization.
+    """Bootstrap a simple aggregation across CPU workers.
 
-    Follows the same pattern as inference module: pre-generate indices,
-    parallelize computation, aggregate with OnlineBootstrapStats.
+    Bootstrap indices are pre-generated from `random_state`, replicates run in
+    parallel with joblib, and results stream into `BootstrapAccumulator`.
 
     Args:
-        data: Data to bootstrap, shape (n_samples, n_features) or (n_samples,).
-        method: Aggregation method: 'mean', 'median', 'std', 'sum', 'min', 'max'.
-        n_samples: Number of bootstrap iterations. Defaults to 5000.
-        save_boots: If True, store all bootstrap samples (memory intensive). Defaults to False.
-        n_jobs: Number of CPU cores for parallelization. Defaults to -1.
-        random_state: Random seed for reproducibility.
-        percentiles: Percentiles for confidence intervals. Defaults to (2.5, 97.5).
+        data (np.ndarray): Data to bootstrap, shape (n_obs, n_features) or
+            (n_obs,).
+        method (str): Aggregation method, one of 'mean', 'median', 'std', 'sum',
+            'min', or 'max'.
+        n_samples (int): Number of bootstrap replicates. Defaults to 5000.
+        confidence_level (float): Interval confidence level. Defaults to 0.95.
+        memory_budget_gb (float | None): Working-memory budget in GB governing
+            the output preflight and worker planning. None measures the host.
+        return_samples (bool): Retain every replicate. Defaults to False.
+        n_jobs (int): CPU worker ceiling (-1 = all cores). Defaults to -1.
+        random_state (int | None): Random seed for reproducibility.
+        progress_bar (bool): Show a progress bar over replicates. Defaults to False.
 
     Returns:
-        Dictionary containing:
-        - 'mean': Bootstrap mean
-        - 'std': Bootstrap standard deviation
-        - 'Z': Z-scores (mean/std)
-        - 'p': Two-tailed p-values
-        - 'ci_lower': Lower confidence bound
-        - 'ci_upper': Upper confidence bound
-        - 'samples': All samples (only if save_boots=True)
-        - 'backend': Backend used (e.g., 'cpu-parallel-8')
+        dict[str, np.ndarray]: `'estimate'` (the aggregation on the unresampled
+            data), `'standard_error'`, `'ci_lower'`, `'ci_upper'`, `'samples'`
+            (only with `return_samples=True`), and `'backend'`.
 
     Examples:
-        >>> data = np.random.randn(100, 50)  # 100 samples, 50 features
-        >>> result = _bootstrap_simple_cpu_parallel(data, 'mean', n_samples=1000)
-        >>> result['mean'].shape
-        (50,)
-        >>> result.keys()
-        dict_keys(['mean', 'std', 'Z', 'p', 'ci_lower', 'ci_upper', 'backend'])
+        ```python
+        data = np.random.randn(100, 50)  # 100 observations, 50 features
+        result = _bootstrap_simple_cpu_parallel(data, "mean", n_samples=1000)
+        result["estimate"].shape  # → (50,)
+        ```
     """
-    from joblib import Parallel, delayed
-    from tqdm import tqdm
+    from nltools.algorithms.backends import (
+        bootstrap_memory_preflight,
+        bootstrap_n_jobs_cpu,
+        bootstrap_replicate_window,
+        _estimate_data_size_mb,
+    )
 
-    # Validate inputs
-    _validate_bootstrap_method(method)
-    _validate_n_samples(n_samples)
-    _validate_percentiles(percentiles)
+    validate_bootstrap_method(method, SIMPLE_METHODS, FITTED_METHODS)
+    validate_n_samples(n_samples)
+    validate_confidence_level(confidence_level)
+    validate_memory_budget(memory_budget_gb)
 
-    # Convert to array and validate
     data = np.asarray(data, dtype=np.float64)
-    _validate_bootstrap_data(data, method)
+    validate_bootstrap_data(data, method)
 
-    # Handle 1D input
+    _advise_on_n_samples(n_samples)
+    _advise_on_sample_size(data)
+
     single_feature = data.ndim == 1
     if single_feature:
         data = data[:, np.newaxis]
 
     n_obs, n_features = data.shape
-    output_shape = (n_features,) if not single_feature else ()
+    output_shape = (1,) if single_feature else (n_features,)
 
-    # Pre-generate bootstrap indices (deterministic)
+    workers = bootstrap_n_jobs_cpu(
+        _estimate_data_size_mb(data),
+        n_samples,
+        memory_budget_gb=memory_budget_gb,
+        n_jobs=n_jobs,
+    )
+    bootstrap_memory_preflight(
+        output_shape,
+        n_samples,
+        confidence_level=confidence_level,
+        return_samples=return_samples,
+        n_workers=workers,
+        memory_budget_gb=memory_budget_gb,
+    )
+    window = bootstrap_replicate_window(n_samples, n_workers=workers)
+
     all_indices = generate_bootstrap_indices(
         n_obs, n_samples, random_state=random_state
     )
+    estimate = _bootstrap_simple_method_worker(data, method, np.arange(n_obs))
 
-    # Initialize online statistics aggregator
-    stats = OnlineBootstrapStats(
-        shape=output_shape if output_shape else (1,),
-        save_samples=save_boots,
-        percentiles=percentiles,
+    accumulator = BootstrapAccumulator(
+        output_shape,
+        n_replicates=n_samples,
+        confidence_level=confidence_level,
+        retain_samples=return_samples,
     )
 
-    # Define worker function
-    def _compute_one_bootstrap(idx):
-        return _bootstrap_simple_method_worker(data, method, all_indices[idx])
+    def _compute_one_bootstrap(index):
+        return _bootstrap_simple_method_worker(data, method, all_indices[index])
 
-    # Execute in parallel with progress bar
-    bootstrap_samples = Parallel(n_jobs=n_jobs)(
-        delayed(_compute_one_bootstrap)(i)
-        for i in tqdm(range(n_samples), desc="Bootstrap iterations", unit="iter")
+    _run_replicates(
+        _compute_one_bootstrap,
+        n_samples,
+        accumulator,
+        n_jobs=workers,
+        window=window,
+        desc="Bootstrap iterations",
+        progress_bar=progress_bar,
     )
 
-    # Aggregate results
-    for sample in bootstrap_samples:
-        if single_feature:
-            sample = sample.flatten()
-        stats.update(sample)
-
-    # Get final results
-    result = stats.get_results()
-
-    # Add backend info
-    import multiprocessing
-
-    actual_n_jobs = multiprocessing.cpu_count() if n_jobs == -1 else n_jobs
-    result["backend"] = f"cpu-parallel-{actual_n_jobs}"
-
-    # Remove samples if not requested
-    if not save_boots:
-        result.pop("samples", None)
-
+    result = _summarize(accumulator, estimate)
+    result["backend"] = f"cpu-parallel-{workers}"
     return result
 
 
-def _bootstrap_ridge_weights_worker(
-    X: np.ndarray,
-    y: np.ndarray,
-    indices: np.ndarray,
-    alpha: float,
-    **ridge_kwargs,
-) -> np.ndarray:
-    """Worker function for bootstrapping Ridge model weights.
+def _as_feature_spaces(X) -> list[np.ndarray]:
+    """Normalize training features to a list of 2-D arrays in coefficient order.
 
-    Bypasses BrainData overhead by calling ridge_svd() directly with numpy arrays.
-    This provides 10-100× speedup compared to using BrainData methods.
+    Ordinary ridge supplies one matrix; banded ridge supplies one matrix per
+    fitted feature space, already ordered by `Ridge.feature_space_names_`.
 
     Args:
-        X: Feature matrix, shape (n_samples, n_features).
-        y: Target matrix, shape (n_samples, n_voxels).
-        indices: Bootstrap indices, shape (n_samples,).
-        alpha: Ridge regularization parameter.
-        **ridge_kwargs: Additional parameters passed to ridge_svd().
+        X (np.ndarray | Sequence[np.ndarray]): One matrix, or one per space.
 
     Returns:
-        Ridge weights, shape (n_features, n_voxels).
+        list[np.ndarray]: The feature spaces as float64 arrays.
     """
-    from nltools.algorithms.ridge import ridge_svd
+    spaces = list(X) if isinstance(X, (list, tuple)) else [X]
+    return [np.asarray(space, dtype=np.float64) for space in spaces]
 
-    # Resample data
-    X_boot = X[indices]
-    y_boot = y[indices]
 
-    # Call optimized ridge_svd directly (pure numpy, very fast)
-    weights = ridge_svd(X_boot, y_boot, alpha=alpha, **ridge_kwargs)
+def _stack_feature_spaces(X) -> np.ndarray:
+    """Concatenate prediction features into one matrix in coefficient order.
 
-    return weights
+    Args:
+        X (np.ndarray | Sequence[np.ndarray]): One matrix, or one per space.
+
+    Returns:
+        np.ndarray: A `(n_rows, n_features)` float64 matrix.
+    """
+    spaces = _as_feature_spaces(X)
+    return spaces[0] if len(spaces) == 1 else np.concatenate(spaces, axis=1)
+
+
+def _bootstrap_design(feature_spaces, y, backend=None):
+    """Convert the training design onto the backend once for every replicate.
+
+    Bootstrap replicates differ only in which rows they draw, so the design and
+    the response are converted a single time and each replicate resamples rows
+    in place. On a GPU that keeps the host-to-device transfer out of the loop;
+    on the CPU it keeps the concatenation out of it.
+
+    Args:
+        feature_spaces (Sequence[np.ndarray]): Training features, one matrix per
+            fitted space in coefficient order.
+        y (np.ndarray): Training targets, shape (n_obs, n_voxels).
+        backend (Backend | None): Resolved GPU backend, or None for the CPU.
+
+    Returns:
+        _ResidentDesign: The converted design, ready for repeated refits.
+    """
+    from nltools.models.ridge import _resident_design
+
+    return _resident_design(feature_spaces, y, backend)
+
+
+def _refit_resample(
+    design,
+    indices: np.ndarray,
+    alpha: float | np.ndarray,
+    feature_space_weights: np.ndarray | None = None,
+    memory_budget_gb: float | None = None,
+) -> np.ndarray:
+    """Refit ridge weights on one bootstrap replicate, hyperparameters fixed.
+
+    Every ridge-bootstrap replicate — CPU or GPU, ordinary or banded — routes
+    through the package's single fixed-hyperparameter refit, so a replicate
+    cannot drift from the full-data fit numerically and never reruns model
+    selection. `indices` is applied to the design and the response together, so
+    every feature space and the response resample with the same rows.
+
+    Args:
+        design (_ResidentDesign): The training design from `_bootstrap_design`.
+        indices (np.ndarray): Row indices of the replicate.
+        alpha (float | np.ndarray): Scalar or per-target regularization, taken
+            from the fitted model and held fixed.
+        feature_space_weights (np.ndarray | None): The fitted banded simplex
+            weights, shared `(n_spaces,)` or per-target `(n_spaces, n_targets)`.
+            None solves the unweighted ordinary system.
+        memory_budget_gb (float | None): Budget used to size the refit's
+            internal target batch.
+
+    Returns:
+        np.ndarray: Weights, shape (n_features, n_voxels).
+    """
+    from nltools.models.ridge import _refit_fixed_hyperparameters
+
+    return _refit_fixed_hyperparameters(
+        design,
+        None,
+        alpha,
+        feature_space_weights,
+        memory_budget_gb=memory_budget_gb,
+        row_indices=indices,
+    )
 
 
 def _bootstrap_ridge_weights_cpu_parallel(
-    X: np.ndarray,
+    X,
     y: np.ndarray,
     alpha: float,
+    estimate: np.ndarray,
     n_samples: int = 5000,
-    save_boots: bool = False,
+    *,
+    confidence_level: float = 0.95,
+    memory_budget_gb: float | None = None,
+    feature_space_weights: np.ndarray | None = None,
+    return_samples: bool = False,
     n_jobs: int = -1,
     random_state: int | None = None,
-    percentiles: tuple[float, float] = (2.5, 97.5),
-    **ridge_kwargs,
+    progress_bar: bool = False,
 ) -> dict[str, np.ndarray]:
-    """Bootstrap Ridge model weights using CPU parallelization.
+    """Bootstrap ridge weights across CPU workers.
 
-    Performance optimization: Calls ridge_svd() directly instead of using
-    BrainData methods, avoiding serialization overhead. Provides 10-100×
-    speedup compared to naive implementation.
+    Each replicate calls the shared fixed-hyperparameter refit directly on numpy
+    arrays (no `BrainData` serialization), which is 10-100x faster than a naive
+    implementation.
 
     Args:
-        X: Feature matrix, shape (n_samples, n_features).
-        y: Target matrix, shape (n_samples, n_voxels).
-        alpha: Ridge regularization parameter.
-        n_samples: Number of bootstrap iterations. Defaults to 5000.
-        save_boots: If True, store all bootstrap samples (memory intensive). Defaults to False.
-        n_jobs: Number of CPU cores for parallelization. Defaults to -1.
-        random_state: Random seed for reproducibility.
-        percentiles: Percentiles for confidence intervals. Defaults to (2.5, 97.5).
-        **ridge_kwargs: Additional parameters passed to ridge_svd().
+        X (np.ndarray | list[np.ndarray]): Feature matrix, shape (n_obs,
+            n_features), or one matrix per banded feature space in fitted order.
+        y (np.ndarray): Target matrix, shape (n_obs, n_voxels) or (n_obs,).
+        alpha (float): Ridge regularization parameter, held fixed.
+        estimate (np.ndarray): The fitted full-data coefficients, shape
+            (n_features, n_voxels). Only the fitted model knows them, so the
+            caller supplies them rather than the engine refitting.
+        n_samples (int): Number of bootstrap replicates. Defaults to 5000.
+        confidence_level (float): Interval confidence level. Defaults to 0.95.
+        memory_budget_gb (float | None): Working-memory budget in GB governing
+            the output preflight and worker planning. None measures the host.
+        feature_space_weights (np.ndarray | None): Fitted banded simplex
+            weights held fixed across replicates. None for ordinary ridge.
+        return_samples (bool): Retain every replicate. Defaults to False.
+        n_jobs (int): CPU worker ceiling (-1 = all cores). Defaults to -1.
+        random_state (int | None): Random seed for reproducibility.
+        progress_bar (bool): Show a progress bar over replicates. Defaults to False.
 
     Returns:
-        Dictionary containing:
-        - 'mean': Bootstrap mean weights
-        - 'std': Bootstrap standard deviation
-        - 'Z': Z-scores (mean/std)
-        - 'p': Two-tailed p-values
-        - 'ci_lower': Lower confidence bound
-        - 'ci_upper': Upper confidence bound
-        - 'samples': All samples (only if save_boots=True)
-        - 'backend': Backend used
+        dict[str, np.ndarray]: `'estimate'`, `'standard_error'`, `'ci_lower'`,
+            `'ci_upper'`, `'samples'` (only with `return_samples=True`), and
+            `'backend'`.
 
     Examples:
-        >>> X = np.random.randn(100, 10)  # 100 samples, 10 features
-        >>> y = np.random.randn(100, 50)  # 100 samples, 50 voxels
-        >>> result = _bootstrap_ridge_weights_cpu_parallel(X, y, alpha=1.0)
-        >>> result['mean'].shape
-        (10, 50)
+        ```python
+        X = np.random.randn(100, 10)  # 100 observations, 10 features
+        y = np.random.randn(100, 50)  # 100 observations, 50 voxels
+        coef = _refit_fixed_hyperparameters([X], y, 1.0)
+        result = _bootstrap_ridge_weights_cpu_parallel(X, y, 1.0, coef)
+        result["estimate"].shape  # → (10, 50)
+        ```
     """
-    from joblib import Parallel, delayed
-    from tqdm import tqdm
-    from .validation import validate_array_shape, validate_array_shape_range
+    from nltools.algorithms.backends import (
+        bootstrap_memory_preflight,
+        bootstrap_n_jobs_cpu,
+        bootstrap_replicate_window,
+        _estimate_data_size_mb,
+    )
 
-    # Input validation
-    X = np.asarray(X, dtype=np.float64)
+    spaces = _as_feature_spaces(X)
     y = np.asarray(y, dtype=np.float64)
 
-    validate_array_shape(X, 2, name="X")
     validate_array_shape_range(y, 1, 2, name="y")
-    validate_shape_compatibility(X, y, X_name="X", y_name="y")
+    for space in spaces:
+        validate_array_shape(space, 2, name="X")
+        validate_shape_compatibility(space, y, X_name="X", y_name="y")
+    validate_n_samples(n_samples)
+    validate_confidence_level(confidence_level)
+    validate_memory_budget(memory_budget_gb)
+    _advise_on_n_samples(n_samples)
 
-    # Handle 1D y
-    single_voxel = y.ndim == 1
-    if single_voxel:
+    if y.ndim == 1:
         y = y[:, np.newaxis]
 
-    n_obs, n_features = X.shape
-    n_voxels = y.shape[1]
-    output_shape = (n_features, n_voxels)
+    n_obs = spaces[0].shape[0]
+    n_features = sum(space.shape[1] for space in spaces)
+    output_shape = (n_features, y.shape[1])
 
-    # Pre-generate bootstrap indices (deterministic)
+    workers = bootstrap_n_jobs_cpu(
+        _estimate_data_size_mb(y),
+        n_samples,
+        memory_budget_gb=memory_budget_gb,
+        n_jobs=n_jobs,
+    )
+    bootstrap_memory_preflight(
+        output_shape,
+        n_samples,
+        confidence_level=confidence_level,
+        return_samples=return_samples,
+        n_workers=workers,
+        memory_budget_gb=memory_budget_gb,
+    )
+    window = bootstrap_replicate_window(n_samples, n_workers=workers)
+
     all_indices = generate_bootstrap_indices(
         n_obs, n_samples, random_state=random_state
     )
-
-    # Initialize online statistics aggregator
-    stats = OnlineBootstrapStats(
-        shape=output_shape,
-        save_samples=save_boots,
-        percentiles=percentiles,
+    accumulator = BootstrapAccumulator(
+        output_shape,
+        n_replicates=n_samples,
+        confidence_level=confidence_level,
+        retain_samples=return_samples,
     )
+    design = _bootstrap_design(spaces, y)
 
-    # Define worker function
-    def _compute_one_bootstrap(idx):
-        return _bootstrap_ridge_weights_worker(
-            X, y, all_indices[idx], alpha, **ridge_kwargs
+    def _compute_one_bootstrap(index):
+        return _refit_resample(
+            design,
+            all_indices[index],
+            alpha,
+            feature_space_weights,
+            memory_budget_gb=memory_budget_gb,
         )
 
-    # Execute in parallel with progress bar
-    bootstrap_samples = Parallel(n_jobs=n_jobs)(
-        delayed(_compute_one_bootstrap)(i)
-        for i in tqdm(range(n_samples), desc="Bootstrap Ridge weights", unit="iter")
+    _run_replicates(
+        _compute_one_bootstrap,
+        n_samples,
+        accumulator,
+        n_jobs=workers,
+        window=window,
+        desc="Bootstrap Ridge weights",
+        progress_bar=progress_bar,
     )
 
-    # Aggregate results
-    for sample in bootstrap_samples:
-        stats.update(sample)
-
-    # Get final results
-    result = stats.get_results()
-
-    # Add backend info
-    import multiprocessing
-
-    actual_n_jobs = multiprocessing.cpu_count() if n_jobs == -1 else n_jobs
-    result["backend"] = f"cpu-parallel-{actual_n_jobs}"
-
-    # Remove samples if not requested
-    if not save_boots:
-        result.pop("samples", None)
-
+    result = _summarize(accumulator, estimate)
+    result["backend"] = f"cpu-parallel-{workers}"
     return result
 
 
-def _bootstrap_ridge_predict_worker(
-    X: np.ndarray,
-    y: np.ndarray,
-    X_pred: np.ndarray,
-    indices: np.ndarray,
-    alpha: float,
-    **ridge_kwargs,
-) -> np.ndarray:
-    """Worker function for bootstrapping Ridge model predictions.
-
-    Resamples training data, fits Ridge model, and makes predictions on test data.
-
-    Args:
-        X: Training feature matrix, shape (n_samples, n_features).
-        y: Training target matrix, shape (n_samples, n_voxels).
-        X_pred: Test feature matrix for prediction, shape (n_test_samples, n_features).
-        indices: Bootstrap indices for resampling training data, shape (n_samples,).
-        alpha: Ridge regularization parameter.
-        **ridge_kwargs: Additional parameters passed to ridge_svd().
-
-    Returns:
-        Predictions, shape (n_test_samples, n_voxels).
-    """
-    from nltools.algorithms.ridge import ridge_svd
-
-    # Resample training data
-    X_boot = X[indices]
-    y_boot = y[indices]
-
-    # Fit Ridge model to bootstrap sample
-    weights = ridge_svd(X_boot, y_boot, alpha=alpha, **ridge_kwargs)
-
-    # Make predictions on test data
-    # Matrix multiplication: (n_test, n_features) @ (n_features, n_voxels)
-    predictions = X_pred @ weights
-
-    return predictions
-
-
 def _bootstrap_ridge_predict_cpu_parallel(
-    X: np.ndarray,
+    X,
     y: np.ndarray,
     X_pred: np.ndarray,
     alpha: float,
+    estimate: np.ndarray,
     n_samples: int = 5000,
-    save_boots: bool = False,
+    *,
+    confidence_level: float = 0.95,
+    memory_budget_gb: float | None = None,
+    feature_space_weights: np.ndarray | None = None,
+    return_samples: bool = False,
     n_jobs: int = -1,
     random_state: int | None = None,
-    percentiles: tuple[float, float] = (2.5, 97.5),
-    **ridge_kwargs,
+    progress_bar: bool = False,
 ) -> dict[str, np.ndarray]:
-    """Bootstrap Ridge model predictions using CPU parallelization.
+    """Bootstrap ridge predictions across CPU workers.
 
-    Resamples training data, fits Ridge models, and aggregates predictions
-    on test data. Uses same performance optimizations as weights bootstrap.
+    Each replicate refits the ridge model on the resampled training data and
+    applies the refitted coefficients to the unchanged `X_pred`.
 
     Args:
-        X: Training feature matrix, shape (n_samples, n_features).
-        y: Training target matrix, shape (n_samples, n_voxels).
-        X_pred: Test feature matrix for prediction, shape (n_test_samples, n_features).
-        alpha: Ridge regularization parameter.
-        n_samples: Number of bootstrap iterations. Defaults to 5000.
-        save_boots: If True, store all bootstrap predictions (memory intensive). Defaults to False.
-        n_jobs: Number of CPU cores for parallelization. Defaults to -1.
-        random_state: Random seed for reproducibility.
-        percentiles: Percentiles for confidence intervals. Defaults to (2.5, 97.5).
-        **ridge_kwargs: Additional parameters passed to ridge_svd().
+        X (np.ndarray | list[np.ndarray]): Training feature matrix, shape
+            (n_obs, n_features), or one matrix per banded feature space in
+            fitted order.
+        y (np.ndarray): Training target matrix, shape (n_obs, n_voxels) or
+            (n_obs,).
+        X_pred (np.ndarray | list[np.ndarray]): Test feature matrix, shape
+            (n_test, n_features), or one matrix per banded feature space in
+            fitted order.
+        alpha (float): Ridge regularization parameter, held fixed.
+        estimate (np.ndarray): The fitted full-data model evaluated at `X_pred`,
+            shape (n_test, n_voxels).
+        n_samples (int): Number of bootstrap replicates. Defaults to 5000.
+        confidence_level (float): Interval confidence level. Defaults to 0.95.
+        memory_budget_gb (float | None): Working-memory budget in GB governing
+            the output preflight and worker planning. None measures the host.
+        feature_space_weights (np.ndarray | None): Fitted banded simplex
+            weights held fixed across replicates. None for ordinary ridge.
+        return_samples (bool): Retain every replicate. Defaults to False.
+        n_jobs (int): CPU worker ceiling (-1 = all cores). Defaults to -1.
+        random_state (int | None): Random seed for reproducibility.
+        progress_bar (bool): Show a progress bar over replicates. Defaults to False.
 
     Returns:
-        Dictionary containing:
-        - 'mean': Bootstrap mean predictions
-        - 'std': Bootstrap standard deviation
-        - 'Z': Z-scores (mean/std)
-        - 'p': Two-tailed p-values
-        - 'ci_lower': Lower confidence bound
-        - 'ci_upper': Upper confidence bound
-        - 'samples': All samples (only if save_boots=True)
-        - 'backend': Backend used
+        dict[str, np.ndarray]: `'estimate'`, `'standard_error'`, `'ci_lower'`,
+            `'ci_upper'`, `'samples'` (only with `return_samples=True`), and
+            `'backend'`.
 
     Examples:
-        >>> X = np.random.randn(100, 10)         # Training features
-        >>> y = np.random.randn(100, 50)         # Training targets (50 voxels)
-        >>> X_test = np.random.randn(20, 10)     # Test features
-        >>> result = _bootstrap_ridge_predict_cpu_parallel(X, y, X_test, alpha=1.0)
-        >>> result['mean'].shape
-        (20, 50)  # Predictions for 20 test samples, 50 voxels
-    """
-    from joblib import Parallel, delayed
-    from tqdm import tqdm
-    from .validation import validate_shape_compatibility, validate_array_shape
-
-    # Input validation
-    X = np.asarray(X, dtype=np.float64)
-    y = np.asarray(y, dtype=np.float64)
-    X_pred = np.asarray(X_pred, dtype=np.float64)
-
-    validate_array_shape(X, 2, name="X")
-    validate_array_shape_range(y, 1, 2, name="y")
-    validate_array_shape(X_pred, 2, name="X_pred")
-    validate_shape_compatibility(X, y, X_name="X", y_name="y")
-    if X.shape[1] != X_pred.shape[1]:
-        raise ValueError(
-            f"X and X_pred must have same n_features: {X.shape[1]} != {X_pred.shape[1]}"
+        ```python
+        X = np.random.randn(100, 10)  # training features
+        y = np.random.randn(100, 50)  # training targets (50 voxels)
+        X_test = np.random.randn(20, 10)  # test features
+        coef = _refit_fixed_hyperparameters([X], y, 1.0)
+        result = _bootstrap_ridge_predict_cpu_parallel(
+            X, y, X_test, 1.0, X_test @ coef
         )
+        result["estimate"].shape  # → (20, 50)
+        ```
+    """
+    from nltools.algorithms.backends import (
+        bootstrap_memory_preflight,
+        bootstrap_n_jobs_cpu,
+        bootstrap_replicate_window,
+        _estimate_data_size_mb,
+    )
 
-    # Handle 1D y
-    single_voxel = y.ndim == 1
-    if single_voxel:
+    spaces = _as_feature_spaces(X)
+    y = np.asarray(y, dtype=np.float64)
+    X_pred = _stack_feature_spaces(X_pred)
+
+    validate_array_shape_range(y, 1, 2, name="y")
+    for space in spaces:
+        validate_array_shape(space, 2, name="X")
+        validate_shape_compatibility(space, y, X_name="X", y_name="y")
+    validate_array_shape(X_pred, 2, name="X_pred")
+    n_features = sum(space.shape[1] for space in spaces)
+    if n_features != X_pred.shape[1]:
+        raise ValueError(
+            f"X and X_pred must have same n_features: {n_features} != {X_pred.shape[1]}"
+        )
+    validate_n_samples(n_samples)
+    validate_confidence_level(confidence_level)
+    validate_memory_budget(memory_budget_gb)
+    _advise_on_n_samples(n_samples)
+
+    if y.ndim == 1:
         y = y[:, np.newaxis]
 
-    n_obs = X.shape[0]
-    n_test_samples = X_pred.shape[0]
-    n_voxels = y.shape[1]
-    output_shape = (n_test_samples, n_voxels)
+    n_obs = spaces[0].shape[0]
+    output_shape = (X_pred.shape[0], y.shape[1])
 
-    # Pre-generate bootstrap indices (deterministic)
+    workers = bootstrap_n_jobs_cpu(
+        _estimate_data_size_mb(y),
+        n_samples,
+        memory_budget_gb=memory_budget_gb,
+        n_jobs=n_jobs,
+    )
+    bootstrap_memory_preflight(
+        output_shape,
+        n_samples,
+        confidence_level=confidence_level,
+        return_samples=return_samples,
+        n_workers=workers,
+        memory_budget_gb=memory_budget_gb,
+    )
+    window = bootstrap_replicate_window(n_samples, n_workers=workers)
+
     all_indices = generate_bootstrap_indices(
         n_obs, n_samples, random_state=random_state
     )
-
-    # Initialize online statistics aggregator
-    stats = OnlineBootstrapStats(
-        shape=output_shape,
-        save_samples=save_boots,
-        percentiles=percentiles,
+    accumulator = BootstrapAccumulator(
+        output_shape,
+        n_replicates=n_samples,
+        confidence_level=confidence_level,
+        retain_samples=return_samples,
     )
+    design = _bootstrap_design(spaces, y)
 
-    # Define worker function
-    def _compute_one_bootstrap(idx):
-        return _bootstrap_ridge_predict_worker(
-            X, y, X_pred, all_indices[idx], alpha, **ridge_kwargs
+    def _compute_one_bootstrap(index):
+        weights = _refit_resample(
+            design,
+            all_indices[index],
+            alpha,
+            feature_space_weights,
+            memory_budget_gb=memory_budget_gb,
         )
+        return X_pred @ weights
 
-    # Execute in parallel with progress bar
-    bootstrap_samples = Parallel(n_jobs=n_jobs)(
-        delayed(_compute_one_bootstrap)(i)
-        for i in tqdm(range(n_samples), desc="Bootstrap Ridge predictions", unit="iter")
+    _run_replicates(
+        _compute_one_bootstrap,
+        n_samples,
+        accumulator,
+        n_jobs=workers,
+        window=window,
+        desc="Bootstrap Ridge predictions",
+        progress_bar=progress_bar,
     )
 
-    # Aggregate results
-    for sample in bootstrap_samples:
-        stats.update(sample)
-
-    # Get final results
-    result = stats.get_results()
-
-    # Add backend info
-    import multiprocessing
-
-    actual_n_jobs = multiprocessing.cpu_count() if n_jobs == -1 else n_jobs
-    result["backend"] = f"cpu-parallel-{actual_n_jobs}"
-
-    # Remove samples if not requested
-    if not save_boots:
-        result.pop("samples", None)
-
+    result = _summarize(accumulator, estimate)
+    result["backend"] = f"cpu-parallel-{workers}"
     return result
 
 
@@ -686,395 +997,390 @@ def _auto_batch_size_ridge(
     n_samples: int,
     n_features: int,
     n_voxels: int,
-    max_memory_gb: float = 4.0,
+    output_shape: tuple[int, ...],
+    max_memory_gb: float | None = None,
+    backend=None,
 ) -> tuple[int, int]:
-    """Automatically determine batch size for Ridge bootstrap to avoid GPU OOM.
+    """Determine the Ridge-bootstrap GPU batch size for a memory budget.
 
-    Memory bottleneck:
-    - X_boot: (batch_size, n_samples, n_features)
-    - y_boot: (batch_size, n_samples, n_voxels)
-    - SVD buffers and intermediate computations
+    Forwards to `backends.ridge_bootstrap_batch_size`, which owns the budget
+    measurement, the working-set model, and the batch arithmetic. This wrapper
+    only supplies the solver's working dtype size: MPS solves in float32,
+    every other backend in float64.
 
     Args:
-        n_bootstrap: Total number of bootstrap iterations.
-        n_samples: Number of samples in dataset.
-        n_features: Number of features.
-        n_voxels: Number of voxels/targets.
-        max_memory_gb: Maximum GPU memory to use in GB. Defaults to 4.0.
+        n_bootstrap (int): Total number of bootstrap replicates.
+        n_samples (int): Number of observations in the dataset.
+        n_features (int): Total feature count across all feature spaces.
+        n_voxels (int): Number of voxels/targets.
+        output_shape (tuple[int, ...]): Shape of one retained replicate result.
+        max_memory_gb (float | None): Explicit memory budget in GB. None
+            (default) measures the device via `device_memory_budget`.
+        backend (Backend | None): Resolved backend the work runs on.
 
     Returns:
-        (batch_size, n_batches).
+        tuple[int, int]: `(batch_size, n_batches)`.
     """
-    bytes_per_element = 4  # float32
+    from nltools.algorithms.backends import ridge_bootstrap_batch_size
 
-    # Memory per bootstrap iteration
-    # X_boot: (1, n_samples, n_features)
-    # y_boot: (1, n_samples, n_voxels)
-    # Plus overhead for SVD buffers (~2-3× for intermediate computations)
-    memory_per_boot = (
-        (n_samples * n_features + n_samples * n_voxels) * bytes_per_element * 3
-    )  # Conservative 3× overhead
+    device = getattr(backend, "device", None)
+    return ridge_bootstrap_batch_size(
+        n_bootstrap,
+        n_samples=n_samples,
+        n_features=n_features,
+        n_targets=n_voxels,
+        output_shape=output_shape,
+        device_itemsize=4 if device == "mps" else 8,
+        max_gpu_memory_gb=max_memory_gb,
+        backend=backend,
+    )
 
-    # How many bootstrap iterations fit in memory budget?
-    max_memory_bytes = max_memory_gb * 1e9
-    batch_size = int(max_memory_bytes / memory_per_boot)
 
-    # Clamp to reasonable range
-    batch_size = max(10, min(batch_size, n_bootstrap))  # At least 10, at most all
+def _validate_gpu_backend(backend) -> None:
+    """Raise unless `backend` is a GPU device backend (torch-cuda or torch-mps).
 
-    # Calculate number of batches needed
-    n_batches = int(np.ceil(n_bootstrap / batch_size))
+    Guard for the GPU bootstrap engine: CPU backends ('numpy', 'torch-cpu')
+    must be rejected — this engine assumes device compute.
 
-    return batch_size, n_batches
+    Args:
+        backend (Backend): Resolved backend instance (only `.name` is inspected).
+
+    Raises:
+        ValueError: If `backend.name` is not 'torch-cuda' or 'torch-mps'.
+    """
+    if backend.name not in ("torch-cuda", "torch-mps"):
+        raise ValueError(
+            f"GPU backend requires 'torch-cuda' or 'torch-mps', got '{backend.name}'"
+        )
+
+
+def _bootstrap_ridge_gpu_batched(
+    feature_spaces: list[np.ndarray],
+    y: np.ndarray,
+    alpha: float,
+    *,
+    estimate: np.ndarray,
+    compute_sample,
+    output_shape: tuple[int, ...],
+    desc: str,
+    confidence_level: float = 0.95,
+    feature_space_weights: np.ndarray | None = None,
+    n_samples: int = 5000,
+    return_samples: bool = False,
+    backend=None,
+    memory_budget_gb: float | None = None,
+    random_state: int | None = None,
+    progress_bar: bool = False,
+) -> dict[str, np.ndarray]:
+    """Shared GPU bootstrap driver for ridge statistics, with automatic batching.
+
+    Owns everything the weights and predict bootstraps have in common — pre-drawn
+    resample indices, batch sizing via `_auto_batch_size_ridge`, the per-replicate
+    refit inside an OOM-safe batch loop, `BootstrapAccumulator` aggregation on
+    the CPU, the progress bar, and result formatting. The per-replicate statistic
+    is injected via `compute_sample`.
+
+    Each replicate goes through the package's shared fixed-hyperparameter refit
+    (`nltools.models.ridge._refit_fixed_hyperparameters`) under the scoped
+    Himalaya GPU backend, so the GPU path solves the same equation as the CPU
+    path and supports banded models. The batch loop exists for memory control:
+    it bounds how many resamples are in flight before aggregation.
+
+    Args:
+        feature_spaces (list[np.ndarray]): Training features, one matrix per
+            fitted space in coefficient order.
+        y (np.ndarray): Target matrix, shape (n_obs, n_voxels), 2-D.
+        alpha (float): Ridge regularization held fixed across replicates.
+        estimate (np.ndarray): The full-data statistic, shape `output_shape`.
+        compute_sample (Callable): `(coef) -> np.ndarray`, mapping one
+            replicate's coefficients, shape (n_features, n_voxels), to the
+            statistic aggregated on the CPU (the weights themselves, or
+            predictions from them).
+        output_shape (tuple[int, ...]): Shape of each `compute_sample` result.
+        desc (str): Progress-bar description.
+        confidence_level (float): Interval confidence level. Defaults to 0.95.
+        feature_space_weights (np.ndarray | None): Fitted banded simplex
+            weights held fixed across replicates. None for ordinary ridge.
+        n_samples (int): Number of bootstrap replicates. Defaults to 5000.
+        return_samples (bool): Retain every replicate. Defaults to False.
+        backend (Backend | None): Backend instance (must be a GPU torch backend).
+            None auto-selects.
+        memory_budget_gb (float | None): Working-memory budget in GB. None
+            (default) measures the device's available memory.
+        random_state (int | None): Random seed for reproducibility.
+        progress_bar (bool): Show a progress bar over replicates. Defaults to False.
+
+    Returns:
+        dict[str, np.ndarray]: Bootstrap statistics in the same format as the CPU
+            engines, with `'backend'` set to `'gpu-<device>'`.
+
+    Raises:
+        RuntimeError: If a replicate fails, naming its index.
+    """
+    from nltools.algorithms.backends import (
+        auto_select_backend,
+        bootstrap_memory_preflight,
+        compute_oom_safe,
+        is_oom_error,
+    )
+
+    n_obs = feature_spaces[0].shape[0]
+    n_features = sum(space.shape[1] for space in feature_spaces)
+    n_voxels = y.shape[1]
+
+    if backend is None:
+        backend = auto_select_backend(n_obs, n_features)
+    _validate_gpu_backend(backend)
+
+    validate_n_samples(n_samples)
+    validate_confidence_level(confidence_level)
+    validate_memory_budget(memory_budget_gb)
+    _advise_on_n_samples(n_samples)
+
+    bootstrap_memory_preflight(
+        output_shape,
+        n_samples,
+        confidence_level=confidence_level,
+        return_samples=return_samples,
+        memory_budget_gb=memory_budget_gb,
+        backend=backend,
+    )
+
+    all_indices = generate_bootstrap_indices(
+        n_obs, n_samples, random_state=random_state
+    )
+
+    batch_size, n_batches = _auto_batch_size_ridge(
+        n_samples,
+        n_obs,
+        n_features,
+        n_voxels,
+        output_shape,
+        max_memory_gb=memory_budget_gb,
+        backend=backend,
+    )
+
+    # One host-to-device transfer for the whole run; replicates resample rows
+    # on the device.
+    design = _bootstrap_design(feature_spaces, y, backend)
+
+    def _compute_batch(batch: np.ndarray, replicates: np.ndarray) -> np.ndarray:
+        """GPU ridge statistics for one (sub-)batch of pre-drawn resample indices.
+
+        `replicates` carries each row's global replicate index so a terminal
+        failure names it even after OOM recovery has split the batch. An OOM
+        itself is re-raised untouched, because `compute_oom_safe` recovers from
+        it by retrying the same rows in smaller pieces.
+        """
+        batch_results = []
+        for replicate, indices in zip(replicates, batch):
+            try:
+                coef = _refit_resample(
+                    design,
+                    indices,
+                    alpha,
+                    feature_space_weights,
+                    memory_budget_gb=memory_budget_gb,
+                )
+            except Exception as error:
+                if is_oom_error(error):
+                    raise
+                raise RuntimeError(
+                    f"bootstrap replicate {int(replicate)} failed: {error}"
+                ) from error
+            batch_results.append(compute_sample(coef))
+        return np.array(batch_results)
+
+    accumulator = BootstrapAccumulator(
+        output_shape,
+        n_replicates=n_samples,
+        confidence_level=confidence_level,
+        retain_samples=return_samples,
+    )
+
+    pbar = make_progress_bar(
+        progress_bar=progress_bar,
+        total=n_samples,
+        desc=desc,
+        unit="iter",
+        disable=n_batches == 1,
+    )
+    replicate_ids = np.arange(n_samples)
+
+    for batch_index in range(n_batches):
+        start = batch_index * batch_size
+        end = min(start + batch_size, n_samples)
+
+        # Bootstrap indices for this batch were all pre-drawn (all_indices),
+        # so OOM recovery reuses them exactly; the replicate ids split with them.
+        batch_results = compute_oom_safe(
+            _compute_batch, all_indices[start:end], replicate_ids[start:end]
+        )
+        for sample in batch_results:
+            accumulator.update(sample)
+
+        pbar.update(end - start)
+
+    pbar.close()
+
+    result = _summarize(accumulator, estimate)
+    result["backend"] = f"gpu-{backend.device}"
+    return result
 
 
 def _bootstrap_ridge_weights_gpu_batched(
-    X: np.ndarray,
+    X,
     y: np.ndarray,
     alpha: float,
+    estimate: np.ndarray,
     n_samples: int = 5000,
-    save_boots: bool = False,
+    *,
+    confidence_level: float = 0.95,
+    feature_space_weights: np.ndarray | None = None,
+    return_samples: bool = False,
     backend=None,
-    max_gpu_memory_gb: float = 4.0,
+    memory_budget_gb: float | None = None,
     random_state: int | None = None,
-    percentiles: tuple[float, float] = (2.5, 97.5),
-    **ridge_kwargs,
+    progress_bar: bool = False,
 ) -> dict[str, np.ndarray]:
-    """Bootstrap Ridge model weights using GPU with automatic batching.
+    """Bootstrap ridge weights on the GPU with automatic batching.
 
-    Processes bootstrap samples in batches to avoid GPU OOM. Transfers X, y
-    to GPU once and reuses across batches for efficiency.
+    Thin wrapper over `_bootstrap_ridge_gpu_batched` whose per-replicate
+    statistic is the ridge coefficients themselves.
 
     Args:
-        X: Feature matrix, shape (n_samples, n_features).
-        y: Target matrix, shape (n_samples, n_voxels).
-        alpha: Ridge regularization parameter.
-        n_samples: Number of bootstrap iterations. Defaults to 5000.
-        save_boots: If True, store all bootstrap samples (memory intensive). Defaults to False.
-        backend: Backend instance (must be PyTorch). If None, auto-selects.
-        max_gpu_memory_gb: Maximum GPU memory to use in GB. Defaults to 4.0.
-        random_state: Random seed for reproducibility.
-        percentiles: Percentiles for confidence intervals. Defaults to (2.5, 97.5).
-        **ridge_kwargs: Additional parameters passed to ridge_svd().
+        X (np.ndarray | list[np.ndarray]): Feature matrix, shape (n_obs,
+            n_features), or one matrix per banded feature space in fitted order.
+        y (np.ndarray): Target matrix, shape (n_obs, n_voxels) or (n_obs,).
+        alpha (float): Ridge regularization parameter, held fixed.
+        estimate (np.ndarray): The fitted full-data coefficients.
+        n_samples (int): Number of bootstrap replicates. Defaults to 5000.
+        confidence_level (float): Interval confidence level. Defaults to 0.95.
+        feature_space_weights (np.ndarray | None): Fitted banded simplex
+            weights held fixed across replicates. None for ordinary ridge.
+        return_samples (bool): Retain every replicate. Defaults to False.
+        backend (Backend | None): Backend instance (must be a GPU torch backend).
+            None auto-selects.
+        memory_budget_gb (float | None): Working-memory budget in GB. None
+            (default) measures the device's available memory.
+        random_state (int | None): Random seed for reproducibility.
+        progress_bar (bool): Show a progress bar over replicates. Defaults to False.
 
     Returns:
-        Dictionary containing bootstrap statistics (same format as CPU version).
+        dict[str, np.ndarray]: Bootstrap statistics in the same format as the CPU
+            engine.
     """
-    import torch
-    from tqdm import tqdm
-    from nltools.algorithms.backends import auto_select_backend
-    from .validation import validate_array_shape_range
+    spaces = _as_feature_spaces(X)
+    y = np.asarray(y, dtype=np.float64)
 
-    # Input validation
-    X = np.asarray(X, dtype=np.float32)
-    y = np.asarray(y, dtype=np.float32)
-
-    validate_array_shape(X, 2, name="X")
     validate_array_shape_range(y, 1, 2, name="y")
-    validate_shape_compatibility(X, y, X_name="X", y_name="y")
+    for space in spaces:
+        validate_array_shape(space, 2, name="X")
+        validate_shape_compatibility(space, y, X_name="X", y_name="y")
 
-    # Handle backend
-    if backend is None:
-        backend = auto_select_backend(X.shape[0], X.shape[1])
-    if backend.name not in ["torch", "torch-mps"]:
-        raise ValueError(
-            f"GPU backend requires 'torch' or 'torch-mps', got '{backend.name}'"
-        )
-
-    # Handle 1D y
-    single_voxel = y.ndim == 1
-    if single_voxel:
+    if y.ndim == 1:
         y = y[:, np.newaxis]
+    n_features = sum(space.shape[1] for space in spaces)
 
-    n_obs, n_features = X.shape
-    n_voxels = y.shape[1]
-    output_shape = (n_features, n_voxels)
-
-    # Validate inputs
-    _validate_n_samples(n_samples)
-    _validate_percentiles(percentiles)
-
-    # Pre-generate bootstrap indices (deterministic)
-    all_indices = generate_bootstrap_indices(
-        n_obs, n_samples, random_state=random_state
-    )
-
-    # Determine batch size based on memory budget
-    batch_size, n_batches = _auto_batch_size_ridge(
-        n_samples, n_obs, n_features, n_voxels, max_memory_gb=max_gpu_memory_gb
-    )
-
-    # Transfer X, y to GPU once (reused across batches)
-    X_device = backend.to_device(X)
-    y_device = backend.to_device(y)
-
-    # Initialize online statistics aggregator (on CPU)
-    stats = OnlineBootstrapStats(
-        shape=output_shape,
-        save_samples=save_boots,
-        percentiles=percentiles,
-    )
-
-    # Process bootstrap samples in batches with progress bar
-    pbar = tqdm(
-        total=n_samples,
+    return _bootstrap_ridge_gpu_batched(
+        spaces,
+        y,
+        alpha,
+        estimate=estimate,
+        compute_sample=lambda coef: coef,
+        output_shape=(n_features, y.shape[1]),
         desc="GPU bootstrap Ridge weights",
-        unit="iter",
-        disable=n_batches == 1,
+        confidence_level=confidence_level,
+        feature_space_weights=feature_space_weights,
+        n_samples=n_samples,
+        return_samples=return_samples,
+        backend=backend,
+        memory_budget_gb=memory_budget_gb,
+        random_state=random_state,
+        progress_bar=progress_bar,
     )
-
-    for batch_idx in range(n_batches):
-        # Determine current batch size
-        start_idx = batch_idx * batch_size
-        end_idx = min(start_idx + batch_size, n_samples)
-        current_batch_size = end_idx - start_idx
-
-        # Get bootstrap indices for this batch
-        batch_indices = all_indices[
-            start_idx:end_idx
-        ]  # Shape: (current_batch_size, n_obs)
-
-        # Process each bootstrap sample in batch sequentially
-        # Inline ridge computation on GPU to avoid CPU round-trips
-        batch_weights = []
-        for i in range(current_batch_size):
-            # Resample data using advanced indexing
-            indices_np = batch_indices[i].astype(np.int64)
-            indices_device = backend.to_device(indices_np)
-            # Ensure indices are int64 on GPU (MPS requires this)
-            if hasattr(indices_device, "long"):
-                indices_device = indices_device.long()
-            elif hasattr(indices_device, "to"):
-                import torch
-
-                indices_device = indices_device.to(torch.int64)
-            X_boot_device = X_device[indices_device]
-            y_boot_device = y_device[indices_device]
-
-            # Compute Ridge weights directly on GPU (inline SVD computation)
-            # This avoids CPU round-trips from backend.to_numpy() → ridge_svd()
-            # Ridge solution: beta = V @ diag(s / (s² + alpha)) @ U.T @ y
-            U, s, Vt = backend.svd(X_boot_device, full_matrices=False)
-
-            # Compute shrinkage: s / (s² + alpha)
-            shrinkage = s / (s**2 + alpha)
-
-            # Compute: U.T @ y
-            Uty = backend.matmul(U.T, y_boot_device)
-
-            # Compute: V.T @ (shrinkage[:, None] * Uty)
-            coef_device = backend.matmul(Vt.T, shrinkage[:, None] * Uty)
-
-            # Transfer weights back to CPU for aggregation
-            weights = backend.to_numpy(coef_device)
-
-            batch_weights.append(weights)
-
-        # Transfer weights back to CPU and aggregate
-        batch_weights = np.array(
-            batch_weights
-        )  # Shape: (current_batch_size, n_features, n_voxels)
-
-        for weights in batch_weights:
-            stats.update(weights)
-
-        # Update progress bar
-        pbar.update(current_batch_size)
-
-        # Free batch memory
-        if torch.cuda.is_available():
-            torch.cuda.empty_cache()
-
-    pbar.close()
-
-    # Get final results
-    result = stats.get_results()
-
-    # Add backend info
-    result["backend"] = f"gpu-{backend.device}"
-
-    # Remove samples if not requested
-    if not save_boots:
-        result.pop("samples", None)
-
-    return result
 
 
 def _bootstrap_ridge_predict_gpu_batched(
-    X: np.ndarray,
+    X,
     y: np.ndarray,
     X_pred: np.ndarray,
     alpha: float,
+    estimate: np.ndarray,
     n_samples: int = 5000,
-    save_boots: bool = False,
+    *,
+    confidence_level: float = 0.95,
+    feature_space_weights: np.ndarray | None = None,
+    return_samples: bool = False,
     backend=None,
-    max_gpu_memory_gb: float = 4.0,
+    memory_budget_gb: float | None = None,
     random_state: int | None = None,
-    percentiles: tuple[float, float] = (2.5, 97.5),
-    **ridge_kwargs,
+    progress_bar: bool = False,
 ) -> dict[str, np.ndarray]:
-    """Bootstrap Ridge model predictions using GPU with automatic batching.
+    """Bootstrap ridge predictions on the GPU with automatic batching.
 
-    Resamples training data, fits Ridge models, and aggregates predictions
-    on test data. Uses same GPU optimizations as weights bootstrap.
+    Thin wrapper over `_bootstrap_ridge_gpu_batched` whose per-replicate
+    statistic is `X_pred @ coef`.
 
     Args:
-        X: Training feature matrix, shape (n_samples, n_features).
-        y: Training target matrix, shape (n_samples, n_voxels).
-        X_pred: Test feature matrix for prediction, shape (n_test_samples, n_features).
-        alpha: Ridge regularization parameter.
-        n_samples: Number of bootstrap iterations. Defaults to 5000.
-        save_boots: If True, store all bootstrap predictions (memory intensive). Defaults to False.
-        backend: Backend instance (must be PyTorch). If None, auto-selects.
-        max_gpu_memory_gb: Maximum GPU memory to use in GB. Defaults to 4.0.
-        random_state: Random seed for reproducibility.
-        percentiles: Percentiles for confidence intervals. Defaults to (2.5, 97.5).
-        **ridge_kwargs: Additional parameters passed to ridge_svd().
+        X (np.ndarray | list[np.ndarray]): Training feature matrix, shape
+            (n_obs, n_features), or one matrix per banded feature space in
+            fitted order.
+        y (np.ndarray): Training target matrix, shape (n_obs, n_voxels) or
+            (n_obs,).
+        X_pred (np.ndarray | list[np.ndarray]): Test feature matrix, shape
+            (n_test, n_features), or one matrix per banded feature space
+            in fitted order.
+        alpha (float): Ridge regularization parameter, held fixed.
+        estimate (np.ndarray): The fitted full-data model evaluated at `X_pred`.
+        n_samples (int): Number of bootstrap replicates. Defaults to 5000.
+        confidence_level (float): Interval confidence level. Defaults to 0.95.
+        feature_space_weights (np.ndarray | None): Fitted banded simplex
+            weights held fixed across replicates. None for ordinary ridge.
+        return_samples (bool): Retain every replicate. Defaults to False.
+        backend (Backend | None): Backend instance (must be a GPU torch backend).
+            None auto-selects.
+        memory_budget_gb (float | None): Working-memory budget in GB. None
+            (default) measures the device's available memory.
+        random_state (int | None): Random seed for reproducibility.
+        progress_bar (bool): Show a progress bar over replicates. Defaults to False.
 
     Returns:
-        Dictionary containing bootstrap statistics (same format as CPU version).
+        dict[str, np.ndarray]: Bootstrap statistics in the same format as the CPU
+            engine.
     """
-    import torch
-    from tqdm import tqdm
-    from nltools.algorithms.backends import auto_select_backend
-    from .validation import validate_array_shape, validate_array_shape_range
+    spaces = _as_feature_spaces(X)
+    y = np.asarray(y, dtype=np.float64)
+    X_pred = _stack_feature_spaces(X_pred)
 
-    # Input validation
-    X = np.asarray(X, dtype=np.float32)
-    y = np.asarray(y, dtype=np.float32)
-    X_pred = np.asarray(X_pred, dtype=np.float32)
-
-    validate_array_shape(X, 2, name="X")
     validate_array_shape_range(y, 1, 2, name="y")
+    for space in spaces:
+        validate_array_shape(space, 2, name="X")
+        validate_shape_compatibility(space, y, X_name="X", y_name="y")
     validate_array_shape(X_pred, 2, name="X_pred")
-    validate_shape_compatibility(X, y, X_name="X", y_name="y")
-    if X.shape[1] != X_pred.shape[1]:
+    n_features = sum(space.shape[1] for space in spaces)
+    if n_features != X_pred.shape[1]:
         raise ValueError(
-            f"X and X_pred must have same n_features: {X.shape[1]} != {X_pred.shape[1]}"
+            f"X and X_pred must have same n_features: {n_features} != {X_pred.shape[1]}"
         )
 
-    # Handle backend
-    if backend is None:
-        backend = auto_select_backend(X.shape[0], X.shape[1])
-    if backend.name not in ["torch", "torch-mps"]:
-        raise ValueError(
-            f"GPU backend requires 'torch' or 'torch-mps', got '{backend.name}'"
-        )
-
-    # Handle 1D y
-    single_voxel = y.ndim == 1
-    if single_voxel:
+    if y.ndim == 1:
         y = y[:, np.newaxis]
 
-    n_obs = X.shape[0]
-    n_test_samples = X_pred.shape[0]
-    n_voxels = y.shape[1]
-    output_shape = (n_test_samples, n_voxels)
-
-    # Validate inputs
-    _validate_n_samples(n_samples)
-    _validate_percentiles(percentiles)
-
-    # Pre-generate bootstrap indices (deterministic)
-    all_indices = generate_bootstrap_indices(
-        n_obs, n_samples, random_state=random_state
-    )
-
-    # Determine batch size (same as weights, but also account for X_pred)
-    batch_size, n_batches = _auto_batch_size_ridge(
-        n_samples, n_obs, X.shape[1], n_voxels, max_memory_gb=max_gpu_memory_gb
-    )
-
-    # Transfer X, y, X_pred to GPU once (reused across batches)
-    X_device = backend.to_device(X)
-    y_device = backend.to_device(y)
-    X_pred_device = backend.to_device(X_pred)
-
-    # Initialize online statistics aggregator (on CPU)
-    stats = OnlineBootstrapStats(
-        shape=output_shape,
-        save_samples=save_boots,
-        percentiles=percentiles,
-    )
-
-    # Process bootstrap samples in batches with progress bar
-    pbar = tqdm(
-        total=n_samples,
+    return _bootstrap_ridge_gpu_batched(
+        spaces,
+        y,
+        alpha,
+        estimate=estimate,
+        compute_sample=lambda coef: X_pred @ coef,
+        output_shape=(X_pred.shape[0], y.shape[1]),
         desc="GPU bootstrap Ridge predictions",
-        unit="iter",
-        disable=n_batches == 1,
+        confidence_level=confidence_level,
+        feature_space_weights=feature_space_weights,
+        n_samples=n_samples,
+        return_samples=return_samples,
+        backend=backend,
+        memory_budget_gb=memory_budget_gb,
+        random_state=random_state,
+        progress_bar=progress_bar,
     )
-
-    for batch_idx in range(n_batches):
-        # Determine current batch size
-        start_idx = batch_idx * batch_size
-        end_idx = min(start_idx + batch_size, n_samples)
-        current_batch_size = end_idx - start_idx
-
-        # Get bootstrap indices for this batch
-        batch_indices = all_indices[start_idx:end_idx]
-
-        # Process each bootstrap sample in batch sequentially
-        # Inline ridge computation on GPU to avoid CPU round-trips
-        batch_predictions = []
-        for i in range(current_batch_size):
-            # Resample training data
-            indices_np = batch_indices[i].astype(np.int64)
-            indices_device = backend.to_device(indices_np)
-            # Ensure indices are int64 on GPU (MPS requires this)
-            if hasattr(indices_device, "long"):
-                indices_device = indices_device.long()
-            elif hasattr(indices_device, "to"):
-                import torch
-
-                indices_device = indices_device.to(torch.int64)
-            X_boot_device = X_device[indices_device]
-            y_boot_device = y_device[indices_device]
-
-            # Fit Ridge model directly on GPU (inline SVD computation)
-            # Ridge solution: beta = V @ diag(s / (s² + alpha)) @ U.T @ y
-            U, s, Vt = backend.svd(X_boot_device, full_matrices=False)
-
-            # Compute shrinkage: s / (s² + alpha)
-            shrinkage = s / (s**2 + alpha)
-
-            # Compute: U.T @ y
-            Uty = backend.matmul(U.T, y_boot_device)
-
-            # Compute: V.T @ (shrinkage[:, None] * Uty)
-            weights_device = backend.matmul(Vt.T, shrinkage[:, None] * Uty)
-
-            # Make predictions on GPU: X_pred @ weights
-            predictions_device = backend.matmul(X_pred_device, weights_device)
-            predictions = backend.to_numpy(predictions_device)
-
-            batch_predictions.append(predictions)
-
-        # Transfer predictions back to CPU and aggregate
-        batch_predictions = np.array(
-            batch_predictions
-        )  # Shape: (current_batch_size, n_test_samples, n_voxels)
-
-        for predictions in batch_predictions:
-            stats.update(predictions)
-
-        # Update progress bar
-        pbar.update(current_batch_size)
-
-        # Free batch memory
-        if torch.cuda.is_available():
-            torch.cuda.empty_cache()
-
-    pbar.close()
-
-    # Get final results
-    result = stats.get_results()
-
-    # Add backend info
-    result["backend"] = f"gpu-{backend.device}"
-
-    # Remove samples if not requested
-    if not save_boots:
-        result.pop("samples", None)
-
-    return result

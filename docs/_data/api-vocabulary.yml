@@ -1,25 +1,29 @@
 # Canonical v0.6.0 kwarg vocabulary — SINGLE SOURCE OF TRUTH.
+# DesignMatrix contract (Kata kjtp): existing keyword names/defaults are retained.
+# Constructor-only pandas ingress and removal of its dedicated to_pandas method
+# change supported operations, not the keyword vocabulary. Direct Polars kwargs
+# continue to belong to the third-party API; see development/specs/designmatrix.md.
 #
-# This file is the machine-readable source for the canonical-kwarg vocabulary that
-# the rest of the docs render. `scripts/build_api_vocabulary.py` injects rendered
-# tables from here into both:
-#   - docs/development/index.md         (the 2-column prose table)
-#   - docs/public/design-tour.html      (the 3-column table + "exceptions" callout)
-# between `<!-- AUTOGEN:api-vocabulary ... -->` marker pairs. Edit the vocabulary
-# HERE, then run `uv run poe docs-generate` (or `python scripts/build_api_vocabulary.py`)
-# to propagate. CI (`poe lint-api`) runs the generator in `--check` mode and fails
-# if the committed tables have drifted from this file.
+# This file is the machine-readable source for the canonical-kwarg vocabulary. It
+# feeds TWO consumers, both wired into `poe lint-api`:
 #
-# The HUMAN canon is CLAUDE.md's "API Conventions (v0.6.0)" table — keep this in
-# sync with it. (CLAUDE.md is prose Claude reads directly; it is not generated.)
+#   1. Docs rendering — `scripts/build_api_vocabulary.py` injects a rendered table into
+#      docs/development/index.md (2-column prose table) between
+#      `<!-- AUTOGEN:api-vocabulary -->` marker pairs. Edit HERE, then
+#      `uv run poe docs-generate` to propagate; the `--check` mode fails CI if the
+#      committed table has drifted.
+#   2. Code enforcement — `scripts/check_api_vocabulary.py` walks every public `def`
+#      in nltools/ with `ast` and validates signatures against the `enforcement:`
+#      section below: banned alias kwargs and per-kwarg semantic contracts (e.g.
+#      `metric=` may never default to a central tendency — that concept is `summary=`).
+#
+# This file IS the canon: CLAUDE.md's "API Conventions" section, the rendered docs
+# tables, and the enforcement scripts all point here. There is no second copy to
+# keep in sync — edit the vocabulary/rules here and regenerate.
 #
 # Per-row fields:
-#   concept    — the concept the kwarg names (shared by both tables).
-#   kwarg      — the bare canonical name; the design-tour "Canonical kwarg" cell
-#                renders it as <code>{kwarg}</code>.
-#   tour_note  — the design-tour "Notes" cell, written in Markdown. Inline
-#                `code` spans and *emphasis* are converted to HTML; `·` chips are
-#                literal. Used only by the design tour.
+#   concept    — the concept the kwarg names.
+#   kwarg      — the bare canonical name.
 #   index_md   — the index.md "Canonical kwarg" cell, written as raw Markdown
 #                (e.g. a `code` span, possibly with a value set or qualifier).
 #                Table pipes are escaped automatically at render time — author
@@ -31,46 +35,280 @@ stats:
   compute_backends: 2
 
 vocabulary:
+  - concept: "Second operand of a data-class method"
+    kwarg: "data"
+    index_md: "`data` — the object a data class is combined with or compared against: `BrainData.append`, `Adjacency.append`, `DesignMatrix.append`, `BrainData.similarity` and `Adjacency.similarity` all name it `data` and take it as their only positional parameter, with everything after it keyword-only"
   - concept: "Algorithm / variant choice"
     kwarg: "method"
-    tour_note: "not `algorithm`/`scheme`/`kind`/`estimator`"
-    index_md: "`method`"
+    index_md: "`method` — on `BrainData.standardize` and `DesignMatrix.standardize` it is one closed set: `*, method: str = 'center'` (`'center' | 'zscore'`)"
+  - concept: "Decoding estimator (MVPA)"
+    kwarg: "estimator"
+    index_md: "`estimator: str | BaseEstimator = 'linear_svc'` on `BrainData.predict` — a built-in shortcut name or any sklearn estimator / `Pipeline`. It names an sklearn object, so it is distinct from `method=`, which selects an algorithm variant"
   - concept: "Spatial scale"
     kwarg: "spatial_scale"
-    tour_note: "`'whole_brain'` · `'roi'` · `'searchlight'`"
     index_md: "`spatial_scale` (`'whole_brain' | 'roi' | 'searchlight'`)"
   - concept: "Distance / similarity metric"
     kwarg: "metric"
-    tour_note: "kept separate from `method`"
     index_md: "`metric`"
+  - concept: "Convolution kernel"
+    kwarg: "kernel"
+    index_md: "`kernel: str | np.ndarray = 'glover'` on `DesignMatrix.convolve` (v0.5.1 spelled it `conv_func`) — an HRF model name nilearn computes (`'glover' | 'glover_time' | 'glover_dispersion' | 'spm' | 'spm_time' | 'spm_dispersion'`) or a caller-supplied array, 1-D for one kernel and 2-D for several. `DesignMatrix(events_file, hrf_model=)` takes the same six names plus `None` for raw boxcars"
+  - concept: "Central tendency"
+    kwarg: "summary"
+    index_md: "`summary` (`'mean' | 'median'`)"
+  - concept: "ISC summary statistic"
+    kwarg: "summary_statistic"
+    index_md: "`summary_statistic` (`'pairwise' | 'leave-one-out'`) on the ISC entry points — which cross-subject comparison is summarized, distinct from `summary`, which is the `'mean'`/`'median'` central tendency applied to it"
+  - concept: "Cross-validation spec"
+    kwarg: "cv"
+    index_md: "`cv` (`int |` splitter `| None`) on `BrainData.predict` — `None` is a deterministic five-fold `KFold`/`StratifiedKFold`; the `'loo'`/`'logo'` names are accepted only by the internal cv resolver behind `BrainData.predict`, and `'loso'`/`'loro'` are gone everywhere. The grouping lives in `groups=`"
   - concept: "Subject-level parallelism"
     kwarg: "n_jobs"
-    tour_note: "default `-1`"
     index_md: "`n_jobs: int = -1`"
   - concept: "GPU / CPU selection"
     kwarg: "device"
-    tour_note: "orthogonal to `n_jobs`"
-    index_md: "`device: str = \"cpu\"`"
-  - concept: "Backend (algorithms layer)"
-    kwarg: "parallel"
-    tour_note: "`None` · `'cpu'` · `'gpu'`"
-    index_md: "`parallel: None | 'cpu' | 'gpu'`"
+    index_md: "`device: str = \"cpu\"` on the ridge entry points — `BrainData.fit(ridge_device=)`, `BrainData.bootstrap`, and the internal ridge estimator they drive — the only paths with a GPU implementation. Run-or-raise: explicit `'gpu'` either runs on the GPU or raises, and there is no `'auto'`"
+  - concept: "Alignment refinement count"
+    kwarg: "n_iter"
+    index_md: "`n_iter` on `SRM` and `DetSRM` — EM iterations or coordinate-descent iterations; everywhere else `n_iter` is a banned alias for `n_permute`/`n_samples`/`search_iterations`"
+  - concept: "Working-memory budget"
+    kwarg: "memory_budget_gb"
+    index_md: "`memory_budget_gb: float | None = None` — device-neutral working-memory budget for internal batching; `None` measures the selected device with headroom"
   - concept: "Progress indicator"
     kwarg: "progress_bar"
-    tour_note: "`verbose` reserved for log-level"
     index_md: "`progress_bar: bool = False`"
   - concept: "Permutation count"
     kwarg: "n_permute"
-    tour_note: "distinct from…"
     index_md: "`n_permute`"
   - concept: "Bootstrap sample count"
     kwarg: "n_samples"
-    tour_note: "…the bootstrap count"
     index_md: "`n_samples`"
+  - concept: "Bootstrap statistic"
+    kwarg: "statistic"
+    index_md: "`statistic` on `bootstrap` — a closed set of eight names (`'mean'`, `'median'`, `'std'`, `'sum'`, `'min'`, `'max'`, `'weights'`, `'predict'`); no callables and no dynamic dispatch to other methods"
+  - concept: "Interval confidence level"
+    kwarg: "confidence_level"
+    index_md: "`confidence_level: float = 0.95` — one level in `(0, 1)`, not a `percentiles` pair; the reported bounds are the central percentile interval, elementwise marginal"
+  - concept: "Retain resampled draws"
+    kwarg: "return_samples"
+    index_md: "`return_samples: bool = False` on `bootstrap` — keeps every replicate (bootstrap axis first); it changes retention only, never the interval"
+  - concept: "Tail of test"
+    kwarg: "tail"
+    index_md: "`tail` (`2 | 'two' | 1 | 'one'`; direction fixed by the test, never the data)"
+  - concept: "Threshold pair"
+    kwarg: "lower, upper, binarize"
+    index_md: "`lower`, `upper`, `binarize` (+ `threshold` where bidirectional)"
+  - concept: "Display autoscaling"
+    kwarg: "autoscale"
+    index_md: "`autoscale: bool = True` (viewer display window; `False` = raw magnitude range)"
+  - concept: "Display symmetry"
+    kwarg: "symmetric"
+    index_md: "`symmetric: bool | 'auto' = 'auto'` (viewer positive/negative limbs)"
+  - concept: "Plot axis"
+    kwarg: "ax"
+    index_md: "`ax: matplotlib.axes.Axes | None = None` on the data-class plotters (`BrainData.plot`, `Adjacency.plot`, `DesignMatrix.plot`) and the Adjacency helper plots, following matplotlib and seaborn"
+  - concept: "Plotted panel cap"
+    kwarg: "limit"
+    index_md: "`limit: int = 3` on `BrainData.plot` and `Adjacency.plot` — how many images or matrices of a stack are rendered; keyword-only on both"
+  - concept: "Diagonal flag"
+    kwarg: "include_diag"
+    index_md: "`include_diag: bool`"
+  - concept: "Radius (mm)"
+    kwarg: "radius"
+    index_md: "`radius: float` in millimeters everywhere, following nilearn's `SearchLight` and `NiftiSpheresMasker` — `10.0` on the searchlight entry points (`BrainData.predict`, `BrainData.distance`, `compute_searchlight_neighborhoods`), and the same millimeter unit for `create_sphere` and `Simulator` geometry, converted to voxels through the image affine"
+  - concept: "GLM-specific fit option"
+    kwarg: "glm_*"
+    index_md: "`glm_*` on `BrainData.fit` (`glm_noise_model`, `glm_bins`, `glm_n_jobs`) — a non-default one under `model='ridge'` raises `ValueError`; `random_state` keeps its bare name because both estimators use it"
+  - concept: "Ridge-specific fit option"
+    kwarg: "ridge_*"
+    index_md: "`ridge_*` on `BrainData.fit` (`ridge_alpha`, `ridge_cv`, `ridge_search_iterations`, `ridge_dirichlet_concentration`, `ridge_device`, `ridge_memory_budget_gb`, `ridge_per_target_alpha`, `ridge_prefer_conservative_alpha`, `ridge_progress_bar`) — each maps onto the identically-named argument of the internal ridge estimator behind `model='ridge'`, and a non-default one under `model='glm'` raises `ValueError`"
+  - concept: "Contrast inference toggle"
+    kwarg: "inference"
+    index_md: "`inference: bool = False` on `compute_contrasts` — the effect alone by default (what a second-level model consumes); `True` returns the full `ContrastResult`"
 
-# Deliberate deviations from the table (design-tour "exceptions" callout).
-# Rendered as Markdown → HTML. Keep in sync with CLAUDE.md exceptions F175/F105/F077.
+# Deliberate deviations from the table. Each entry names the module `path`
+# (prefix-matched, like exclude_paths), function, and kwarg it exempts — the
+# checker suppresses that exact (path, function, kwarg) triple, so a
+# same-named def elsewhere is still checked — and carries `text`, a
+# human-readable rationale for the deviation. Keep in sync with CLAUDE.md
+# exceptions F175/F105/F077.
 exceptions:
-  - "`fit(model='glm'|'ridge')` selects an estimator *class*, not a variant."
-  - "`Ridge(n_iter=)` matches sklearn's random-search name."
-  - "`compute_contrasts(statistic=)` selects an output map (t/z/p/β), not an algorithm."
+  - path: "nltools/data/braindata/__init__.py"
+    function: "BrainData.fit"
+    kwarg: "model"
+    finding: F175
+    text: "`fit(model='glm'|'ridge')` selects an estimator *class*, not a variant."
+  - path: "nltools/models/glm.py"
+    function: "Glm.compute_contrasts"
+    kwarg: "tail"
+    finding: tails-sweep
+    text: "GLM contrast p-values are *one-sided* (the nilearn/SPM directional-contrast convention) and take no `tail=` knob — the one deliberate exception to the two-tailed default."
+  - path: "nltools/data/braindata/__init__.py"
+    function: "BrainData.bootstrap"
+    kwarg: "tail"
+    finding: tails-sweep
+    text: "`BrainData.bootstrap` and `Adjacency.bootstrap` report a percentile confidence interval and no p-value, so they take no `tail=` knob — a deliberate carve-out from the tails sweep, not an omission."
+  - path: "nltools/algorithms/alignment/srm.py"
+    function: "SRM.__init__"
+    kwarg: "random_state"
+    finding: alignment-random-state
+    text: "`SRM`, `DetSRM`, and `align()` keep `random_state: int = 0` rather than the codebase's otherwise-uniform bare `random_state: int | None = None`: v0.5.1's alignment was deterministic by default via brainiak's `rand_seed=0`, and a `None` default would make alignment nondeterministic by default — a v0.5.1-visible behavior change this rename does not make."
+  - path: "nltools/algorithms/alignment/srm.py"
+    function: "DetSRM.__init__"
+    kwarg: "random_state"
+    finding: alignment-random-state
+    text: "Same `random_state: int = 0` contract as `SRM` (see above), not the bare `int | None = None` used elsewhere."
+  - path: "nltools/algorithms/alignment/procrustes.py"
+    function: "align"
+    kwarg: "random_state"
+    finding: alignment-random-state
+    text: "`align()` forwards the same `random_state: int = 0` default to the constructed `SRM`/`DetSRM` (see above)."
+
+# ── Machine-checkable enforcement rules (scripts/check_api_vocabulary.py) ─────
+#
+# Scope model mirrors .semgrep/rules.yml: rules bind PUBLIC (non-underscore)
+# defs; the pipelines subsystem is path-excluded (nltools/pipelines/ forwards
+# to its own dispatch layer). The alignment estimators (SRM, DetSRM) are
+# internal after 8g3b but still unprefixed, so they are checked directly as
+# ordinary public defs; `n_iter` is that
+# subsystem's own vocabulary (see the "Alignment refinement count" row above),
+# suppressed from the general ban via per-alias banned_kwargs.<name>.exclude_paths
+# rather than a directory-wide exclusion.
+#
+#   banned_kwargs   — alias → {canonical, exclude_paths?}: the alias may not
+#                     appear as a parameter name on any public def in scope.
+#   kwarg_contracts — canonical kwarg → constraints checked when the kwarg
+#                     appears WITH a literal default: `banned_defaults` (values
+#                     that signal the wrong concept), `allowed_defaults` (the
+#                     closed set of legal defaults), `keyword_only: true`.
+#   exemptions      — extra (path, function, kwarg) suppressions beyond
+#                     `exceptions:` above (which the checker also honors).
+#                     `path` is the defining module, prefix-matched like
+#                     exclude_paths. Each needs a reason.
+#   kwonly_exemptions — (path, function) suppressions for the keyword-only
+#                     `*`-marker check (scripts/check_kwonly.py). Same path
+#                     semantics; each needs a reason.
+enforcement:
+  exclude_paths:
+    - "nltools/tests/"
+    - "nltools/pipelines/"
+  banned_kwargs:
+    algorithm: {canonical: "method"}
+    scheme: {canonical: "method"}
+    kind: {canonical: "method"}
+    estimator:
+      canonical: "method (algorithm variant) — estimator= is canonical only on BrainData.predict, where it names an sklearn object"
+    icc_type: {canonical: "method"}
+    extract_type: {canonical: "method"}
+    perm_type: {canonical: "method"}
+    contrast_type: {canonical: "method"}
+    mode: {canonical: "method"}
+    parallel:
+      canonical: "n_jobs (CPU workers) or device (cpu/gpu selection)"
+      # resolve_backend()'s own `parallel=` param IS the concept it translates
+      # into a Backend. Nothing else takes the keyword any more.
+      exclude_paths: ["nltools/algorithms/backends.py"]
+    backend:
+      canonical: "device"
+      # Home of the Backend abstraction itself — its `backend=` params ARE the concept.
+      exclude_paths: ["nltools/algorithms/backends.py"]
+    conv_func: {canonical: "kernel (the convolution kernel on DesignMatrix.convolve)"}
+    n_perm: {canonical: "n_permute"}
+    n_iter:
+      canonical: "n_permute (permutations), n_samples (bootstrap), or search_iterations (banded ridge)"
+      # SRM/DetSRM are internal after 8g3b (reached through BrainData.align);
+      # their n_iter IS the "Alignment refinement count" concept above, not an
+      # alias.
+      exclude_paths: ["nltools/algorithms/alignment/"]
+    alphas: {canonical: "alpha (a scalar fits it; a sequence selects among the candidates)"}
+    concentration: {canonical: "dirichlet_concentration"}
+    local_alpha: {canonical: "per_target_alpha"}
+    conservative: {canonical: "prefer_conservative_alpha"}
+    show_progress: {canonical: "progress_bar"}
+    stat: {canonical: "statistic (the bootstrap statistic name)"}
+    save_boots: {canonical: "return_samples"}
+    save_weights: {canonical: "return_samples"}
+    percentiles: {canonical: "confidence_level (one level, not a percentile pair)"}
+    ignore_diagonal: {canonical: "include_diag (note the inverted sense)"}
+    resample_mask_to_brain:
+      canonical: "no replacement — BrainData.apply_mask requires a same-grid mask; bring the operands onto a common grid with BrainData.resample() first"
+  kwarg_contracts:
+    metric:
+      banned_defaults: ["mean", "median"]
+      hint: "a 'mean'/'median' default means this is a central tendency — name it summary=; metric= is reserved for distance/similarity metrics"
+    summary:
+      allowed_defaults: ["mean", "median"]
+      hint: "summary= is the 'mean'|'median' central-tendency choice; other concepts need another name (e.g. cluster_summary's within/between choice is scope=)"
+    progress_bar:
+      allowed_defaults: [false]
+      keyword_only: true
+      hint: "canonical form is `*, progress_bar: bool = False`"
+    autoscale:
+      allowed_defaults: [true]
+      keyword_only: true
+      hint: "canonical form is `*, autoscale: bool = True` — robust by default; False uses the raw magnitude range, never the default"
+    symmetric:
+      allowed_defaults: ["auto"]
+      keyword_only: true
+      hint: "canonical form is `*, symmetric: bool | 'auto' = 'auto'` — mixed-signed maps are symmetric by default; one-sided maps use their full range"
+    n_jobs:
+      allowed_defaults: [-1]
+      hint: "canonical form is `n_jobs: int = -1` (all cores)"
+    confidence_level:
+      allowed_defaults: [0.95]
+      keyword_only: true
+      hint: "canonical form is `*, confidence_level: float = 0.95` — one level strictly inside (0, 1); a percentile pair is the banned `percentiles=` spelling"
+    return_samples:
+      allowed_defaults: [false]
+      keyword_only: true
+      hint: "canonical form is `*, return_samples: bool = False` — retention only; it must never change interval or estimate semantics"
+    device:
+      allowed_defaults: ["cpu"]
+      hint: "canonical form is `device: str = 'cpu'` on the ridge fit and the ridge bootstrap, the only GPU paths; run-or-raise — explicit 'gpu' either runs on the GPU or raises, never a silent CPU fallback, and there is no 'auto' value"
+      # Backend's own methods use `device=None` to mean "the backend's device".
+      exclude_paths: ["nltools/algorithms/backends.py"]
+    memory_budget_gb:
+      allowed_defaults: [null]
+      keyword_only: true
+      hint: "canonical form is `*, memory_budget_gb: float | None = None` — the device-neutral working-memory budget; None measures the selected device via backends.device_memory_budget, an explicit positive GB value is used verbatim"
+    spatial_scale:
+      allowed_defaults: ["whole_brain", "roi", "searchlight"]
+      hint: "spatial_scale selector values are 'whole_brain' | 'roi' | 'searchlight'"
+    tail:
+      allowed_defaults: [2]
+      hint: "canonical form is `tail: int | str = 2` — 2|'two' (two-tailed, the library default) or 1|'one' (one-tailed in the test's positive direction); sites where only one tail is statistically valid (dcorr, F, Rayleigh) take no tail kwarg at all"
+  exemptions:
+    # `stat=` is banned as a bootstrap-statistic alias. These three predate that
+    # concept and name something else entirely.
+    - {path: "nltools/algorithms/corrections.py", function: "threshold", kwarg: "stat", reason: "names the statistic map being thresholded, not a bootstrap statistic"}
+    - {path: "nltools/data/braindata/__init__.py", function: "BrainData.plot", kwarg: "stat", reason: "names the timeseries plot's central tendency, not a bootstrap statistic"}
+    - {path: "nltools/data/braindata/plotting.py", function: "plot_brain", kwarg: "stat", reason: "delegation target of BrainData.plot"}
+    # BrainData.predict defaults n_jobs=1 to limit searchlight worker memory.
+    - {path: "nltools/data/braindata/__init__.py", function: "BrainData.predict", kwarg: "n_jobs", reason: "searchlight worker memory; documented in the docstring"}
+    - {path: "nltools/data/braindata/prediction.py", function: "predict", kwarg: "n_jobs", reason: "delegation target of BrainData.predict"}
+    # MVPA's estimator= names an sklearn object, not an algorithm variant, so it
+    # is canonical there while the alias stays banned everywhere else.
+    - {path: "nltools/data/braindata/__init__.py", function: "BrainData.predict", kwarg: "estimator", reason: "names an sklearn estimator object, not an algorithm variant"}
+    - {path: "nltools/data/braindata/prediction.py", function: "predict", kwarg: "estimator", reason: "delegation target of BrainData.predict"}
+    - {path: "nltools/data/braindata/prediction.py", function: "predict_mvpa", kwarg: "estimator", reason: "delegation target of BrainData.predict"}
+    - {path: "nltools/data/braindata/prediction.py", function: "resolve_estimator", kwarg: "estimator", reason: "resolves the estimator= argument of BrainData.predict"}
+    - {path: "nltools/data/braindata/prediction.py", function: "build_pipeline", kwarg: "estimator", reason: "builds the pipeline for the estimator= argument of BrainData.predict"}
+    # Only autoregressive fits reach nilearn's parallel path, so the default
+    # OLS fit never spawns workers.
+    - {path: "nltools/models/glm.py", function: "Glm.__init__", kwarg: "n_jobs", reason: "nilearn's run_glm parallelizes AR groups only; documented in the docstring"}
+    # Single-argument shared validators: the one positional parameter names the
+    # keyword being checked. The keyword-only contract governs entry-point
+    # signatures, which is where a caller can pass it by name.
+    - {path: "nltools/algorithms/inference/validation.py", function: "validate_confidence_level", kwarg: "confidence_level", reason: "the validator's only argument is the value it checks"}
+    - {path: "nltools/algorithms/inference/validation.py", function: "validate_memory_budget", kwarg: "memory_budget_gb", reason: "the validator's only argument is the value it checks"}
+  # Keyword-only `*`-marker carve-outs (scripts/check_kwonly.py). These
+  # functions deliberately mirror numpy signatures so they are drop-in
+  # substitutes inside backend-generic code (numpy accepts
+  # `np.zeros_like(a, dtype, order)` positionally); forcing a `*` here would
+  # break that substitutability for no safety gain. Do NOT add entries to
+  # escape the convention for ordinary nltools functions — this list exists
+  # only for signatures whose shape is dictated by an external API.
+  kwonly_exemptions:
+    - {path: "nltools/algorithms/backends.py", function: "zeros_like", reason: "mirrors np.zeros_like"}
+    - {path: "nltools/algorithms/backends.py", function: "ones_like", reason: "mirrors np.ones_like"}
+    - {path: "nltools/algorithms/backends.py", function: "full_like", reason: "mirrors np.full_like"}

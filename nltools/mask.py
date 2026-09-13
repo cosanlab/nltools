@@ -16,96 +16,117 @@ from nilearn.masking import intersect_masks
 
 
 def create_sphere(coordinates, radius=5, mask=None):
-    """Generate spheres in brain-mask space.
+    """Generate binary spheres in the space of a brain mask.
+
+    Spheres are drawn with `nilearn.maskers.NiftiSpheresMasker`, so centers are
+    world (MNI) millimeter coordinates and the radius is in millimeters — the same
+    convention as nilearn's `SearchLight` and `NiftiSpheresMasker`. The result is
+    resolution-independent: the same request covers the same physical volume on a
+    1 mm, 2 mm, or 3 mm grid, up to voxel quantization.
 
     Args:
-        coordinates: a vector of sphere centers of the form `[px, py, pz]` or
-            `[[px1, py1, pz1], ..., [pxn, pyn, pzn]]`
-        radius: radius of the sphere(s). A scalar creates one sphere per
-            center; a vector creates multiple spheres if `len(radius) > 1`
-        mask: `Nifti1Image` (or path to a mask file) defining the brain space.
-            Defaults to the package brain-space mask when None.
+        coordinates (list): Sphere center `[x, y, z]` in world (MNI) millimeters, or
+            one center per sphere `[[x1, y1, z1], ...]`.
+        radius (int | float | list): Radius of the sphere(s) in millimeters. A scalar
+            applies to every center; a list gives one radius per center.
+        mask (nibabel.Nifti1Image | str, optional): Image (or path) defining the brain
+            space. Defaults to the package brain-space mask.
 
     Returns:
-        Nifti1Image: A binary image with the requested spheres in mask space.
-    """
-    from nltools.data import BrainData
+        nibabel.Nifti1Image: A binary image with the requested spheres in mask space.
 
+    Raises:
+        ValueError: If `mask` is neither a nibabel image nor a readable file path, if
+            the radius list length does not match the coordinate list length, or if a
+            requested sphere contains no in-mask voxel.
+
+    Examples:
+        ```python
+        from nltools.mask import create_sphere
+
+        # A 10 mm sphere centered on an MNI coordinate
+        roi = create_sphere([12, 10, -8], radius=10)
+
+        # Two spheres with different radii
+        rois = create_sphere([[12, 10, -8], [-12, 10, -8]], radius=[10, 6])
+        ```
+    """
     if mask is not None:
         if not isinstance(mask, nib.Nifti1Image):
-            if isinstance(mask, str):
-                if os.path.isfile(mask):
-                    mask = nib.load(mask)
+            if isinstance(mask, str) and os.path.isfile(mask):
+                mask = nib.load(mask)
             else:
                 raise ValueError("mask is not a nibabel instance or a valid file name")
-
     else:
         mask = nib.load(get_brainspace().mask)
 
-    def sphere(r, p, mask):
-        """Create a sphere with a given radius and center in the brain mask.
+    centers, radii = _resolve_sphere_requests(coordinates, radius)
 
-        Args:
-            r: radius of the sphere
-            p: point (in coordinates of the brain mask) of the center of the
-                sphere
+    volume = np.zeros(mask.shape, dtype=bool)
+    for sphere_radius in sorted(set(radii)):
+        seeds = [c for c, r in zip(centers, radii) if r == sphere_radius]
+        volume |= _draw_spheres(seeds, sphere_radius, mask)
 
-        """
-        dims = mask.shape
-        m = [dims[0] / 2, dims[1] / 2, dims[2] / 2]
-        x, y, z = np.ogrid[
-            -m[0] : dims[0] - m[0], -m[1] : dims[1] - m[1], -m[2] : dims[2] - m[2]
-        ]
-        mask_r = x * x + y * y + z * z <= r * r
+    return nib.Nifti1Image(
+        volume.astype(np.float64), affine=mask.affine, header=mask.header
+    )
 
-        activation = np.zeros(dims)
-        activation[mask_r] = 1
-        translation_affine = np.array(
-            [
-                [1, 0, 0, p[0] - m[0]],
-                [0, 1, 0, p[1] - m[1]],
-                [0, 0, 1, p[2] - m[2]],
-                [0, 0, 0, 1],
-            ]
-        )
 
-        return nib.Nifti1Image(activation, affine=translation_affine)
-
-    if any(isinstance(i, list) for i in coordinates):
-        if isinstance(radius, list):
-            if len(radius) != len(coordinates):
-                raise ValueError(
-                    "Make sure length of radius list matcheslength of coordinate list."
-                )
-        else:
-            # A single scalar radius (int/float/np scalar) applies to every
-            # coordinate. Broadened from the old `isinstance(radius, int)` check
-            # so float / numpy-scalar radii no longer fall through to `zip`.
-            radius = [radius] * len(coordinates)
-        out = BrainData(
-            nib.Nifti1Image(np.zeros_like(mask.get_fdata()), affine=mask.affine),
-            mask=mask,
-        )
-        for r, c in zip(radius, coordinates):
-            out = out + BrainData(sphere(r, c, mask), mask=mask)
+def _resolve_sphere_requests(coordinates, radius):
+    """Normalize the center/radius arguments into equal-length lists of floats."""
+    if any(isinstance(c, (list, tuple, np.ndarray)) for c in coordinates):
+        centers = [tuple(float(v) for v in c) for c in coordinates]
     else:
-        out = BrainData(sphere(radius, coordinates, mask), mask=mask)
-    out = out.to_nifti()
-    out.get_fdata()[out.get_fdata() > 0.5] = 1
-    out.get_fdata()[out.get_fdata() < 0.5] = 0
-    return out
+        centers = [tuple(float(v) for v in coordinates)]
+
+    if isinstance(radius, (list, tuple, np.ndarray)):
+        radii = [float(r) for r in radius]
+        if len(radii) != len(centers):
+            raise ValueError(
+                "Make sure length of radius list matches length of coordinate list."
+            )
+    else:
+        radii = [float(radius)] * len(centers)
+
+    return centers, radii
+
+
+def _draw_spheres(seeds, radius, mask):
+    """Return a boolean volume covering every in-mask voxel within `radius` mm of a seed."""
+    from nilearn.maskers import NiftiSpheresMasker
+
+    masker = NiftiSpheresMasker(
+        seeds=seeds, radius=radius, mask_img=mask, allow_overlap=True
+    )
+    try:
+        masker.fit()
+        drawn = masker.inverse_transform(np.ones((1, len(seeds))))
+    except ValueError as error:
+        # nilearn 0.14 raises "These spheres are empty: [...]" for a seed with no
+        # in-mask voxel in range. Every other ValueError from this path (a
+        # non-binary mask, a malformed signal vector) is a different problem and
+        # must keep its own diagnostic.
+        if "spheres are empty" not in str(error):
+            raise
+        raise ValueError(
+            f"No in-mask voxel lies within {radius}mm of one of the requested "
+            f"centers {seeds}; the center is outside the mask. Coordinates are "
+            "world (MNI) millimeters, not voxel indices."
+        ) from error
+
+    return np.asarray(drawn.dataobj)[..., 0] > 0
 
 
 def expand_mask(mask, custom_mask=None):
     """Expand an integer-labeled mask into separate binary masks.
 
     Args:
-        mask: nibabel or BrainData instance
-        custom_mask: nibabel instance or string to file path; optional
+        mask (nibabel.Nifti1Image | BrainData): Integer-labeled mask.
+        custom_mask (nibabel.Nifti1Image | str, optional): Brain mask (or path) used
+            when converting a nibabel `mask` to `BrainData`.
 
     Returns:
-        out: BrainData instance of multiple binary masks
-
+        BrainData: One binary mask per unique non-zero label.
     """
 
     from nltools.data import BrainData
@@ -114,10 +135,13 @@ def expand_mask(mask, custom_mask=None):
         mask = BrainData(mask, mask=custom_mask)
     if not isinstance(mask, BrainData):
         raise ValueError("Make sure mask is a nibabel or BrainData instance.")
-    mask.data = np.round(mask.data).astype(int)
+    # int32, not the platform `int`: NIfTI tooling cannot carry 64-bit ints, so
+    # nilearn downcasts them (with a warning) the moment the mask is written or
+    # plotted.
+    mask.data = np.round(mask.data).astype(np.int32)
     tmp = []
     for i in np.unique(mask.data[mask.data != 0]):
-        tmp.append((mask.data == i) * 1)
+        tmp.append((mask.data == i).astype(np.int32))
     out = mask.create_empty()
     out.data = np.array(tmp)
     return out
@@ -129,19 +153,19 @@ def collapse_mask(mask, auto_label=True, custom_mask=None):
     Overlapping areas are ignored.
 
     Args:
-        mask: nibabel or BrainData instance holding 2+ separate masks
-            (stacked along the first axis).
-        auto_label: If True (default), label the collapsed regions with
+        mask (nibabel.Nifti1Image | BrainData): Two or more separate masks stacked
+            along the first axis.
+        auto_label (bool): If True (default), label the collapsed regions with
             sequential integers (1, 2, 3, …) in mask order. If False, keep each
             mask's own values as its label.
-        custom_mask: nibabel instance or string to file path; optional.
+        custom_mask (nibabel.Nifti1Image | str, optional): Brain mask (or path) used
+            when converting a nibabel `mask` to `BrainData`.
 
     Returns:
-        out: BrainData instance of a mask with different integers indicating
-            different masks.
+        BrainData: A single mask whose integer values identify the source masks.
 
     Raises:
-        ValueError: If ``mask`` is neither a nibabel nor BrainData instance, or
+        ValueError: If `mask` is neither a nibabel nor BrainData instance, or
             if it holds fewer than 2 masks (nothing to collapse).
     """
 
@@ -180,14 +204,14 @@ def collapse_mask(mask, auto_label=True, custom_mask=None):
                 np.multiply(BrainData(m_list[i], mask=custom_mask).data, intersect.data)
                 * (i + 1)
             )
-        out.data = np.sum(np.array(merge).T, 1).astype(int)
+        out.data = np.sum(np.array(merge).T, 1).astype(np.int32)
     else:
         # Collapse masks using value as label
         for i in range(len(m_list)):
             merge.append(
                 np.multiply(BrainData(m_list[i], mask=custom_mask).data, intersect.data)
             )
-        out.data = np.sum(np.array(merge).T, 1)
+        out.data = np.sum(np.array(merge).T, 1).astype(np.int32)
     return out
 
 
@@ -201,15 +225,17 @@ def roi_to_brain(data, mask_x):
     observation.
 
     Args:
-        data: ROI values. 1-D length must equal len(mask_x);
-            2-D shape must be (n_rois, n_obs) or (n_obs, n_rois).
-        mask_x: An expanded binary mask (BrainData) with one row per ROI.
+        data (list | np.ndarray | pl.DataFrame | pl.Series | pd.DataFrame | pd.Series):
+            ROI values. 1-D length must equal `len(mask_x)`; 2-D shape must be
+            `(n_rois, n_obs)` or `(n_obs, n_rois)`.
+        mask_x (BrainData): An expanded binary mask with one row per ROI.
 
     Returns:
         BrainData: A BrainData instance with each ROI populated by the
-        provided value(s).
+            provided value(s).
     """
     import polars as pl
+    from nltools.data.braindata.utils import _result_from_array
 
     if isinstance(data, (pl.DataFrame, pl.Series)):
         arr = data.to_numpy()
@@ -233,8 +259,9 @@ def roi_to_brain(data, mask_x):
     if arr.ndim == 1:
         if len(arr) != len(mask_x):
             raise ValueError("Data must have the same number of rows as mask has ROIs.")
-        out = mask_x[0].copy()
-        out.data = np.zeros(out.data.shape)
+        out = _result_from_array(
+            mask_x[0], np.zeros(mask_x.data.shape[1]), rows="clear"
+        )
         for roi in range(len(mask_x)):
             out.data[np.where(mask_x.data[roi, :])] = arr[roi]
         return out
@@ -247,8 +274,9 @@ def roi_to_brain(data, mask_x):
                 raise ValueError(
                     "Data must have the same number of rows as rois in mask"
                 )
-        out = mask_x.copy()
-        out.data = np.zeros((arr.shape[1], out.data.shape[1]))
+        out = _result_from_array(
+            mask_x, np.zeros((arr.shape[1], mask_x.data.shape[1])), rows="clear"
+        )
         for roi in range(len(mask_x)):
             roi_data = arr[roi, :].reshape(-1, 1)
             out.data[:, mask_x[roi].data == 1] = np.repeat(
@@ -269,40 +297,41 @@ def roi_to_brain_from_atlas(
 ):
     """Paint per-parcel values onto voxel space using a labeled atlas.
 
-    Sibling of `roi_to_brain`, but accepts a *labeled* atlas (one
-    integer label per voxel — the form carried by
-    `SpatialScale`), not an expanded mask
-    with one binary row per ROI. Voxels whose atlas label is not in
-    ``roi_labels`` (or whose label is 0) receive ``fill``.
+    Sibling of `roi_to_brain`, but accepts a *labeled* atlas (one integer label
+    per voxel), not an expanded mask with
+    one binary row per ROI. Voxels whose atlas label is not in `roi_labels` (or
+    whose label is 0) receive `fill`.
 
     Args:
-        values: Per-parcel scalars, either 1-D `(n_parcels,)` for a single
-            image or 2-D `(n_images, n_parcels)` for a stack of images. The
+        values (np.ndarray): Per-parcel scalars, either 1-D `(n_parcels,)` for a
+            single image or 2-D `(n_images, n_parcels)` for a stack of images. The
             trailing (parcel) axis must match `len(roi_labels)` (or the number
             of unique non-zero atlas labels when `roi_labels` is None).
-        atlas: Labeled image — ``BrainData``, ``Nifti1Image``, or path-like.
-            Resampled to ``source_mask`` (nearest-neighbor) if shapes/affines
-            differ.
-        source_mask: ``Nifti1Image`` (or path) defining the output voxel
-            grid. The returned ``BrainData`` is masked to this image.
-        roi_labels: Integer atlas IDs in the same order as ``values``. If
-            None, defaults to ``np.unique`` of the atlas with 0 stripped
+        atlas (BrainData | nibabel.Nifti1Image | str | Path): Labeled image.
+            Resampled to `source_mask` (nearest-neighbor) if shapes/affines differ.
+        source_mask (nibabel.Nifti1Image | str | Path): Image (or path) defining the
+            output voxel grid. The returned `BrainData` is masked to this image.
+        roi_labels (array-like, optional): Integer atlas IDs in the same order as
+            `values`. If None, defaults to `np.unique` of the atlas with 0 stripped
             (sorted ascending).
-        fill: Value for voxels not in any provided ROI. Default ``np.nan``.
+        fill (float): Value for voxels not in any provided ROI. Default `np.nan`.
 
     Returns:
         BrainData: Masked to `source_mask`, with each in-atlas voxel set to its
-        parcel's scalar from `values`. Holds a single image when `values` is
-        1-D, or `n_images` images when `values` is 2-D `(n_images, n_parcels)`.
+            parcel's scalar from `values`. Holds a single image when `values` is
+            1-D, or `n_images` images when `values` is 2-D `(n_images, n_parcels)`.
 
     Examples:
-        >>> from nltools.mask import roi_to_brain_from_atlas
-        >>> brain_map = roi_to_brain_from_atlas(
-        ...     values=accuracies,
-        ...     atlas=atlas_img,
-        ...     source_mask=brain_mask,
-        ...     roi_labels=[1, 2, 3],
-        ... )
+        ```python
+        from nltools.mask import roi_to_brain_from_atlas
+
+        brain_map = roi_to_brain_from_atlas(
+            values=accuracies,
+            atlas=atlas_img,
+            source_mask=brain_mask,
+            roi_labels=[1, 2, 3],
+        )
+        ```
     """
     from pathlib import Path
 

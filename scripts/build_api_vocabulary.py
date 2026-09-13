@@ -2,16 +2,14 @@
 """Render the canonical-kwarg vocabulary into the docs from one source.
 
 `docs/_data/api-vocabulary.yml` is the single machine-readable source of truth for
-the v0.6.0 canonical-kwarg vocabulary. This script renders it into two hand-authored
-docs, replacing the content between `<!-- AUTOGEN:api-vocabulary:<block> -->` and
+the canonical-kwarg vocabulary. This script renders it into a hand-authored doc,
+replacing the content between `<!-- AUTOGEN:api-vocabulary:<block> -->` and
 `<!-- /AUTOGEN:api-vocabulary:<block> -->` marker pairs:
 
-  - docs/development/index.md    — block `index-table`   (2-column Markdown table)
-  - docs/public/design-tour.html — block `tour-table`    (3-column HTML table body)
-                                    block `tour-exceptions` (the "exceptions" callout)
+  - docs/development/index.md — block `index-table` (2-column Markdown table)
 
 Everything OUTSIDE the markers is left untouched, so the surrounding hand-crafted
-prose/markup (the 800-line design tour in particular) is preserved verbatim.
+prose is preserved verbatim.
 
 Usage:
     python scripts/build_api_vocabulary.py          # write the rendered blocks in place
@@ -21,8 +19,9 @@ Usage:
 to the vocabulary — or to a generated table by hand — fails the build until the docs
 are regenerated. The write mode is wired into `poe docs-generate`.
 
-The HUMAN canon is CLAUDE.md's "API Conventions (v0.6.0)" table; keep the YAML in
-sync with it (CLAUDE.md is read directly by Claude and is not generated).
+The YAML is the canon: CLAUDE.md's "API Conventions" section points at it rather
+than duplicating the table, and `scripts/check_api_vocabulary.py` enforces its
+`enforcement:` rules against every public signature in the package.
 """
 
 from __future__ import annotations
@@ -32,45 +31,32 @@ import re
 import sys
 from pathlib import Path
 
-import yaml
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from manifest import PROJECT_ROOT, load_vocab  # noqa: E402
 
-PROJECT_ROOT = Path(__file__).resolve().parent.parent
-VOCAB_YML = PROJECT_ROOT / "docs" / "_data" / "api-vocabulary.yml"
 INDEX_MD = PROJECT_ROOT / "docs" / "development" / "index.md"
-DESIGN_TOUR = PROJECT_ROOT / "docs" / "public" / "design-tour.html"
 
-_NUMBER_WORDS = {
-    1: "One",
-    2: "Two",
-    3: "Three",
-    4: "Four",
-    5: "Five",
-    6: "Six",
-    7: "Seven",
-    8: "Eight",
-    9: "Nine",
-}
-
-
-def _load_vocab() -> dict:
-    with VOCAB_YML.open() as f:
-        return yaml.safe_load(f)
-
-
-def _md_inline_to_html(text: str) -> str:
-    """Convert the limited Markdown used in the YAML to HTML.
-
-    Only `code` spans and *emphasis* appear in the vocabulary notes/exceptions;
-    handle exactly those so the design-tour markup matches its hand-authored style.
-    """
-    text = re.sub(r"`([^`]+)`", r"<code>\1</code>", text)
-    text = re.sub(r"\*([^*]+)\*", r"<em>\1</em>", text)
-    return text
+_CODE_SPAN_RE = re.compile(r"`([^`]+)`")
 
 
 def _escape_table_cell(md: str) -> str:
-    """Escape pipe characters so a Markdown value set survives inside a table cell."""
-    return md.replace("|", r"\|")
+    """Make a Markdown value set survive inside a table cell.
+
+    A pipe inside a code span has no escape both renderers accept: Python-Markdown
+    leaves the backslash visible, and markdown-it (MyST) splits the row on a raw
+    pipe. Such spans become raw `<code>` with the pipe as a character reference.
+    Pipes outside a code span take the usual backslash.
+    """
+    return _CODE_SPAN_RE.sub(_code_span_to_html, md).replace("|", r"\|")
+
+
+def _code_span_to_html(match: re.Match[str]) -> str:
+    """Return a code span as raw `<code>`, pipe included, or unchanged if it has none."""
+    span = match.group(1)
+    if "|" not in span:
+        return match.group(0)
+    escaped = span.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+    return f"<code>{escaped.replace('|', '&#124;')}</code>"
 
 
 def render_index_table(vocab: dict) -> str:
@@ -79,28 +65,6 @@ def render_index_table(vocab: dict) -> str:
     for row in vocab["vocabulary"]:
         lines.append(f"| {row['concept']} | {_escape_table_cell(row['index_md'])} |")
     return "\n".join(lines)
-
-
-def render_tour_table(vocab: dict) -> str:
-    """Render the 3-column HTML table body (<tr> rows) for the design tour."""
-    rows = []
-    for row in vocab["vocabulary"]:
-        concept = row["concept"]
-        kwarg = f"<code>{row['kwarg']}</code>"
-        note = _md_inline_to_html(row["tour_note"])
-        rows.append(f"    <tr><td>{concept}</td><td>{kwarg}</td><td>{note}</td></tr>")
-    return "\n".join(rows)
-
-
-def render_tour_exceptions(vocab: dict) -> str:
-    """Render the inner HTML of the design-tour "deliberate exceptions" callout."""
-    exceptions = vocab["exceptions"]
-    count = _NUMBER_WORDS.get(len(exceptions), str(len(exceptions)))
-    sentences = " ".join(_md_inline_to_html(e) for e in exceptions)
-    return (
-        f"  <strong>{count} deliberate exceptions.</strong> {sentences} "
-        "Each is documented, not an oversight."
-    )
 
 
 def _marker_pair(block: str) -> tuple[re.Pattern, str]:
@@ -146,15 +110,9 @@ def _apply(path: Path, blocks: dict[str, str]) -> str:
 
 
 def build(check: bool) -> int:
-    vocab = _load_vocab()
+    vocab = load_vocab()
 
-    targets = {
-        INDEX_MD: {"index-table": render_index_table(vocab)},
-        DESIGN_TOUR: {
-            "tour-table": render_tour_table(vocab),
-            "tour-exceptions": render_tour_exceptions(vocab),
-        },
-    }
+    targets = {INDEX_MD: {"index-table": render_index_table(vocab)}}
 
     stale: list[Path] = []
     for path, blocks in targets.items():

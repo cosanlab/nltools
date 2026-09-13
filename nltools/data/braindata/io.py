@@ -1,12 +1,11 @@
-"""BrainData I/O and loading functions.
+"""Loading, resampling, writing, and uploading for `BrainData`.
 
-Standalone functions extracted from BrainData class methods for mask initialization,
-data loading (from files, lists, URLs, HDF5, other BrainData objects), resampling,
-writing, and uploading.
+Functions that resolve a mask, load data (from files, lists, URLs, HDF5, or other
+`BrainData` objects), resample to a target grid, write NIfTI/HDF5, and upload to
+NeuroVault. `BrainData` methods delegate here.
 """
 
 import os
-import re
 import shutil
 import tempfile
 import warnings
@@ -14,15 +13,21 @@ import warnings
 import numpy as np
 from pathlib import Path
 
+from nltools.templates.paths import _split_template_name
+from nltools.utils import ResamplingWarning, find_stack_level
+
 
 def _detect_interpolation(img):
     """Detect appropriate interpolation method based on image data type.
 
     Determines whether an image contains discrete (atlas/label) or continuous
-    data by checking if values are integers and counting unique values.
+    data by checking if values are integers and counting unique values. For a
+    4-D image only the first volume is inspected: it decides label-vs-signal as
+    well as the whole run does, without materializing a float64 copy of every
+    volume (nearly 2 GB for a typical BOLD run).
 
     Args:
-        img: nibabel Nifti1Image or similar image object with get_fdata() method
+        img: nibabel Nifti1Image or similar image object with a ``dataobj``.
 
     Returns:
         str: 'nearest' for discrete/atlas data, 'continuous' for continuous data
@@ -32,15 +37,22 @@ def _detect_interpolation(img):
         - Atlases typically have < 500 unique integer labels
         - Statistical maps have continuous floating-point values
     """
-    data = img.get_fdata()
+    if img.ndim >= 4:
+        data = np.asanyarray(img.dataobj[..., 0])
+    else:
+        data = np.asanyarray(img.dataobj)
 
     # Handle empty or all-NaN data
     valid_data = data[~np.isnan(data)]
     if valid_data.size == 0:
         return "continuous"
 
-    # Check if all values are effectively integers
-    is_integer_valued = np.allclose(valid_data, np.round(valid_data), rtol=1e-10)
+    # Check if all values are effectively integers (trivially true for an
+    # integer dtype; nibabel applies any header scaling, so a scaled int image
+    # arrives here as float and is checked value by value).
+    is_integer_valued = valid_data.dtype.kind in "iu" or np.allclose(
+        valid_data, np.round(valid_data), rtol=1e-10
+    )
 
     if is_integer_valued:
         n_unique = len(np.unique(valid_data))
@@ -56,10 +68,11 @@ def initialize_mask(bd, mask):
     """Initialize the mask image.
 
     Args:
-        bd: BrainData instance.
-        mask: Brain mask as nibabel object, file path, template name string, or None.
-            Template name strings supported: '{res}mm-MNI152-2009{version}'
-            (e.g., '2mm-MNI152-2009c', '3mm-MNI152-2009a', '2mm-MNI152-2009fsl')
+        bd (BrainData): Instance whose mask is being set.
+        mask (Nifti1Image | str | Path | None): Brain mask as a nibabel image, file
+            path, template name string, or None. Template name strings follow
+            `'{res}mm-MNI152-2009{version}'` (e.g. `'2mm-MNI152-2009c'`,
+            `'3mm-MNI152-2009a'`, `'2mm-MNI152-2009fsl'`).
     """
     import nibabel as nib
     from nltools.templates import get_brainspace
@@ -71,23 +84,19 @@ def initialize_mask(bd, mask):
         # For empty BrainData or when data not yet loaded, use default template
         # Template will be auto-detected during data loading if data is provided
         bd.mask = nib.load(get_brainspace().mask)
-        bd._detected_template = None  # Will be set during data loading if needed
     elif isinstance(mask, (str, Path)):
         mask_str = str(mask)
-        # Check if it's a template name string (format: {res}mm-MNI152-2009{version})
-        if re.match(r"^\d+mm-MNI152-2009[acfsl]+$", mask_str):
-            # Resolve template name to file path
+        # A template name string ({res}mm-MNI152-2009{version}) resolves through
+        # the templates registry; anything else is a plain file path.
+        if _split_template_name(mask_str) is not None:
             from nltools.templates import resolve_template_name
 
             mask_path = resolve_template_name(mask_str, file_type="mask")
             bd.mask = nib.load(mask_path)
         else:
-            # Regular file path
             bd.mask = nib.load(mask_str)
-        bd._detected_template = None  # Explicit mask provided, no auto-detection
     elif isinstance(mask, nib.Nifti1Image):
         bd.mask = mask
-        bd._detected_template = None  # Explicit mask provided, no auto-detection
     else:
         raise TypeError(
             f"mask must be a nibabel instance, file path, template name string, or None. "
@@ -109,17 +118,44 @@ def get_interpolation(bd, img):
     Resolves 'auto' to either 'nearest' or 'continuous' based on data type.
 
     Args:
-        bd: BrainData instance.
-        img: nibabel image to check (used when interpolation='auto')
+        bd (BrainData): Instance whose interpolation setting is consulted.
+        img (Nifti1Image): Image to inspect when the setting is 'auto'.
 
     Returns:
-        str: Interpolation method. When 'auto', resolves to 'nearest' or
-            'continuous' based on data type. Otherwise returns the instance's
-            configured interpolation setting.
+        str: Interpolation method. When the instance setting is 'auto', resolves
+            to 'nearest' or 'continuous' based on data type; otherwise the
+            instance's configured interpolation setting.
     """
     if bd._interpolation == "auto":
         return _detect_interpolation(img)
     return bd._interpolation
+
+
+def _resample_img_to_mask(bd, data_img):
+    """Resample ``data_img`` onto ``bd.mask``'s grid with the resolved interpolation.
+
+    Integer-typed voxel data (int16 BOLD is the common case) is cast to float32
+    first when the interpolation is continuous. nilearn performs exactly that
+    cast itself inside ``resample_img`` — and warns about it on every load —
+    so doing it here removes the notice without changing the result. Nearest
+    interpolation keeps the integer dtype (labels stay labels). A header with
+    no sform (haxby's, for one) gets the same code-2 sform `resample`
+    assigns, for the same reason (see `_ensure_sform`).
+    """
+    import nibabel as nib
+    from nilearn.image import resample_to_img
+
+    interpolation = get_interpolation(bd, data_img)
+    if interpolation != "nearest":
+        data = np.asanyarray(data_img.dataobj)
+        if data.dtype.kind in "iu":
+            data_img = nib.Nifti1Image(
+                data.astype(np.float32), data_img.affine, data_img.header
+            )
+            data_img.set_data_dtype(np.float32)
+    return resample_to_img(
+        _ensure_sform(data_img), bd.mask, interpolation=interpolation
+    )
 
 
 def _resample_to_mask(bd, data_img, context=""):
@@ -127,17 +163,11 @@ def _resample_to_mask(bd, data_img, context=""):
 
     Returns data_img unchanged if spaces already match or resampling is disabled.
     """
-    from nilearn.image import resample_to_img
-
     if check_space_match(data_img, bd.mask) or not bd._resample:
         return data_img
 
     warn_if_resampling(bd, context)
-    return resample_to_img(
-        data_img,
-        bd.mask,
-        interpolation=get_interpolation(bd, data_img),
-    )
+    return _resample_img_to_mask(bd, data_img)
 
 
 def detect_and_update_mask(bd, data_img):
@@ -150,11 +180,11 @@ def detect_and_update_mask(bd, data_img):
     and resamples the data_img accordingly.
 
     Args:
-        bd: BrainData instance.
-        data_img: nibabel Nifti1Image object from which to detect template
+        bd (BrainData): Instance whose mask may be updated.
+        data_img (Nifti1Image): Image from which to detect the template.
 
     Returns:
-        nibabel.Nifti1Image: The data_img, possibly resampled to match the mask
+        Nifti1Image: The input image, resampled to the mask grid if needed.
     """
     import nibabel as nib
 
@@ -166,10 +196,8 @@ def detect_and_update_mask(bd, data_img):
 
         template_info = match_resolution(
             data_img.affine,
-            prefer_exact=True,
             warn_resample=bd._resample,
         )
-        bd._detected_template = template_info
 
         detected_mask = nib.load(template_info.mask_path)
         current_mask_path = bd.mask.get_filename()
@@ -193,7 +221,7 @@ def detect_and_update_mask(bd, data_img):
             f"Failed to auto-detect template from data: {e}. "
             f"Using default template (get_brainspace().mask).",
             UserWarning,
-            stacklevel=3,
+            stacklevel=find_stack_level(),
         )
         return _resample_to_mask(
             bd,
@@ -206,10 +234,10 @@ def detect_space(mask):
     """Detect if mask is in MNI space or native space.
 
     Args:
-        mask: nibabel Nifti1Image object
+        mask (Nifti1Image): Mask image to classify.
 
     Returns:
-        str: 'mni' if mask is MNI template, 'native' otherwise
+        str: 'mni' if the mask matches the MNI template, 'native' otherwise.
     """
     import nibabel as nib
     from nltools.templates import get_brainspace
@@ -253,11 +281,11 @@ def check_space_match(data_img, mask_img):
     """Check if data and mask are in same space.
 
     Args:
-        data_img: nibabel Nifti1Image object
-        mask_img: nibabel Nifti1Image object (mask)
+        data_img (Nifti1Image): Data image.
+        mask_img (Nifti1Image): Mask image.
 
     Returns:
-        bool: True if spaces match (no resampling needed), False otherwise
+        bool: True if affines and spatial shapes match (no resampling needed).
     """
     # Compare affine matrices
     affine_match = np.allclose(data_img.affine, mask_img.affine, rtol=1e-3)
@@ -269,20 +297,26 @@ def check_space_match(data_img, mask_img):
 
 
 def warn_if_resampling(bd, context=""):
-    """Warn about resampling if verbose=True and resample=True.
+    """Emit a `ResamplingWarning` if ``verbose=True`` and ``resample=True``.
+
+    Sibling of the template-mismatch notice in `match_resolution`: that one
+    fires when a template is chosen for data at another resolution; this one
+    fires when the data is actually resampled to the mask's grid.
 
     Args:
-        bd: BrainData instance.
-        context (str): Context string to include in warning. Default: empty string.
+        bd (BrainData): Instance whose `verbose` and resample settings apply.
+        context (str): Why the spaces differ, appended to the message.
+            Default: empty string.
     """
     if bd._resample and bd.verbose:
-        base_msg = "Resampling data to match mask space (resample=True)."
+        resolution = "x".join(f"{r:g}" for r in bd._voxel_resolution)
+        msg = (
+            f"Data does not match the mask space; resampling it to the mask's "
+            f"{resolution}mm grid (resample=True)."
+        )
         if context:
-            msg = f"{base_msg} {context}"
-        else:
-            msg = base_msg
-
-        warnings.warn(msg, UserWarning, stacklevel=4)
+            msg = f"{msg} {context}"
+        warnings.warn(msg, ResamplingWarning, stacklevel=find_stack_level())
 
 
 def mask_images(mask, imgs):
@@ -306,11 +340,11 @@ def mask_images(mask, imgs):
     ``apply_mask`` if the fast path raises for any reason.
 
     Args:
-        mask: A ``nibabel.Nifti1Image`` boolean/binary mask.
-        imgs: List of space-aligned ``nibabel`` images to mask.
+        mask (Nifti1Image): Boolean/binary mask image.
+        imgs (list[Nifti1Image]): Space-aligned images to mask.
 
     Returns:
-        ``np.ndarray`` of shape ``(len(imgs), n_voxels)``.
+        np.ndarray: Masked data of shape ``(len(imgs), n_voxels)``.
     """
     from nilearn.masking import apply_mask as nilearn_apply_mask
 
@@ -341,11 +375,12 @@ def load_from_list(bd, data_list):
     """Load data from a list of BrainData objects or file paths.
 
     Args:
-        bd: BrainData instance.
-        data_list: List of BrainData objects or file paths.
+        bd (BrainData): Instance to populate.
+        data_list (list[BrainData] | list[str | Path | Nifti1Image]): Items to load
+            and stack.
     """
     import nibabel as nib
-    from nltools.utils import concatenate
+    from ..combine import concatenate
     from nltools.data.braindata.validation import validate_list_data
 
     list_type = validate_list_data(data_list)
@@ -412,9 +447,10 @@ def load_from_brain_data(bd, brain_data, mask=None):
     """Load data from another BrainData object.
 
     Args:
-        bd: BrainData instance.
-        brain_data: BrainData object to copy from.
-        mask: Optional mask to use. If None, uses mask from brain_data.
+        bd (BrainData): Instance to populate.
+        brain_data (BrainData): Object to copy from.
+        mask (Nifti1Image | str | Path | None): Mask to use. If None, uses the mask
+            from `brain_data`.
     """
     import nibabel as nib
     from nilearn.image import resample_to_img
@@ -430,14 +466,11 @@ def load_from_brain_data(bd, brain_data, mask=None):
         # Need to handle resampling if mask differs
         if isinstance(mask, (str, Path)):
             mask_str = str(mask)
-            # Check if it's a template name string
-            if re.match(r"^\d+mm-MNI152-2009[acfsl]+$", mask_str):
-                # Resolve template name to file path
+            if _split_template_name(mask_str) is not None:
                 from nltools.templates import resolve_template_name
 
                 new_mask = nib.load(resolve_template_name(mask_str, file_type="mask"))
             else:
-                # Regular file path
                 new_mask = nib.load(mask_str)
         elif isinstance(mask, nib.Nifti1Image):
             new_mask = mask
@@ -483,9 +516,6 @@ def load_from_brain_data(bd, brain_data, mask=None):
         bd._voxel_resolution = brain_data._voxel_resolution
         bd._space = brain_data._space
 
-    # Copy detected template info if present
-    if hasattr(brain_data, "_detected_template"):
-        bd._detected_template = brain_data._detected_template
     if hasattr(brain_data, "_mask_was_none"):
         bd._mask_was_none = brain_data._mask_was_none
 
@@ -494,11 +524,12 @@ def load_from_h5(bd, file_path, mask):
     """Load data from HDF5 file.
 
     Args:
-        bd: BrainData instance.
-        file_path: Path to HDF5 file.
-        mask: User-specified mask (to determine if we should load mask from file).
+        bd (BrainData): Instance to populate.
+        file_path (str | Path): Path to the HDF5 file.
+        mask (Nifti1Image | str | Path | None): User-specified mask; when None the
+            mask stored in the file is used.
     """
-    from nltools.io import load_brain_data_h5
+    from nltools.io.h5 import load_brain_data_h5
 
     # Load data using utility function
     h5_data = load_brain_data_h5(file_path, mask)
@@ -522,7 +553,9 @@ def load_from_h5(bd, file_path, mask):
         warnings.warn(
             "Existing mask found in HDF5 file but is being ignored because "
             "you passed a value for mask. Set mask=None to use existing "
-            "mask in the HDF5 file"
+            "mask in the HDF5 file",
+            UserWarning,
+            stacklevel=find_stack_level(),
         )
 
 
@@ -530,8 +563,8 @@ def load_from_url(bd, url):
     """Load data from URL.
 
     Args:
-        bd: BrainData instance.
-        url: URL to download data from.
+        bd (BrainData): Instance to populate.
+        url (str): URL of a NIfTI file to download.
     """
     import nibabel as nib
     from nltools.datasets import download_nifti
@@ -547,11 +580,10 @@ def load_from_file(bd, data):
     """Load data from file path or nibabel object.
 
     Args:
-        bd: BrainData instance.
-        data: File path or nibabel object.
+        bd (BrainData): Instance to populate.
+        data (str | Path | Nifti1Image): File path or nibabel image.
     """
     import nibabel as nib
-    from nilearn.image import resample_to_img
     from nilearn.masking import apply_mask as nilearn_apply_mask
 
     if isinstance(data, (str, Path)):
@@ -580,14 +612,10 @@ def load_from_file(bd, data):
                 f"Mask affine:\n{bd.mask.affine}\n"
                 f"Data shape: {data_img.shape[:3]}\n"
                 f"Mask shape: {bd.mask.shape[:3]}",
-                UserWarning,
-                stacklevel=2,
+                ResamplingWarning,
+                stacklevel=find_stack_level(),
             )
-        data_img = resample_to_img(
-            data_img,
-            bd.mask,
-            interpolation=get_interpolation(bd, data_img),
-        )
+        data_img = _resample_img_to_mask(bd, data_img)
 
     bd.data = nilearn_apply_mask(data_img, bd.mask)
 
@@ -596,17 +624,17 @@ def to_nifti(bd):
     """Convert BrainData instance to a nibabel NIfTI image.
 
     Args:
-        bd: BrainData instance.
+        bd (BrainData): Instance to convert.
 
     Returns:
-        nibabel.Nifti1Image: Brain data in volumetric NIfTI format.
+        Nifti1Image: Brain data in volumetric NIfTI format.
     """
     from nilearn.masking import unmask
 
     img = unmask(bd.data, bd.mask)
     # unmask inherits the mask's dtype (often int8) for the output header, which
     # would scale-quantize float data to ~1 LSB on save — silently lossy for stat
-    # maps, betas, and the BrainCollection disk cache. Pin the on-disk dtype to the
+    # maps and betas. Pin the on-disk dtype to the
     # data's own so writes are lossless (integer masks stay integer, maps stay float).
     img.set_data_dtype(bd.data.dtype)
     return img
@@ -629,35 +657,40 @@ def _ensure_sform(img):
     return out
 
 
-def resample_to(bd, *, img=None, resolution=None, interpolation=None):
-    """Resample BrainData to match target image or resolution.
+def resample(bd, *, img=None, resolution=None, interpolation=None):
+    """Resample BrainData onto a new voxel grid.
+
+    Exactly one of `img` or `resolution` must be given. An `img` supplies only
+    the target grid; its intensity values never define the output mask. The
+    source mask is resampled onto that grid with nearest-neighbor interpolation
+    and installed on the result, which preserves row-aligned `X` and `Y` and
+    carries no fitted state.
 
     Args:
-        bd: BrainData instance.
-        img: Target image for resampling. Can be:
-            - nibabel Nifti1Image object
-            - str/Path to .nii/.nii.gz file
-            - None (if using resolution parameter)
-        resolution: Target voxel size in mm. Can be:
-            - float/int: Isotropic resolution (e.g., 2.0 = 2mm^3)
-            - None (if using img parameter)
-        interpolation: Interpolation method for resampling. Can be:
-            - None (default): Uses instance's interpolation setting
-            - 'nearest': Nearest-neighbor (for atlases, masks, labels)
-            - 'linear': Linear interpolation
-            - 'continuous': Higher-order spline (for stat maps)
+        bd (BrainData): Instance to resample.
+        img (Nifti1Image | str | Path | None): Target image whose grid to match,
+            as a nibabel image or a path to a `.nii`/`.nii.gz` file.
+        resolution (float | int | None): Target isotropic voxel size in mm
+            (e.g. `2.0` for 2 mm³ voxels).
+        interpolation (str | None): Interpolation method for the data:
+            `'nearest'` (atlases, masks, labels), `'linear'`, or `'continuous'`
+            (higher-order spline, for stat maps). None uses the instance's
+            interpolation setting.
 
     Returns:
-        BrainData: New BrainData instance with resampled data
+        BrainData: New instance with resampled data and mask.
 
     Raises:
-        ValueError: If both img and resolution are None, or both are provided
-        TypeError: If img is not a valid image type
+        ValueError: If both `img` and `resolution` are None, both are provided,
+            `resolution` is not positive, or the instance is empty.
+        TypeError: If `img` is not a valid image type.
     """
     import nibabel as nib
     from nilearn.image import resample_to_img, resample_img
+    from nilearn.masking import apply_mask as nilearn_apply_mask
 
-    # Validate inputs
+    from .utils import _result_with_mask
+
     if img is None and resolution is None:
         raise ValueError(
             "Must provide either 'img' or 'resolution' parameter. "
@@ -669,98 +702,84 @@ def resample_to(bd, *, img=None, resolution=None, interpolation=None):
             "Provide exactly one of them."
         )
 
-    # Check for empty BrainData
-    if len(bd) == 0:
-        raise ValueError("Cannot resample empty BrainData object")
-
-    # Convert current BrainData to nifti
-    source_nifti = to_nifti(bd)
-
-    # Resolve interpolation: None uses instance setting with auto-detection
-    if interpolation is None:
-        interpolation = get_interpolation(bd, source_nifti)
-
-    source_nifti = _ensure_sform(source_nifti)
-
-    if img is not None:
-        # Resample to target image
-        # Validate img type
+    # Check the target argument itself, then the object, before touching disk
+    # or doing any resampling work.
+    target_affine = None
+    if resolution is not None:
+        resolution = float(resolution)
+        if resolution <= 0:
+            raise ValueError(f"resolution must be positive. Got {resolution}")
+        target_affine = np.eye(4)
+        target_affine[:3, :3] = np.diag([resolution, resolution, resolution])
+        target_description = f"resolution={resolution}"
+    else:
         if not isinstance(img, (str, Path, nib.Nifti1Image)):
             raise TypeError(
                 f"img must be nibabel Nifti1Image, file path (str/Path), or None. "
                 f"Got {type(img).__name__}"
             )
+        target_description = f"img={img if isinstance(img, (str, Path)) else 'image'}"
 
-        # Resample - resample_to_img can handle file paths directly
+    if len(bd) == 0:
+        raise ValueError("Cannot resample empty BrainData object")
+
+    target_img = None
+    if target_affine is None:
+        if isinstance(img, (str, Path)):
+            img = nib.load(str(img))
+        # Copy-on-write via _ensure_sform avoids mutating the caller's image.
+        target_img = _ensure_sform(img)
+
+    source_nifti = to_nifti(bd)
+    if interpolation is None:
+        interpolation = get_interpolation(bd, source_nifti)
+    source_nifti = _ensure_sform(source_nifti)
+
+    # Both branches clip spline overshoot to the source range; nilearn's own
+    # defaults disagree between the two calls, so state the rule here.
+    # The mask always uses nearest interpolation so that it stays binary.
+    source_mask = _ensure_sform(bd.mask)
+    if target_img is not None:
         resampled_nifti = resample_to_img(
+            source_nifti, target_img, interpolation=interpolation, clip=True
+        )
+        resampled_mask = resample_to_img(
+            source_mask, target_img, interpolation="nearest", clip=True
+        )
+    else:
+        resampled_nifti = resample_img(
             source_nifti,
-            img,  # Can be file path or nibabel image
+            target_affine=target_affine,
             interpolation=interpolation,
+            clip=True,
+        )
+        resampled_mask = resample_img(
+            source_mask,
+            target_affine=target_affine,
+            interpolation="nearest",
+            clip=True,
         )
 
-        # For mask, we need to load the image if it's a file path
-        # (since we need to create a masker with it)
-        if isinstance(img, (str, Path)):
-            target_img = nib.load(str(img))
-        else:
-            target_img = img
+    if not np.any(resampled_mask.get_fdata() > 0):
+        raise ValueError(
+            f"Resampling to {target_description} leaves no voxels: the mask's "
+            "support does not survive on the target grid. Choose a finer "
+            "resolution or a target grid that overlaps the data."
+        )
 
-        if isinstance(target_img, nib.Nifti1Image):
-            target_img = _ensure_sform(target_img)
-
-        # Lazy import to avoid circular dependency
-        from nltools.data.braindata import BrainData
-
-        return BrainData(resampled_nifti, mask=target_img, resample=False)
-
-    # resolution is not None
-    # Resample to specified resolution
-    resolution = float(resolution)
-    if resolution <= 0:
-        raise ValueError(f"resolution must be positive. Got {resolution}")
-
-    # Create target affine with specified resolution (diagonal matrix)
-    # resample_img automatically calculates output shape and origin
-    target_affine = np.eye(4)
-    target_affine[:3, :3] = np.diag([resolution, resolution, resolution])
-
-    # Resample data
-    resampled_nifti = resample_img(
-        source_nifti,
-        target_affine=target_affine,
-        interpolation=interpolation,
-    )
-
-    # Resample mask with nearest interpolation (preserves binary nature).
-    # Copy-on-write via _ensure_sform avoids mutating bd.mask's header.
-    resampled_mask = resample_img(
-        _ensure_sform(bd.mask),
-        target_affine=target_affine,
-        interpolation="nearest",
-    )
-
-    # Preserve X and Y metadata if present
-    kwargs = {"mask": resampled_mask, "resample": False}
-    if hasattr(bd, "X") and bd.X is not None:
-        kwargs["X"] = bd.X
-    if hasattr(bd, "Y") and bd.Y is not None:
-        kwargs["Y"] = bd.Y
-
-    # Lazy import to avoid circular dependency
-    from nltools.data.braindata import BrainData
-
-    return BrainData(resampled_nifti, **kwargs)
+    resampled_data = nilearn_apply_mask(resampled_nifti, resampled_mask)
+    return _result_with_mask(bd, resampled_data, resampled_mask, rows="preserve")
 
 
 def write_brain_data(bd, file_name):
     """Write out BrainData object to Nifti or HDF5 File.
 
     Args:
-        bd: BrainData instance.
-        file_name (str or Path): Output file path. Supports .nii/.nii.gz (NIfTI)
-            and .h5/.hdf5 (HDF5) formats.
+        bd (BrainData): Instance to write.
+        file_name (str | Path): Output file path. Supports `.nii`/`.nii.gz` (NIfTI)
+            and `.h5`/`.hdf5` (HDF5) formats.
     """
-    from nltools.io import is_h5_path, to_h5
+    from nltools.io.h5 import is_h5_path, to_h5
 
     if isinstance(file_name, Path):
         file_name = str(file_name)
@@ -788,17 +807,18 @@ def upload_neurovault(  # nosemgrep: kwargs-internal-forwarding  # forwards to t
 ):
     """Upload data to NeuroVault.
 
-    Adds any columns in bd.X to image metadata. Index will be used as image name.
+    Adds any columns in `bd.X` to image metadata. Index will be used as image name.
 
     Args:
-        bd: BrainData instance.
+        bd (BrainData): Images to upload.
         access_token (str): NeuroVault API access token. Required.
-        collection_name (str, optional): Name of new collection to create.
-        collection_id (int, optional): NeuroVault collection ID if adding images
+        collection_name (str | None): Name of a new collection to create.
+        collection_id (int | None): NeuroVault collection ID when adding images
             to an existing collection.
-        img_type (str): NeuroVault map type. Required.
-        img_modality (str): NeuroVault image modality. Required.
-        **kwargs: Additional keyword arguments passed to the NeuroVault API.
+        img_type (str): NeuroVault map type (e.g. `'Z'`, `'T'`). Required.
+        img_modality (str): NeuroVault image modality (e.g. `'fMRI-BOLD'`). Required.
+        **kwargs (dict): Additional image metadata forwarded to
+            `pynv.Client.add_image`.
 
     Returns:
         dict: NeuroVault collection information.
@@ -841,11 +861,11 @@ def upload_neurovault(  # nosemgrep: kwargs-internal-forwarding  # forwards to t
         """Upload an image to a NeuroVault collection.
 
         Args:
-            api: pynv Client instance
-            collection: collection information
-            dat: BrainData instance to upload
-            tmp_dir: temporary directory
-            index_id: (int) index for file naming
+            api (pynv.Client): Authenticated NeuroVault client.
+            collection (dict): Collection the image is added to.
+            dat (BrainData): Single-image BrainData instance to upload.
+            tmp_dir (str): Directory the image is written to before upload.
+            index_id (int): Index used to name the uploaded file.
         """
         if (len(dat.shape) > 1) & (dat.shape[0] > 1):
             raise ValueError('"dat" must be a single image.')
