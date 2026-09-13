@@ -104,7 +104,7 @@ def _(mo):
 
 @app.cell
 def _(data):
-    data.mean().iplot()
+    data.mean().iplot(threshold="95%")
     return
 
 
