@@ -98,6 +98,7 @@ public signature against in CI. The table below is rendered from it:
 | Second operand of a data-class method | `data` — the object a data class is combined with or compared against: `BrainData.append`, `Adjacency.append`, `DesignMatrix.append`, `BrainData.similarity` and `Adjacency.similarity` all name it `data` and take it as their only positional parameter, with everything after it keyword-only |
 | Algorithm / variant choice | `method` — on `BrainData.standardize` and `DesignMatrix.standardize` it is one closed set: `*, method: str = 'center'` (<code>'center' &#124; 'zscore'</code>) |
 | Decoding estimator (MVPA) | <code>estimator: str &#124; BaseEstimator = 'linear_svc'</code> on `BrainData.predict` — a built-in shortcut name or any sklearn estimator / `Pipeline`. It names an sklearn object, so it is distinct from `method=`, which selects an algorithm variant |
+| Shortcut estimator options | <code>estimator_kwargs: dict &#124; None = None</code> on `BrainData.predict` — forwarded to the shortcut's sklearn constructor, merged over the shortcut's own defaults so a supplied key wins; a `ValueError` when `estimator` is an object, which is used exactly as supplied |
 | Spatial scale | `spatial_scale` (<code>'whole_brain' &#124; 'roi' &#124; 'searchlight'</code>) |
 | Distance / similarity metric | `metric` |
 | Convolution kernel | <code>kernel: str &#124; np.ndarray = 'glover'</code> on `DesignMatrix.convolve` (v0.5.1 spelled it `conv_func`) — an HRF model name nilearn computes (<code>'glover' &#124; 'glover_time' &#124; 'glover_dispersion' &#124; 'spm' &#124; 'spm_time' &#124; 'spm_dispersion'</code>) or a caller-supplied array, 1-D for one kernel and 2-D for several. `DesignMatrix(events_file, hrf_model=)` takes the same six names plus `None` for raw boxcars |
@@ -109,13 +110,15 @@ public signature against in CI. The table below is rendered from it:
 | Alignment refinement count | `n_iter` on `SRM` and `DetSRM` — EM iterations or coordinate-descent iterations; everywhere else `n_iter` is a banned alias for `n_permute`/`n_samples`/`search_iterations` |
 | Working-memory budget | <code>memory_budget_gb: float &#124; None = None</code> — device-neutral working-memory budget for internal batching; `None` measures the selected device with headroom |
 | Progress indicator | `progress_bar: bool = False` |
-| Permutation count | `n_permute` |
+| Permutation count | `n_permute` — including the `Adjacency` label-distance and silhouette plots (`plot_label_distance`, `plot_between_label_distance`, `plot_silhouette`), where it pairs with `permutation_test` |
+| Permutation test toggle | `permutation_test: bool` on the `Adjacency` label-distance and silhouette plots — pairs with `n_permute`. It defaults to `False` on `Adjacency.plot_label_distance` and `True` on `Adjacency.plot_between_label_distance` and `Adjacency.plot_silhouette`, matching each figure's v0.5.1 behaviour |
 | Bootstrap sample count | `n_samples` |
 | Bootstrap statistic | `statistic` on `bootstrap` — a closed set of eight names (`'mean'`, `'median'`, `'std'`, `'sum'`, `'min'`, `'max'`, `'weights'`, `'predict'`); no callables and no dynamic dispatch to other methods |
 | Interval confidence level | `confidence_level: float = 0.95` — one level in `(0, 1)`, not a `percentiles` pair; the reported bounds are the central percentile interval, elementwise marginal |
 | Retain resampled draws | `return_samples: bool = False` on `bootstrap` — keeps every replicate (bootstrap axis first); it changes retention only, never the interval |
 | Tail of test | `tail` (<code>2 &#124; 'two' &#124; 1 &#124; 'one'</code>; direction fixed by the test, never the data) |
 | Threshold pair | `lower`, `upper`, `binarize` (+ `threshold` where bidirectional) |
+| Draw result figures | `plot: bool = False` on `BrainData.predict` — draws the cross-validated regression scatter, or the binary-classification ROC and margin/probability figures, plus the weight map, as a side effect; the returned `Predict` is unchanged. `Adjacency.similarity(plot=)` carries the same meaning |
 | Display autoscaling | `autoscale: bool = True` (viewer display window; `False` = raw magnitude range) |
 | Display symmetry | <code>symmetric: bool &#124; 'auto' = 'auto'</code> (viewer positive/negative limbs) |
 | Plot axis | <code>ax: matplotlib.axes.Axes &#124; None = None</code> on the data-class plotters (`BrainData.plot`, `Adjacency.plot`, `DesignMatrix.plot`) and the Adjacency helper plots, following matplotlib and seaborn |

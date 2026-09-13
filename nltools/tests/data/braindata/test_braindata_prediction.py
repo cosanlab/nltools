@@ -763,12 +763,14 @@ class TestPredictSignature:
         ("X", None),
         ("y", None),
         ("estimator", "linear_svc"),
+        ("estimator_kwargs", None),
         ("cv", None),
         ("groups", None),
         ("scoring", None),
         ("spatial_scale", "whole_brain"),
         ("roi_mask", None),
         ("radius", 10.0),
+        ("plot", False),
         ("n_jobs", 1),
         ("progress_bar", False),
     )
@@ -1342,8 +1344,8 @@ class TestShortcutPipelines:
             ("linear_svc", "LinearSVC"),
             ("logistic_regression", "LogisticRegression"),
             ("linear_discriminant_analysis", "LinearDiscriminantAnalysis"),
-            ("ridge_classifier", "RidgeClassifier"),
-            ("ridge", "Ridge"),
+            ("ridge_classifier", "RidgeClassifierCV"),
+            ("ridge", "RidgeCV"),
             ("lasso", "Lasso"),
             ("linear_svr", "LinearSVR"),
         ],
@@ -1722,3 +1724,190 @@ class TestFoldParallelism:
         minimal_brain_data.predict(y=y, cv=3, n_jobs=2)
 
         assert 2 in seen
+
+
+# ---------------------------------------------------------------------------
+# plot=True — the v0.5.1 decoding figures
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture
+def _close_figs():
+    import matplotlib
+
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+
+    plt.close("all")
+    yield plt
+    plt.close("all")
+
+
+class TestPredictPlot:
+    def test_regression_draws_the_cross_validated_scatter(
+        self, _close_figs, minimal_brain_data
+    ):
+        plt = _close_figs
+        rng = np.random.default_rng(0)
+        y = rng.standard_normal(minimal_brain_data.shape[0])
+
+        result = minimal_brain_data.predict(y=y, estimator="ridge", cv=3, plot=True)
+
+        assert isinstance(result, Predict)
+        titles = [
+            ax.get_title()
+            for fig in map(plt.figure, plt.get_fignums())
+            for ax in fig.axes
+        ]
+        assert any("Predicted vs actual (r =" in title for title in titles)
+
+    def test_binary_classification_draws_the_roc_and_the_margin(
+        self, _close_figs, minimal_brain_data
+    ):
+        plt = _close_figs
+        y = _binary_labels(minimal_brain_data)
+
+        minimal_brain_data.predict(y=y, cv=3, plot=True)
+
+        titles = [
+            ax.get_title()
+            for fig in map(plt.figure, plt.get_fignums())
+            for ax in fig.axes
+        ]
+        assert "ROC Plot" in titles
+        assert "Classification margin" in titles
+
+    def test_probability_figure_when_the_estimator_has_no_margin(
+        self, _close_figs, minimal_brain_data
+    ):
+        from sklearn.naive_bayes import GaussianNB
+
+        plt = _close_figs
+        y = _binary_labels(minimal_brain_data)
+
+        class _ProbabilityOnly(GaussianNB):
+            """A classifier with predict_proba and no decision_function."""
+
+            coef_ = None
+
+            def fit(self, X, y):
+                super().fit(X, y)
+                self.coef_ = np.zeros((1, X.shape[1]))
+                return self
+
+        minimal_brain_data.predict(y=y, estimator=_ProbabilityOnly(), cv=3, plot=True)
+
+        titles = [
+            ax.get_title()
+            for fig in map(plt.figure, plt.get_fignums())
+            for ax in fig.axes
+        ]
+        assert "Classification probability" in titles
+
+    @pytest.mark.parametrize("target", ["regression", "binary"])
+    def test_the_weight_map_is_plotted_once(
+        self, _close_figs, minimal_brain_data, monkeypatch, target
+    ):
+        """v0.5.1 drew the weight map on every plotted decode; so does this one."""
+        from nltools.data import BrainData
+
+        calls = []
+        real_plot = BrainData.plot
+
+        def spy(self, *args, **kwargs):
+            calls.append(self)
+            return real_plot(self, *args, **kwargs)
+
+        monkeypatch.setattr(BrainData, "plot", spy)
+        regression = target == "regression"
+        y = (
+            np.random.default_rng(0).standard_normal(minimal_brain_data.shape[0])
+            if regression
+            else _binary_labels(minimal_brain_data)
+        )
+        estimator = "ridge" if regression else "linear_svc"
+
+        result = minimal_brain_data.predict(y=y, cv=3, estimator=estimator, plot=True)
+
+        assert len(calls) == 1
+        assert calls[0] is result.weight_map
+
+    def test_multiclass_raises(self, _close_figs, minimal_brain_data):
+        y = _three_class_labels(minimal_brain_data)
+
+        with pytest.raises(ValueError, match="multiclass"):
+            minimal_brain_data.predict(y=y, cv=3, plot=True)
+
+    def test_roi_scale_raises(self, _close_figs, minimal_brain_data, tmp_path):
+        import nibabel as nib
+
+        y = _binary_labels(minimal_brain_data)
+        atlas = nib.Nifti1Image(
+            np.asarray(minimal_brain_data.mask.get_fdata() > 0, dtype=np.int16),
+            minimal_brain_data.mask.affine,
+        )
+
+        with pytest.raises(ValueError, match="whole_brain"):
+            minimal_brain_data.predict(
+                y=y, cv=3, plot=True, spatial_scale="roi", roi_mask=atlas
+            )
+
+    def test_plot_is_rejected_on_a_fitted_model_call(self, minimal_brain_data):
+        with pytest.raises(ValueError, match="only configures MVPA decoding"):
+            minimal_brain_data.predict(
+                X=np.ones((minimal_brain_data.shape[0], 2)), plot=True
+            )
+
+
+class TestEstimatorKwargs:
+    def test_reaches_the_shortcut_constructor(self, minimal_brain_data):
+        rng = np.random.default_rng(0)
+        y = rng.standard_normal(minimal_brain_data.shape[0])
+
+        result = minimal_brain_data.predict(
+            y=y, estimator="lasso", estimator_kwargs={"alpha": 0.5}, cv=3
+        )
+
+        assert result.estimator[-1].alpha == 0.5
+
+    def test_overrides_a_shortcut_default(self, minimal_brain_data):
+        rng = np.random.default_rng(0)
+        y = rng.standard_normal(minimal_brain_data.shape[0])
+
+        result = minimal_brain_data.predict(
+            y=y, estimator="ridge", estimator_kwargs={"alphas": [10.0]}, cv=3
+        )
+
+        assert result.estimator[-1].alpha_ == 10.0
+
+    def test_rejected_with_a_caller_supplied_estimator(self, minimal_brain_data):
+        from sklearn.linear_model import Ridge
+
+        rng = np.random.default_rng(0)
+        y = rng.standard_normal(minimal_brain_data.shape[0])
+
+        with pytest.raises(ValueError, match="estimator_kwargs configures"):
+            minimal_brain_data.predict(
+                y=y, estimator=Ridge(), estimator_kwargs={"alpha": 0.5}, cv=3
+            )
+
+
+class TestRidgeShortcutSelectsItsPenalty:
+    def test_ridge_picks_an_alpha_from_the_grid(self, minimal_brain_data):
+        from nltools.data.braindata.prediction import RIDGE_ALPHA_GRID
+
+        rng = np.random.default_rng(0)
+        y = rng.standard_normal(minimal_brain_data.shape[0])
+
+        result = minimal_brain_data.predict(y=y, estimator="ridge", cv=3)
+
+        assert result.estimator[-1].alpha_ in RIDGE_ALPHA_GRID
+
+    def test_ridge_classifier_picks_an_alpha_from_the_grid(self, minimal_brain_data):
+        from nltools.data.braindata.prediction import RIDGE_ALPHA_GRID
+
+        y = _binary_labels(minimal_brain_data)
+
+        result = minimal_brain_data.predict(y=y, estimator="ridge_classifier", cv=3)
+
+        assert result.estimator[-1].alpha_ in RIDGE_ALPHA_GRID

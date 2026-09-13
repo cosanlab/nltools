@@ -365,41 +365,91 @@ def _label_distance_long(adj, labels):
     }
 
 
-def plot_label_distance(adj, labels=None, ax=None):
+def _label_distance_inputs(adj, labels):
+    """Return the square distance matrix and node labels the label plots take.
+
+    Both label-distance plots are drawn by `nltools.plotting.adjacency` from a
+    square matrix and a label vector, so the squareform, the stored-label
+    fallback, and the single-matrix rule live here once.
+    """
+    from copy import deepcopy
+
+    if not adj.is_single_matrix:
+        raise ValueError("This function only works on single adjacency matrices.")
+
+    distance = adj.squareform()
+    if labels is None:
+        labels = np.array(deepcopy(adj.labels))
+    labels = np.asarray(labels)
+    if len(labels) != distance.shape[0]:
+        raise ValueError("Labels must be same length as distance matrix")
+    return distance, labels
+
+
+def plot_label_distance(  # nosemgrep: kwargs-internal-forwarding  # forwards to seaborn via plot_mean_label_distance
+    adj, labels=None, ax=None, *, permutation_test=False, n_permute=5000, **kwargs
+):
     """Create a violin plot of within- and between-label distances.
 
     Args:
         adj (Adjacency): Adjacency instance (must be a single matrix).
         labels (np.ndarray, optional): Group label per node; defaults to `adj.labels`.
         ax (matplotlib.axes.Axes, optional): Axis to draw on.
+        permutation_test (bool): Run a two-sample permutation test of within
+            against between distance for each group. Default False.
+        n_permute (int): Number of permutations for the test. Default 5000.
+        **kwargs (dict): Forwarded to `seaborn.violinplot`, plus `fontsize` for
+            the axis label and title (default 18).
+
+    Returns:
+        pl.DataFrame | tuple[pl.DataFrame, dict]: The long-format frame with
+            columns `Distance`, `Type`, `Group`, or `(long_df, stats)` when
+            `permutation_test=True`, where `stats` maps each group label to its
+            permutation-test result.
     """
-    from copy import deepcopy
+    from nltools.plotting import plot_mean_label_distance
 
-    import pandas as pd
-    import seaborn as sns
-
-    if not adj.is_single_matrix:
-        raise ValueError("This function only works on single adjacency matrices.")
-
-    if labels is None:
-        labels = np.array(deepcopy(adj.labels))
-
-    long = _label_distance_long(adj, labels)
-    # Pandas boundary: seaborn requires a pandas DataFrame input.
-    out = pd.DataFrame(long)
-    f = sns.violinplot(
-        x="Group",
-        y="Distance",
-        hue="Type",
-        data=out,
-        split=True,
-        inner="quartile",
-        palette={"Within": "lightskyblue", "Between": "red"},
+    distance, labels = _label_distance_inputs(adj, labels)
+    return plot_mean_label_distance(
+        distance,
+        labels,
         ax=ax,
+        permutation_test=permutation_test,
+        n_permute=n_permute,
+        **kwargs,
     )
-    f.set_ylabel("Average Distance")
-    f.set_title("Average Group Distance")
-    return
+
+
+def plot_between_label_distance(  # nosemgrep: kwargs-internal-forwarding  # forwards to seaborn via plot_between_label_distance
+    adj, *, labels=None, ax=None, permutation_test=True, n_permute=5000, **kwargs
+):
+    """Create a heatmap of the average distance between every pair of labels.
+
+    Args:
+        adj (Adjacency): Adjacency instance (must be a single matrix).
+        labels (np.ndarray, optional): Group label per node; defaults to `adj.labels`.
+        ax (matplotlib.axes.Axes, optional): Axis to draw on.
+        permutation_test (bool): Also compute the mean-difference and p-value
+            matrices from a two-sample permutation test. Default True.
+        n_permute (int): Number of permutations for the test. Default 5000.
+        **kwargs (dict): Forwarded to `seaborn.heatmap`.
+
+    Returns:
+        tuple[pl.DataFrame, ...]: `(long_df, within_mean_df)` without the
+            permutation test, or `(long_df, within_mean_df, mean_diff_df, p_df)`
+            with it.
+    """
+    from nltools.plotting import plot_between_label_distance as _plot_between
+
+    distance, labels = _label_distance_inputs(adj, labels)
+    return _plot_between(
+        distance,
+        labels,
+        ax=ax,
+        permutation_test=permutation_test,
+        n_permute=n_permute,
+        **kwargs,
+    )
 
 
 def stats_label_distance(

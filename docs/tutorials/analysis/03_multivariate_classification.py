@@ -120,16 +120,15 @@ def _(mo):
     mo.md(r"""
     ### Other classifiers
 
-    Logistic regression and a ridge classifier are two more shortcuts. Ridge, as
-    in the regression tutorial, needs a penalty scaled to 240,000 voxels rather
-    than scikit-learn's default of 1, so it goes in as an explicit pipeline.
+    Logistic regression and a ridge classifier are two more shortcuts. The ridge
+    shortcut picks its own penalty by an inner cross-validation of each training
+    fold, so it needs no hand-scaled `alpha`.
     """)
     return
 
 
 @app.cell
 def _(decode):
-    from sklearn.linear_model import RidgeClassifier
     from sklearn.pipeline import make_pipeline
     from sklearn.preprocessing import StandardScaler
     from sklearn.svm import SVC
@@ -137,7 +136,7 @@ def _(decode):
     classifiers = {
         "support vector": "linear_svc",
         "logistic regression": "logistic_regression",
-        "ridge classifier": make_pipeline(StandardScaler(), RidgeClassifier(alpha=1e5)),
+        "ridge classifier": "ridge_classifier",
     }
     for classifier_name, classifier in classifiers.items():
         fit = decode(classifier)

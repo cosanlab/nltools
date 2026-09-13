@@ -1,25 +1,12 @@
-"""Brain visualization — surface plots, flatmaps, and interactive viewers."""
+"""Brain visualization — surface plots and flatmaps."""
 
 import os
-import warnings
 from pathlib import Path
 
 import matplotlib.pyplot as plt
 import numpy as np
-from nilearn.plotting import (
-    plot_surf_stat_map,
-    view_img,
-    view_img_on_surf,
-)
+from nilearn.plotting import plot_surf_stat_map
 from nilearn.surface import vol_to_surf
-
-from nltools.utils import attempt_to_import, find_stack_level
-
-# Optional dependencies
-ipywidgets = attempt_to_import(
-    "ipywidgets",
-    fromlist=["interact", "fixed", "widgets", "BoundedFloatText", "BoundedIntText"],
-)
 
 
 def _resolve_stat_map_defaults(data, *, cmap=None, vmin=None, vmax=None):
@@ -52,107 +39,6 @@ def _resolve_stat_map_defaults(data, *, cmap=None, vmin=None, vmax=None):
         default_vmin if vmin is None else vmin,
         default_vmax if vmax is None else vmax,
     )
-
-
-def plot_interactive_brain(
-    brain,
-    *,
-    threshold=1e-6,
-    surface=False,
-    percentile_threshold=False,
-    anatomical=None,
-    **kwargs,
-):
-    """Create an interactive brain visualization with nilearn.
-
-    Args:
-        brain (BrainData): A 1-D (single volume) or 2-D (stack of volumes) instance.
-        threshold (float | str): Initial threshold; a percentile string such as
-            `'95%'` switches on `percentile_threshold`. Default 1e-6.
-        surface (bool): Whether to create a surface-based plot. Default False.
-        percentile_threshold (bool): Whether to interpret threshold values as
-            percentiles. Default False.
-        anatomical (nibabel.Nifti1Image | str, optional): Background image; defaults
-            to nilearn's MNI152 template.
-        **kwargs (dict): Forwarded to `nilearn.plotting.view_img` or
-            `nilearn.plotting.view_img_on_surf`.
-
-    Note:
-        Returns nothing; the widgets render inline.
-    """
-
-    if ipywidgets is None:
-        raise ImportError(
-            "ipywidgets>=5.2.2 is required for interactive plotting. Please install this package manually or install nltools with optional arguments: pip install 'nltools[interactive_plots]'"
-        )
-
-    if isinstance(threshold, str):
-        if threshold[-1] != "%":
-            raise ValueError("Starting threshold provided as string must end in '%'")
-        percentile_threshold = True
-        warnings.warn(
-            "Percentile thresholding ignores brain mask. Results are likely more liberal than you expect (e.g. with non-interactive plotting)!",
-            UserWarning,
-            stacklevel=find_stack_level(),
-        )
-        threshold = int(threshold[:-1])
-
-    if len(brain.shape) == 2:
-        time_slider = True
-        max_idx = brain.shape[0] - 1
-    elif len(brain.shape) == 1:
-        time_slider = False
-    else:
-        raise ValueError("BrainData object is not 1d or 2d")
-
-    thresh_box = ipywidgets.widgets.FloatText(value=threshold, description="Threshold")
-
-    if time_slider:
-        idx = ipywidgets.widgets.IntSlider(
-            min=0,
-            max=max_idx,
-            step=1,
-            value=0,
-            orientation="horizontal",
-            continuous_update=False,
-            description="Volume",
-            readout_format="d",
-        )
-    else:
-        idx = ipywidgets.widgets.HTML(
-            value="Image is 3D", description="Volume", placeholder=""
-        )
-    ipywidgets.interact(
-        _viewer,
-        brain=ipywidgets.fixed(brain),
-        thresh=thresh_box,
-        idx=idx,
-        percentile_threshold=percentile_threshold,
-        surface=surface,
-        anatomical=ipywidgets.fixed(anatomical),
-        **kwargs,
-    )
-
-
-def _viewer(brain, thresh, idx, percentile_threshold, surface, anatomical, **kwargs):
-    if thresh == 0:
-        thresh = 1e-6
-    else:
-        if percentile_threshold:
-            thresh = str(thresh) + "%"
-    if isinstance(idx, int):
-        b = brain[idx].to_nifti()
-    else:
-        b = brain.to_nifti()
-    if anatomical:
-        bg_img = anatomical
-    else:
-        bg_img = "MNI152"
-    cut_coords = kwargs.get("cut_coords", [0, 0, 0])
-
-    if surface:
-        return view_img_on_surf(b, threshold=thresh, **kwargs)
-    return view_img(b, bg_img=bg_img, threshold=thresh, cut_coords=cut_coords, **kwargs)
 
 
 def _resolve_brain_input(brain):

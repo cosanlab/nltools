@@ -5,14 +5,13 @@ here is the drawing internal behind a data-class method — `BrainData.plot_surf
 `Roc.plot`, `Adjacency.plot_silhouette` and friends — organized into focused
 submodules:
 
-- **brain**: surface plots, flatmaps, and the interactive brain viewer
+- **brain**: surface plots and flatmaps
 - **adjacency**: adjacency matrix visualizations (stacked, silhouette, distance)
-- **prediction**: model output plots (ROC, SVM margin, regression, logistic)
+- **prediction**: model output plots (ROC, decision margin, regression, probability)
 - **decomposition**: ICA/PCA component viewer
 """
 
 from .brain import (  # noqa: F401
-    plot_interactive_brain,
     plot_surf,
     plot_flatmap,
 )
@@ -23,9 +22,9 @@ from .adjacency import (  # noqa: F401
     plot_silhouette,
 )
 from .prediction import (  # noqa: F401
-    plot_dist_from_hyperplane,
-    plot_scatter,
-    plot_probability,
+    plot_predicted_versus_actual,
+    plot_decision_margin,
+    plot_class_probability,
     plot_roc,
 )
 from .decomposition import component_viewer
