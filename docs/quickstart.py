@@ -483,7 +483,11 @@ def _(Adjacency, np, subjects, ventral_temporal):
         return blended.apply_mask(ventral_temporal).data
 
     profiles = [blended_response(s, w) for s, w in zip(subjects, blend)]
-    neural_similarity = Adjacency(np.corrcoef(profiles), matrix_type="similarity")
+    neural_similarity = Adjacency(
+        np.corrcoef(profiles),
+        matrix_type="similarity",
+        labels=[f"s{n + 1}" for n in range(len(subjects))],
+    )
     scores = 100 - 40 * blend
     behaviour = Adjacency(
         np.abs(scores[:, None] - scores[None, :]), matrix_type="distance"
