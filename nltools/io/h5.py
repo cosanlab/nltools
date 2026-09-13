@@ -259,6 +259,7 @@ _FIT_MAP_ROWS = {
     "alpha": "clear",
 }
 
+
 def _write_fit_record(h5_file, fit, compression):
     """Store a `FitResult`'s maps, design and kind in a `model` group.
 
