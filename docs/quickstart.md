@@ -99,6 +99,6 @@ data.mean().plot(title="Mean of the simulated images")
 
 ## Where next
 
-The [tutorials](tutorials/index.md) work through real data, and the
+The [tutorials](tutorials/data-operations/01_brain_data.md) work through real data, and the
 [Reference](api/nltools.md) documents every namespace. To run nltools outside
 the browser, `uv add nltools` or `pip install nltools`.
