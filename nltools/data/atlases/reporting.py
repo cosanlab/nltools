@@ -16,6 +16,8 @@ import numpy as np
 import polars as pl
 from scipy import ndimage
 
+from nltools.utils import _HORIZONTAL_CONCAT
+
 from .labeling import _clip_to_box, _label_lookup, _xyz_to_ijk, label_coords
 from .loading import _Atlas, load_atlas
 from .registry import DEFAULT_ATLASES
@@ -364,7 +366,7 @@ def _build_peaks_dataframe(
             "n_voxels": n_voxels,
         }
     )
-    return pl.concat([base, labels], how="horizontal_extend")
+    return pl.concat([base, labels], how=_HORIZONTAL_CONCAT)
 
 
 # ---------------------------------------------------------------------------

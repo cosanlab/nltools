@@ -40,8 +40,10 @@ dependencies = [
     # matches nilearn's floor, above every pandas API nltools calls (DataFrame,
     # Series, pd.NA, pd.api.types.is_numeric_dtype).
     "pandas>=2.3.0",
-    # >=1.42.1 for `pl.concat(how="horizontal_extend")`.
-    "polars>=1.42.1",
+    # >=1.33.1 is the polars that Pyodide 314 bundles, so the browser build
+    # resolves; `nltools.utils._HORIZONTAL_CONCAT` picks the horizontal-concat
+    # method name that the installed polars accepts across that range.
+    "polars>=1.33.1",
     "pynv>=0.3",
     # Imported directly throughout (cross_validation, ridge, MDS, ...); >=1.8 for
     # the current MDS kwargs (metric='precomputed', metric_mds, init).

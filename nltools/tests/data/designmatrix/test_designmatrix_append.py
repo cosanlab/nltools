@@ -1,3 +1,5 @@
+import warnings
+
 import polars as pl
 import pytest
 
@@ -427,3 +429,31 @@ class TestReservedNamespaceOnAppend:
 
         out = dm.append(other, axis=1)
         assert ".nl_poly_0" in out.columns
+
+
+class TestPolarsHorizontalConcatName:
+    """The horizontal-concat method name is chosen from the installed polars.
+
+    polars renamed the classic equal-height horizontal concat to
+    ``horizontal_extend`` in 1.42.1 and deprecated the old ``horizontal``
+    spelling; below that version only ``horizontal`` exists. nltools supports
+    both so it can run against the polars 1.33.1 that Pyodide bundles.
+    """
+
+    def test_constant_matches_installed_polars(self):
+        from nltools.utils import _HORIZONTAL_CONCAT
+
+        version = tuple(int(part) for part in pl.__version__.split(".")[:3])
+        expected = "horizontal_extend" if version >= (1, 42, 1) else "horizontal"
+        assert expected == _HORIZONTAL_CONCAT
+
+    def test_horizontal_append_stacks_without_warning(self):
+        dm1 = DesignMatrix({"a": [1.0, 2.0, 3.0]}, sampling_freq=1)
+        dm2 = DesignMatrix({"b": [4.0, 5.0, 6.0]}, sampling_freq=1)
+
+        with warnings.catch_warnings():
+            warnings.simplefilter("error", DeprecationWarning)
+            out = dm1.append(dm2, axis=1)
+
+        assert out.shape == (3, 2)
+        assert out.columns == ["a", "b"]
