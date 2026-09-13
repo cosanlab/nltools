@@ -59,8 +59,21 @@ def _():
 
     print(data)
     print(f".data is a {type(data.data).__name__} of shape {data.data.shape}")
-    data.X.head()
     return BrainData, data
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    `.X`, one row per image:
+    """)
+    return
+
+
+@app.cell
+def _(data):
+    data.X.head()
+    return
 
 
 @app.cell(hide_code=True)
@@ -89,17 +102,90 @@ def _(mo):
     return
 
 
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    One image, by integer:
+    """)
+    return
+
+
+@app.cell
+def _(data):
+    print(data[0])
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    A range of images, by slice:
+    """)
+    return
+
+
+@app.cell
+def _(data):
+    print(data[:5])
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    Any images in any order, by list:
+    """)
+    return
+
+
+@app.cell
+def _(data):
+    print(data[[0, 10, 20, 30]])
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    The high-pain images, by boolean filter:
+    """)
+    return
+
+
 @app.cell
 def _(data):
     high_pain = data[data.X["PainLevel"] == 3]
 
-    print(data[0])
-    print(data[:5])
-    print(data[[0, 10, 20, 30]])
     print(f"{len(high_pain)} high-pain images")
-    print(data[:2].append(data[4]))
-    [round(float(image.data.mean()), 2) for image in data[:5]]
     return (high_pain,)
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    Two objects concatenated:
+    """)
+    return
+
+
+@app.cell
+def _(data):
+    print(data[:2].append(data[4]))
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    Iterating over a stack, one image at a time:
+    """)
+    return
+
+
+@app.cell
+def _(data):
+    [round(float(image.data.mean()), 2) for image in data[:5]]
+    return
 
 
 @app.cell(hide_code=True)
@@ -128,18 +214,38 @@ def _(mo):
 def _(data):
     print((data + 10) * 2)
     print(data[1] - data[0])
+    return
 
+
+@app.cell
+def _(data):
     mean_map = data.mean()
     tsnr = mean_map / data.std()
+
     tsnr.plot(title="Temporal signal-to-noise ratio")
-
-    z_scored = data.standardize(method="zscore")
-    print(f"z-scored mean across voxels: {z_scored.data.mean():.6f}")
-
-    top_voxels = mean_map.threshold(upper="95%", binarize=True)
-    print(f"top 5% of the mean map: {top_voxels.data.sum():.0f} voxels")
-    mean_map.threshold(upper="95%").plot(cmap="Blues", title="Top 5% of voxels")
     return (mean_map,)
+
+
+@app.cell
+def _(data):
+    z_scored = data.standardize(method="zscore")
+
+    print(f"z-scored mean across voxels: {z_scored.data.mean():.6f}")
+    return
+
+
+@app.cell
+def _(mean_map):
+    top_voxels = mean_map.threshold(upper="95%", binarize=True)
+
+    print(f"top 5% of the mean map: {top_voxels.data.sum():.0f} voxels")
+    return
+
+
+@app.cell
+def _(mean_map):
+    mean_map.threshold(upper="95%").plot(cmap="Blues", title="Top 5% of voxels")
+    return
 
 
 @app.cell(hide_code=True)
@@ -195,14 +301,38 @@ def _(mo):
 
 
 @app.cell
-def _(data, mean_map):
-    from nilearn.plotting import plot_stat_map
-
+def _(mean_map):
     mean_map.plot(title="Mean activation")
+    return
+
+
+@app.cell
+def _(data):
     data[:2].plot(limit=2)
+    return
+
+
+@app.cell
+def _(mean_map):
     mean_map.plot(method="slices", view="xyz")
+    return
+
+
+@app.cell
+def _(mean_map):
     mean_map.plot_surf()
+    return
+
+
+@app.cell
+def _(mean_map):
     mean_map.plot_flatmap()
+    return
+
+
+@app.cell
+def _(mean_map):
+    from nilearn.plotting import plot_stat_map
 
     _display = plot_stat_map(mean_map.to_nifti(), display_mode="z", cut_coords=5)
     return
@@ -251,8 +381,6 @@ def _(mo):
 
 @app.cell
 def _(data):
-    import matplotlib.pyplot as plt
-
     from nltools.mask import create_sphere
 
     sphere = create_sphere([0, 0, 0], radius=30)
@@ -260,7 +388,18 @@ def _(data):
 
     print(f"whole brain:  {data.shape}")
     print(f"30 mm sphere: {sphere_data.shape}")
+    return sphere, sphere_data
+
+
+@app.cell
+def _(sphere_data):
     sphere_data.mean().plot()
+    return
+
+
+@app.cell
+def _(data, sphere):
+    import matplotlib.pyplot as plt
 
     roi_mean = data.extract_roi(sphere)
     _fig, _ax = plt.subplots(figsize=(8, 3))
@@ -299,13 +438,33 @@ def _(BrainData, high_pain):
     regions = expand_mask(parcellation)
 
     print(f"{parcellation.shape} labeled image -> {regions.shape} binary masks")
-    regions[:3].plot()
-    collapse_mask(regions).plot(title="Collapsed back to one labeled image")
+    return collapse_mask, parcellation, regions
 
+
+@app.cell
+def _(regions):
+    regions[:3].plot()
+    return
+
+
+@app.cell
+def _(collapse_mask, regions):
+    collapse_mask(regions).plot(title="Collapsed back to one labeled image")
+    return
+
+
+@app.cell
+def _(high_pain):
     blobs = high_pain.mean().threshold(lower="2.5%", upper="97.5%").regions()
+
     print(f"{len(blobs)} regions from the thresholded high-pain mean")
+    return (blobs,)
+
+
+@app.cell
+def _(blobs):
     blobs[:3].plot()
-    return parcellation, regions
+    return
 
 
 @app.cell(hide_code=True)
@@ -340,21 +499,36 @@ def _(BrainData, data, parcellation, regions):
         ]
     )
     region_profiles = contrast.extract_roi(parcellation)
+
     print(f"{contrast.shape} contrast images")
     print(f"{region_profiles.shape} (regions, subjects)")
+    return Adjacency, np, pairwise_distances, region_profiles, roi_to_brain
 
+
+@app.cell
+def _(Adjacency, pairwise_distances, region_profiles):
     distance = Adjacency(
         pairwise_distances(region_profiles, metric="correlation"),
         matrix_type="distance",
     )
     connected = distance.threshold(lower="15%", binarize=True)
-    connected.plot()
 
+    connected.plot()
+    return (connected,)
+
+
+@app.cell
+def _(connected, np):
     graph = connected.to_graph()
     degree = np.array([d for _, d in sorted(graph.degree())])
 
     print(f"{graph.number_of_nodes()} nodes, {graph.number_of_edges()} edges")
     print(f"degree range: {degree.min()}-{degree.max()}")
+    return (degree,)
+
+
+@app.cell
+def _(degree, regions, roi_to_brain):
     roi_to_brain(degree, regions).plot(title="Degree centrality")
     return
 
@@ -466,18 +640,36 @@ def _(mo):
 
 
 @app.cell
-def _(BrainData, tempfile):
+def _(BrainData):
     from nltools.datasets import download_nifti, fetch_neurovault_collection
 
     nv_metadata, nv_files = fetch_neurovault_collection(2099, verbose=0)
     collection = BrainData(nv_files, X=nv_metadata)
-    print(nv_metadata.select("id", "name", "map_type", "modality"))
 
+    print(nv_metadata.select("id", "name", "map_type", "modality"))
+    return collection, download_nifti
+
+
+@app.cell
+def _(collection):
+    collection.plot(limit=len(collection))
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    And one image by URL:
+    """)
+    return
+
+
+@app.cell
+def _(BrainData, download_nifti, tempfile):
     _url = "https://neurovault.org/media/images/2099/Neurosynth%20Parcellation_0.nii.gz"
     neurosynth = BrainData(download_nifti(_url, data_dir=tempfile.mkdtemp()))
-    print(neurosynth)
 
-    collection.plot(limit=len(collection))
+    print(neurosynth)
     return
 
 
