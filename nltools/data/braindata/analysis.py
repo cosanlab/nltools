@@ -555,7 +555,7 @@ def _extract_roi(bd, mask, method="mean", n_components=None):
     Returns:
         float | np.ndarray: For a binary mask, a scalar (single image) or 1D array
             of values (multiple images). For a labeled atlas, a 1D array with one
-            value per ROI (single image), a 2D array of images x ROIs (multiple
+            value per ROI (single image), a 2D array of ROIs x images (multiple
             images), or the components array when `method='pca'`.
 
     Raises:
