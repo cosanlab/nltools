@@ -45,22 +45,44 @@ def test_fields_cannot_be_rebound(record):
         record.kind = "ridge"
 
 
-def test_the_producer_hands_over_owned_maps_and_design(minimal_brain_data):
-    """A fit's record shares no buffer with the data or the design it ran on."""
+@pytest.fixture
+def training_design(minimal_brain_data):
+    """A design the caller still holds after the fit, so mutation is testable."""
     n = len(minimal_brain_data)
-    design = DesignMatrix({"intercept": np.ones(n), "cond": np.arange(n, dtype=float)})
+    return DesignMatrix({"intercept": np.ones(n), "cond": np.arange(n, dtype=float)})
 
-    minimal_brain_data.fit(model="glm", X=design)
+
+def test_the_maps_do_not_alias_the_fitted_data(minimal_brain_data, training_design):
+    """Mutating the fitted data afterwards never reaches the record's maps."""
+    minimal_brain_data.fit(model="glm", X=training_design)
+    fit = minimal_brain_data.model
+    before = fit.predicted.data.copy()
+
+    minimal_brain_data.data[:] = -999.0
+
+    np.testing.assert_array_equal(fit.predicted.data, before)
+
+
+def test_the_maps_share_no_buffer_with_the_fitted_data(
+    minimal_brain_data, training_design
+):
+    """Ownership is real memory separation, not a copy-on-write illusion."""
+    minimal_brain_data.fit(model="glm", X=training_design)
     fit = minimal_brain_data.model
 
     assert not np.shares_memory(fit.predicted.data, minimal_brain_data.data)
     assert not np.shares_memory(fit.residual.data, minimal_brain_data.data)
-    assert fit.design is not design
 
-    before = fit.predicted.data.copy()
-    minimal_brain_data.data[:] = -999.0
-    design.data.replace_column(0, pl.Series("intercept", np.zeros(n)))
-    np.testing.assert_array_equal(fit.predicted.data, before)
+
+def test_the_record_detaches_the_callers_design(minimal_brain_data, training_design):
+    """The design arrives from the caller, so the producer copies it."""
+    n = len(minimal_brain_data)
+    minimal_brain_data.fit(model="glm", X=training_design)
+    fit = minimal_brain_data.model
+    assert fit.design is not training_design
+
+    training_design.data.replace_column(0, pl.Series("intercept", np.zeros(n)))
+
     assert fit.design["intercept"].to_list() == [1.0] * n
 
 
@@ -334,3 +356,20 @@ class TestFitRecordRoundTripsThroughH5:
         np.testing.assert_allclose(
             loaded.model.betas.data, minimal_brain_data.model.betas.data
         )
+
+    def test_a_file_without_a_model_group_loads_unfitted(self, fitted_glm, tmp_path):
+        """A file written before the fit record existed still reads back as it did."""
+        import h5py
+
+        from nltools.data import BrainData
+
+        path = str(tmp_path / "legacy.h5")
+        fitted_glm.write(path)
+        with h5py.File(path, "a") as f:
+            del f["model"]
+
+        loaded = BrainData(path)
+
+        assert loaded.model is None
+        np.testing.assert_array_equal(loaded.data, fitted_glm.data)
+        assert loaded.X.equals(fitted_glm.X)
