@@ -4,8 +4,8 @@ name: Docs
 # master, on every `v*` release tag (same trigger as release.yml), and on a
 # manual run. The site tracks master deliberately — docs run ahead of the PyPI
 # release so the merged API can be dogfooded (e.g. a GitHub install) and patched
-# before `poe release`. The tutorials are out of the site until #503 restores
-# them; once they are back, executing their cells is a test layer again.
+# before `poe release`. Each tutorial page in the nav executes its cells as it
+# renders, so this build is also a test layer.
 #
 # nltools.org is a custom domain served from the site root, which is what
 # `site_url` in zensical.toml names. A fork deploying to a project page points
@@ -67,9 +67,13 @@ jobs:
       # Regenerate the vocabulary tables, then build the site. A fresh checkout is
       # already cold (no zensical cache, no tutorial joblib caches);
       # docs-build-fresh makes that explicit so a local run reproduces this build.
+      # HF_TOKEN authenticates the template and atlas downloads the tutorials
+      # trigger. Unauthenticated calls print a rate-limit warning to stderr, and
+      # a tutorial cell that writes to stderr fails the strict build.
       - name: Build docs
         env:
           HF_HUB_ETAG_TIMEOUT: "30"
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: uv run poe docs-build-fresh
 
       - name: Configure GitHub Pages

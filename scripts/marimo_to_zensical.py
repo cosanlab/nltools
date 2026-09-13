@@ -51,12 +51,12 @@ from textwrap import indent
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 
-# Notebooks converted by `--all` (and by the `docs-generate` poe task).
+# Notebooks converted by `--all` (and by the `docs-generate` poe task): the ones
+# the site nav holds. The remaining notebooks under `docs/tutorials/` are parked
+# and are added back here as each returns to the nav — a parked notebook must not
+# be converted, because zensical builds and executes every `.md` under `docs/`.
 TUTORIAL_GLOBS = [
-    "docs/tutorials/basics/[0-9]*.py",
-    "docs/tutorials/data-operations/[0-9]*.py",
-    "docs/tutorials/analysis/[0-9]*.py",
-    "docs/tutorials/workflows/[0-9]*.py",
+    "docs/tutorials/data-operations/01_brain_data.py",
 ]
 
 # Where the source notebooks live on GitHub. The docs site deploys from `master`,
