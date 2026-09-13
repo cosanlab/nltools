@@ -74,12 +74,32 @@ def _():
     )
 
     print(dm)
+    return DesignMatrix, dm
+
+
+@app.cell
+def _(dm):
     print(f"dm['face_A'] is a {type(dm['face_A']).__name__}")
     print(f"dm[['face_A', 'face_B']] is a {type(dm[['face_A', 'face_B']]).__name__}")
-    dm.plot(title="Toy blocked design")
-    dm.plot(method="corr", title="Column correlations")
+    return
+
+
+@app.cell
+def _(dm):
     dm.head().data
-    return DesignMatrix, dm
+    return
+
+
+@app.cell
+def _(dm):
+    dm.plot(title="Toy blocked design")
+    return
+
+
+@app.cell
+def _(dm):
+    dm.plot(method="corr", title="Column correlations")
+    return
 
 
 @app.cell(hide_code=True)
@@ -114,20 +134,38 @@ def _(mo):
 
 @app.cell
 def _(dm):
-    import matplotlib.pyplot as plt
-    import numpy as np
-
     convolved = dm.convolve()
+
     print(convolved)
+    return (convolved,)
+
+
+@app.cell
+def _(dm):
+    import numpy as np
 
     _decay = np.exp(-np.arange(0, 24, 2) / 6.0)
     print(dm.convolve(kernel=_decay).columns)
     print(dm.convolve(kernel=np.column_stack([_decay, _decay[::-1]])).columns)
+    return (np,)
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    One boxcar and its convolved version, drawn on the same axis:
+    """)
+    return
+
+
+@app.cell
+def _(convolved, dm):
+    import matplotlib.pyplot as plt
 
     _fig, _ax = plt.subplots(figsize=(8, 3))
     dm.plot(method="timeseries", columns=["face_A"], ax=_ax)
     convolved.plot(method="timeseries", columns=["face_A_c0"], ax=_ax, title="face_A")
-    return convolved, np
+    return
 
 
 @app.cell(hide_code=True)
@@ -162,11 +200,27 @@ def _(mo):
 @app.cell
 def _(dm):
     poly_drift = dm.add_poly(order=2)
-    cosine_drift = dm.add_dct_basis(duration=20)
 
     print(poly_drift)
-    print(cosine_drift)
+    return (poly_drift,)
+
+
+@app.cell
+def _(poly_drift):
     poly_drift.plot(title="Legendre polynomials to order 2")
+    return
+
+
+@app.cell
+def _(dm):
+    cosine_drift = dm.add_dct_basis(duration=20)
+
+    print(cosine_drift)
+    return (cosine_drift,)
+
+
+@app.cell
+def _(cosine_drift):
     cosine_drift.plot(title="Cosine basis, 20 s cutoff")
     return
 
@@ -205,14 +259,32 @@ def _(DesignMatrix):
     events_file = resources / "onsets_example.csv"
     events = pl.read_csv(events_file)
 
+    events.head(3)
+    return events, events_file, events_to_dm, pl, resources
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    Both conversions, on that file:
+    """)
+    return
+
+
+@app.cell
+def _(DesignMatrix, events, events_file, events_to_dm):
     boxcars = events_to_dm(events, run_length=160, sampling_freq=0.5)
     run_task = DesignMatrix(events_file, run_length=160, sampling_freq=0.5)
 
     print(f"events_to_dm gives a {type(boxcars).__name__} of shape {boxcars.shape}")
     print(run_task)
+    return (run_task,)
+
+
+@app.cell
+def _(run_task):
     run_task.plot(title="One run of task regressors")
-    events.head(3)
-    return events_file, pl, resources
+    return
 
 
 @app.cell(hide_code=True)
@@ -236,8 +308,13 @@ def _(DesignMatrix, resources):
     ).fillna(0)
 
     print(run_confounds)
+    return confounds_file, run_confounds
+
+
+@app.cell
+def _(run_confounds):
     run_confounds.plot(vmin=-1, vmax=1, title="One run of motion confounds")
-    return (confounds_file,)
+    return
 
 
 @app.cell(hide_code=True)
@@ -268,8 +345,13 @@ def _(convolved):
 
     print(two_runs)
     print(f"with unique_cols=['house*']: {split_houses.columns}")
+    return single_run, two_runs
+
+
+@app.cell
+def _(two_runs):
     two_runs.plot(title="Two runs, separate baselines")
-    return (single_run,)
+    return
 
 
 @app.cell(hide_code=True)
@@ -313,8 +395,13 @@ def _(DesignMatrix, confounds_file, events_file):
     print(f"{all_runs.shape[0]} TRs x {all_runs.shape[1]} columns")
     print(f"task: {all_runs.columns[:2]} ... {all_runs.columns[12]}")
     print(f"run 0 confounds: {all_runs.confounds[:2]} ... {all_runs.confounds[29]}")
-    all_runs.plot(vmin=-1, vmax=1, title="Four runs")
     return (all_runs,)
+
+
+@app.cell
+def _(all_runs):
+    all_runs.plot(vmin=-1, vmax=1, title="Four runs")
+    return
 
 
 @app.cell(hide_code=True)
@@ -357,9 +444,14 @@ def _(all_runs, np, pl):
         zip(task_columns, planted.vif()), key=lambda pair: -pair[1]
     )[:3]:
         print(f"VIF {_value:8.1f}  {_name}")
+    return (planted,)
 
+
+@app.cell
+def _(planted):
     cleaned = planted.clean()
-    print(f"\n{planted.shape[1]} columns -> {cleaned.shape[1]} after clean()")
+
+    print(f"{planted.shape[1]} columns -> {cleaned.shape[1]} after clean()")
     print(f"dropped: {[c for c in planted.columns if c not in cleaned.columns]}")
     return
 
@@ -393,6 +485,11 @@ def _(single_run):
 
     print(brain)
     print(f"{brain.glm_betas.shape[0]} beta maps for {single_run.shape[1]} columns")
+    return (brain,)
+
+
+@app.cell
+def _(brain):
     brain.compute_contrasts("face_A_c0").plot(title="face_A effect")
     return
 
