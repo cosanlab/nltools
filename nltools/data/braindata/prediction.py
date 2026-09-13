@@ -2,7 +2,7 @@
 
 Single entry point: `predict`. It resolves exactly one mode, validates every
 argument for that mode, and returns either a new `BrainData` (fitted-model
-prediction) or a frozen `Predict` record (MVPA). Nothing is attached to the
+prediction) or a frozen `PredictResult` record (MVPA). Nothing is attached to the
 source object.
 """
 
@@ -17,7 +17,7 @@ from nltools.algorithms.decoding import (
     _back_project_weight_maps,
     _validate_decoding_pipeline,
 )
-from nltools.data.results import Predict
+from nltools.data.results import PredictResult
 from nltools.utils import _maybe_tqdm
 
 from .utils import _is_default
@@ -235,7 +235,7 @@ def _predict_timeseries(bd, *, X=None):
     Returns a fresh ``BrainData`` whose ``.data`` is the predicted timeseries.
     Encoding model prediction yields a brain image — the natural container is
     ``BrainData``, so it composes directly with downstream methods (`.plot()`,
-    `.standardize()`, etc.). MVPA decoding (``y=`` mode) returns ``Predict``.
+    `.standardize()`, etc.). MVPA decoding (``y=`` mode) returns ``PredictResult``.
 
     With no ``X``, the fitted model returns an independent copy of the stored
     training predictions and keeps their row metadata: ``glm_predicted`` for a
@@ -287,8 +287,8 @@ def _predict_mvpa(
     plot: bool,
     n_jobs: int,
     progress_bar: bool,
-) -> Predict:
-    """Run cross-validated decoding on a `BrainData` and return a `Predict`.
+) -> PredictResult:
+    """Run cross-validated decoding on a `BrainData` and return a `PredictResult`.
 
     Every argument is validated, and the cross-validation folds are
     materialized and checked, before a single model is fitted.
@@ -451,7 +451,7 @@ def _validate_scoring(scoring) -> None:
         isinstance(scoring, (list, tuple, set)) and not isinstance(scoring, str)
     ):
         raise ValueError(
-            "Multimetric scoring is not accepted because Predict.scores holds "
+            "Multimetric scoring is not accepted because PredictResult.scores holds "
             "one value per cross-validation fold. Pass a single scoring name "
             "or callable, or None to use the estimator's own score method."
         )
@@ -867,9 +867,9 @@ def _run_whole_brain(bd, X, y, pipe, *, splits, scoring, classes, n_jobs):
     the brain per worker.
 
     Returns:
-        tuple: The `Predict` record, and the row-aligned out-of-fold decision
+        tuple: The `PredictResult` record, and the row-aligned out-of-fold decision
             values (`None` when the pipeline produces none). The values ride
-            alongside the record rather than inside it because `Predict` is a
+            alongside the record rather than inside it because `PredictResult` is a
             plain record whose fields are fixed per spatial scale; only
             `predict(plot=True)` consumes them.
     """
@@ -920,7 +920,7 @@ def _run_whole_brain(bd, X, y, pipe, *, splits, scoring, classes, n_jobs):
         for test_idx, values in zip(fold_test_idx, fold_values):
             out_of_fold_values[test_idx] = values
 
-    record = Predict(
+    record = PredictResult(
         spatial_scale="whole_brain",
         scoring=scoring,
         classes=getattr(estimator, "classes_", classes),
@@ -994,7 +994,7 @@ def _to_braindata(bd, arr):
     copying the mask and masker state. Returns None if `arr` is None, which
     preserves "field not applicable" semantics.
 
-    `Predict` deep-copies whatever it is handed, because a caller can construct
+    `PredictResult` deep-copies whatever it is handed, because a caller can construct
     one from a `BrainData` they still own. This map is therefore copied twice on
     the runner path; do not add a third copy here to "harden" it.
     """
@@ -1028,11 +1028,11 @@ def _iter_split(cv, X, y, groups):
 
 
 def _as_predict_map(maps: np.ndarray) -> np.ndarray:
-    """Shape back-projected coefficients the way `Predict.weight_map` requires.
+    """Shape back-projected coefficients the way `PredictResult.weight_map` requires.
 
     `nltools.algorithms.decoding` always returns ``(n_maps, n_features)``. The
     record wants one *unstacked* map for regression and binary classification
-    and the stack for multiclass. `Predict` no longer re-checks that rule, so
+    and the stack for multiclass. `PredictResult` no longer re-checks that rule, so
     this is the only place it is enforced; every runner drops the leading axis
     here and nowhere else, and
     `test_braindata_prediction.py::TestWeightMapShapes` pins it.
@@ -1068,8 +1068,8 @@ def _score_sphere(X, y, pipe, splits, scoring, neighbor_indices) -> float:
 
 def _run_searchlight(
     bd, X, y, pipe, *, splits, scoring, classes, radius, n_jobs, progress_bar
-) -> Predict:
-    """Per-voxel-neighborhood CV decoding. Returns a Predict with one score_map.
+) -> PredictResult:
+    """Per-voxel-neighborhood CV decoding. Returns a PredictResult with one score_map.
 
     Local models fitted on overlapping neighborhoods have no common feature
     axis, so the result exposes no coefficient map, no fold assignments and no
@@ -1097,7 +1097,7 @@ def _run_searchlight(
         sphere_scores = Parallel(n_jobs=n_jobs)(
             delayed(decode_sphere)(c, n) for c, n in neighborhood_list
         )
-    return Predict(
+    return PredictResult(
         spatial_scale="searchlight",
         scoring=scoring,
         classes=classes,
@@ -1143,10 +1143,10 @@ def _assemble_roi_weights(label_vec, unique_labels, per_roi) -> np.ndarray:
 
 def _run_roi(
     bd, X, y, pipe, *, splits, scoring, classes, roi_mask, n_jobs, progress_bar
-) -> Predict:
+) -> PredictResult:
     """Per-parcel cross-validated decoding with an assembled voxel-space map.
 
-    Returns a Predict with:
+    Returns a PredictResult with:
 
     - ``scores`` ``(n_folds, n_rois)`` — fold scores per parcel, in
       ``roi_labels`` order.
@@ -1225,7 +1225,7 @@ def _run_roi(
 
     # Scores: (n_folds, n_rois)
     fold_scores_per_roi = np.vstack([r["fold_scores"] for r in per_roi]).T
-    # The same reduction `Predict.mean_score` uses, so the painted map and the
+    # The same reduction `PredictResult.mean_score` uses, so the painted map and the
     # reported summary cannot drift apart.
     mean_per_roi = _fold_mean(fold_scores_per_roi, axis=0)
 
@@ -1239,7 +1239,7 @@ def _run_roi(
     # destination. A parcel that failed to fit leaves NaN behind.
     weight_arr = _assemble_roi_weights(label_vec, unique_labels, per_roi)
 
-    return Predict(
+    return PredictResult(
         spatial_scale="roi",
         scoring=scoring,
         classes=classes,

@@ -1,4 +1,4 @@
-"""Tests for BrainData.predict() — kwargs API returning Predict dataclass."""
+"""Tests for BrainData.predict() — kwargs API returning PredictResult dataclass."""
 
 import inspect
 
@@ -10,7 +10,7 @@ from sklearn.model_selection import (
     StratifiedKFold,
 )
 
-from nltools.data import Predict
+from nltools.data import PredictResult
 from nltools.data.braindata.prediction import _resolve_splitter
 
 
@@ -58,7 +58,7 @@ class TestStoredYFallback:
     def test_y_none_decodes_stored_single_column_Y(self, sim_brain_data):
         sim_brain_data.Y = {"label": self._labels(sim_brain_data)}
         result = sim_brain_data.predict(cv=3)
-        assert isinstance(result, Predict)
+        assert isinstance(result, PredictResult)
         assert result.predictions.shape == (sim_brain_data.shape[0],)
 
     def test_y_column_name_selects_from_stored_Y(self, sim_brain_data):
@@ -68,7 +68,7 @@ class TestStoredYFallback:
             "run": np.arange(n) % 2,
         }
         result = sim_brain_data.predict(y="label", cv=3)
-        assert isinstance(result, Predict)
+        assert isinstance(result, PredictResult)
 
     def test_fitted_model_wins_over_stored_Y(self, minimal_brain_data):
         """A no-argument call predicts from the fitted model, not the labels."""
@@ -85,7 +85,7 @@ class TestStoredYFallback:
 
 
 # ---------------------------------------------------------------------------
-# Whole-brain MVPA — returns Predict with weight maps
+# Whole-brain MVPA — returns PredictResult with weight maps
 # ---------------------------------------------------------------------------
 
 
@@ -96,7 +96,7 @@ class TestWholeBrain:
 
         result = sim_brain_data.predict(y=y, spatial_scale="whole_brain", cv=3)
 
-        assert isinstance(result, Predict)
+        assert isinstance(result, PredictResult)
 
     def test_classification_populates_expected_fields(self, sim_brain_data):
         n = sim_brain_data.shape[0]
@@ -133,7 +133,7 @@ class TestWholeBrain:
             y=y, spatial_scale="whole_brain", cv=3, estimator="ridge"
         )
 
-        assert isinstance(result, Predict)
+        assert isinstance(result, PredictResult)
         assert result.weight_map.shape == (n_voxels,)
         # mean_score should be a finite float (R² for regression)
         assert isinstance(result.mean_score, float)
@@ -154,7 +154,7 @@ class TestWholeBrain:
             cv=3,
             estimator=LogisticRegression(max_iter=1000),
         )
-        assert isinstance(result, Predict)
+        assert isinstance(result, PredictResult)
         assert result.weight_map is not None
         assert not isinstance(result.estimator, Pipeline)
         assert isinstance(result.estimator, LogisticRegression)
@@ -233,7 +233,7 @@ class TestSearchlight:
         result = minimal_brain_data.predict(
             y=y, spatial_scale="searchlight", cv=3, radius=4.0, n_jobs=1
         )
-        assert isinstance(result, Predict)
+        assert isinstance(result, PredictResult)
         assert result.spatial_scale == "searchlight"
         assert result.score_map.shape == (n_voxels,)
         np.testing.assert_array_equal(result.classes, [0, 1])
@@ -1065,7 +1065,7 @@ class TestPredictPlot:
 
         result = minimal_brain_data.predict(y=y, estimator="ridge", cv=3, plot=True)
 
-        assert isinstance(result, Predict)
+        assert isinstance(result, PredictResult)
         titles = [
             ax.get_title()
             for fig in map(plt.figure, plt.get_fignums())

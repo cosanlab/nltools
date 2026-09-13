@@ -235,11 +235,11 @@ BrainData.predict(
     plot: bool = False,
     n_jobs: int = 1,
     progress_bar: bool = False,
-) -> BrainData | Predict
+) -> BrainData | PredictResult
 ```
 
 Static overloads expose the mode-specific return types: fitted-model prediction
-returns `BrainData`, while MVPA returns `Predict`. They do not change the single
+returns `BrainData`, while MVPA returns `PredictResult`. They do not change the single
 runtime signature.
 
 `predict` resolves exactly one mode before doing any work:
@@ -262,7 +262,7 @@ explicit `y`, or a row-count mismatch raises before model fitting.
 Fitted-model prediction wins over attached `.Y` on a no-argument call.
 
 `predict` never mutates `self` and has no `inplace` argument. MVPA returns a
-`Predict` result. Fitted-model prediction returns a new, independently owned
+`PredictResult` result. Fitted-model prediction returns a new, independently owned
 `BrainData`. `predict` does not attach dynamic `predict_*` attributes to the
 source `BrainData`.
 
@@ -283,7 +283,7 @@ alongside a caller-supplied estimator raises `ValueError`, because that
 estimator is used exactly as given.
 
 `plot=False` by default. With `plot=True`, whole-brain decoding draws its
-cross-validated figures as a side effect and returns the same `Predict`:
+cross-validated figures as a side effect and returns the same `PredictResult`:
 the predicted-versus-actual scatter for a regression, the ROC of the out-of-fold
 decision values plus the margin or probability figure for a binary
 classification, and the weight map in both cases. A multiclass target and any
@@ -307,7 +307,7 @@ pipelines must additionally end in an estimator that exposes `coef_`, because
 those two scales extract a weight map: their coefficients must project back to
 the original whole-brain or parcel voxel axis. An incompatible estimator or
 pipeline raises `ValueError`. Every successful whole-brain or ROI result
-includes `Predict.weight_map`. Searchlight builds no coefficient map — it would
+includes `PredictResult.weight_map`. Searchlight builds no coefficient map — it would
 have to combine coefficients from overlapping local models — so it requires the
 whitelist but not `coef_`.
 
@@ -335,7 +335,7 @@ Each step validates its fitted input and output widths, and the final projected
 width must match the original whole-brain or parcel voxel axis. Centering adds
 an offset to the raw-space decision function but does not change its slope map.
 Therefore, `raw_data @ weight_map` need not reproduce the full decision
-function. Callers use the fitted whole-brain `Predict.estimator` for prediction.
+function. Callers use the fitted whole-brain `PredictResult.estimator` for prediction.
 
 `OneVsRestClassifier` is handled explicitly because it does not expose one
 combined `coef_`. For binary classification, its sole fitted child must expose
@@ -345,13 +345,13 @@ multiclass classification, child `i` must expose one coefficient row for
 preprocessing must appear before `OneVsRestClassifier`, which must be the final
 pipeline step.
 
-For regression, `Predict.weight_map` contains one coefficient map. For binary
+For regression, `PredictResult.weight_map` contains one coefficient map. For binary
 classification, it contains one signed map for `classes_[1]` versus
 `classes_[0]`. For multiclass classification, it contains one map per class in
-`classes_` order. `Predict.classes` stores the classifier's class labels.
+`classes_` order. `PredictResult.classes` stores the classifier's class labels.
 It is `None` for regression. Coefficient maps are never averaged across classes.
 
-`Predict` does not expose fold-specific coefficient maps. Fits on overlapping
+`PredictResult` does not expose fold-specific coefficient maps. Fits on overlapping
 training folds are neither independent uncertainty samples nor a substitute
 for a defined inferential procedure. The canonical coefficient map comes from
 the estimator refitted on all observations after cross-validation.
@@ -359,7 +359,7 @@ the estimator refitted on all observations after cross-validation.
 `scoring` defaults to `None` and follows scikit-learn's single-metric scoring
 contract. `None` uses the estimator's `score` method; a scoring name or callable
 overrides it. The nltools-specific `"auto"` value is removed. Multimetric
-mappings are not accepted because `Predict.scores` contains one value per
+mappings are not accepted because `PredictResult.scores` contains one value per
 cross-validation fold.
 
 `cv` and `groups` apply only to MVPA. Prediction from a fitted `_Glm` or `_Ridge`
@@ -389,11 +389,11 @@ parallelism and runs each member's inner prediction with `n_jobs=1`.
 
 MVPA requires the cross-validation test folds to partition the observations:
 each observation appears in exactly one test fold. This keeps
-`Predict.predictions` aligned one-to-one with the original rows and gives every
-observation one `Predict.cv_folds` value. Repeated, overlapping, or incomplete
+`PredictResult.predictions` aligned one-to-one with the original rows and gives every
+observation one `PredictResult.cv_folds` value. Repeated, overlapping, or incomplete
 test folds raise before model fitting.
 
-MVPA uses one frozen `Predict` result class. Its required `spatial_scale`
+MVPA uses one frozen `PredictResult` result class. Its required `spatial_scale`
 discriminator is `"whole_brain"`, `"roi"`, or `"searchlight"`. Every field
 exists on every instance; `None` marks fields that do not apply to the selected
 mode. Construction validates the permitted non-`None` fields and their shapes,
@@ -440,7 +440,7 @@ Searchlight results contain one `score_map`. They do not expose predictions,
 fold assignments, estimators, or coefficient maps for overlapping local
 neighborhoods.
 
-`Predict.mean_score` and `Predict.std_score` derive from `scores` for
+`PredictResult.mean_score` and `PredictResult.std_score` derive from `scores` for
 whole-brain and ROI results; they are not stored independently. Accessing either
 property on a searchlight result raises `AttributeError`. Searchlight stores its
 cross-fold mean directly in `score_map`. The misleading `accuracy_map` name is
@@ -744,7 +744,7 @@ separate, explicitly versioned format, preserve the complete fitted-member state
 specified in `braincollection.md`, and are not accepted as public `BrainData`
 input files.
 
-`Predict`, contrast, and bootstrap records are separate returned values rather
+`PredictResult`, contrast, and bootstrap records are separate returned values rather
 than attached `BrainData` state. Writing a `BrainData` payload extracted from
 one of those records writes only that map or stack.
 
@@ -776,7 +776,7 @@ Tests must establish:
 - coefficient back-projection through every supported preprocessing step;
 - binary, multiclass one-vs-rest, native multiclass, and regression weight-map
   shapes without class averaging;
-- strict whole-brain, ROI, and searchlight `Predict` field combinations;
+- strict whole-brain, ROI, and searchlight `PredictResult` field combinations;
 - derived score summaries and the absence of duplicated or fold-specific
   coefficient state;
 - GLM named-column and Ridge named-feature-space prediction alignment;
