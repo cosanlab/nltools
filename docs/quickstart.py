@@ -180,6 +180,9 @@ def _(mo):
     The palest cells are the 1-versus-3 pairs, furthest apart; the deepest red are
     the pairs drawn at the same level.
 
+    More in [Working with Adjacency](tutorials/data-operations/03_adjacency.md),
+    which covers thresholds, Fisher z, stacking subjects, regression and graphs.
+
     ## Common analysis workflows
 
     Those three objects are all you need. A design fits to data and answers a
