@@ -77,6 +77,9 @@ apply `BrainData` methods per subject and stack the results with
 | Plotting | `plot_mean_label_distance`, `plot_between_label_distance`, `plot_silhouette` | `Adjacency.plot_label_distance` and friends | Methods on `Adjacency` |
 | Plotting | `plot_stacked_adjacency` | Removed, no successor | Plot the two matrices side by side |
 | Plotting | `brain.iplot(threshold=0, surface=…)` | `brain.iplot(view=…, threshold=…, atlas=…)` | Rebuilt on niivue |
+| Plotting | Glass brains hid a percentile of voxels (nilearn's `threshold='auto'`) | `brain.plot(method='glass')` draws every voxel | The colorbar keeps its 0 tick; pass `threshold=` for a cutoff |
+| Plotting | `adjacency.plot()` drew every matrix on a sequential ramp | Matrices whose off-diagonal values cross zero use `RdBu_r`, centered at 0 with symmetric limits | One-signed matrices are unchanged; `cmap`, `center`, `vmin`, `vmax` still win |
+| Plotting | `adjacency.squareform()` always wrote a zero diagonal | The diagonal follows `matrix_type`: 1 for a similarity, 0 for a distance | `Adjacency(sim.squareform())` now round-trips as a similarity |
 | IO | `onsets_to_dm(f, sampling_freq, run_length)` | `DesignMatrix(events_path, run_length=…, TR=…)` | HRF-convolves by default; `hrf_model=None` for boxcars |
 | IO | `from nltools.external import glover_hrf` | `from nilearn.glm.first_level import glover_hrf` | The five HRF wrappers were pass-throughs |
 | Datasets | `fetch_pain(data_dir=…, resume=…, verbose=1)` | `fetch_pain(verbose=0)` | Caching is handled for you; same for `fetch_emotion_ratings` |
@@ -403,8 +406,8 @@ is `ax` everywhere, matching matplotlib.
 figure = design.plot()
 adjacency.plot(limit=1)
 
-# v0.5.1: plot_brain(brain.mean(), how='glass', thr_upper=2)
-brain.mean().plot(method="glass", upper=2)
+# v0.5.1: plot_brain(brain.mean(), how='glass', thr_upper=1)
+brain.mean().plot(method="glass", upper=1)
 plt.close("all")
 print(type(figure).__name__)
 ```
