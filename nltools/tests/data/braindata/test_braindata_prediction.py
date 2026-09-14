@@ -252,6 +252,29 @@ class TestSearchlight:
             with pytest.raises(AttributeError, match="score_map"):
                 getattr(result, summary)
 
+    def test_an_unknown_scorer_raises_instead_of_scoring_every_sphere_nan(
+        self, minimal_brain_data
+    ):
+        """A misconfigured scorer is one error, not one NaN per sphere.
+
+        The per-sphere `except Exception` — there so a degenerate sphere yields
+        NaN rather than killing the run — swallowed an unknown scorer name once
+        per sphere and returned an all-NaN map, while whole-brain decoding
+        raised on the same call.
+        """
+        n = minimal_brain_data.shape[0]
+        y = np.array([0] * (n // 2) + [1] * (n - n // 2))
+
+        with pytest.raises(Exception, match="not_a_scorer"):
+            minimal_brain_data.predict(
+                y=y,
+                spatial_scale="searchlight",
+                cv=3,
+                radius=4.0,
+                scoring="not_a_scorer",
+                n_jobs=1,
+            )
+
 
 class TestAllDataRefit:
     """The all-data refit is always-on for whole_brain dispatch — there's no

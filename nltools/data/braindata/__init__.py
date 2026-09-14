@@ -1664,7 +1664,9 @@ class BrainData:
             scoring (str | callable, optional): Follows scikit-learn's
                 single-metric scoring contract. ``None`` (the default) uses the
                 estimator's own ``score`` method; a scoring name or callable
-                overrides it. Multimetric mappings are not accepted.
+                overrides it. Multimetric mappings are not accepted, and an
+                unrecognized name raises before anything is fitted at every
+                spatial scale.
             spatial_scale (str): MVPA dispatch — ``'whole_brain'``, ``'roi'``,
                 or ``'searchlight'``.
             roi_mask (Nifti1Image | path-like, optional): Atlas image; required
