@@ -244,7 +244,8 @@ class Simulator:
                 `rep_id.csv` into. If None, nothing is written.
 
         Returns:
-            BrainData: The simulated images with `Y` set to the levels.
+            BrainData: The simulated images, masked to the simulator's
+                `brain_mask`, with `Y` set to the levels.
         """
         import polars as pl
 
@@ -274,7 +275,7 @@ class Simulator:
         NF_list = []
         for i in range(len(y)):
             NF_list.append(self.to_nifti(np.add(N_list[i], A_list[i])))
-        NF_list = BrainData(NF_list)
+        NF_list = BrainData(NF_list, mask=self.brain_mask)
 
         # Assign variables to object
         self.data = NF_list
