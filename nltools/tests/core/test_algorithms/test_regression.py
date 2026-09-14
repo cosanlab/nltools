@@ -149,3 +149,16 @@ def test_regress_counts_residual_df_by_rank():
     assert df == 3
     # RSS = 5, sigma = sqrt(5/3), diag(pinv(X.T @ X)) = 1/16 per column.
     assert np.allclose(se, np.sqrt(5 / 48))
+
+
+def test_regress_reports_an_undefined_fit_as_nan():
+    """A NaN response must not read as a confident null result (G-11).
+
+    The near-zero-se mask leaves `t` at its `np.zeros_like` initial value when
+    `se` is NaN, which `t_dist.cdf` turns into p = 1.0.
+    """
+    b, se, t, p, _, _ = regress(np.ones((4, 1)), np.array([0.0, 1.0, 2.0, np.nan]))
+
+    assert np.isnan(b)
+    assert np.isnan(t)
+    assert np.isnan(p)
