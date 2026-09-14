@@ -80,9 +80,6 @@ def _initialize_mask(bd, mask):
     # Store whether mask was None (for auto-detection later)
     bd._mask_was_none = mask is None
 
-    # A new mask makes any support cached for the old one meaningless.
-    bd.__dict__.pop(_MASK_SUPPORT_CACHE, None)
-
     if mask is None:
         # For empty BrainData or when data not yet loaded, use default template
         # Template will be auto-detected during data loading if data is provided
@@ -313,6 +310,53 @@ def _check_space_match(data_img, mask_img):
     return affine_match and shape_match
 
 
+def _read_mask_support(mask_img):
+    """Binarize a mask image's voxel data, reading it from disk if it is a proxy."""
+    return np.asanyarray(mask_img.dataobj) > 0
+
+
+#: Binary supports of file-backed masks, keyed by file identity. Reading one is
+#: a full gzip decompression — 3.3 ms for the package's own 2 mm template — and
+#: every combine of two objects wants it on both operands, so the same handful
+#: of template files would otherwise be decompressed over and over. Only a few
+#: distinct masks are ever live in a session, and the oldest entry is dropped
+#: past `_MASK_SUPPORT_CACHE_SIZE`.
+_mask_support_cache = {}
+
+#: How many file-backed mask supports to keep. Small: a session uses one or two
+#: templates, and each entry is a full-volume boolean array.
+_MASK_SUPPORT_CACHE_SIZE = 8
+
+
+def _mask_support_cache_key(mask_img):
+    """Identify the file a mask image reads from, or None when it has no file.
+
+    An in-memory mask is not cached at all: binarizing an array already in
+    memory costs a fraction of a millisecond, and caching it would go stale the
+    moment somebody mutated the array in place.
+
+    Args:
+        mask_img (Nifti1Image): Mask image to identify.
+
+    Returns:
+        tuple | None: ``(filename, modification time, shape)`` for a mask that
+            reads from a file that exists, otherwise None.
+    """
+    from nibabel.arrayproxy import ArrayProxy
+
+    if not isinstance(mask_img.dataobj, ArrayProxy):
+        return None
+    filename = mask_img.get_filename()
+    if not filename:
+        return None
+    try:
+        return (filename, os.path.getmtime(filename), mask_img.shape)
+    except OSError:
+        # Renamed or removed since it was loaded: read through the proxy and
+        # let it raise there if it must, rather than caching under a stale key.
+        return None
+
+
 def _mask_support(mask_img):
     """Return a mask image's binary support as a boolean array.
 
@@ -320,43 +364,27 @@ def _mask_support(mask_img):
     `nilearn.masking.apply_mask` applies, so an integer mask and an otherwise
     identical float one compare equal.
 
+    A mask backed by a file is read once per file (see `_mask_support_cache`);
+    one held in memory is binarized every time, so mutating it in place is
+    always reflected.
+
     Args:
         mask_img (Nifti1Image): Mask image to binarize.
 
     Returns:
-        np.ndarray: Boolean array, True at every in-mask voxel.
+        np.ndarray: Boolean array, True at every in-mask voxel. A cached array
+            is read-only and shared between callers.
     """
-    return np.asanyarray(mask_img.dataobj) > 0
-
-
-#: Where `_cached_mask_support` parks one BrainData's `(mask image, support)`
-#: pair. Living in `__dict__` is what makes it survive the graph copier: the
-#: shared memo maps the mask and the tuple's first element to the same copy, so
-#: a derived object inherits the cache instead of re-reading the mask.
-_MASK_SUPPORT_CACHE = "_mask_support_cache"
-
-
-def _cached_mask_support(bd):
-    """Return ``bd.mask``'s binary support, reading the mask image at most once.
-
-    `_mask_support` decompresses a file-backed mask on every call — 3.3 ms for
-    the package's own gzipped 2 mm template — and every combine of two objects
-    wants it on both operands. The array is cached against the exact mask
-    object it came from, so installing a different mask invalidates it without
-    anything having to remember to.
-
-    Args:
-        bd (BrainData): Instance whose mask support is wanted.
-
-    Returns:
-        np.ndarray: Read-only boolean array, True at every in-mask voxel.
-    """
-    cached = getattr(bd, _MASK_SUPPORT_CACHE, None)
-    if cached is not None and cached[0] is bd.mask:
-        return cached[1]
-    support = _mask_support(bd.mask)
-    support.flags.writeable = False  # nobody may corrupt a shared cache entry
-    setattr(bd, _MASK_SUPPORT_CACHE, (bd.mask, support))
+    key = _mask_support_cache_key(mask_img)
+    if key is None:
+        return _read_mask_support(mask_img)
+    support = _mask_support_cache.get(key)
+    if support is None:
+        support = _read_mask_support(mask_img)
+        support.flags.writeable = False  # the entry is shared between callers
+        if len(_mask_support_cache) >= _MASK_SUPPORT_CACHE_SIZE:
+            del _mask_support_cache[next(iter(_mask_support_cache))]
+        _mask_support_cache[key] = support
     return support
 
 
@@ -546,6 +574,16 @@ def _resolve_mask_argument(mask):
 
     Accepts a nibabel image, a file path, or a template name string
     (`'{res}mm-MNI152-2009{version}'`), the same range `_initialize_mask` takes.
+
+    Args:
+        mask (Nifti1Image | str | Path): The mask argument to resolve.
+
+    Returns:
+        Nifti1Image: The image itself, or the one loaded from the path or
+            template name.
+
+    Raises:
+        TypeError: If `mask` is not an image, a path, or a template name.
     """
     import nibabel as nib
 

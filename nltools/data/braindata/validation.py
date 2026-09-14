@@ -76,13 +76,13 @@ def _validate_voxel_correspondence(left, right, operation):
     Raises:
         ValueError: If the two grids or the two supports differ.
     """
-    from .io import _cached_mask_support, _check_space_match
+    from .io import _check_space_match, _mask_support
 
     left_mask, right_mask = left.mask, right.mask
     if left_mask is right_mask:
         return
     if _check_space_match(left_mask, right_mask) and np.array_equal(
-        _cached_mask_support(left), _cached_mask_support(right)
+        _mask_support(left_mask), _mask_support(right_mask)
     ):
         return
     raise ValueError(
