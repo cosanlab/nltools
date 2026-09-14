@@ -37,6 +37,9 @@ apply `BrainData` methods per subject and stack the results with
 | Data classes | `BrainData([bd1, bd2])` dropped `.X`/`.Y` and ignored `mask=` | Row metadata is concatenated and `mask=` is applied | Same result as `concatenate` followed by the mask |
 | Data classes | `BrainData(path.h5, mask=other)` reinterpreted the stored columns under the new mask | They are re-extracted onto that mask, and a stored fit is dropped when the voxel axis changes | The warning now says the stored mask describes the stored columns |
 | Data classes | `a + b`, `a.append(b)` and `a[0] = b[0]` combined objects whose voxels were different voxels | Each raises `ValueError` unless the two grids and supports match | Inherited v0.5.1 laxity; use `resample()` and `apply_mask()` to establish a common voxel axis |
+| Data classes | `brain.threshold(lower=3, cluster_threshold=50)` returned the positive tail, and `upper=3` kept the negative one too | The clustered result keeps the same tail as the unclustered one | nilearn's `two_sided` keys off the cutoff's sign, not the tail you asked for |
+| Data classes | `brain.standardize()` cast the result back to integer or boolean input dtype | Integer and boolean data comes back floating | A centred int32 column of `[0, 1]` was `[0, 0]`; float32 input is unchanged |
+| Data classes | `brain.filter(runs=…, sample_mask=…)` gave every run's rows the first run's `X` and `Y` | Row metadata follows the rows nilearn returns | `clean` cleans one run at a time in `np.unique(runs)` order |
 | Design matrix | pandas subclass | polars-backed class | `.to_numpy()`, `.with_columns()`, `.corr()` |
 | Design matrix | `Design_Matrix_Series` | Removed, no successor | A single column is a `polars.Series` |
 | Design matrix | `dm.polys` | `dm.confounds` | Read-only; set columns as confounds when you append them |
@@ -67,12 +70,15 @@ apply `BrainData` methods per subject and stack the results with
 | Prediction | AUC came from a 50-points-per-observation grid: tied scores gave 0.0, perfectly ordered data 0.75 | AUC comes from the data's own operating points, matching `sklearn.metrics.roc_curve` | `class_thr` and `criterion_values` move with it; `criterion_values` now ends at `np.inf`, the corner `class_thr` is never chosen from |
 | Prediction | Forced-choice `calculate()` gave one answer on the first call and another from the second on | Every call gives the same answer | Pair centering is derived per call instead of overwriting `input_values` |
 | Prediction | Forced-choice accuracy depended on the row order of the two classes | Errors are paired by subject id | A reordering of the same observations gave 0.0 where 0.5 is correct |
+| Prediction | An unknown `scoring` name returned an all-NaN `score_map` for searchlight and ROI decoding | Raises, naming the scorer | Whole-brain decoding already raised on the identical call |
 | Similarity | `brain.similarity(image=…, method=…)` | `brain.similarity(data, *, metric=…)` | `metric` is the similarity metric everywhere |
 | Similarity | `adjacency.similarity(perm_type=…, ignore_diagonal=…)` | `adjacency.similarity(data, *, method=…, include_diag=…)` | Polarity is flipped, so the default now excludes the diagonal |
 | Similarity | `adjacency.cluster_summary(metric=…, summary=…)` | `adjacency.cluster_summary(summary=…, scope=…)` | `summary` is the central tendency; `scope` is within/between |
 | Similarity | `brain.extract_roi(metric=…)` | `brain.extract_roi(method=…)` | `metric` is reserved for distances |
 | Similarity | `brain.multivariate_similarity(images, method='ols')` | `brain.multivariate_similarity(images, tail=2)` | OLS was the only mode |
 | Similarity | Manual per-ROI loop to paint an RSA map | `brain.distance(spatial_scale='roi', roi_mask=atlas)` then `roi_to_brain_from_atlas` | Explicit atlas mapping |
+| Similarity | `brain.similarity(other)` compared array position against array position whenever the two masks kept the same number of voxels | Masks that differ are intersected first | Equal support size is not equal support |
+| Similarity | `brain.extract_roi(atlas)` raised when the atlas's labels filled its mask | The atlas is classified by its nonzero labels | A `{1, 2}` atlas with no background is an atlas, not a binary mask |
 | Alignment | `from nltools.external import SRM, DetSRM` | `brain.align(method='probabilistic_srm'\|'deterministic_srm')` | The estimators are internal |
 | Alignment | Procrustes back-projection was `transformed @ T` | `transformed @ T.T` | `transformation_matrix` is stored as `transformed = original @ T` |
 | Alignment | Procrustes aligned `Brain_Data` subjects with different voxel counts by zero-padding the feature axis | `align(method='procrustes')` raises; pass the `.data` arrays to get the padded result | The padded result has no mask that can describe it |
@@ -95,6 +101,7 @@ apply `BrainData` methods per subject and stack the results with
 | Statistics | The social relations model took its grand mean before masking the diagonal | Every SRM average excludes the diagonal | Only a directed matrix whose diagonal holds self-ratings moves; a NaN diagonal is unchanged |
 | Statistics | The social relations model paired each cell with the wrong reciprocal cell | Each dyad is paired with its own transpose | Variance components, reciprocity, reliabilities and the total variance all move |
 | Statistics | The SRM summary printed two-sided p-values above one when `t` was negative | `2 * sf(abs(t), df)` | Printed covariance rows only; no returned value changes |
+| Statistics | `brain.bootstrap('mean')` on a single image resampled its voxels as observations | Raises `ValueError` | The old result was one scalar wrapped in the source's full mask, which could not be written or plotted |
 | Plotting | `brain.plot(view=…, threshold_upper=…, axes=…)` | `brain.plot(method=…, upper=…, ax=…)` | `ax` is the matplotlib spelling on every class |
 | Plotting | `adjacency.plot(limit, axes, *args)` | `adjacency.plot(*, limit=3, ax=None)` | Keyword-only; no positional passthrough |
 | Plotting | `plot_brain`, `plot_t_brain`, `plot_interactive_brain` | Removed | `BrainData.plot(method='glass'\|'mni'\|'full')` and `BrainData.iplot` |
@@ -106,6 +113,8 @@ apply `BrainData` methods per subject and stack the results with
 | Plotting | `adjacency.plot()` drew every matrix on a sequential ramp | Matrices whose off-diagonal values cross zero use `RdBu_r`, centered at 0 with symmetric limits | One-signed matrices are unchanged; `cmap`, `center`, `vmin`, `vmax` still win |
 | Plotting | `adjacency.squareform()` always wrote a zero diagonal | The diagonal follows `matrix_type`: 1 for a similarity, 0 for a distance | `Adjacency(sim.squareform())` now round-trips as a similarity |
 | Plotting | `adjacency.plot()` on a stack with shared labels tick-labelled panel *i* with label *i* alone | Every panel carries all the node labels | A nested per-matrix label grid is unchanged |
+| Plotting | `brain.plot(method='glass'\|'slices', ax=…)` ignored `ax` and drew into a figure of its own | `ax` reaches nilearn as `axes=` | The caller's figure is returned and left open |
+| Plotting | `brain.predict(plot=True)` drew the ROC and margin figures but not the weight map | All three figures are drawn | The weight map was drawn and immediately closed |
 | IO | `onsets_to_dm(f, sampling_freq, run_length)` | `DesignMatrix(events_path, run_length=…, TR=…)` | HRF-convolves by default; `hrf_model=None` for boxcars |
 | IO | `from nltools.external import glover_hrf` | `from nilearn.glm.first_level import glover_hrf` | The five HRF wrappers were pass-throughs |
 | Datasets | `fetch_pain(data_dir=…, resume=…, verbose=1)` | `fetch_pain(verbose=0)` | Caching is handled for you; same for `fetch_emotion_ratings` |
