@@ -225,3 +225,19 @@ def test_create_data_radius_and_center_are_millimeters():
 
     expected = int(sim.n_spheres(9.0, center).sum())
     assert int(np.sum(np.abs(data[0].to_nifti().get_fdata()) > 1e-6)) == expected
+
+
+def test_create_data_keeps_the_simulators_brain_mask():
+    """E-02: the simulated images stay on the mask the Simulator was built with.
+
+    The result used to be resampled onto the template mask, so a custom grid was
+    silently replaced by the 3mm MNI one.
+    """
+    mask = _isotropic_mask(3.0, extent_mm=36.0)
+    sim = Simulator(brain_mask=mask, random_state=0)
+
+    data = sim.create_data([1, -1], sigma=0.0, radius=6.0)
+
+    assert data.mask.shape == mask.shape
+    assert np.allclose(data.mask.affine, mask.affine)
+    assert data.data.shape[1] == int(np.prod(mask.shape))
