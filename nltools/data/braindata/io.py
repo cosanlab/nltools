@@ -158,12 +158,33 @@ def _resample_img_to_mask(bd, data_img):
     )
 
 
+def _adopt_mask_affine(data_img, mask_img):
+    """Return ``data_img`` on ``mask_img``'s exact affine, copying only if they differ.
+
+    `_check_space_match` accepts a translation drift of up to
+    ``atol + rtol * |translation|``, but `nilearn.masking.apply_mask` runs an
+    exact `numpy.allclose` check of its own and rejects anything the loader
+    waved through. Re-homing moves no data — the two grids are the same grid to
+    within the loader's tolerance — and it keeps the caller's image unmutated,
+    the same construction `_mask_image_on_source_grid` uses for `apply_mask`.
+    """
+    import nibabel as nib
+
+    if np.array_equal(data_img.affine, mask_img.affine):
+        return data_img
+    return nib.Nifti1Image(data_img.dataobj, mask_img.affine)
+
+
 def _resample_to_mask(bd, data_img, context=""):
     """Resample data_img to bd.mask if spaces differ and bd._resample is True.
 
-    Returns data_img unchanged if spaces already match or resampling is disabled.
+    An image already on the mask's grid is returned on the mask's exact affine
+    (see `_adopt_mask_affine`); one that is off-grid with resampling disabled is
+    returned unchanged.
     """
-    if _check_space_match(data_img, bd.mask) or not bd._resample:
+    if _check_space_match(data_img, bd.mask):
+        return _adopt_mask_affine(data_img, bd.mask)
+    if not bd._resample:
         return data_img
 
     _warn_if_resampling(bd, context)
@@ -420,7 +441,9 @@ def _load_from_list(bd, data_list):
                 f"Received {type(item).__name__}"
             )
 
-        if not _check_space_match(item_img, bd.mask):
+        if _check_space_match(item_img, bd.mask):
+            item_img = _adopt_mask_affine(item_img, bd.mask)
+        else:
             if not bd._resample:
                 raise ValueError(
                     f"Data item and mask are in different spaces. "
