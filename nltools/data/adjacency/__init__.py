@@ -668,7 +668,8 @@ class Adjacency:
 
         Args:
             data (Adjacency | np.ndarray): Adjacency to compare against, or a 1-D array
-                the same size as `self.data`.
+                the same size as `self.data`, read as the same kind of matrix as
+                this one.
             plot (bool): Plot the two stacked adjacency matrices being compared.
                 Default False.
             method (str | None): Permutation scheme, `'1d'`, `'2d'`, or None (no

@@ -226,6 +226,16 @@ class TestAdjacencyModeling:
         )
         assert a["relationship_variance"] == pytest.approx(b["relationship_variance"])
 
+        # Masking the diagonal of a float working copy also makes an
+        # integer-valued matrix estimable, where filling an integer diagonal
+        # with NaN used to raise.
+        integer_valued = Adjacency(
+            np.nan_to_num(square).astype(int), matrix_type="directed"
+        )
+        assert integer_valued.social_relations_model(
+            summarize_results=False, nan_replace=False
+        )["grand_mean"] == pytest.approx(np.nanmean(square))
+
     def test_generate_permutations_keeps_the_declared_matrix_type(self):
         """A permutation is the same kind of matrix as its source, whatever its values."""
         adj = Adjacency(np.ones((3, 3)), matrix_type="directed")

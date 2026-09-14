@@ -101,9 +101,14 @@ def _similarity(
     data1 = adj.copy()
     if isinstance(data, Adjacency):
         data2 = data.copy()
-    elif np.ndim(data) == 1:
+    elif np.ndim(data) == 1 and adj.matrix_type in (
+        "distance",
+        "similarity",
+        "directed",
+    ):
         # A flat comparison vector carries no diagonal, so it is read as the
         # same kind of matrix as `adj` rather than re-inferred as a distance.
+        # An empty Adjacency has no kind to lend, and falls through.
         data2 = Adjacency(data, matrix_type=f"{adj.matrix_type}_flat")
     else:
         data2 = Adjacency(data)
