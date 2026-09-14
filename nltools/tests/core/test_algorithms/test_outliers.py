@@ -40,6 +40,20 @@ class TestWinsorize:
         )
         assert np.round(np.mean(out)) == np.round(np.mean(expected))
 
+    def test_closest_existing_values_include_the_cutoffs(self):
+        """Values sitting on the cutoff are not outliers (G-05).
+
+        With quantiles [0.25, 0.75] on [0..4] the cutoffs are 1 and 3, both
+        present in the data, so they are the closest existing values.
+        """
+        out = winsorize(
+            pl.Series("x", [0.0, 1.0, 2.0, 3.0, 4.0]),
+            cutoff={"quantile": [0.25, 0.75]},
+            replace_with_cutoff=False,
+        )
+
+        assert out.to_list() == [1.0, 1.0, 2.0, 3.0, 3.0]
+
 
 class TestTrim:
     """Test trimming outliers to null (as opposed to winsorize's clamping)."""
