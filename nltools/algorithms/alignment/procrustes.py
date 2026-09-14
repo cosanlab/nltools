@@ -192,7 +192,7 @@ def align(
         ```
     """
 
-    from nltools.data import BrainData, Adjacency
+    from nltools.data import BrainData
 
     if not isinstance(data, list):
         raise ValueError("Make sure you are inputting data is a list.")
@@ -305,67 +305,28 @@ def align(
     #   BrainData: (timepoints, voxels)
     #   numpy: (voxels, timepoints)
 
-    a = Adjacency()
+    # For procrustes, transformed holds BrainData objects; extract .data.
+    # For SRM methods it already holds numpy arrays.
+    transformed_arrays = [
+        x.data if isinstance(x, BrainData) else x for x in out["transformed"]
+    ]
 
-    if data_type == "BrainData":
-        # BrainData transformed shape: (timepoints, voxels)
-        # For procrustes, transformed contains BrainData objects; extract .data
-        # For SRM methods, transformed contains numpy arrays after the .T
-        transformed_arrays = [
-            x.data if isinstance(x, BrainData) else x for x in out["transformed"]
-        ]
-        if axis == 0:
-            # Aligned timepoints → ISC per voxel (correlation over time)
-            n_isc = transformed_arrays[0].shape[1]  # n_voxels
-            for v in range(n_isc):
-                # Extract timecourse for voxel v from each subject
-                isc_data = np.array([x[:, v] for x in transformed_arrays])
-                a = a.append(
-                    Adjacency(
-                        1 - pairwise_distances(isc_data, metric="correlation"),
-                        matrix_type="similarity",
-                    )
-                )
-        else:  # axis == 1
-            # Aligned voxels → ISC per timepoint (spatial correlation)
-            n_isc = transformed_arrays[0].shape[0]  # n_timepoints
-            for t in range(n_isc):
-                # Extract spatial pattern at timepoint t from each subject
-                isc_data = np.array([x[t, :] for x in transformed_arrays])
-                a = a.append(
-                    Adjacency(
-                        1 - pairwise_distances(isc_data, metric="correlation"),
-                        matrix_type="similarity",
-                    )
-                )
-    else:  # numpy
-        # numpy transformed shape: (voxels, timepoints)
-        if axis == 0:
-            # Aligned timepoints → ISC per voxel (correlation over time)
-            n_isc = out["transformed"][0].shape[0]  # n_voxels
-            for v in range(n_isc):
-                # Extract timecourse for voxel v from each subject
-                isc_data = np.array([x[v, :] for x in out["transformed"]])
-                a = a.append(
-                    Adjacency(
-                        1 - pairwise_distances(isc_data, metric="correlation"),
-                        matrix_type="similarity",
-                    )
-                )
-        else:  # axis == 1
-            # Aligned voxels → ISC per timepoint (spatial correlation)
-            n_isc = out["transformed"][0].shape[1]  # n_timepoints
-            for t in range(n_isc):
-                # Extract spatial pattern at timepoint t from each subject
-                isc_data = np.array([x[:, t] for x in out["transformed"]])
-                a = a.append(
-                    Adjacency(
-                        1 - pairwise_distances(isc_data, metric="correlation"),
-                        matrix_type="similarity",
-                    )
-                )
+    # Put every case in one orientation, (aligned units, observations), so the
+    # correlation below reads the same way whatever came in. BrainData results
+    # are (timepoints, voxels) and numpy results are (voxels, timepoints), so
+    # exactly one of the two needs a transpose for a given axis.
+    if (data_type == "BrainData") == (axis == 0):
+        units = [x.T for x in transformed_arrays]
+    else:
+        units = transformed_arrays
 
-    out["isc"] = dict(zip(np.arange(n_isc), a.mean(axis=1)))
+    upper_triangle = np.triu_indices(len(units), k=1)
+    out["isc"] = {}
+    for unit in range(units[0].shape[0]):
+        similarity = 1 - pairwise_distances(
+            np.array([x[unit] for x in units]), metric="correlation"
+        )
+        out["isc"][unit] = float(np.nanmean(similarity[upper_triangle]))
 
     return out
 

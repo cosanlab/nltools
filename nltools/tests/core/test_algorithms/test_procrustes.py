@@ -64,6 +64,34 @@ class TestAlign:
         with pytest.raises(TypeError):
             align(data, method="deterministic_srm", bogus_kwarg=1)
 
+    def test_isc_is_reported_for_a_single_aligned_unit(self):
+        """One aligned unit is still a unit, not a scalar.
+
+        The ISC stack used to be a single matrix whose mean collapsed to a
+        scalar, and building the result dict from it raised.
+        """
+        rng = np.random.default_rng(0)
+        data = [rng.standard_normal((20, 1)) for _ in range(3)]
+
+        out = align(data, method="deterministic_srm")
+
+        assert list(out["isc"]) == [0]
+
+    def test_isc_is_the_mean_pairwise_correlation_of_each_unit(self):
+        """ISC per voxel is the mean over the strict upper triangle."""
+        rng = np.random.default_rng(1)
+        data = [rng.standard_normal((20, 3)) for _ in range(3)]
+
+        out = align(data, method="procrustes")
+
+        for voxel, value in out["isc"].items():
+            timecourses = [subject[voxel] for subject in out["transformed"]]
+            pairs = [
+                np.corrcoef(timecourses[i], timecourses[j])[0, 1]
+                for i, j in [(0, 1), (0, 2), (1, 2)]
+            ]
+            np.testing.assert_allclose(value, np.mean(pairs))
+
     @pytest.fixture
     def simulated_brains(self):
         """Create simulated BrainData for alignment tests."""
