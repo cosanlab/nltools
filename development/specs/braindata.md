@@ -120,10 +120,14 @@ BrainData.apply_mask(mask) -> BrainData
 
 `resample()` accepts exactly one of `img` or `resolution`. An `img` supplies only
 the target grid; its intensity values do not define the output mask. A positive
-`resolution` supplies an isotropic voxel size in millimeters. `interpolation`
-is `"nearest"`, `"linear"`, `"continuous"`, or `None` for the data-aware
-default. The method uses nearest-neighbor interpolation to resample the source
-mask onto the target grid, then installs an independent copy on the result.
+`resolution` supplies an isotropic voxel size in millimeters, and the target
+grid is the one that encloses the source mask's field of view at that voxel
+size — the origin moves only as far as the new voxel size requires, never to
+world zero. `interpolation` is `"nearest"`, `"linear"`, `"continuous"`, or
+`None` for the data-aware default. The method uses nearest-neighbor
+interpolation to resample the source mask onto the target grid, then installs an
+independent copy on the result. Data and mask are resolved onto one grid: the
+mask's resampled affine and shape are what the data is resampled to.
 
 `apply_mask()` changes mask support without changing the grid. The supplied mask
 must be a single three-dimensional image on the same grid and with the same
@@ -792,7 +796,8 @@ Tests must establish:
 - row-metadata preservation, aligned selection, and clearing for every output
   axis category;
 - exact `resample()` and `apply_mask()` signatures; exactly one of `img` or
-  positive `resolution`; target images used only as grids; nearest-neighbor
+  positive `resolution`; target images used only as grids; a `resolution`
+  target grid that keeps the source field of view; nearest-neighbor
   source-mask resampling; same-grid mask application without implicit
   resampling; preservation of `.X` and `.Y`; fitted-state clearing; independent
   output ownership; and absence of `resample_to()` and

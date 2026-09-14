@@ -109,8 +109,36 @@ class TestResampleGridSemantics:
         )
 
 
+class TestResampleResolutionGrid:
+    """The resolution branch keeps the source's field of view.
+
+    nilearn infers an enclosing origin and shape only from a 3x3 target affine;
+    handed a 4x4 one it keeps that affine's origin and discards everything at
+    negative target voxel coordinates, which is most of the brain for any mask
+    with a negative origin — every standard MNI mask included.
+    """
+
+    @staticmethod
+    def _offset_brain():
+        affine = np.eye(4)
+        affine[:3, 3] = -2.0
+        mask = nib.Nifti1Image(np.ones((4, 4, 4), dtype=np.uint8), affine)
+        values = np.arange(128, dtype=np.float32).reshape(4, 4, 4, 2)
+        return BrainData(nib.Nifti1Image(values, affine), mask=mask)
+
+    def test_a_negative_origin_survives(self):
+        result = self._offset_brain().resample(resolution=1.0, interpolation="nearest")
+        assert result.mask.shape == (4, 4, 4)
+        np.testing.assert_array_equal(result.mask.affine[:3, 3], [-2.0, -2.0, -2.0])
+        assert result.shape == (2, 64)
+
+    def test_data_and_mask_land_on_one_grid(self):
+        result = self._offset_brain().resample(resolution=2.0)
+        assert result.shape[-1] == int(np.count_nonzero(result.mask.get_fdata() > 0))
+
+
 class TestResampleResultState:
-    @pytest.mark.parametrize("branch", ["img"])
+    @pytest.mark.parametrize("branch", ["img", "resolution"])
     def test_row_metadata_is_preserved(self, brain, non_binary_target, branch):
         kwargs = (
             {"resolution": 4.0}
@@ -122,7 +150,7 @@ class TestResampleResultState:
         assert result.Y.equals(brain.Y)
         assert result.shape[0] == brain.shape[0]
 
-    @pytest.mark.parametrize("branch", ["img"])
+    @pytest.mark.parametrize("branch", ["img", "resolution"])
     def test_fitted_state_is_cleared(self, brain, non_binary_target, branch):
         kwargs = (
             {"resolution": 4.0}

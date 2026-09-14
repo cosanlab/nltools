@@ -814,8 +814,12 @@ def _resample(bd, *, img=None, resolution=None, interpolation=None):
         resolution = float(resolution)
         if resolution <= 0:
             raise ValueError(f"resolution must be positive. Got {resolution}")
-        target_affine = np.eye(4)
-        target_affine[:3, :3] = np.diag([resolution, resolution, resolution])
+        # A 3x3 affine, deliberately: nilearn infers an enclosing origin and
+        # shape only from a 3x3 target affine. A 4x4 one would pin the output
+        # origin at world zero and crop away everything at negative target
+        # voxel coordinates — most of the brain for any mask with a negative
+        # origin, which is every standard MNI mask.
+        target_affine = np.diag([resolution, resolution, resolution])
         target_description = f"resolution={resolution}"
     else:
         if not isinstance(img, (str, Path, nib.Nifti1Image)):
@@ -852,16 +856,20 @@ def _resample(bd, *, img=None, resolution=None, interpolation=None):
             source_mask, target_img, interpolation="nearest", clip=True
         )
     else:
-        resampled_nifti = resample_img(
-            source_nifti,
-            target_affine=target_affine,
-            interpolation=interpolation,
-            clip=True,
-        )
+        # Resolve the grid once, from the mask, and hand the data call that
+        # exact grid: the two images share a grid by construction rather than
+        # by both happening to enclose the same field of view.
         resampled_mask = resample_img(
             source_mask,
             target_affine=target_affine,
             interpolation="nearest",
+            clip=True,
+        )
+        resampled_nifti = resample_img(
+            source_nifti,
+            target_affine=resampled_mask.affine,
+            target_shape=resampled_mask.shape[:3],
+            interpolation=interpolation,
             clip=True,
         )
 
