@@ -3,6 +3,7 @@ import matplotlib
 matplotlib.use("Agg")  # headless backend for plot tests
 
 import numpy as np
+import polars as pl
 import pytest
 from nltools.data import Adjacency
 from nltools.data.designmatrix import DesignMatrix
@@ -181,6 +182,16 @@ class TestDesignMatrixDiagnostics:
         dm = DesignMatrix({"a": a, "b": b, "c": c}, sampling_freq=1)
 
         assert list(dm.clean(thresh=0.7).columns) == ["a", "c"]
+
+    def test_clean_no_op_returns_an_independent_matrix(self):
+        """A clean that drops nothing still hands back its own object."""
+        dm = DesignMatrix({"a": [1.0, 2.0, 3.0]}, sampling_freq=1)
+
+        cleaned = dm.clean(fill_na=None)
+
+        assert cleaned is not dm
+        cleaned.insert_column(1, pl.Series("extra", [0.0, 0.0, 0.0]))
+        assert "extra" not in dm.columns
 
 
 # ============================================================================
