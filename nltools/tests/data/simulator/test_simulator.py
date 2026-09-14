@@ -42,23 +42,32 @@ def test_create_ncov_data_int_cov():
     assert sim.data.shape[-1] == 5
 
 
-def test_plot_grid_simulation_forwards_correction_to_run_multiple_simulations():
+def test_plot_grid_simulation_forwards_correction_to_run_multiple_simulations(
+    monkeypatch,
+):
     """C3 (q31x trs9, row 16): plot_grid_simulation must forward `correction` to
     the `run_multiple_simulations` call it makes internally.
 
-    Both of `plot_grid_simulation`'s internal calls validate `correction`, so an
-    unsupported value raises whichever one is reached first; the test pins that
-    the value is forwarded at all, not which call rejects it.
+    Recorded straight off the call: both of `plot_grid_simulation`'s internal
+    calls validate `correction`, so watching for a raise passes whether or not
+    the keyword reaches this one.
     """
-    sim = SimulateGrid(grid_width=10, n_subjects=10, random_state=0)
-    sim.fit()
-    sim.threshold_simulation(threshold=0.05, threshold_type="p")
-    assert sim.thresholded is not None
+    seen = {}
 
-    with pytest.raises(ValueError, match="correction"):
-        sim.plot_grid_simulation(
-            threshold=0.05, threshold_type="p", n_simulations=5, correction="bogus"
-        )
+    def _record(self, **kwargs):
+        seen.update(kwargs)
+        # What the figure reads back from the run.
+        self.multiple_fp = np.zeros(5)
+        self.fpr = 0.0
+
+    monkeypatch.setattr(SimulateGrid, "run_multiple_simulations", _record)
+    sim = SimulateGrid(grid_width=10, n_subjects=10, random_state=0)
+
+    sim.plot_grid_simulation(
+        threshold=0.2, threshold_type="q", n_simulations=5, correction="fdr"
+    )
+
+    assert seen["correction"] == "fdr"
 
 
 def test_sphere_builds_binary_region():
