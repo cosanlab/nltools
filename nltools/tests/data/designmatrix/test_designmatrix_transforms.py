@@ -215,3 +215,12 @@ class TestDesignMatrixStatisticalOperations:
                 dm.downsample(target=target)
         with pytest.raises(ValueError, match="finite and positive"):
             dm.upsample(target=np.inf)
+
+    def test_downsample_handles_a_column_named_like_the_grouping_key(self):
+        """The transient grouping key never collides with a user column."""
+        dm = DesignMatrix({"_group_idx": [10.0, 20.0, 30.0, 40.0]}, sampling_freq=1.0)
+
+        dm_down = dm.downsample(target=0.5)
+
+        assert dm_down["_group_idx"].to_list() == [15.0, 35.0]
+        assert dm["_group_idx"].to_list() == [10.0, 20.0, 30.0, 40.0]

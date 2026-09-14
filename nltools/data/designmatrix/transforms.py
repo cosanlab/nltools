@@ -112,8 +112,15 @@ def _downsample(dm: DesignMatrix, target: float, method: str = "mean") -> Design
     # them all into one oversized final group (F083).
     idx = pl.Series(np.floor(np.arange(dm.shape[0]) / n_samples).astype(int))
 
+    # The grouping key is a transient that never reaches the result, so it takes
+    # a name the frame does not already use rather than one from the reserved
+    # namespace, which is only for columns a DesignMatrix generates.
+    group_key = "_group_idx"
+    while group_key in dm.columns:
+        group_key += "_"
+
     # Add grouping index to dataframe
-    df_with_idx = dm.data.with_columns(idx.alias("_group_idx"))
+    df_with_idx = dm.data.with_columns(idx.alias(group_key))
 
     # Get all data columns
     data_cols = _get_data_columns(dm, exclude_confounds=False)
@@ -121,15 +128,15 @@ def _downsample(dm: DesignMatrix, target: float, method: str = "mean") -> Design
     # Group by index and aggregate
     if method == "mean":
         downsampled_df = (
-            df_with_idx.group_by("_group_idx", maintain_order=True)
+            df_with_idx.group_by(group_key, maintain_order=True)
             .agg([pl.col(col).mean() for col in data_cols])
-            .drop("_group_idx")
+            .drop(group_key)
         )
     else:  # median
         downsampled_df = (
-            df_with_idx.group_by("_group_idx", maintain_order=True)
+            df_with_idx.group_by(group_key, maintain_order=True)
             .agg([pl.col(col).median() for col in data_cols])
-            .drop("_group_idx")
+            .drop(group_key)
         )
 
     return _copy_with(dm, downsampled_df, sampling_freq=target)
