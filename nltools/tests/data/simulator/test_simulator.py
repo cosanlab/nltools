@@ -318,3 +318,18 @@ def test_signal_mask_is_exactly_signal_width_wide():
     assert sim.signal_mask.sum() == 9
     assert sim._calc_true_positives(np.ones((6, 6))) == 1.0
     assert sim._calc_false_positives((sim.signal_mask == 0).astype(float)) == 1.0
+
+
+def test_false_discovery_rate_counts_negative_discoveries():
+    """E-10: only positive discoveries were counted, and an empty map gave NaN.
+
+    Thresholding is two-sided, so a negative discovery is a discovery; a map with
+    none at all has a false discovery rate of 0, not NaN.
+    """
+    sim = SimulateGrid(grid_width=4, signal_width=2, signal_amplitude=1, random_state=0)
+    thresholded = np.zeros((4, 4))
+    thresholded[0, 0] = -1.0  # outside the centered 2x2 signal box
+    thresholded[1, 1] = -1.0  # inside it
+
+    assert sim._calc_false_discovery_rate(thresholded) == 0.5
+    assert sim._calc_false_discovery_rate(np.zeros((4, 4))) == 0.0
