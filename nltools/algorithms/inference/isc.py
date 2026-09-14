@@ -270,6 +270,48 @@ def _compute_pairwise_isc(data, metric="correlation"):
     raise ValueError(f"data must be 2D or 3D, got shape {data.shape}")
 
 
+def _validate_group_shapes(group1, group2):
+    """Check that two ISC groups can be compared feature by feature.
+
+    Subject counts may differ — that is the point of a two-group test — but
+    the observation and voxel axes must line up, or `group1 ISC - group2 ISC`
+    silently broadcasts one group's statistic across the other's features.
+
+    Args:
+        group1 (np.ndarray): First group, shape `(n_observations, n_subjects1)`
+            or `(n_observations, n_subjects1, n_voxels)`.
+        group2 (np.ndarray): Second group, same layout with its own subject
+            count.
+
+    Raises:
+        ValueError: If the two groups differ in dimensionality, observation
+            count, or voxel count, or are neither 2-D nor 3-D.
+    """
+    if group1.shape[0] != group2.shape[0]:
+        raise ValueError(
+            "group1 and group2 must have the same number of observations. "
+            f"Got group1.shape[0]={group1.shape[0]}, group2.shape[0]={group2.shape[0]}"
+        )
+
+    if group1.ndim != group2.ndim:
+        raise ValueError(
+            "group1 and group2 must have the same number of dimensions. "
+            f"Got group1.ndim={group1.ndim}, group2.ndim={group2.ndim}"
+        )
+
+    if group1.ndim not in [2, 3]:
+        raise ValueError(
+            f"group1 and group2 must be 2D or 3D, got shapes {group1.shape}, {group2.shape}"
+        )
+
+    if group1.ndim == 3 and group1.shape[2] != group2.shape[2]:
+        raise ValueError(
+            "group1 and group2 must have the same number of voxels. "
+            f"Got group1 with {group1.shape[2]} voxels, group2 with "
+            f"{group2.shape[2]} voxels"
+        )
+
+
 def _compute_isc_group_difference(
     group1,
     group2,
@@ -317,22 +359,7 @@ def _compute_isc_group_difference(
     group1 = np.asarray(group1)
     group2 = np.asarray(group2)
 
-    if group1.shape[0] != group2.shape[0]:
-        raise ValueError(
-            "group1 and group2 must have the same number of observations. "
-            f"Got group1.shape[0]={group1.shape[0]}, group2.shape[0]={group2.shape[0]}"
-        )
-
-    if group1.ndim != group2.ndim:
-        raise ValueError(
-            "group1 and group2 must have the same number of dimensions. "
-            f"Got group1.ndim={group1.ndim}, group2.ndim={group2.ndim}"
-        )
-
-    if group1.ndim not in [2, 3]:
-        raise ValueError(
-            f"group1 and group2 must be 2D or 3D, got shapes {group1.shape}, {group2.shape}"
-        )
+    _validate_group_shapes(group1, group2)
 
     if summary not in ["median", "mean"]:
         raise ValueError(f"summary must be 'median' or 'mean', got {summary}")
@@ -845,22 +872,7 @@ def _isc_group_permutation_test(
     group1 = np.asarray(group1)
     group2 = np.asarray(group2)
 
-    if group1.shape[0] != group2.shape[0]:
-        raise ValueError(
-            "group1 and group2 must have the same number of observations. "
-            f"Got group1.shape[0]={group1.shape[0]}, group2.shape[0]={group2.shape[0]}"
-        )
-
-    if group1.ndim != group2.ndim:
-        raise ValueError(
-            "group1 and group2 must have the same number of dimensions. "
-            f"Got group1.ndim={group1.ndim}, group2.ndim={group2.ndim}"
-        )
-
-    if group1.ndim not in [2, 3]:
-        raise ValueError(
-            f"group1 and group2 must be 2D or 3D, got shapes {group1.shape}, {group2.shape}"
-        )
+    _validate_group_shapes(group1, group2)
 
     if summary not in ["median", "mean"]:
         raise ValueError(f"summary must be 'median' or 'mean', got {summary}")
