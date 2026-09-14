@@ -396,6 +396,22 @@ def test_compute_pairwise_isc_cosine_handles_zero_norm():
     assert np.all(np.isfinite(result) | np.isnan(result))
 
 
+def test_compute_pairwise_isc_euclidean_promotes_integer_input():
+    """Euclidean similarity squares in float64, so integer input cannot overflow.
+
+    Two subjects at (0, 0) and (0, 200) are 200 apart, so the similarity is
+    1 - 200 = -199. Squaring 200 in int16 wraps.
+    """
+    data = np.array([[0, 0], [200, 0]], dtype=np.int16)
+
+    np.testing.assert_allclose(
+        _compute_pairwise_isc(data, metric="euclidean"), [-199.0]
+    )
+    np.testing.assert_allclose(
+        _compute_pairwise_isc(data[:, :, None], metric="euclidean"), [[-199.0]]
+    )
+
+
 # =============================================================================
 # Statistical Correctness Tests
 # =============================================================================
