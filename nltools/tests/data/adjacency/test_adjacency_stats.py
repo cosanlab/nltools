@@ -82,9 +82,7 @@ class TestAdjacencyStats:
 
     def test_similarity_flat_vector_takes_the_source_matrix_type(self):
         """A flat comparison vector is read as the same kind of matrix as `self`."""
-        directed = Adjacency(
-            np.arange(9.0).reshape(3, 3), matrix_type="directed"
-        )
+        directed = Adjacency(np.arange(9.0).reshape(3, 3), matrix_type="directed")
         flat = directed.similarity(
             directed.data.copy(),
             method=None,
