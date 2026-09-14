@@ -23,16 +23,16 @@ N_IMAGES = 6
 N_VOXELS = 4
 
 
-def _seeded_brain(seed):
-    """A tiny deterministic BrainData: `N_IMAGES` images over `N_VOXELS` voxels."""
+def _seeded_brain(seed, n_voxels=N_VOXELS):
+    """A tiny deterministic BrainData: `N_IMAGES` images over `n_voxels` voxels."""
     rng = np.random.default_rng(seed)
     spatial_shape = (2, 2, 2)
     mask_values = np.zeros(spatial_shape, dtype=np.float32)
-    mask_values.flat[:N_VOXELS] = 1.0
-    values = rng.standard_normal((N_IMAGES, N_VOXELS))
+    mask_values.flat[:n_voxels] = 1.0
+    values = rng.standard_normal((N_IMAGES, n_voxels))
     volume = np.zeros(spatial_shape + (N_IMAGES,))
     for image in range(N_IMAGES):
-        volume.reshape(-1, N_IMAGES)[:N_VOXELS, image] = values[image]
+        volume.reshape(-1, N_IMAGES)[:n_voxels, image] = values[image]
     affine = np.eye(4)
     return BrainData(
         nib.Nifti1Image(volume, affine),
@@ -172,6 +172,20 @@ class TestTransformationMatrixOrientation:
 
         with pytest.raises(ValueError, match="axis=0 only"):
             align(brains, method="procrustes", axis=1)
+
+    def test_braindata_procrustes_rejects_unequal_voxel_counts(self):
+        """A padded result has no honest mask to come back on.
+
+        `_hyperalign` zero-pads every subject's feature axis up to the widest
+        subject, so a narrower subject's result is wider than its own mask.
+        Wrapping it anyway produces an object that only fails later, in
+        `to_nifti`.
+        """
+        narrow = _seeded_brain(0, n_voxels=2)
+        wide = _seeded_brain(1, n_voxels=3)
+
+        with pytest.raises(ValueError, match="mask supports 2 voxels"):
+            align([narrow, wide], method="procrustes")
 
     def test_every_path_back_projects_with_the_same_transpose(self):
         """`transformed @ T.T / scale` recovers the standardized input everywhere.
