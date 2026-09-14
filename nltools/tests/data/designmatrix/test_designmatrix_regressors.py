@@ -214,6 +214,19 @@ class TestDesignMatrixConvolution:
         dm2.insert_column(1, pl.Series("extra", [0.0, 0.0, 0.0, 0.0]))
         assert "extra" not in dm1.columns
 
+    def test_convolve_keeps_a_confound_a_confound(self):
+        """A convolved confound's role follows it onto the generated column."""
+        dm = DesignMatrix({"a": [1.0, 0.0]}, sampling_freq=1, confounds=["a"])
+
+        out = dm.convolve(kernel=np.array([1.0]), columns=["a"])
+
+        assert out.confounds == ["a_c0"]
+        assert out.convolved == ["a_c0"]
+        # Confounds are what append separates across runs
+        stacked = out.append(out.copy(), axis=0)
+        assert ".nl_r0_a_c0" in stacked.columns
+        assert ".nl_r1_a_c0" in stacked.columns
+
     def test_convolve_refuses_to_overwrite_an_existing_output_name(self):
         """A column already named `<col>_c0` is not silently replaced."""
         dm = DesignMatrix(
