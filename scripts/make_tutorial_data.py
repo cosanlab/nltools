@@ -143,6 +143,37 @@ def glm_subject_files(data_dir: Path, subject: str) -> dict[str, Path]:
     }
 
 
+def trim_events(events, run_duration, *, subject, volumes):
+    """Keep the events that fit inside a run trimmed to `run_duration` seconds.
+
+    An event that starts before the cut and ends after it would lose its row
+    while its BOLD samples stay, leaving unmodelled volumes in the staged run,
+    so a trim landing inside a block is refused rather than silently applied.
+
+    Args:
+        events (pandas.DataFrame): The run's events, with `onset` and `duration`.
+        run_duration (float): Length of the trimmed run in seconds.
+        subject (str): Subject label, for the error message.
+        volumes (int): The requested volume count, for the error message.
+
+    Returns:
+        pandas.DataFrame: The retained events.
+
+    Raises:
+        ValueError: If the trim falls inside an event.
+    """
+    straddling = events.loc[
+        (events["onset"] < run_duration)
+        & (events["onset"] + events["duration"] > run_duration)
+    ]
+    if not straddling.empty:
+        raise ValueError(
+            f"sub-{subject}: --glm-volumes={volumes} cuts through an event at "
+            f"onset {straddling['onset'].iloc[0]}s; pick a trim on a block boundary"
+        )
+    return events.loc[events["onset"] + events["duration"] <= run_duration].copy()
+
+
 def stage_glm(output_root: Path, volumes: int) -> dict[str, Any]:
     """Stage the eight-subject, temporally trimmed language-localizer dataset."""
     dataset = fetch_language_localizer_demo_dataset(verbose=1)
@@ -180,8 +211,12 @@ def stage_glm(output_root: Path, volumes: int) -> dict[str, Any]:
         staged_files.append(bold_destination)
         quantization_errors[subject] = max_error
 
-        events = pd.read_csv(files["events"], sep="\t")
-        events = events.loc[events["onset"] + events["duration"] <= run_duration].copy()
+        events = trim_events(
+            pd.read_csv(files["events"], sep="\t"),
+            run_duration,
+            subject=subject,
+            volumes=volumes,
+        )
         if set(events["trial_type"]) != {"language", "string"}:
             raise ValueError(
                 f"sub-{subject}: trimmed events do not contain both conditions"
