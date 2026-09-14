@@ -6,12 +6,24 @@ public API.
 
 import gc
 import os
+import threading
 from contextlib import contextmanager
 
 import numpy as np
 from numpy.typing import ArrayLike
 
 from ..ownership import _copy_graph
+
+
+#: Guards the count and the saved `gc.collect` below, so two threads entering
+#: or leaving a coalescing frame at once cannot interleave the swap.
+_gc_lock = threading.Lock()
+
+#: How many coalescing frames are currently open, process-wide.
+_gc_depth = 0
+
+#: The real `gc.collect`, held while any frame is open and None otherwise.
+_gc_original = None
 
 
 @contextmanager
@@ -33,25 +45,39 @@ def _coalesced_gc():
     Because `@contextmanager` results double as decorators, this can also be
     used as `@_coalesced_gc()` on an operation-boundary method.
 
-    Nesting is safe: each frame restores whatever it saved, so only the
-    outermost frame restores the real `gc.collect` and runs the final sweep;
-    inner frames' exit-time collect is a no-op.
+    One module-level count decides: the no-op goes in when the first frame is
+    entered and the real `gc.collect` comes back when the last one leaves, so
+    nested *and* interleaved frames both end up with the real function. Saving
+    and restoring per frame only worked for nesting — two frames that overlap
+    without nesting had the second restore the no-op the first had installed,
+    and `gc.collect` stayed disabled for the rest of the process.
 
     Caveat: this swaps a process-global builtin. It is safe under the default
     loky (process) worker backend — each worker has its own `gc`. Under a
-    *threading* backend there is a brief window where a concurrent thread sees
-    the no-op collect; `NLTOOLS_NO_GC_COALESCE=1` is the escape hatch there.
+    *threading* backend a concurrent thread sees the no-op collect for as long
+    as any frame is open; `NLTOOLS_NO_GC_COALESCE=1` is the escape hatch there.
     """
+    global _gc_depth, _gc_original
+
     if os.environ.get("NLTOOLS_NO_GC_COALESCE"):
         yield
         return
-    saved = gc.collect  # may already be the no-op if we're nested
-    gc.collect = lambda *a, **k: 0
+    with _gc_lock:
+        if _gc_depth == 0:
+            _gc_original = gc.collect
+            gc.collect = lambda *a, **k: 0
+        _gc_depth += 1
     try:
         yield
     finally:
-        gc.collect = saved  # only the outermost frame restores the real collect
-        gc.collect()  # no-op if still nested; one real sweep at the top
+        with _gc_lock:
+            _gc_depth -= 1
+            outermost = _gc_depth == 0
+            if outermost:
+                gc.collect = _gc_original
+                _gc_original = None
+        if outermost:
+            gc.collect()  # one real sweep, outside the lock
 
 
 def _resolve_threshold(value: float | str | None, data: ArrayLike) -> float | None:
