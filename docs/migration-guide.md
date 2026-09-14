@@ -40,6 +40,7 @@ apply `BrainData` methods per subject and stack the results with
 | Design matrix | `dm.append(dm=…)` | `dm.append(data=…)` | `data` is the second operand on all three data classes |
 | Design matrix | `dm.heatmap()` | `dm.plot()` | One plotting method name per class |
 | Design matrix | `find_spikes` emitted duplicate regressors | One regressor per spike | The design is full rank again |
+| Design matrix | `dm.convolve()` silently replaced an existing `<col>_c0` column | `convolve` raises `ValueError` naming the column | Rename or drop the column before convolving |
 | GLM | `brain.regress(mode='ols')` → dict | `brain.fit(model='glm', X=dm)`, read `brain.model`, then `compute_contrasts` | The fit is a frozen `FitResult` with `betas`, `predicted`, `residual` and `r2`; t/p are per contrast, not per regressor |
 | GLM | `nltools.stats.regress(X, Y, mode=…)` | `nltools.algorithms.regress(X, Y, *, stats=…, tail=…)` | OLS was the only working mode; robust/ARMA are gone |
 | GLM | `brain.randomise(...)` | `brain.ttest(permutation=True)` | Voxelwise permutation on the entry point that already existed |
@@ -51,6 +52,12 @@ apply `BrainData` methods per subject and stack the results with
 | Prediction | `algorithm='svm'`, `'logistic'`, `'svr'` | `estimator='linear_svc'`, `'logistic_regression'`, `'linear_svr'` | Abbreviations are rejected by name; `linear`, `lassopcr` and the `*CV` variants are gone |
 | Prediction | `algorithm='ridge'` fitted `Ridge()` at its default penalty | `estimator='ridge'` fits `RidgeCV` over a 1e-3…1e6 grid | Pass `estimator_kwargs={'alphas': …}` for a fixed penalty |
 | Prediction | `Roc(threshold_type='optimal_overall')` | `Roc(method='optimal_overall')` | Keyword-only, and `calculate` takes `method=` too |
+| Prediction | `Roc` reported metrics from non-finite decision values | `Roc` raises `ValueError` | One NaN score made every criterion NaN, so nothing counted as misclassified |
+| Prediction | An `(n, 1)` score column reported accuracy 0.5 on perfectly separated data | The column is read as one value per observation | `misclass` came back as an `(n, n)` matrix |
+| Prediction | Integer forced-choice scores reported accuracy 0.0 for a perfect subject | Scores are coerced to float | Pair centering was truncated back into the integer array |
+| Prediction | AUC came from a 50-points-per-observation grid: tied scores gave 0.0, perfectly ordered data 0.75 | AUC comes from the data's own operating points, matching `sklearn.metrics.roc_curve` | `class_thr` and `criterion_values` move with it |
+| Prediction | Forced-choice `calculate()` gave one answer on the first call and another from the second on | Every call gives the same answer | Pair centering is derived per call instead of overwriting `input_values` |
+| Prediction | Forced-choice accuracy depended on the row order of the two classes | Errors are paired by subject id | A reordering of the same observations gave 0.0 where 0.5 is correct |
 | Similarity | `brain.similarity(image=…, method=…)` | `brain.similarity(data, *, metric=…)` | `metric` is the similarity metric everywhere |
 | Similarity | `adjacency.similarity(perm_type=…, ignore_diagonal=…)` | `adjacency.similarity(data, *, method=…, include_diag=…)` | Polarity is flipped, so the default now excludes the diagonal |
 | Similarity | `adjacency.cluster_summary(metric=…, summary=…)` | `adjacency.cluster_summary(summary=…, scope=…)` | `summary` is the central tendency; `scope` is within/between |
