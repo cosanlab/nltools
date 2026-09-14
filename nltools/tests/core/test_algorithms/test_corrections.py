@@ -71,3 +71,56 @@ class TestMultiThreshold:
         p.data = np.random.rand(*stat.data.shape)
         result = multi_threshold(stat, p, [0.05, 0.01, 0.001])
         assert isinstance(result, BrainData)
+
+
+def _brain_on_grid(values, mask_flat):
+    """BrainData on a 4-voxel grid with the given boolean mask support."""
+    import nibabel as nib
+    from nltools.data import BrainData
+
+    spatial_shape = (4, 1, 1)
+    mask_data = np.array(mask_flat, dtype=bool).reshape(spatial_shape)
+    values = np.atleast_2d(np.asarray(values, dtype=float))
+    volume = np.zeros(spatial_shape + (values.shape[0],))
+    for i, row in enumerate(values):
+        volume[..., i][mask_data] = row
+    affine = np.eye(4)
+    return BrainData(
+        nib.Nifti1Image(volume, affine),
+        mask=nib.Nifti1Image(mask_data.astype(np.float32), affine),
+    )
+
+
+class TestThresholdVoxelCorrespondence:
+    """G-03: the two images must describe the same voxels."""
+
+    def test_threshold_rejects_disjoint_masks(self):
+        """Equal voxel counts on disjoint mask support are not the same voxels."""
+        import pytest
+
+        stat = _brain_on_grid([5.0, 6.0], [True, True, False, False])
+        p = _brain_on_grid([0.01, 0.9], [False, False, True, True])
+
+        with pytest.raises(ValueError, match="same voxels"):
+            threshold(stat, p)
+
+
+class TestThresholdShapePreservation:
+    """G-02: thresholding preserves (n_images, n_voxels) (GH #304, #372)."""
+
+    def test_threshold_keeps_shape_when_nothing_survives(self):
+        stat = _brain_on_grid([[1.0, -2.0, 3.0], [4.0, -5.0, 6.0]], [1, 1, 1, 0])
+        p = _brain_on_grid([[0.9, 0.9, 0.9], [0.9, 0.9, 0.9]], [1, 1, 1, 0])
+
+        out = threshold(stat, p)
+
+        assert out.data.shape == (2, 3)
+        assert np.all(out.data == 0)
+
+    def test_multi_threshold_runs_on_a_multi_image_map(self):
+        stat = _brain_on_grid([[1.0, -2.0, 3.0], [4.0, -5.0, 6.0]], [1, 1, 1, 0])
+        p = _brain_on_grid([[0.01, 0.01, 0.01], [0.01, 0.01, 0.01]], [1, 1, 1, 0])
+
+        out = multi_threshold(stat, p, [0.05, 0.02])
+
+        np.testing.assert_array_equal(out.data, 2 * np.sign(stat.data))
