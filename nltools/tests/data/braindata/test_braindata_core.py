@@ -353,41 +353,74 @@ class TestVoxelCorrespondence:
             left[0] = right[0]
         np.testing.assert_array_equal(left.data, original)
 
-    def test_the_support_is_read_once_per_mask(self, monkeypatch):
-        """The binarized support is cached against the mask it came from.
-
-        Reading it is a full decompression for a file-backed mask, and every
-        combine wants it on both operands, so the validator must not re-read a
-        mask it has already seen — including one inherited by a derived object,
-        whose mask is a copy of the source's.
-        """
+    @staticmethod
+    def _read_counter(monkeypatch):
+        """Count reads of a mask image's voxel data, bypassing any cache."""
         from nltools.data.braindata import io as bd_io
 
-        left, right = self._brain([0, 1]), self._brain([0, 1])
+        bd_io._mask_support_cache.clear()
         reads = []
-        original = bd_io._mask_support
+        original = bd_io._read_mask_support
         monkeypatch.setattr(
             bd_io,
-            "_mask_support",
+            "_read_mask_support",
             lambda mask_img: (reads.append(mask_img), original(mask_img))[1],
         )
+        return reads
+
+    def test_a_file_backed_masks_support_is_read_once(self, tmp_path, monkeypatch):
+        """Reading a mask off disk is a decompression, so it happens once per file.
+
+        Every combine wants the support on both operands, and a derived object
+        carries a copy of its source's mask image — a different object reading
+        the same file.
+        """
+        import nibabel as nib
+
+        values = np.zeros(8, dtype=np.uint8)
+        values[[0, 1]] = 1
+        path = tmp_path / "mask.nii.gz"
+        nib.Nifti1Image(values.reshape(2, 2, 2), np.eye(4)).to_filename(path)
+
+        reads = self._read_counter(monkeypatch)
+        data = np.arange(4, dtype=float).reshape(2, 2)
+        left = BrainData(data, mask=nib.load(path))
+        right = BrainData(data.copy(), mask=nib.load(path))
 
         left + right
         left + right
         left.append(right)
         left[0:2] + right
 
+        assert len(reads) == 1
+
+    def test_an_in_memory_mask_is_never_stale(self, monkeypatch):
+        """An in-memory mask is binarized every time, so mutating it is seen.
+
+        Binarizing an array already in memory is cheap; caching it would serve
+        a support the caller had since changed underneath.
+        """
+        reads = self._read_counter(monkeypatch)
+        left, right = self._brain([0, 1]), self._brain([0, 1])
+        assert (left + right).shape == (2, 2)
         assert len(reads) == 2
 
-    def test_replacing_the_mask_invalidates_the_cached_support(self):
-        """A cached support belongs to one mask object and dies with it."""
+        moved = np.zeros((2, 2, 2), dtype=np.uint8)
+        moved.flat[[2, 3]] = 1
+        np.asarray(right.mask.dataobj)[...] = moved
+
+        with pytest.raises(ValueError, match="same voxels"):
+            left + right
+
+    def test_remasking_to_a_different_support_is_refused(self):
+        """A result of `apply_mask` no longer combines with what it came from."""
+        import nibabel as nib
+
         left, right = self._brain([0, 1]), self._brain([0, 1])
         assert (left + right).shape == (2, 2)
 
         moved = np.zeros(8, dtype=np.uint8)
         moved[[2, 3]] = 1
-        import nibabel as nib
-
         masked = left.apply_mask(nib.Nifti1Image(moved.reshape(2, 2, 2), np.eye(4)))
         assert masked.shape == (2, 2)
         with pytest.raises(ValueError, match="same voxels"):
