@@ -725,6 +725,52 @@ def _z_to_r(bd):
     return out
 
 
+def _cleaned_row_index(n_rows, runs, sample_mask):
+    """The source rows `nilearn.signal.clean` keeps, in the order it returns them.
+
+    With ``runs``, clean processes one run at a time in ``np.unique(runs)``
+    order, applies that run's ``sample_mask`` inside the run, and stacks the
+    blocks. Row metadata has to travel the same path or it labels the wrong
+    rows — and it has to follow a run reordering even with no censoring.
+
+    Args:
+        n_rows (int): Number of observations handed to clean.
+        runs (np.ndarray | None): Run label per observation, or ``None``.
+        sample_mask (np.ndarray | list | tuple | None): Retained indices, one
+            entry per run when ``runs`` is given.
+
+    Returns:
+        np.ndarray: Source row positions, in output order.
+    """
+
+    def as_index(mask):
+        mask = np.asarray(mask)
+        return np.flatnonzero(mask) if mask.dtype == bool else mask.astype(int)
+
+    if runs is None:
+        rows = np.arange(n_rows)
+        if sample_mask is None:
+            return rows
+        # With no runs nilearn flattens a one-entry nested mask to that entry.
+        masks = (
+            [sample_mask] if isinstance(sample_mask, np.ndarray) else list(sample_mask)
+        )
+        return rows[as_index(masks[0])]
+
+    runs = np.asarray(runs)
+    unique_runs = np.unique(runs)
+    masks = None
+    if sample_mask is not None:
+        masks = (
+            [sample_mask] if isinstance(sample_mask, np.ndarray) else list(sample_mask)
+        )
+    blocks = []
+    for position, run in enumerate(unique_runs):
+        rows = np.flatnonzero(runs == run)
+        blocks.append(rows if masks is None else rows[as_index(masks[position])])
+    return np.concatenate(blocks)
+
+
 def _filter_data(  # nosemgrep: kwargs-internal-forwarding  # forwards to nilearn.signal.clean
     bd, *, sampling_freq=None, high_pass=None, low_pass=None, **kwargs
 ):
@@ -747,7 +793,9 @@ def _filter_data(  # nosemgrep: kwargs-internal-forwarding  # forwards to nilear
             NaN/inf; default ``False``).
 
     Returns:
-        BrainData: Filtered copy of ``bd``.
+        BrainData: Filtered copy of ``bd``. Row metadata follows the rows clean
+            returns: one run at a time in ``np.unique(runs)`` order, censored by
+            that run's ``sample_mask``.
 
     See Also:
         ``nilearn.signal.clean`` for all available options.
@@ -779,16 +827,18 @@ def _filter_data(  # nosemgrep: kwargs-internal-forwarding  # forwards to nilear
         low_pass=low_pass,
         **kwargs,
     )
-    sample_mask = kwargs.get("sample_mask")
-    if sample_mask is None:
+    row_index = _cleaned_row_index(
+        bd.data.shape[0], kwargs.get("runs"), kwargs.get("sample_mask")
+    )
+    if np.array_equal(row_index, np.arange(bd.data.shape[0])):
         return _result_from_array(bd, data, rows="preserve")
     from .utils import _polars_row_select
 
     return _result_from_rows(
         bd,
         data,
-        X=_polars_row_select(bd.X, sample_mask),
-        Y=_polars_row_select(bd.Y, sample_mask),
+        X=_polars_row_select(bd.X, row_index),
+        Y=_polars_row_select(bd.Y, row_index),
     )
 
 

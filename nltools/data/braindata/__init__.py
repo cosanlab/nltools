@@ -987,7 +987,9 @@ class BrainData:
             **kwargs (dict): Additional arguments passed to ``nilearn.signal.clean``.
 
         Returns:
-            BrainData: Filtered BrainData instance.
+            BrainData: Filtered BrainData instance. `X` and `Y` follow the rows
+                clean returns: one run at a time in ``np.unique(runs)`` order,
+                censored by that run's ``sample_mask``.
         """
         from .analysis import _filter_data
 

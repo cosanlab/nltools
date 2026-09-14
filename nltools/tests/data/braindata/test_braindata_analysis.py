@@ -295,6 +295,41 @@ class TestBrainDataAnalysis:
         )
         assert isinstance(filtered, BrainData)
 
+    def test_filter_row_metadata_follows_the_order_nilearn_returns(self):
+        """Censored and reordered runs carry their own metadata, not run one's.
+
+        `nilearn.signal.clean` cleans one run at a time in `np.unique(runs)`
+        order and applies each run's `sample_mask` within that run. Flattening
+        the nested mask gave run two's data run one's row labels, and reordered
+        runs kept the source order outright.
+        """
+        import polars as pl
+
+        n_rows, n_voxels = 80, 3
+        rng = np.random.default_rng(0)
+        mask = nb.Nifti1Image(np.ones((n_voxels, 1, 1)), np.eye(4))
+        bd = BrainData(
+            rng.normal(size=(n_rows, n_voxels)),
+            mask=mask,
+            X=pl.DataFrame({"row_id": list(range(n_rows))}),
+        )
+
+        kept = [i for i in range(40) if i != 5]
+        censored = bd.filter(
+            sampling_freq=1.0,
+            high_pass=0.01,
+            runs=np.array([0] * 40 + [1] * 40),
+            sample_mask=[np.array(kept), np.array(kept)],
+        )
+        assert censored.X["row_id"].to_list() == kept + [40 + i for i in kept]
+
+        reordered = bd.filter(
+            sampling_freq=1.0,
+            high_pass=0.01,
+            runs=np.array([1] * 40 + [0] * 40),
+        )
+        assert reordered.X["row_id"].to_list() == list(range(40, 80)) + list(range(40))
+
     @pytest.mark.slow
     def test_threshold(self):
         """Test thresholding and region extraction."""
