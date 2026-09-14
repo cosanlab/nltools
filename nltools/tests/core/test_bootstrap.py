@@ -189,6 +189,27 @@ class TestBootstrapAccumulator:
         for key in ("standard_error", "ci_lower", "ci_upper"):
             np.testing.assert_allclose(forward[key], backward[key], rtol=1e-10)
 
+    def test_a_merged_accumulator_can_still_take_the_rest_of_the_run(self):
+        """Merging must not shrink the retained buffer to the draws seen so far.
+
+        `merge` replaced the full-capacity buffer with a concatenation of the
+        two prefixes while `n_replicates` still said four, so the third update
+        wrote past the end.
+        """
+        first = _BootstrapAccumulator((1,), n_replicates=4, retain_samples=True)
+        first.update(np.array([0.0]))
+        second = _BootstrapAccumulator((1,), n_replicates=4, retain_samples=True)
+        second.update(np.array([1.0]))
+
+        merged = _BootstrapAccumulator.merge(first, second)
+        merged.update(np.array([2.0]))
+        merged.update(np.array([3.0]))
+        results = merged.results()
+
+        np.testing.assert_array_equal(results["samples"], [[0.0], [1.0], [2.0], [3.0]])
+        np.testing.assert_allclose(results["ci_lower"], [0.075])
+        np.testing.assert_allclose(results["ci_upper"], [2.925])
+
     def test_a_single_replicate_cannot_be_summarized(self):
         rng = np.random.default_rng(6)
         with pytest.raises(ValueError, match="at least 2"):

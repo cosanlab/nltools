@@ -259,7 +259,8 @@ class _BootstrapAccumulator:
             _BootstrapAccumulator: A new accumulator holding both blocks.
 
         Raises:
-            ValueError: If the two accumulators describe different runs.
+            ValueError: If the two accumulators describe different runs, or
+                together hold more replicates than the run was sized for.
         """
         if first.shape != second.shape:
             raise ValueError(
@@ -293,6 +294,12 @@ class _BootstrapAccumulator:
         second._flush()
 
         total = first.n + second.n
+        if total > merged.n_replicates:
+            raise ValueError(
+                f"Cannot merge {first.n} and {second.n} replicates into an "
+                f"accumulator sized for {merged.n_replicates}: both blocks must "
+                f"be sized with the run's total replicate count."
+            )
         merged.n = total
         if total:
             delta = second.mean - first.mean
@@ -304,9 +311,11 @@ class _BootstrapAccumulator:
         merged._low = merged._keep_smallest(np.concatenate([first._low, second._low]))
         merged._high = merged._keep_largest(np.concatenate([first._high, second._high]))
         if merged.retain_samples:
-            merged._samples = np.concatenate(
-                [first._samples[: first.n], second._samples[: second.n]]
-            )
+            # Copy into the full-capacity buffer `_empty_like` allocated: a
+            # concatenation of the two prefixes would leave the merged
+            # accumulator unable to take the rest of the run.
+            merged._samples[: first.n] = first._samples[: first.n]
+            merged._samples[first.n : total] = second._samples[: second.n]
         return merged
 
     def results(self) -> dict:
