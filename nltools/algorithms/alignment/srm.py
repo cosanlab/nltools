@@ -111,6 +111,12 @@ def _check_n_features(X: list[np.ndarray], n_features: int) -> None:
     `min(voxels, n_features)` columns, so an oversized request would otherwise
     produce a model of a dimension the caller never asked for.
 
+    Note:
+        "Voxels" is this module's name for the first axis throughout, and the
+        message follows it. `align(axis=1)` transposes before fitting, so on
+        that path the first axis is timepoints and the message still says
+        voxels.
+
     Args:
         X (list[np.ndarray]): One (voxels_i, samples) array per subject.
         n_features (int): Requested number of shared features.
@@ -243,7 +249,6 @@ class _SRM(BaseEstimator, TransformerMixin):
                 "There are not enough samples to train the model with "
                 f"{self.n_features:d} features."
             )
-        _check_n_features(X, self.n_features)
 
         # Check if all subjects have same number of samples
         sample_counts = [subj.shape[1] for subj in X]
@@ -252,6 +257,10 @@ class _SRM(BaseEstimator, TransformerMixin):
             raise ValueError(
                 f"Different number of samples between subjects: {sample_counts}."
             )
+
+        # After the sample-count check, so input wrong on both axes reports the
+        # mismatched samples first.
+        _check_n_features(X, self.n_features)
 
         # Validate all data is finite
         for subject in range(number_subjects):
@@ -617,7 +626,6 @@ class _DetSRM(BaseEstimator, TransformerMixin):
                 "There are not enough samples to train the model with "
                 f"{self.n_features:d} features."
             )
-        _check_n_features(X, self.n_features)
 
         # Check if all subjects have same number of TRs
         number_trs = X[0].shape[1]
@@ -626,6 +634,10 @@ class _DetSRM(BaseEstimator, TransformerMixin):
             assert_all_finite(X[subject])
             if X[subject].shape[1] != number_trs:
                 raise ValueError("Different number of samples between subjects.")
+
+        # After the sample-count check, so input wrong on both axes reports the
+        # mismatched samples first.
+        _check_n_features(X, self.n_features)
 
         # Run SRM
         self.w_, self.s_ = self._srm(X)

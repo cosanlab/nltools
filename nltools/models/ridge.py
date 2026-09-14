@@ -581,8 +581,8 @@ def _r2_from_predictions(y, predictions) -> float | np.ndarray:
     predictions = np.asarray(predictions, dtype=np.float64)
     if y.shape[0] != predictions.shape[0]:
         raise ValueError(
-            f"X and y have inconsistent sample counts: X gives "
-            f"{predictions.shape[0]} predictions, y has {y.shape[0]}"
+            f"y has {y.shape[0]} samples but {predictions.shape[0]} predictions "
+            "were supplied"
         )
     was_1d = y.ndim == 1
     y_2d = y[:, None] if was_1d else y
