@@ -140,6 +140,33 @@ class TestAdjacencyModeling:
             results1["dyadic_reciprocity_correlation"], 0.2, significant=2
         )
 
+    def test_social_relations_model_pairs_reciprocal_dyads(self):
+        """Relationship effects pair (i, j) with (j, i), so node order cannot matter."""
+        square = np.array(
+            [
+                [np.nan, 1.0, 4.0, 2.0],
+                [3.0, np.nan, 5.0, 9.0],
+                [2.0, 8.0, np.nan, 6.0],
+                [7.0, 4.0, 1.0, np.nan],
+            ]
+        )
+        results = Adjacency(square, matrix_type="directed").social_relations_model(
+            summarize_results=False, nan_replace=False
+        )
+        assert results["relationship_variance"] == pytest.approx(115 / 12)
+        assert results["dyadic_reciprocity_correlation"] == pytest.approx(-18 / 115)
+
+        order = [1, 0, 2, 3]
+        permuted = Adjacency(
+            square[np.ix_(order, order)], matrix_type="directed"
+        ).social_relations_model(summarize_results=False, nan_replace=False)
+        assert permuted["relationship_variance"] == pytest.approx(
+            results["relationship_variance"]
+        )
+        assert permuted["dyadic_reciprocity_correlation"] == pytest.approx(
+            results["dyadic_reciprocity_correlation"]
+        )
+
     def test_social_relations_model_ignores_the_diagonal(self):
         """Self-ratings are not observations; a filled diagonal must not shift the fit."""
         square = np.array(

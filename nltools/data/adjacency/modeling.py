@@ -319,9 +319,12 @@ def _social_relations_model(adj, summarize_results=True, nan_replace=True):
                 if i != j:
                     g[i, j] = dat[i, j] - a[i] - b[j] - grand_mean
 
-        # Estimate Variance
-        x1 = g[np.tril_indices(n, k=-1)]
-        x2 = g[np.triu_indices(n, k=1)]
+        # Estimate Variance. The two vectors must line up dyad by dyad, so
+        # index the upper triangle and read its transpose, not the lower
+        # triangle in its own order.
+        rows, cols = np.triu_indices(n, k=1)
+        x1 = g[rows, cols]
+        x2 = g[cols, rows]
         ms_b = mean_square_between(x1, x2, df="relationship")
         ms_w = mean_square_within(x1, x2, df="relationship")
         actor_variance = estimate_person_variance(a, ms_b, ms_w)
