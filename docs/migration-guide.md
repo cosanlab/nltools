@@ -64,7 +64,6 @@ apply `BrainData` methods per subject and stack the results with
 | Similarity | `brain.extract_roi(metric=…)` | `brain.extract_roi(method=…)` | `metric` is reserved for distances |
 | Similarity | `brain.multivariate_similarity(images, method='ols')` | `brain.multivariate_similarity(images, tail=2)` | OLS was the only mode |
 | Similarity | Manual per-ROI loop to paint an RSA map | `brain.distance(spatial_scale='roi', roi_mask=atlas)` then `roi_to_brain_from_atlas` | Explicit atlas mapping |
-| Similarity | `compute_similarity(metric='dot_product')` returned `(1, k)` for a single-row first input | Returns `(k,)` | The other three metrics and the documented contract already squeezed |
 | Alignment | `from nltools.external import SRM, DetSRM` | `brain.align(method='probabilistic_srm'\|'deterministic_srm')` | The estimators are internal |
 | Alignment | Procrustes back-projection was `transformed @ T` | `transformed @ T.T` | `transformation_matrix` is stored as `transformed = original @ T` |
 | Alignment | Procrustes aligned `Brain_Data` subjects with different voxel counts by zero-padding the feature axis | `align(method='procrustes')` raises; pass the `.data` arrays to get the padded result | The padded result has no mask that can describe it |
@@ -98,7 +97,6 @@ apply `BrainData` methods per subject and stack the results with
 | Plotting | `adjacency.plot()` drew every matrix on a sequential ramp | Matrices whose off-diagonal values cross zero use `RdBu_r`, centered at 0 with symmetric limits | One-signed matrices are unchanged; `cmap`, `center`, `vmin`, `vmax` still win |
 | Plotting | `adjacency.squareform()` always wrote a zero diagonal | The diagonal follows `matrix_type`: 1 for a similarity, 0 for a distance | `Adjacency(sim.squareform())` now round-trips as a similarity |
 | Plotting | `adjacency.plot()` on a stack with shared labels tick-labelled panel *i* with label *i* alone | Every panel carries all the node labels | A nested per-matrix label grid is unchanged |
-| Plotting | `plot_between_label_distance` drew zeros, and annotated every cell as significant, for numeric labels | Draws the real means and p-values | Pivoted columns are matched by their string rendering |
 | IO | `onsets_to_dm(f, sampling_freq, run_length)` | `DesignMatrix(events_path, run_length=…, TR=…)` | HRF-convolves by default; `hrf_model=None` for boxcars |
 | IO | `from nltools.external import glover_hrf` | `from nilearn.glm.first_level import glover_hrf` | The five HRF wrappers were pass-throughs |
 | Datasets | `fetch_pain(data_dir=…, resume=…, verbose=1)` | `fetch_pain(verbose=0)` | Caching is handled for you; same for `fetch_emotion_ratings` |
