@@ -190,10 +190,18 @@ class BrainData:
                 )
             self.data = arr
 
-        # Collapse extra trailing dimensions, but preserve samples dimension for list inputs
-        if self.data is not None and self.data.ndim > 1 and data_type != "list":
-            if 1 in self.data.shape:
-                self.data = self.data.squeeze()
+        # Collapse a leading singleton image axis — the single-image
+        # convention the rest of the package reads with
+        # `_check_brain_data_is_single`. Only that axis: a squeeze would also
+        # drop a singleton *voxel* axis, turning three one-voxel images into
+        # one three-voxel image. List inputs keep their samples dimension.
+        if (
+            self.data is not None
+            and data_type != "list"
+            and self.data.ndim == 2
+            and self.data.shape[0] == 1
+        ):
+            self.data = self.data[0]
 
         # Set X and Y. Invariant: .X and .Y are always polars DataFrames
         # (possibly empty). Assignment goes through the property setter,
