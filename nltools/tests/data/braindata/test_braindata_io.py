@@ -401,3 +401,54 @@ class _FakeClientCreateFails:
 
     def create_collection(self, name):
         raise ValueError("Collection name already exists")
+
+
+class TestH5MaskOverride:
+    """A mask passed alongside an HDF5 path re-extracts the stored columns.
+
+    The stored mask is how the stored columns are to be read; the caller's mask
+    is the support they want. Reading the columns as if they had been packed
+    against the caller's mask relocates every value.
+    """
+
+    @staticmethod
+    def _grid_mask(flat_indices):
+        values = np.zeros(8, dtype=np.uint8)
+        values[list(flat_indices)] = 1
+        return nib.Nifti1Image(values.reshape(2, 2, 2), np.eye(4))
+
+    def _written(self, tmp_path, brain):
+        path = tmp_path / "brain.h5"
+        brain.write(path)
+        return path
+
+    def test_override_mask_re_extracts(self, tmp_path):
+        brain = BrainData(
+            np.array([[10.0, 20.0], [30.0, 40.0]]), mask=self._grid_mask([0, 1])
+        )
+        path = self._written(tmp_path, brain)
+        with pytest.warns(UserWarning, match="mask stored in the HDF5 file"):
+            reloaded = BrainData(path, mask=self._grid_mask([1, 2]))
+        np.testing.assert_array_equal(reloaded.data, [[20.0, 0.0], [40.0, 0.0]])
+
+    def test_override_mask_that_matches_the_stored_one_changes_nothing(self, tmp_path):
+        brain = BrainData(
+            np.array([[10.0, 20.0], [30.0, 40.0]]), mask=self._grid_mask([0, 1])
+        )
+        path = self._written(tmp_path, brain)
+        with pytest.warns(UserWarning, match="mask stored in the HDF5 file"):
+            reloaded = BrainData(path, mask=self._grid_mask([0, 1]))
+        np.testing.assert_array_equal(reloaded.data, brain.data)
+
+    def test_override_mask_that_changes_the_voxel_axis_drops_the_fit(self, tmp_path):
+        from nltools.data import DesignMatrix
+
+        rng = np.random.default_rng(0)
+        brain = BrainData(rng.standard_normal((4, 2)), mask=self._grid_mask([0, 1]))
+        brain.fit(model="glm", X=DesignMatrix({"Intercept": np.ones(4)}))
+        path = self._written(tmp_path, brain)
+
+        assert BrainData(path).model is not None
+        with pytest.warns(UserWarning, match="mask stored in the HDF5 file"):
+            reloaded = BrainData(path, mask=self._grid_mask([1, 2]))
+        assert reloaded.model is None

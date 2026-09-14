@@ -491,6 +491,87 @@ def _load_from_list(bd, data_list):
     bd.data = _mask_images(bd.mask, prepared_imgs)
 
 
+def _resolve_mask_argument(mask):
+    """Resolve a mask argument to a `Nifti1Image`.
+
+    Accepts a nibabel image, a file path, or a template name string
+    (`'{res}mm-MNI152-2009{version}'`), the same range `_initialize_mask` takes.
+    """
+    import nibabel as nib
+
+    if isinstance(mask, (str, Path)):
+        mask_str = str(mask)
+        if _split_template_name(mask_str) is not None:
+            from nltools.templates import _resolve_template_name
+
+            return nib.load(_resolve_template_name(mask_str, file_type="mask"))
+        return nib.load(mask_str)
+    if isinstance(mask, nib.Nifti1Image):
+        return mask
+    raise TypeError(
+        f"mask must be a nibabel instance, file path, template name string, or None. "
+        f"Received {type(mask).__name__}"
+    )
+
+
+def _install_replacement_mask(bd, source_mask, new_mask, source_description):
+    """Move ``bd.data`` from ``source_mask``'s support onto ``new_mask``'s.
+
+    ``bd.data`` is a packed voxel array that only means anything against the
+    mask it was packed with, so a replacement mask always re-extracts. On the
+    same grid that is an unmask-and-extract (`_remap_to_mask`); on a different
+    grid the volume is resampled onto the new grid first, which needs
+    ``resample=True``.
+
+    Args:
+        bd (BrainData): Instance being populated; its `data` is rewritten.
+        source_mask (Nifti1Image): The mask ``bd.data`` is currently packed against.
+        new_mask (Nifti1Image): The mask to install.
+        source_description (str): Names the source in the mismatch messages.
+
+    Returns:
+        bool: True when the voxel axis changed, so anything keyed to it (a
+            restored fit, for one) no longer applies.
+
+    Raises:
+        ValueError: If the grids differ and resampling is disabled.
+    """
+    from nilearn.image import resample_to_img
+    from nilearn.masking import apply_mask as nilearn_apply_mask
+    from nilearn.masking import unmask
+
+    if _check_space_match(source_mask, new_mask):
+        new_mask = _adopt_mask_affine(new_mask, source_mask)
+        changed = not np.array_equal(
+            _mask_support(new_mask), _mask_support(source_mask)
+        )
+        if changed and bd.data.size:
+            bd.data = _remap_to_mask(bd.data, source_mask, new_mask)
+    else:
+        if not bd._resample:
+            raise ValueError(
+                f"{source_description} mask and provided mask are in different "
+                "spaces. Set resample=True to automatically resample data to "
+                "new mask space."
+            )
+        _warn_if_resampling(bd, f"New mask differs from {source_description} mask.")
+        changed = True
+        if bd.data.size:
+            source_nifti = unmask(bd.data, source_mask)
+            source_nifti.set_data_dtype(bd.data.dtype)
+            resampled_nifti = resample_to_img(
+                source_nifti,
+                new_mask,
+                interpolation=_get_interpolation(bd, source_nifti),
+            )
+            bd.data = nilearn_apply_mask(resampled_nifti, new_mask)
+
+    bd.mask = new_mask
+    bd._voxel_resolution = np.abs(np.diag(new_mask.affine[:3, :3]))
+    bd._space = _detect_space(new_mask)
+    return changed
+
+
 def _load_from_brain_data(bd, brain_data, mask=None):
     """Load data from another BrainData object.
 
@@ -500,71 +581,16 @@ def _load_from_brain_data(bd, brain_data, mask=None):
         mask (Nifti1Image | str | Path | None): Mask to use. If None, uses the mask
             from `brain_data`.
     """
-    import nibabel as nib
-    from nilearn.image import resample_to_img
-    from nilearn.masking import apply_mask as nilearn_apply_mask
-
     # Copy data array
     bd.data = brain_data.data.copy() if brain_data.data is not None else np.array([])
 
-    # Handle mask: use provided mask if given, otherwise use source mask
     if mask is not None:
-        # User provided mask - re-initialize with it
-        # This will trigger mask initialization but we already have data
-        # Need to handle resampling if mask differs
-        if isinstance(mask, (str, Path)):
-            mask_str = str(mask)
-            if _split_template_name(mask_str) is not None:
-                from nltools.templates import _resolve_template_name
-
-                new_mask = nib.load(_resolve_template_name(mask_str, file_type="mask"))
-            else:
-                new_mask = nib.load(mask_str)
-        elif isinstance(mask, nib.Nifti1Image):
-            new_mask = mask
-        else:
-            raise TypeError(
-                f"mask must be a nibabel instance, file path, template name string, or None. "
-                f"Received {type(mask).__name__}"
-            )
-
-        # Check if mask differs from source
-        if not _check_space_match(brain_data.mask, new_mask):
-            # Need to resample data to new mask space
-            if bd._resample:
-                _warn_if_resampling(bd, "New mask differs from source BrainData mask.")
-                source_nifti = brain_data.to_nifti()
-                resampled_nifti = resample_to_img(
-                    source_nifti,
-                    new_mask,
-                    interpolation=_get_interpolation(bd, source_nifti),
-                )
-                # Update mask
-                bd.mask = new_mask
-                # Extract data via functional apply_mask
-                bd.data = nilearn_apply_mask(resampled_nifti, bd.mask)
-                # Update voxel resolution and space
-                affine = bd.mask.affine
-                bd._voxel_resolution = np.abs(np.diag(affine[:3, :3]))
-                bd._space = _detect_space(bd.mask)
-            else:
-                raise ValueError(
-                    "Source BrainData mask and provided mask are in different spaces. "
-                    "Set resample=True to automatically resample data to new mask space."
-                )
-        else:
-            # Same grid, so nothing is resampled — but a different support
-            # means the stored columns describe different voxels, so they are
-            # re-extracted rather than reinterpreted.
-            new_mask = _adopt_mask_affine(new_mask, brain_data.mask)
-            if bd.data.size and not np.array_equal(
-                _mask_support(new_mask), _mask_support(brain_data.mask)
-            ):
-                bd.data = _remap_to_mask(bd.data, brain_data.mask, new_mask)
-            bd.mask = new_mask
-            affine = bd.mask.affine
-            bd._voxel_resolution = np.abs(np.diag(affine[:3, :3]))
-            bd._space = _detect_space(bd.mask)
+        _install_replacement_mask(
+            bd,
+            brain_data.mask,
+            _resolve_mask_argument(mask),
+            "Source BrainData",
+        )
     else:
         # Use source mask
         bd.mask = brain_data.mask
@@ -596,25 +622,34 @@ def _load_from_h5(bd, file_path, mask):
     if "Y" in h5_data:
         bd.Y = h5_data["Y"]
 
-    # Handle mask if loaded from file
+    stored_mask = h5_data.get("mask")
+    voxel_axis_changed = False
     if h5_data.get("load_mask", False):
-        bd.mask = h5_data["mask"]
+        # No caller mask: the stored mask is the object's mask.
+        bd.mask = stored_mask
         # Extract voxel resolution from mask affine matrix
         affine = bd.mask.affine
         bd._voxel_resolution = np.abs(np.diag(affine[:3, :3]))
         # Determine space (MNI or native) based on mask
         bd._space = _detect_space(bd.mask)
-    elif mask is not None and not h5_data.get("load_mask", True):
+    elif mask is not None and stored_mask is not None:
+        # The stored columns were packed against the stored mask, so the
+        # caller's mask can only be honoured by re-extracting against it.
         warnings.warn(
-            "Existing mask found in HDF5 file but is being ignored because "
-            "you passed a value for mask. Set mask=None to use existing "
-            "mask in the HDF5 file",
+            "The mask stored in the HDF5 file describes the stored voxel "
+            "columns; because you passed a mask, the data is re-extracted onto "
+            "it. Set mask=None to keep the stored mask.",
             UserWarning,
             stacklevel=_find_stack_level(),
         )
+        voxel_axis_changed = _install_replacement_mask(
+            bd, stored_mask, _resolve_mask_argument(mask), "Stored HDF5"
+        )
 
     # Last, so the rebuilt maps sit on the mask and row metadata just installed.
-    if h5_data.get("model") is not None:
+    # A changed voxel axis makes the stored maps unreadable on this object, so
+    # the fit is dropped rather than rebuilt on a support it was not fitted on.
+    if h5_data.get("model") is not None and not voxel_axis_changed:
         from .modeling import _fit_result_from_storage
 
         bd.model = _fit_result_from_storage(bd, h5_data["model"])

@@ -202,15 +202,20 @@ def _load_brain_data_h5(file_path, mask=None):
     reduced to its basename — the embedded mask data and affine are
     authoritative and the name is never reopened.
 
+    An embedded mask is always reconstructed, even when the caller supplies one
+    of their own: it is how the stored voxel columns are to be read, so the
+    caller's mask can only be applied by re-extracting against it.
+
     Args:
         file_path (str | Path): Path to the HDF5 file.
-        mask (nibabel.Nifti1Image, optional): Mask to use. If None, the mask stored
-            in the file is loaded when present.
+        mask (nibabel.Nifti1Image, optional): Mask the caller wants the loaded
+            object to carry. Only `'load_mask'` depends on it.
 
     Returns:
         dict: Keys `'data'` (np.ndarray), `'X'` and `'Y'` (pl.DataFrame),
-            `'load_mask'` (bool), and `'mask'` (nibabel.Nifti1Image) when a mask was
-            loaded from the file.
+            `'load_mask'` (bool — whether the stored mask is also the mask the
+            caller asked for), and `'mask'` (nibabel.Nifti1Image) when the file
+            embeds one.
 
     Raises:
         ValueError: If the file was written by nltools 0.5.1 or earlier.
@@ -225,7 +230,7 @@ def _load_brain_data_h5(file_path, mask=None):
         result["Y"] = _read_polars_frame(f, "Y")
         result["model"] = _read_fit_record(f)
 
-        if mask is None and "mask_data" in f:
+        if "mask_data" in f:
             if "mask_file_name" in f:
                 # Mask originally file-backed: keep the filename association,
                 # reduced to a basename so a file written before that rule
@@ -243,9 +248,7 @@ def _load_brain_data_h5(file_path, mask=None):
                 affine=np.array(f["mask_affine"]),
                 file_map=file_map,
             )
-            result["load_mask"] = True
-        else:
-            result["load_mask"] = False
+        result["load_mask"] = mask is None and "mask_data" in f
 
     return result
 
