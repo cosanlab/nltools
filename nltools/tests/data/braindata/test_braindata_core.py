@@ -153,6 +153,22 @@ class TestBrainDataCore:
             ((new2 * value) - new2).mean().mean(), 0, decimal=2
         )
 
+    def test_vector_multiply_weights_a_single_image(self):
+        """A length-one weight vector scales a single image.
+
+        `len()` of a single image is 1, so a length-one vector is the matching
+        length; `np.dot` needed the image axis back to accept it, and a wrong
+        length must still get nltools' own message rather than NumPy's.
+        """
+        import nibabel as nib
+
+        mask = nib.Nifti1Image(np.ones((2, 2, 2), dtype=np.uint8), np.eye(4))
+        single = BrainData(np.arange(8, dtype=float), mask=mask)
+
+        np.testing.assert_array_equal((single * [2.0]).data, single.data * 2.0)
+        with pytest.raises(ValueError, match="number of images"):
+            single * ([1.0] * 8)
+
     def test_inplace_add(self, minimal_brain_data):
         """Test in-place addition with scalars and BrainData."""
         bd = minimal_brain_data[0].copy()
