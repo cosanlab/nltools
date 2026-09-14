@@ -754,6 +754,10 @@ class SimulateGrid:
     def threshold_simulation(self, threshold, threshold_type, correction=None):
         """Threshold the fitted simulation and store `thresholded` plus hit rates.
 
+        With `correction='fdr'`, `corrected_threshold` holds the p-value cutoff
+        at the requested `threshold` (which is then a q value), or -1 when
+        nothing survives.
+
         Args:
             threshold (float): Threshold value to apply.
             threshold_type (str): `'t'` (absolute t-value), `'p'` (p-value), or `'q'`
@@ -765,7 +769,9 @@ class SimulateGrid:
             raise ValueError("Must fit model before thresholding.")
 
         if correction == "fdr":
-            self.corrected_threshold = fdr(self.p_values.flatten())
+            # The same q the thresholding step uses; the default was recorded
+            # before, so the stored cutoff described a different correction.
+            self.corrected_threshold = fdr(self.p_values.flatten(), q=threshold)
 
         self.correction = correction
         self.thresholded = self._threshold_simulation(

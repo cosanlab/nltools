@@ -369,3 +369,20 @@ def test_plot_grid_simulation_rethresholds_at_the_requested_threshold():
 
     assert sim.thresholded.tolist() == [[0.0, 4.0], [0.0, 0.0]]
     assert sim.threshold == 3.0
+
+
+def test_corrected_threshold_records_the_requested_q():
+    """E-15: the recorded FDR cutoff came from the default q, not the requested one.
+
+    Thresholding used `q=threshold`, so the stored cutoff could say nothing
+    survived while three pixels did.
+    """
+    sim = SimulateGrid(grid_width=2, n_subjects=10, random_state=0)
+    sim.fit()
+    sim.t_values = np.array([[3.0, 2.5], [2.0, 1.0]])
+    sim.p_values = np.array([[0.02, 0.04], [0.08, 0.9]])
+
+    sim.threshold_simulation(threshold=0.2, threshold_type="q", correction="fdr")
+
+    assert sim.corrected_threshold == pytest.approx(0.08)
+    assert sim.thresholded.tolist() == [[3.0, 2.5], [2.0, 0.0]]
