@@ -96,6 +96,20 @@ apply `BrainData` methods per subject and stack the results with
 | Datasets | `fetch_pain(data_dir=…, resume=…, verbose=1)` | `fetch_pain(verbose=0)` | Caching is handled for you; same for `fetch_emotion_ratings` |
 | Datasets | `download_collection`, `get_collection_image_metadata` | `fetch_neurovault_collection(collection_id)` | One function |
 | Datasets | `get_anatomical()` | `nilearn.datasets.load_mni152_brain_mask()` | Removed |
+| Simulator | `create_data` returned data on the template mask | The data keeps the `brain_mask` the `Simulator` was built with | Only affects a custom `brain_mask`; the default path is byte-identical |
+| Simulator | `create_ncov_data` sized every covariance block by the row region | Each block is sized by its own region | The matrix was asymmetric for regions of unequal size, so simulated values move |
+| Simulator | `create_ncov_data` broadcast one noise image across every repetition | Noise is drawn per repetition, as in `create_cov_data` | `sigma` now varies within subject outside the regions |
+| Simulator | `SimulateGrid` signal masks were a pixel wider than `signal_width` at mismatched parity, and the hit rates divided by `signal_width**2` | The mask is exactly `signal_width` wide and both rates divide by its size | The true-positive rate could read 1.78; same-parity widths, including every default, are unchanged |
+| Simulator | `SimulateGrid`'s false discovery rate counted positive discoveries only, and was NaN with none | Every non-zero discovery counts; an empty map scores 0.0 | `multiple_fdr` no longer carries NaN into its mean |
+| Simulator | `SimulateGrid.add_signal` left the previous fit in place and `fit()` then raised | `add_signal` clears the fit, so `fit()` runs again | Statistics no longer describe data the object has replaced |
+| Simulator | `plot_grid_simulation` redrew a cached thresholded map | It re-thresholds with the arguments it was given | The middle panel and its caption describe the same threshold |
+| Simulator | `corrected_threshold` recorded `fdr(p)` at the default q of 0.05 | It records the cutoff at the requested q | The recorded value used to be -1 for maps with surviving pixels |
+| Masks | `collapse_mask` returned an all-zero template-length vector for custom-space data and kept overlaps shared by fewer than all masks | It collapses on the input's own voxel axis and drops every overlapping voxel | `to_nifti()` on a custom-space result used to raise; 2-mask and disjoint inputs are unchanged |
+| Masks | `expand_mask` rounded the caller's mask to int32 in place | The input is left untouched | The output's int32 labels are unchanged |
+| Masks | `roi_to_brain_from_atlas(roi_labels=[0, …])` painted label 0 with that parcel's value | A 0 in `roi_labels` raises `ValueError` | Label 0 is background and receives `fill` |
+| Cluster reports | `peaks` took `volume_mm3` and `n_voxels` from nilearn's 6-connected cluster sizes | Peak rows carry their parent cluster's 26-connected extent | A join of `peaks` and `clusters` no longer reports two sizes for one cluster |
+| Cluster reports | `cluster_report(stat_threshold=t)` kept voxels equal to `t` | The threshold is exclusive | Matches `get_clusters_table`, which drives the peak table |
+| Brain space | Voxel size was read off the affine's diagonal | Voxel size is the affine's column norms (`nibabel.affines.voxel_sizes`) | A rotated or permuted isotropic MNI image is recognized instead of refused; axis-aligned affines are unchanged |
 
 ## Renames and import paths
 
