@@ -296,14 +296,19 @@ def roi_to_brain_from_atlas(
         source_mask (nibabel.Nifti1Image | str | Path): Image (or path) defining the
             output voxel grid. The returned `BrainData` is masked to this image.
         roi_labels (array-like, optional): Integer atlas IDs in the same order as
-            `values`. If None, defaults to `np.unique` of the atlas with 0 stripped
-            (sorted ascending).
+            `values`. Must not contain 0. If None, defaults to `np.unique` of the
+            atlas with 0 stripped (sorted ascending).
         fill (float): Value for voxels not in any provided ROI. Default `np.nan`.
 
     Returns:
         BrainData: Masked to `source_mask`, with each in-atlas voxel set to its
             parcel's scalar from `values`. Holds a single image when `values` is
             1-D, or `n_images` images when `values` is 2-D `(n_images, n_parcels)`.
+
+    Raises:
+        ValueError: If `values` is neither 1-D nor 2-D, if `roi_labels` contains 0
+            (background), or if its length does not match the parcel axis of
+            `values`.
 
     Examples:
         ```python
@@ -364,6 +369,11 @@ def roi_to_brain_from_atlas(
         unique_labels = unique_labels[unique_labels != 0]
     else:
         unique_labels = np.asarray(roi_labels)
+        if np.any(unique_labels == 0):
+            raise ValueError(
+                "roi_labels must not contain 0; label 0 is background and "
+                "receives `fill`."
+            )
 
     n_parcels_axis = arr.shape[-1] if arr.ndim == 2 else arr.shape[0]
     if n_parcels_axis != len(unique_labels):
