@@ -326,6 +326,22 @@ class TestBrainDataAnalysis:
         diff = m2 - m1
         assert np.sum(diff.data) == 0
 
+    def test_regions_on_a_mask_returns_one_map_per_component(self):
+        """`is_mask=True` splits a binary mask into one binary map per region.
+
+        The branch unpacked `connected_label_regions`, which returns a bare
+        image when no label names are given, so it raised `TypeError` for every
+        caller.
+        """
+        mask = nb.Nifti1Image(np.ones((6, 1, 1)), np.eye(4))
+        bd = BrainData(np.array([1.0, 1, 0, 1, 1, 1]), mask=mask)
+
+        regions = bd.regions(is_mask=True, min_region_size=1)
+
+        assert regions.shape == (2, 6)
+        np.testing.assert_array_equal(regions.data[0], [1, 1, 0, 0, 0, 0])
+        np.testing.assert_array_equal(regions.data[1], [0, 0, 0, 1, 1, 1])
+
     # ============================================================================
     # Thresholding Operations - Cluster Enhancement
     # ============================================================================

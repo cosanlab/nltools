@@ -1807,10 +1807,16 @@ class BrainData:
             method (str): Type of extraction method
                                 ['connected_components', 'local_regions'].
             smoothing_fwhm (scalar): Smooth an image to extract more sparser regions.
-            is_mask (bool): Whether to treat as boolean mask.
+            is_mask (bool): Treat the data as a binary mask and split it into
+                connected components with `nilearn.regions.connected_label_regions`
+                instead. Default False.
 
         Returns:
-            BrainData: BrainData instance with extracted ROIs as data.
+            BrainData: One binary image per extracted region.
+
+        Raises:
+            ValueError: If ``is_mask=True`` and no region reaches
+                ``min_region_size``.
         """
         from .analysis import _regions
 
