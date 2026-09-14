@@ -250,7 +250,9 @@ def _long_to_matrix(long_df, row_col, col_col, value_col, order):
     for i, r in enumerate(order):
         row = wide_dict.get(r, {})
         for j, c in enumerate(order):
-            val = row.get(c)
+            # `pivot` names the new columns by the string rendering of the
+            # values it pivoted on, so a numeric label never matches itself.
+            val = row.get(str(c))
             out[i, j] = float(val) if val is not None else 0.0
     return out
 
