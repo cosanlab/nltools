@@ -213,6 +213,23 @@ def _centered_within_pairs(scores, positive_idx, negative_idx):
     return centered
 
 
+def _default_criterion_values(scores):
+    """Operating points of the empirical ROC curve for `scores`.
+
+    Classification is `score >= criterion`, so the curve can only move at a value
+    some observation actually takes; the extra point above the largest score is
+    the corner where nothing is called positive. These are the thresholds
+    `sklearn.metrics.roc_curve` evaluates.
+
+    Args:
+        scores (np.ndarray): 1-D decision values the curve is evaluated against.
+
+    Returns:
+        np.ndarray: Ascending thresholds, ending above the largest score.
+    """
+    return np.append(np.unique(scores), np.inf)
+
+
 class Roc:
     """Compute receiver operating characteristic curves for single-interval or forced-choice classification.
 
@@ -246,7 +263,8 @@ class Roc:
             affects that call.
         forced_choice (np.ndarray | None): Subject ids for forced-choice classification.
         criterion_values (np.ndarray): Thresholds at which `tpr`/`fpr` were evaluated;
-            set by `calculate`.
+            set by `calculate`. By default the distinct decision values in
+            ascending order, plus one threshold above the largest.
         tpr (np.ndarray): True positive rate per criterion value; set by `calculate`.
         fpr (np.ndarray): False positive rate per criterion value; set by `calculate`.
         auc (float): Area under the ROC curve; set by `calculate`.
@@ -318,8 +336,9 @@ class Roc:
             binary_outcome (array-like, optional): Boolean class label per
                 observation. Defaults to the labels given at construction.
             criterion_values (array-like, optional): Thresholds at which to evaluate
-                `fpr` and `tpr`. Defaults to a dense grid over the range of
-                `input_values`.
+                `fpr` and `tpr`. Defaults to the empirical operating points: each
+                distinct decision value in ascending order, plus one threshold
+                above the largest, where nothing is called positive.
             method (str, optional): Threshold-selection variant, one of
                 `'optimal_overall'` (maximize correct classifications),
                 `'optimal_balanced'` (maximize balanced accuracy, the mean of
@@ -369,9 +388,7 @@ class Roc:
         if criterion_values is not None:
             self.criterion_values = _validated_criterion_values(criterion_values)
         else:
-            self.criterion_values = np.linspace(
-                np.min(scores), np.max(scores), num=50 * len(labels)
-            )
+            self.criterion_values = _default_criterion_values(scores)
 
         # Forced choice scores each subject's pair against the pair's own mean
         if subject_ids is None:

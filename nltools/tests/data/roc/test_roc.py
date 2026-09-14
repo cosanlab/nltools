@@ -323,3 +323,16 @@ def test_list_criterion_values_match_the_array_equivalent():
     np.testing.assert_array_equal(from_list.tpr, from_array.tpr)
     np.testing.assert_array_equal(from_list.fpr, from_array.fpr)
     assert from_list.class_thr == from_array.class_thr
+
+
+def test_default_criterion_values_are_the_empirical_operating_points():
+    """The curve is evaluated where the data can move it, not on a fixed grid."""
+    tied = Roc(input_values=[1.0, 1.0], binary_outcome=[True, False])
+    tied.calculate()
+    assert tied.auc == 0.5
+
+    # Perfectly ordered scores, one gap far narrower than any fixed grid step
+    ordered = Roc(input_values=[1.0, 1.01, 1000.0], binary_outcome=[False, True, True])
+    ordered.calculate()
+    assert ordered.auc == 1.0
+    assert ordered.accuracy == 1.0
