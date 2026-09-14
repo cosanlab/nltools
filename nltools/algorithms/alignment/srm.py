@@ -104,6 +104,28 @@ def _init_w_transforms(
     return w, voxels
 
 
+def _update_transform_subject(Xi: np.ndarray, S: np.ndarray) -> np.ndarray:
+    """Update the mapping $W_i$ for one subject.
+
+    Solves the orthogonal Procrustes problem
+    $\\min ||X_i - W_i S||_F^2$ subject to $W_i^T W_i = I$: with the SVD
+    $U \\Sigma V^T = X_i S^T$, the optimum is $W_i = U V^T$.
+
+    Args:
+        Xi (np.ndarray): The subject's data $X_i$, shape (voxels, timepoints).
+        S (np.ndarray): The shared response, shape (n_features, timepoints).
+
+    Returns:
+        np.ndarray: The orthogonal transform $W_i$, shape (voxels, n_features).
+    """
+    # Compute cross-covariance: X_i S^T
+    A = Xi.dot(S.T)
+    # Solve the Procrustes problem via SVD
+    # Optimal orthogonal transform: W_i = U V^T where A = U Σ V^T
+    U, _, V = np.linalg.svd(A, full_matrices=False)
+    return U.dot(V)
+
+
 class _SRM(BaseEstimator, TransformerMixin):
     """Probabilistic Shared Response Model (SRM).
 
@@ -328,28 +350,6 @@ class _SRM(BaseEstimator, TransformerMixin):
 
         return loglikehood
 
-    @staticmethod
-    def _update_transform_subject(Xi, S):
-        """Update the mapping $W_i$ for one subject.
-
-        Solves the orthogonal Procrustes problem
-        $\\min ||X_i - W_i S||_F^2$ subject to $W_i^T W_i = I$: with the SVD
-        $U \\Sigma V^T = X_i S^T$, the optimum is $W_i = U V^T$.
-
-        Args:
-            Xi (np.ndarray): The subject's data $X_i$, shape (voxels, timepoints).
-            S (np.ndarray): The shared response, shape (n_features, timepoints).
-
-        Returns:
-            np.ndarray: The orthogonal transform $W_i$, shape (voxels, n_features).
-        """
-        # Compute cross-covariance: X_i S^T
-        A = Xi.dot(S.T)
-        # Solve the Procrustes problem via SVD
-        # Optimal orthogonal transform: W_i = U V^T where A = U Σ V^T
-        U, _, V = np.linalg.svd(A, full_matrices=False)
-        return U.dot(V)
-
     def transform_subject(self, X: np.ndarray) -> np.ndarray:
         """Transform a new subject using the existing model.
 
@@ -373,7 +373,7 @@ class _SRM(BaseEstimator, TransformerMixin):
                 "The number of timepoints(TRs) does not match the one in the model."
             )
 
-        w = self._update_transform_subject(X, self.s_)
+        w = _update_transform_subject(X, self.s_)
 
         return w
 
@@ -655,28 +655,6 @@ class _DetSRM(BaseEstimator, TransformerMixin):
 
         return s
 
-    @staticmethod
-    def _update_transform_subject(Xi, S):
-        """Update the mapping $W_i$ for one subject.
-
-        Solves the orthogonal Procrustes problem
-        $\\min ||X_i - W_i S||_F^2$ subject to $W_i^T W_i = I$: with the SVD
-        $U \\Sigma V^T = X_i S^T$, the optimum is $W_i = U V^T$.
-
-        Args:
-            Xi (np.ndarray): The subject's data $X_i$, shape (voxels, timepoints).
-            S (np.ndarray): The shared response, shape (n_features, timepoints).
-
-        Returns:
-            np.ndarray: The orthogonal transform $W_i$, shape (voxels, n_features).
-        """
-        # Compute cross-covariance: X_i S^T
-        A = Xi.dot(S.T)
-        # Solve the Procrustes problem via SVD
-        # Optimal orthogonal transform: W_i = U V^T where A = U Σ V^T
-        U, _, V = np.linalg.svd(A, full_matrices=False)
-        return U.dot(V)
-
     def transform_subject(self, X: np.ndarray) -> np.ndarray:
         """Transform a new subject using the existing model.
 
@@ -700,7 +678,7 @@ class _DetSRM(BaseEstimator, TransformerMixin):
                 "The number of timepoints(TRs) does not match the one in the model."
             )
 
-        w = self._update_transform_subject(X, self.s_)
+        w = _update_transform_subject(X, self.s_)
 
         return w
 
