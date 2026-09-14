@@ -255,7 +255,9 @@ class Roc:
             one negative observation).
 
     Attributes:
-        input_values (np.ndarray): Decision values.
+        input_values (np.ndarray): Decision values, as given, coerced to a 1-D
+            float array. Forced-choice pair centering is derived inside
+            `calculate` and never written back here.
         binary_outcome (np.ndarray): Boolean labels.
         method (str): Configured threshold-selection variant. Set at construction;
             `calculate`'s `method=` argument reads this as its default and never
@@ -384,22 +386,21 @@ class Roc:
         self.binary_outcome = labels
         self.forced_choice = subject_ids
 
-        # Create Criterion Values
-        if criterion_values is not None:
-            self.criterion_values = _validated_criterion_values(criterion_values)
-        else:
-            self.criterion_values = _default_criterion_values(scores)
-
-        # Forced choice scores each subject's pair against the pair's own mean
+        # Forced choice scores each subject's pair against the pair's own mean.
+        # The centered values are derived here rather than written back over the
+        # scores the caller passed in, so every call evaluates the same array.
         if subject_ids is None:
             positive_idx = negative_idx = None
             evaluated = scores
         else:
             positive_idx, negative_idx = _forced_choice_pairs(subject_ids, labels)
-            self.input_values = _centered_within_pairs(
-                scores, positive_idx, negative_idx
-            )
-            evaluated = self.input_values
+            evaluated = _centered_within_pairs(scores, positive_idx, negative_idx)
+
+        # Create Criterion Values
+        if criterion_values is not None:
+            self.criterion_values = _validated_criterion_values(criterion_values)
+        else:
+            self.criterion_values = _default_criterion_values(evaluated)
 
         # Calculate true positive and false positive rate
         self.tpr = np.zeros(self.criterion_values.shape)
