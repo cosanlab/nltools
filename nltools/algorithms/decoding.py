@@ -124,7 +124,9 @@ def _whitening_scale(explained_variance: np.ndarray) -> np.ndarray:
 
     ``sqrt(explained_variance_)``, with values below the dtype's epsilon
     replaced by that epsilon so a degenerate component cannot blow the
-    back-projected weights up to infinity.
+    back-projected weights up to infinity. The floor is taken in the *fitted*
+    dtype, as ``sklearn.decomposition._base._BasePCA._transform`` does — a
+    float32 fit floored at float64's epsilon is not floored at all.
 
     Args:
         explained_variance: The fitted ``PCA.explained_variance_`` vector.
@@ -132,7 +134,7 @@ def _whitening_scale(explained_variance: np.ndarray) -> np.ndarray:
     Returns:
         ndarray: The floored component scales, one per component.
     """
-    scale = np.sqrt(np.asarray(explained_variance, dtype=float))
+    scale = np.sqrt(np.asarray(explained_variance))
     eps = np.finfo(scale.dtype).eps
     return np.where(scale < eps, eps, scale)
 

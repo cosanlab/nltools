@@ -120,6 +120,19 @@ class TestWhiteningScale:
         eps = np.finfo(variance.dtype).eps
         np.testing.assert_allclose(scale, [2.0, eps])
 
+    def test_floor_follows_the_fitted_dtype(self):
+        """sklearn floors in the fitted dtype, so float32 gets float32's eps.
+
+        A float32 NIfTI gives float32 `bd.data`, which reaches `PCA.fit`
+        unchanged, and the float64 floor sits below float32's real residual
+        variance — so it is skipped entirely rather than merely set too low.
+        """
+        variance = np.array([4.0, 0.0], dtype=np.float32)
+
+        scale = _whitening_scale(variance)
+
+        np.testing.assert_allclose(scale, [2.0, np.finfo(np.float32).eps])
+
 
 @pytest.mark.parametrize(
     "selector",
