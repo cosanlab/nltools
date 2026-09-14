@@ -274,10 +274,11 @@ def _plot_surf(
 ):
     """Plot volumetric data on fsaverage surfaces in a tight montage.
 
-    Like nilearn's `plot_img_on_surf` but with tight framing (via
-    `Axes3D.set_box_aspect` + `set_axis_off`), an auto-applied transparency mask
-    (same convention as `plot_flatmap`), and a single shared horizontal colorbar
-    instead of one per subplot.
+    Samples the volume with nilearn's `vol_to_surf` and draws each panel with
+    nilearn's `plot_surf_stat_map`. Like nilearn's `plot_img_on_surf` but with
+    tight framing (via `Axes3D.set_box_aspect` + `set_axis_off`), an
+    auto-applied transparency mask (same convention as `plot_flatmap`), and a
+    single shared horizontal colorbar instead of one per subplot.
 
     The grid is `len(view) × len(hemi)` — rows are views, columns are hemispheres.
 
@@ -441,9 +442,9 @@ def _plot_flatmap(
 ):
     """Plot brain data on cortical flatmap.
 
-    Projects MNI152 volumetric data onto an fsaverage surface and renders
-    as a 2D flattened cortical map. Uses nilearn's vol_to_surf for projection
-    and matplotlib's tripcolor for rendering.
+    Projects MNI152 volumetric data onto an fsaverage surface and renders it
+    as a 2D flattened cortical map, sampling with nilearn's `vol_to_surf` and
+    drawing with `matplotlib.pyplot.tripcolor`.
 
     This function provides publication-quality flatmap visualizations without
     requiring external dependencies like pycortex.
@@ -486,29 +487,28 @@ def _plot_flatmap(
         Basic flatmap with default settings:
 
         ```python
-        from nltools.plotting import plot_flatmap
         from nltools.data import BrainData
 
         brain = BrainData("stats.nii.gz")
-        fig = plot_flatmap(brain)
+        fig = brain.plot_flatmap()
         ```
 
         Thresholded with custom colormap:
 
         ```python
-        fig = plot_flatmap(brain, threshold=2.5, cmap="hot")
+        fig = brain.plot_flatmap(threshold=2.5, cmap="hot")
         ```
 
         Percentile threshold:
 
         ```python
-        fig = plot_flatmap(brain, threshold="95%")
+        fig = brain.plot_flatmap(threshold="95%")
         ```
 
         High resolution for publication:
 
         ```python
-        fig = plot_flatmap(brain, template="fsaverage6", figsize=(16, 8))
+        fig = brain.plot_flatmap(template="fsaverage6", figsize=(16, 8))
         fig.savefig("flatmap.pdf", dpi=300)
         ```
 
