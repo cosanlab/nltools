@@ -133,3 +133,19 @@ def test_regress_promotes_an_integer_design():
     assert t == pytest.approx(np.sqrt(15.0))
     assert df == 3
     assert (b, se, t, p, df) == pytest.approx((b_f, se_f, t_f, p_f, df_f))
+
+
+def test_regress_counts_residual_df_by_rank():
+    """A duplicated column must not change the inference (G-10).
+
+    `pinv` fits rank-deficient designs, so the residual projection of
+    `X = ones((4, 2))` has rank 4 - 1 = 3, not 4 - 2 = 2.
+    """
+    X = np.ones((4, 2))
+    Y = np.arange(4.0)
+
+    _, se, _, _, df, _ = regress(X, Y)
+
+    assert df == 3
+    # RSS = 5, sigma = sqrt(5/3), diag(pinv(X.T @ X)) = 1/16 per column.
+    assert np.allclose(se, np.sqrt(5 / 48))

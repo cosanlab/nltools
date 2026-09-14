@@ -54,7 +54,10 @@ def regress(X, Y, *, stats: str = "full", tail: int | str = 2):
         return b.squeeze()
 
     res = Y - X @ b
-    df_scalar = X.shape[0] - X.shape[1]
+    # `pinv` fits rank-deficient designs, so the residual projection has rank
+    # n - rank(X), not n - n_regressors. Counting columns would let a duplicated
+    # regressor change the inference without changing the fit.
+    df_scalar = X.shape[0] - int(np.linalg.matrix_rank(X))
     # Unbiased residual SE from *uncentered* RSS: sqrt(RSS / (n - p)). Correct for
     # both intercept and intercept-free models. np.std(res, ddof=p) would center
     # the residuals, underestimating RSS when X has no intercept (a supported
