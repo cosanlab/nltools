@@ -513,3 +513,32 @@ class TestConstructFromAListOfBrainData:
         result = BrainData([left, right], mask=self._grid_mask([1, 2]))
         assert result.shape == (4, 2)
         np.testing.assert_array_equal(result.data[0], [1.0, 2.0])
+
+
+class TestSingleVoxelConstruction:
+    """A singleton voxel axis is data, not padding.
+
+    The constructor normalises a leading singleton image axis — that is the
+    single-image convention — and nothing else, so a one-voxel mask does not
+    turn three images into one three-voxel image.
+    """
+
+    @staticmethod
+    def _one_voxel_mask():
+        return nib.Nifti1Image(np.ones((1, 1, 1), dtype=np.uint8), np.eye(4))
+
+    def test_three_images_of_one_voxel_stay_three_images(self):
+        brain = BrainData(
+            np.array([[1.0], [2.0], [3.0]]), mask=self._one_voxel_mask()
+        )
+        assert brain.shape == (3, 1)
+        assert brain.to_nifti().shape == (1, 1, 1, 3)
+
+    def test_one_image_of_one_voxel_is_a_single_image(self):
+        brain = BrainData(np.array([[5.0]]), mask=self._one_voxel_mask())
+        assert brain.shape == (1,)
+
+    def test_a_leading_singleton_image_axis_is_still_collapsed(self):
+        mask = nib.Nifti1Image(np.ones((2, 2, 2), dtype=np.uint8), np.eye(4))
+        brain = BrainData(np.arange(8, dtype=float).reshape(1, 8), mask=mask)
+        assert brain.shape == (8,)
