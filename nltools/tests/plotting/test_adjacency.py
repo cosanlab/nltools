@@ -68,6 +68,42 @@ class TestPlotBetweenLabelDistance:
         assert off.mean() > 0.7
 
 
+class TestLongToMatrix:
+    def test_integer_labels_reach_the_matrix(self):
+        """Polars names pivoted columns by their string rendering, so look them up that way."""
+        from nltools.plotting.adjacency import _long_to_matrix
+
+        long_df = pl.DataFrame(
+            {
+                "label1": [0, 0, 1, 1],
+                "label2": [0, 1, 0, 1],
+                "mean_distance": [1.0, 4.0, 4.0, 2.0],
+            }
+        )
+        out = _long_to_matrix(
+            long_df, "label1", "label2", "mean_distance", np.array([0, 1])
+        )
+        np.testing.assert_allclose(out, [[1.0, 4.0], [4.0, 2.0]])
+
+    def test_integer_labels_reach_the_public_heatmap(self):
+        """The drawn between-label heatmap carries the real means for integer labels."""
+        distance = np.array(
+            [
+                [0.0, 0.1, 0.8, 0.8],
+                [0.1, 0.0, 0.8, 0.8],
+                [0.8, 0.8, 0.0, 0.1],
+                [0.8, 0.8, 0.1, 0.0],
+            ]
+        )
+        plt.close("all")
+        _plot_between_label_distance(
+            distance, np.array([0, 0, 1, 1]), permutation_test=False
+        )
+        drawn = np.asarray(plt.gcf().axes[0].collections[0].get_array())
+        assert drawn.max() > 0.5
+        plt.close("all")
+
+
 class TestPlotSilhouette:
     def test_silhouette_scores_positive_for_well_separated(
         self, well_separated_distance
