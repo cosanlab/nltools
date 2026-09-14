@@ -59,6 +59,7 @@ apply `BrainData` methods per subject and stack the results with
 | Similarity | Manual per-ROI loop to paint an RSA map | `brain.distance(spatial_scale='roi', roi_mask=atlas)` then `roi_to_brain_from_atlas` | Explicit atlas mapping |
 | Alignment | `from nltools.external import SRM, DetSRM` | `brain.align(method='probabilistic_srm'\|'deterministic_srm')` | The estimators are internal |
 | Alignment | Procrustes back-projection was `transformed @ T` | `transformed @ T.T` | `transformation_matrix` is stored as `transformed = original @ T` |
+| Alignment | `align_states(..., replace_zero_variance=True)` on integer maps raised `ValueError: matrix contains invalid numeric entries` | The maps are converted to float, so the replacement noise survives | The non-replacement path still keeps the caller's dtype |
 | Statistics | `nltools.stats` | `nltools.algorithms` | Same functions, one namespace |
 | Statistics | `one_sample_permutation`, `two_sample_permutation`, `correlation_permutation`, `matrix_permutation` | Same names with a `_test` suffix | Keyword-only after the data arguments |
 | Statistics | `adjacency.generate_permutations(n_perm=…)` | `generate_permutations(n_permute=…)` | One spelling for a permutation count everywhere |
