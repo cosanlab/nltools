@@ -933,17 +933,18 @@ def _threshold_data(
             ``False``.
         coerce_nan (bool): Replace NaN values with 0 first. Default ``True``.
         cluster_threshold (int): Minimum cluster size in voxels. If ``> 0``,
-            thresholds with ``nilearn.image.threshold_img`` and drops smaller
-            clusters; band-pass thresholding (both ``upper`` and ``lower``) is
-            not supported in that mode. Default ``0`` (disabled).
+            thresholds as usual and then drops smaller clusters with
+            `nilearn.image.threshold_img`, which evaluates positive and negative
+            clusters separately; band-pass thresholding (both ``upper`` and
+            ``lower``) is not supported in that mode. Default ``0`` (disabled).
 
     Returns:
         BrainData: Thresholded copy of ``bd``.
 
     Note:
-        With ``cluster_threshold=0`` (default) thresholding runs on the data
-        array directly and supports band-pass thresholds; with
-        ``cluster_threshold>0`` nilearn performs the cluster filtering.
+        ``cluster_threshold=0`` (default) supports band-pass thresholds;
+        ``cluster_threshold>0`` accepts one threshold only, and the retained
+        tail is the same one the default mode keeps.
     """
 
     if cluster_threshold > 0:
@@ -972,13 +973,21 @@ def _threshold_data(
 
         threshold_val = _resolve_threshold(threshold_val, b.data)
 
-        # Use nilearn's cluster thresholding
+        # Threshold with the same directional rule the fast path uses; nilearn's
+        # own voxel-level rule keys off the sign of the cutoff rather than which
+        # tail was asked for, so it is disabled with threshold=0 and the call is
+        # made purely to drop undersized clusters (which it evaluates per sign).
+        if upper is not None:
+            b.data[b.data < threshold_val] = 0
+        else:
+            b.data[b.data > threshold_val] = 0
+
         out = _result_from_array(bd, bd.data, rows="preserve")
         thresholded_img = threshold_img(
             b.to_nifti(),
-            threshold=threshold_val,
+            threshold=0,
             cluster_threshold=cluster_threshold,
-            two_sided=(upper is not None),
+            two_sided=True,
             copy_header=True,
         )
 

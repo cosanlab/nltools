@@ -334,6 +334,26 @@ class TestBrainDataAnalysis:
         result_zero_cluster = brain.threshold(lower=-2, upper=2, cluster_threshold=0)
         np.testing.assert_array_equal(result_no_cluster.data, result_zero_cluster.data)
 
+    def test_threshold_cluster_keeps_the_same_tail_as_the_fast_path(self):
+        """Cluster filtering only drops small clusters; it never flips the tail.
+
+        Handing `two_sided=(upper is not None)` to nilearn made `upper=3` keep the
+        negative tail as well and `lower=3` return the opposite tail entirely. On
+        `[0,4,4,0,-4,-4,0]` every surviving component has two voxels, so
+        `cluster_threshold=1` must reproduce the unclustered result exactly.
+        """
+        mask = nb.Nifti1Image(np.ones((7, 1, 1)), np.eye(4))
+        brain = BrainData(np.array([0, 4, 4, 0, -4, -4, 0], dtype=float), mask=mask)
+
+        np.testing.assert_array_equal(
+            brain.threshold(upper=3, cluster_threshold=1).data,
+            brain.threshold(upper=3).data,
+        )
+        np.testing.assert_array_equal(
+            brain.threshold(lower=3, cluster_threshold=1).data,
+            brain.threshold(lower=3).data,
+        )
+
     def test_threshold_with_zero_value(self, sim_brain_data):
         """Test threshold works correctly when upper=0 or lower=0 (#370)."""
         brain = sim_brain_data.copy()
