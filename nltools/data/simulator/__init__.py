@@ -619,13 +619,7 @@ class SimulateGrid:
         signal_amplitude=None,
         random_state=None,
     ):
-        self.isfit = False
-        self.thresholded = None
-        self.threshold = None
-        self.threshold_type = None
-        self.correction = None
-        self.t_values = None
-        self.p_values = None
+        self._reset_fit_state()
         self.n_subjects = n_subjects
         self.sigma = sigma
         self.grid_width = grid_width
@@ -639,6 +633,28 @@ class SimulateGrid:
         else:
             self.signal_amplitude = None
             self.signal_mask = None
+
+    def _reset_fit_state(self):
+        """Clear every result `fit`, `threshold_simulation` and the simulation runs leave behind.
+
+        Called whenever `self.data` changes, so the object never reports
+        statistics for data it no longer holds.
+        """
+        self.isfit = False
+        self.t_values = None
+        self.p_values = None
+        self.thresholded = None
+        self.threshold = None
+        self.threshold_type = None
+        self.correction = None
+        self.corrected_threshold = None
+        self.fp_percent = None
+        self.tp_percent = None
+        self.multiple_thresholded = None
+        self.multiple_fp = None
+        self.multiple_tp = None
+        self.multiple_fdr = None
+        self.fpr = None
 
     def _create_noise(self):
         """Generate simulated data using object parameters.
@@ -667,6 +683,7 @@ class SimulateGrid:
             np.expand_dims(self.signal_mask, axis=2), self.n_subjects, axis=2
         )
         self.data = deepcopy(self.data) + signal * self.signal_amplitude
+        self._reset_fit_state()
 
     def create_mask(self, signal_width):
         """Create the binary `signal_mask` marking a centered square of the grid.
