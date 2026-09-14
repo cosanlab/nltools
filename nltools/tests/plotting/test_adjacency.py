@@ -244,7 +244,6 @@ class TestAdjacencyPlot:
         assert mappable.get_clim() == pytest.approx((square.min(), square.max()))
         plt.close("all")
 
-
     def test_plot_draws_a_one_panel_stack(self):
         """A one-row stack, and `limit=1` on any stack, still draws its panel."""
         from nltools.data import Adjacency
@@ -278,9 +277,7 @@ class TestAdjacencyPlot:
             assert [t.get_text() for t in ax.get_yticklabels()] == labels
         plt.close("all")
 
-        nested = Adjacency(
-            [matrix, matrix], labels=[["a", "b", "c"], ["d", "e", "f"]]
-        )
+        nested = Adjacency([matrix, matrix], labels=[["a", "b", "c"], ["d", "e", "f"]])
         nested.plot(cbar=False)
         panels = plt.gcf().axes
         assert [t.get_text() for t in panels[0].get_xticklabels()] == ["a", "b", "c"]

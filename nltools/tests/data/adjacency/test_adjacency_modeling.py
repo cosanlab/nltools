@@ -155,7 +155,9 @@ class TestAdjacencyModeling:
         stack.social_relations_model(summarize_results=True, nan_replace=False)
         printed = capsys.readouterr().out
         row = next(
-            line for line in printed.splitlines() if line.startswith("dyadic_reciprocity")
+            line
+            for line in printed.splitlines()
+            if line.startswith("dyadic_reciprocity")
         )
         assert float(row.split()[-1]) == pytest.approx(0.3440, abs=1e-4)
 
