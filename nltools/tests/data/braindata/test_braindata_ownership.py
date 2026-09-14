@@ -398,3 +398,40 @@ def test_copy_frame_owns_buffers_that_object_frame_copying_leaves_shared():
 
     assert detached["a"].to_list() == [0.0, 1.0, 2.0, 3.0, 4.0]
     assert shared["a"].to_list() == [99.0, 1.0, 2.0, 3.0, 4.0]
+
+
+class TestConstructorOwnership:
+    """`BrainData(other)` owns what it retains, like every other result constructor.
+
+    The spec requires that every mutable value a result keeps is independently
+    owned; the public constructor was the one entry point that aliased its
+    source's mask and metadata frames instead.
+    """
+
+    def test_the_clone_owns_its_mask(self, brain):
+        clone = BrainData(brain)
+        assert clone.mask is not brain.mask
+        np.asarray(clone.mask.dataobj)[:] = 0
+        assert np.asarray(brain.mask.dataobj).sum() > 0
+
+    def test_the_source_owns_its_mask(self, brain):
+        clone = BrainData(brain)
+        np.asarray(brain.mask.dataobj)[:] = 0
+        assert np.asarray(clone.mask.dataobj).sum() > 0
+
+    def test_the_clone_owns_its_metadata_frames(self, brain):
+        clone = BrainData(brain)
+        assert clone.X is not brain.X
+        assert clone.Y is not brain.Y
+        clone.X.replace_column(0, pl.Series(brain.X.columns[0], [9.0] * 12))
+        assert brain.X[brain.X.columns[0]].to_list() != [9.0] * 12
+
+    def test_the_source_owns_its_metadata_frames(self, brain):
+        clone = BrainData(brain)
+        brain.Y.replace_column(0, pl.Series("row", [99] * 12))
+        assert clone.Y["row"].to_list() == list(range(12))
+
+    def test_the_clone_owns_its_voxel_resolution(self, brain):
+        clone = BrainData(brain)
+        clone._voxel_resolution[0] = 99.0
+        assert brain._voxel_resolution[0] != 99.0
