@@ -85,7 +85,8 @@ def _bootstrap(
             bootstrap axis first when ``return_samples=True``.
 
     Raises:
-        ValueError: If `statistic` is unknown, a basic statistic is given `X`,
+        ValueError: If the data is not a stack of at least two observations,
+            `statistic` is unknown, a basic statistic is given `X`,
             `X_test`, or ``device='gpu'``, a Ridge statistic is missing `X` (or
             `X_test` for ``'predict'``), the fitted model is not a `_Ridge`, `X`
             does not match the fitted feature structure and observation count,
@@ -118,6 +119,7 @@ def _bootstrap(
 
     _validate_statistic(statistic)
     _validate_device(device)
+    _validate_observations(bd)
 
     if statistic in SIMPLE_STATS:
         _reject_model_arguments(statistic, X, X_test, device)
@@ -249,6 +251,27 @@ def _validate_device(device):
     """
     if device not in ("cpu", "gpu"):
         raise ValueError(f"device must be 'cpu' or 'gpu', got {device!r}")
+
+
+def _validate_observations(bd):
+    """Require the observation axis an IID row bootstrap resamples.
+
+    A single image is a voxel vector with no rows. Without this check the
+    generic engine's single-feature path resampled those voxels as if they were
+    observations and returned one scalar against the source's full mask.
+
+    Args:
+        bd (BrainData): Data whose rows would be resampled.
+
+    Raises:
+        ValueError: If the data is not a stack of at least two observations.
+    """
+    if bd.data.ndim != 2 or bd.data.shape[0] < 2:
+        raise ValueError(
+            "bootstrap() resamples rows, so it needs a stack of at least two "
+            f"observations; this BrainData has shape {bd.shape}. Concatenate "
+            "the images you want to resample first."
+        )
 
 
 def _reject_model_arguments(statistic, X, X_test, device):

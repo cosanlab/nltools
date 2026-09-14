@@ -716,7 +716,8 @@ class BrainData:
                 bootstrap axis first when ``return_samples=True``.
 
         Raises:
-            ValueError: If `statistic` is unknown, a basic statistic is given
+            ValueError: If the data is not a stack of at least two
+                observations, `statistic` is unknown, a basic statistic is given
                 ``X``, ``X_test`` or ``device='gpu'``, a Ridge statistic is
                 missing its features, the fitted model is not a `_Ridge`, an
                 argument is out of range, or the retained output cannot fit the
