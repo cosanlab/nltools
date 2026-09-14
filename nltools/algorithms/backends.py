@@ -925,7 +925,9 @@ def _compute_oom_safe(fn, *arrays, min_chunk: int = 1):
     a numpy array whose axis 0 corresponds row-for-row to its inputs. On a
     device OOM the cache is emptied, the arrays are split in half along
     axis 0, and the halves are retried recursively; partial results are
-    concatenated along axis 0.
+    concatenated along axis 0. Recovery happens after leaving the exception
+    handler, so the failed call's allocations are released before the smaller
+    retries ask for them.
 
     Because splitting reuses the *already generated* inputs rather than
     re-drawing them, recovery never changes which permutations a seeded
@@ -954,17 +956,22 @@ def _compute_oom_safe(fn, *arrays, min_chunk: int = 1):
     except Exception as exc:
         if not _is_oom_error(exc):
             raise
-        _empty_device_cache()
         if n <= min_chunk:
+            _empty_device_cache()
             raise MemoryError(
                 f"Device out of memory even for a single item (chunk of {n}). "
                 "Reduce the problem size, lower max_gpu_memory_gb elsewhere on "
                 "the device, or use device='cpu'."
             ) from exc
-        mid = n // 2
-        left = _compute_oom_safe(fn, *(a[:mid] for a in arrays), min_chunk=min_chunk)
-        right = _compute_oom_safe(fn, *(a[mid:] for a in arrays), min_chunk=min_chunk)
-        return np.concatenate([left, right], axis=0)
+
+    # Outside the handler, where Python's implicit `del exc` has dropped the
+    # traceback: the failed call's frame — and the device allocations its
+    # locals held — are gone before the cache is emptied and the halves retried.
+    _empty_device_cache()
+    mid = n // 2
+    left = _compute_oom_safe(fn, *(a[:mid] for a in arrays), min_chunk=min_chunk)
+    right = _compute_oom_safe(fn, *(a[mid:] for a in arrays), min_chunk=min_chunk)
+    return np.concatenate([left, right], axis=0)
 
 
 # ----------------------------------------------------------------------

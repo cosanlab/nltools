@@ -329,6 +329,34 @@ class TestComputeOomSafe:
         with pytest.raises(MemoryError, match="single item"):
             _compute_oom_safe(always_oom, arr)
 
+    def test_failed_call_allocations_are_released_before_the_retries(self):
+        """The retry must not run while the failed call's scratch is still alive.
+
+        That scratch is exactly the memory the smaller retry is trying to make
+        room for, and an exception's traceback keeps the failed frame — and so
+        its locals — alive for as long as the handler is running.
+        """
+        import weakref
+
+        from nltools.algorithms.backends import _compute_oom_safe
+
+        arr = np.arange(16, dtype=np.float64).reshape(8, 2)
+        scratch_ref = None
+        alive_during_retries = []
+
+        def flaky(a):
+            nonlocal scratch_ref
+            if len(a) > 4:
+                scratch = np.zeros((len(a), 1000))
+                scratch_ref = weakref.ref(scratch)
+                raise RuntimeError("MPS backend out of memory")
+            alive_during_retries.append(scratch_ref() is not None)
+            return a.sum(axis=1, keepdims=True)
+
+        result = _compute_oom_safe(flaky, arr)
+        np.testing.assert_array_equal(result, arr.sum(axis=1, keepdims=True))
+        assert alive_during_retries == [False, False]
+
 
 class TestBudgetMathSingleSource:
     """Memory sizing has one home.
