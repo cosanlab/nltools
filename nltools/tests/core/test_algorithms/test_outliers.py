@@ -40,6 +40,18 @@ class TestWinsorize:
         )
         assert np.round(np.mean(out)) == np.round(np.mean(expected))
 
+    def test_quantile_cutoffs_skip_missing_values(self):
+        """A null observation must not NaN the whole column (G-06).
+
+        The 0.75 quantile of the four present values is 2 + 0.25 * (100 - 2).
+        """
+        out = winsorize(
+            pl.Series("x", [None, 0.0, 1.0, 2.0, 100.0]),
+            cutoff={"quantile": [0.0, 0.75]},
+        )
+
+        assert out.to_list() == [None, 0.0, 1.0, 2.0, 26.5]
+
     def test_closest_existing_values_include_the_cutoffs(self):
         """Values sitting on the cutoff are not outliers (G-05).
 
