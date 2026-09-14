@@ -10,8 +10,8 @@ and is run by the same ``lint-api`` poe task.
 Heuristic (matches the audit's api-consistency findings): for every public
 (non-underscore) ``def``, count the positional-or-keyword parameters that carry
 a default and appear *before* any ``*`` / ``*args`` marker — these are "loose
-kwargs" a caller could pass positionally. If 3+ such loose kwargs exist with no
-keyword-only marker separating them, flag it. ``self``/``cls`` and no-default
+kwargs" a caller could pass positionally. If 3+ such loose kwargs exist, flag
+it — a later ``*`` does not protect the parameters in front of it. ``self``/``cls`` and no-default
 positional data args (e.g. ``fit(X, y)``) are not counted, so sklearn-style
 ``fit(X, y)`` signatures are not flagged.
 
@@ -93,11 +93,6 @@ def loose_kwargs(node: ast.FunctionDef | ast.AsyncFunctionDef) -> int:
     return len(defaulted)
 
 
-def has_star_marker(node: ast.FunctionDef | ast.AsyncFunctionDef) -> bool:
-    """True if the signature has a ``*`` / ``*args`` before its keyword-only zone."""
-    return node.args.vararg is not None or bool(node.args.kwonlyargs)
-
-
 def check_file(
     path: Path, exempt: dict[tuple[str, str], str]
 ) -> list[tuple[int, str, int]]:
@@ -115,8 +110,6 @@ def check_file(
             continue
         if _is_exempt(exempt, rel, node.name):
             continue
-        if has_star_marker(node):
-            continue
         n_loose = loose_kwargs(node)
         if n_loose >= THRESHOLD:
             violations.append((node.lineno, node.name, n_loose))
@@ -130,8 +123,8 @@ def main(argv: list[str]) -> int:
     for path in iter_py_files(roots, exclude_parts=EXCLUDE_PARTS):
         for lineno, name, n in check_file(path, exempt):
             print(
-                f"{rel_posix(path)}:{lineno}: {name}() has {n} loose kwargs and no "
-                f"keyword-only `*` marker (convention: `*` required for 3+ kwargs)"
+                f"{rel_posix(path)}:{lineno}: {name}() has {n} loose kwargs before "
+                f"its keyword-only `*` marker (convention: `*` required for 3+ kwargs)"
             )
             total += 1
     if total:
