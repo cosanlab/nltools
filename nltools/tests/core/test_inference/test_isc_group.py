@@ -97,6 +97,23 @@ def test_compute_isc_group_difference_mismatched_observations():
         )
 
 
+@pytest.mark.parametrize("method", ["bootstrap", "permute"])
+def test_isc_group_permutation_test_mismatched_voxels(method):
+    """Two groups with different voxel counts are refused, not broadcast.
+
+    group2's single-voxel statistic used to broadcast across group1's two
+    voxels and produce a full, meaningless result.
+    """
+    rng = np.random.default_rng(0)
+    group1 = rng.standard_normal((20, 3, 2))
+    group2 = rng.standard_normal((20, 3, 1))
+
+    with pytest.raises(ValueError, match="voxel"):
+        _isc_group_permutation_test(
+            group1, group2, method=method, n_permute=10, n_jobs=1, random_state=0
+        )
+
+
 def test_compute_isc_group_difference_invalid_metric():
     """ISC group difference raises error for invalid summary."""
     np.random.seed(42)
