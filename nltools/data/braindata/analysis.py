@@ -63,7 +63,11 @@ def _aligned_array(value):
 
 
 def _check_masks(bd, image):
-    """Ensure two datasets use compatible masks, creating a union mask if needed.
+    """Resample two datasets onto their shared voxels when their masks differ.
+
+    Two masks that keep the same *number* of voxels can still keep different
+    voxels, so the fast path requires the same grid and the same support, not
+    the same support size. Anything else is compared on the intersection.
 
     Args:
         bd (BrainData): Reference dataset.
@@ -72,21 +76,37 @@ def _check_masks(bd, image):
     Returns:
         tuple[np.ndarray, np.ndarray]: ``(data, image_data)`` arrays sampled on
             a shared mask.
+
+    Raises:
+        ValueError: If the two masks sit on grids that cannot be intersected, or
+            if they share no voxels.
     """
     from nilearn.masking import apply_mask, intersect_masks
 
-    if np.sum(bd.mask.get_fdata() == 1) != np.sum(image.mask.get_fdata() == 1):
-        new_mask = intersect_masks(
-            [bd.mask, image.mask],
-            threshold=1,
-            connected=False,
+    bd_support = bd.mask.get_fdata() > 0
+    image_support = image.mask.get_fdata() > 0
+    same_grid = bd.mask.shape == image.mask.shape and np.allclose(
+        bd.mask.affine, image.mask.affine
+    )
+    if same_grid and np.array_equal(bd_support, image_support):
+        return bd.data, image.data
+
+    try:
+        new_mask = intersect_masks([bd.mask, image.mask], threshold=1, connected=False)
+    except ValueError as error:
+        raise ValueError(
+            "The two masks cannot be compared: one is shaped "
+            f"{bd.mask.shape} with affine\n{bd.mask.affine}\nand the other is "
+            f"shaped {image.mask.shape} with affine\n{image.mask.affine}\n"
+            "Resample one onto the other first."
+        ) from error
+    if not np.any(new_mask.get_fdata() > 0):
+        raise ValueError(
+            "The two masks share no voxels, so there is nothing to compare. "
+            f"One keeps {int(bd_support.sum())} voxels and the other "
+            f"{int(image_support.sum())}."
         )
-        data2 = apply_mask(bd.to_nifti(), new_mask)
-        image2 = apply_mask(image.to_nifti(), new_mask)
-    else:
-        data2 = bd.data
-        image2 = image.data
-    return data2, image2
+    return apply_mask(bd.to_nifti(), new_mask), apply_mask(image.to_nifti(), new_mask)
 
 
 def _similarity(bd, image, metric="correlation"):

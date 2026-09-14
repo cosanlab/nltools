@@ -363,6 +363,24 @@ class TestBrainDataAnalysis:
         r = minimal_brain_data.similarity(minimal_brain_data[0], metric="correlation")
         assert len(r) == minimal_brain_data.shape[0]
 
+    def test_similarity_compares_masks_by_coordinate_not_by_support_size(self):
+        """Two masks of equal size but different support intersect before comparing.
+
+        A four-voxel line with masks `[1,1,1,0]` and `[0,1,1,1]` keeps three
+        voxels each, so a size-only check compares array position against array
+        position. Only voxels 1 and 2 are shared, giving 2*5 + 3*7.
+        """
+        affine = np.eye(4)
+
+        def img(values):
+            array = np.asarray(values, dtype=float).reshape(4, 1, 1)
+            return nb.Nifti1Image(array, affine)
+
+        first = BrainData(img([100, 2, 3, 0]), mask=img([1, 1, 1, 0]))
+        second = BrainData(img([0, 5, 7, 100]), mask=img([0, 1, 1, 1]))
+
+        assert first.similarity(second, metric="dot_product") == pytest.approx(31.0)
+
     @pytest.mark.slow
     def test_decompose(self, sim_brain_data):
         """Test decomposition with PCA, ICA, NMF, and Factor Analysis."""
