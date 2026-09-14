@@ -58,7 +58,7 @@ def _plot_brain(
     save=None,
     stat="mean",
     limit=3,
-    detach_single=True,
+    _detach_single=True,
     **kwargs,
 ):
     """Plot BrainData instance using nilearn visualization or matplotlib.
@@ -89,7 +89,8 @@ def _plot_brain(
         bg_img (Nifti1Image or str, optional): Background image for slice views.
         ax (matplotlib.axes.Axes, optional): Matplotlib axis to plot on. The
             nilearn methods receive it as ``axes=`` and the figure stays the
-            caller's, so it is not closed on return.
+            caller's, so it is not closed on return. One axis holds one map, so
+            multi-image data with ``ax`` raises.
         figsize (tuple, optional): Figure size for the matplotlib-based methods
             (``"timeseries"``, ``"histogram"``) when no ``ax`` is given.
             Default ``(8, 6)``. A glass or slice figure takes its size from a
@@ -105,7 +106,9 @@ def _plot_brain(
             ``limit``. Ignored for single-image data and for matplotlib-based
             methods (``"timeseries"``, ``"histogram"``), which already
             aggregate across images.
-        detach_single (bool): Internal. Single-image data closes the figure it
+        _detach_single (bool): Internal, and set explicitly by `BrainData.plot`
+            so a caller's own ``detach_single`` still reaches nilearn and
+            raises. Single-image data closes the figure it
             returns so a notebook does not render it twice through the returned
             object *and* `flush_figures`. A caller that draws the figure as a
             side effect and discards the return value passes ``False`` to leave
@@ -189,6 +192,10 @@ def _plot_brain(
     # programmatically access) each map instead of silently dropping all
     # but the first.
     multi = len(bd.shape) > 1 and bd.shape[0] > 1
+    if ax is not None and multi:
+        raise ValueError(
+            "ax draws one map; index or aggregate this BrainData, or pass limit=1"
+        )
     if multi:
         n_total = bd.shape[0]
         n_to_plot = min(n_total, limit)
@@ -364,7 +371,7 @@ def _plot_brain(
     # rendering doesn't duplicate via `flush_figures`. Any earlier per-view
     # figures from method="slices" stay on pyplot's tracker so the cell's
     # post-hook can display them.
-    if detach_single:
+    if _detach_single:
         plt.close(figures[-1])
     return figures[-1]
 
