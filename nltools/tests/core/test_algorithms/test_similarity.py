@@ -49,6 +49,14 @@ class TestComputeSimilarity:
         result = compute_similarity(data1, data2, metric="dot_product")
         assert result.shape == (10, 5)
 
+    def test_dot_product_single_row_is_1d(self):
+        """A single-row `data1` squeezes like every other metric."""
+        result = compute_similarity(
+            [[1.0, 2.0]], [[3.0, 4.0], [5.0, 6.0]], metric="dot_product"
+        )
+        assert result.shape == (2,)
+        np.testing.assert_allclose(result, [11.0, 17.0])
+
     def test_cosine(self, similarity_data):
         data1, data2 = similarity_data
         result = compute_similarity(data1, data2, metric="cosine")
@@ -122,6 +130,18 @@ class TestComputeMultivariateSimilarity:
 
 class TestTransformPairwise:
     """Test pairwise distance transformations."""
+
+    def test_retained_pairs_are_sign_balanced(self):
+        """Signs alternate over retained pairs, not over candidate pairs."""
+        X = np.arange(5.0)[:, None]
+        y = np.array([0, 0, 0, 1, 0])
+        x_new, y_new = transform_pairwise(X, y)
+        assert (y_new == 1).sum() == 2
+        assert (y_new == -1).sum() == 2
+        # Retained pairs are (0,3), (1,3), (2,3), (3,4); each row stays the
+        # feature difference flipped together with its label.
+        np.testing.assert_allclose(x_new.ravel(), [3.0, -2.0, 1.0, 1.0])
+        np.testing.assert_allclose(y_new, [1.0, -1.0, 1.0, -1.0])
 
     def test_without_groups(self):
         n_features, n_samples = 50, 100

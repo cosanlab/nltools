@@ -72,14 +72,15 @@ def transform_pairwise(X, y):
     # Use itertools.combinations (necessary for pairwise combinations)
     # Optimize by using pre-allocated lists and vectorized sign operation
     comb = itertools.combinations(range(X.shape[0]), 2)
-    for k, (i, j) in enumerate(comb):
+    for i, j in comb:
         if y[i, 0] == y[j, 0] or y[i, 1] != y[j, 1]:
             # skip if same target or different group
             continue
         X_new.append(X[i] - X[j])
         sign_val = np.sign(y[i, 0] - y[j, 0])
-        # output balanced classes
-        if sign_val != (-1) ** k:
+        # output balanced classes: alternate over the pairs actually retained,
+        # not over the candidate pairs the skips above discarded.
+        if sign_val != (-1) ** len(y_new):
             sign_val = -sign_val
             X_new[-1] = -X_new[-1]
         y_new.append(sign_val)
@@ -126,10 +127,7 @@ def compute_similarity(data1, data2, metric="correlation"):
 
     if metric == "dot_product":
         # Vectorized dot product
-        if data2.shape[0] == 1:
-            out = np.dot(data1, data2.T).squeeze()
-        else:
-            out = np.dot(data1, data2.T)
+        out = np.dot(data1, data2.T).squeeze()
     elif metric in ["pearson", "correlation"]:
         # Use np.corrcoef (BLAS-optimized) for Pearson correlation
         stacked = np.vstack([data1, data2])
