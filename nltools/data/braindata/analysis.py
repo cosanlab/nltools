@@ -1038,22 +1038,43 @@ def _regions(
             segmentation.
         smoothing_fwhm (float): Smooth the image first to extract sparser
             regions. Only used for ``method='local_regions'``.
-        is_mask (bool): Treat ``bd`` as a boolean mask and use
-            ``connected_label_regions`` instead. Default ``False``.
+        is_mask (bool): Treat ``bd`` as a binary mask and split it into
+            connected components with `nilearn.regions.connected_label_regions`
+            instead, which takes the same minimum volume in mm³. Default
+            ``False``.
 
     Returns:
-        BrainData: One image per extracted region.
+        BrainData: One binary image per extracted region.
+
+    Raises:
+        ValueError: If ``is_mask=True`` and no region reaches
+            ``min_region_size``.
     """
     from nilearn.regions import connected_label_regions, connected_regions
 
     from nltools.data import BrainData
 
     if is_mask:
-        region_imgs, _ = connected_label_regions(bd.to_nifti())
-    else:
-        region_imgs, _ = connected_regions(
-            bd.to_nifti(), min_region_size, method, smoothing_fwhm
-        )
+        from nilearn.masking import apply_mask as nilearn_apply_mask
+
+        # connected_label_regions returns one labeled volume, and returns it
+        # bare unless label names are supplied. Expand its labels into the one
+        # binary map per region the `is_mask=False` branch also produces.
+        region_img = connected_label_regions(bd.to_nifti(), min_size=min_region_size)
+        labels = nilearn_apply_mask(region_img, bd.mask)
+        present = np.unique(labels)
+        present = present[present != 0]
+        if present.size == 0:
+            raise ValueError(
+                f"No region survived min_region_size={min_region_size} mm3. "
+                "Lower the minimum volume."
+            )
+        data = np.stack([(labels == label).astype(float) for label in present])
+        return _result_from_array(bd, data, rows="clear")
+
+    region_imgs, _ = connected_regions(
+        bd.to_nifti(), min_region_size, method, smoothing_fwhm
+    )
 
     return _result_from_array(
         bd, BrainData(region_imgs, mask=bd.mask).data, rows="clear"
