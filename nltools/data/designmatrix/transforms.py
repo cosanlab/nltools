@@ -139,7 +139,11 @@ def _downsample(dm: DesignMatrix, target: float, method: str = "mean") -> Design
             .drop(group_key)
         )
 
-    return _copy_with(dm, downsampled_df, sampling_freq=target)
+    # A column-less design carries its row count outside the frame, so the new
+    # count comes from the bins rather than from the aggregated frame.
+    return _copy_with(
+        dm, downsampled_df, sampling_freq=target, n_rows=int(idx.n_unique())
+    )
 
 
 def _upsample(dm: DesignMatrix, target: float, method: str = "linear") -> DesignMatrix:
@@ -165,7 +169,7 @@ def _upsample(dm: DesignMatrix, target: float, method: str = "linear") -> Design
         dm_up = upsample(dm, target=2.0)  # 1 Hz → 2 Hz (10 → 18 samples)
         ```
     """
-    from nltools.algorithms.signal import _upsample_frame
+    from nltools.algorithms.signal import _upsample_frame, _upsample_indices
 
     if dm.sampling_freq is None:
         raise ValueError(
@@ -195,4 +199,7 @@ def _upsample(dm: DesignMatrix, target: float, method: str = "linear") -> Design
         dm.data.select(data_cols), dm.shape[0], step_size, method
     )
 
-    return _copy_with(dm, upsampled_df, sampling_freq=target)
+    # A column-less design carries its row count outside the frame, so the new
+    # count comes from the interpolation grid rather than from the frame.
+    new_rows = len(_upsample_indices(dm.shape[0], step_size))
+    return _copy_with(dm, upsampled_df, sampling_freq=target, n_rows=new_rows)
