@@ -439,11 +439,6 @@ class TestSerialization:
         np.testing.assert_allclose(restored.predict(X), model.predict(X))
 
 
-def _predict_in_worker(model, X):
-    """Module-level so `loky` can pickle it alongside the fitted model."""
-    return model.predict(X)
-
-
 class TestBackendScoping:
     """Himalaya's process-global backend is set for the call and then restored."""
 

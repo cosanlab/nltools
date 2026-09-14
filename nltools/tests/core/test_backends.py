@@ -230,29 +230,6 @@ class TestRidgeBootstrapBatchSize:
         "n_targets": 50_000,
     }
 
-    @staticmethod
-    def _held_bytes(batch_size, output_shape, **case):
-        """What a batch actually holds.
-
-        One replicate solves at a time, so device residency is one resampled
-        design and response plus the solver's buffers; what accumulates across
-        the batch is the host list of float64 results.
-        """
-        import numpy as np
-
-        from nltools.algorithms.backends import _RIDGE_BOOTSTRAP_SOLVER_OVERHEAD
-
-        resident = (
-            (
-                case["n_samples"] * case["n_features"]
-                + case["n_samples"] * case["n_targets"]
-            )
-            * 8
-            * _RIDGE_BOOTSTRAP_SOLVER_OVERHEAD
-        )
-        retained = int(np.prod(output_shape)) * 8
-        return resident + batch_size * retained
-
     def test_a_wider_output_shrinks_the_batch(self):
         """The retained result is charged, so a bigger `X_test` costs batch size."""
         from nltools.algorithms.backends import _ridge_bootstrap_batch_size
