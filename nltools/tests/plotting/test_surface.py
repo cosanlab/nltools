@@ -14,6 +14,38 @@ from nltools.data import BrainData
 from nltools.plotting import _plot_surf, _plot_flatmap
 
 
+class TestSurfaceProjection:
+    def test_display_mesh_does_not_change_sampled_values(self):
+        """The volume is always sampled on the pial mesh, never the display mesh."""
+        import nibabel as nib
+        from nltools.plotting.brain import _project_to_surface
+
+        # Volume whose value is its x coordinate, so the sampled value reports
+        # which mesh was read.
+        data = np.zeros((20, 20, 20))
+        for x in range(20):
+            data[x] = float(x)
+        img = nib.Nifti1Image(data, np.eye(4))
+
+        def triangle(x):
+            coords = np.array([[x, 10.0, 10.0], [x, 11.0, 10.0], [x, 10.0, 11.0]])
+            return coords, np.array([[0, 1, 2]])
+
+        # The "inflated" display mesh sits five millimetres away from the pial one.
+        fs = {"pial_left": triangle(5.0), "infl_left": triangle(10.0)}
+        textures, *_ = _project_to_surface(
+            img,
+            None,
+            fs,
+            ["left"],
+            threshold=None,
+            cmap=None,
+            vmin=None,
+            vmax=None,
+        )
+        assert np.allclose(textures["left"], 5.0)
+
+
 class TestStatMapDefaults:
     @pytest.mark.parametrize(
         "values,expected",
