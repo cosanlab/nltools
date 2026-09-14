@@ -232,3 +232,94 @@ def test_optimal_balanced_maximizes_balanced_accuracy():
     # cannot pass for the argmax of balanced accuracy.
     balanced = (roc.tpr + (1 - roc.fpr)) / 2
     assert roc.class_thr == roc.criterion_values[np.argmax(balanced)]
+
+
+def test_nonfinite_scores_are_rejected():
+    """A NaN score makes every comparison false, so it is refused up front."""
+    with pytest.raises(ValueError, match="finite"):
+        Roc(input_values=[np.nan, 0.0, 1.0], binary_outcome=[True, False, True])
+
+
+def test_replacement_labels_must_contain_both_classes():
+    """calculate's binary_outcome= is checked the way the constructor checks it."""
+    roc = Roc(input_values=[0.0, 1.0], binary_outcome=[False, True])
+
+    with pytest.raises(ValueError, match="both positive and negative"):
+        roc.calculate(binary_outcome=[True, True])
+
+
+def test_column_shaped_scores_are_treated_as_one_per_observation():
+    """An (n, 1) score column is squeezed instead of broadcasting into a matrix."""
+    roc = Roc(input_values=np.array([[0.0], [1.0]]), binary_outcome=[False, True])
+    roc.calculate()
+
+    assert roc.accuracy == 1.0
+    assert roc.misclass.shape == (2,)
+
+
+def test_integer_scores_score_like_their_float_equivalent():
+    """Forced-choice centering cannot be truncated by an integer score dtype."""
+    integer = Roc(
+        input_values=[2, 1],
+        binary_outcome=[True, False],
+        forced_choice=np.array([0, 0]),
+    )
+    integer.calculate()
+    floating = Roc(
+        input_values=[2.0, 1.0],
+        binary_outcome=[True, False],
+        forced_choice=np.array([0, 0]),
+    )
+    floating.calculate()
+
+    assert integer.accuracy == floating.accuracy == 1.0
+
+
+def test_invalid_method_raises_and_leaves_results_alone():
+    """calculate validates method= before it writes any result attribute."""
+    input_values, binary_outcome = _make_roc_data()
+    roc = Roc(input_values=input_values, binary_outcome=binary_outcome)
+    roc.calculate()
+    before = (roc.class_thr, roc.accuracy)
+
+    with pytest.raises(ValueError, match="method"):
+        roc.calculate(method="not_a_real_method")
+
+    assert (roc.class_thr, roc.accuracy) == before
+    fresh = Roc(input_values=input_values, binary_outcome=binary_outcome)
+    with pytest.raises(ValueError, match="method"):
+        fresh.calculate(method="not_a_real_method")
+
+
+def test_forced_choice_accepts_a_list_of_string_ids():
+    """Subject ids are coerced, so a list of strings pairs up like an array."""
+    roc = Roc(
+        input_values=[2.0, 1.0],
+        binary_outcome=[True, False],
+        forced_choice=["a", "a"],
+    )
+    roc.calculate()
+
+    assert roc.accuracy == 1.0
+
+
+def test_forced_choice_subject_without_a_pair_is_named():
+    """Ids that do not give each subject one positive and one negative are refused."""
+    with pytest.raises(ValueError, match="one positive and one negative"):
+        Roc(
+            input_values=[2.0, 1.0, 0.0, 3.0],
+            binary_outcome=[True, True, False, False],
+            forced_choice=[0, 0, 1, 1],
+        ).calculate()
+
+
+def test_list_criterion_values_match_the_array_equivalent():
+    """criterion_values= is coerced, so a list evaluates the same curve."""
+    from_list = Roc(input_values=[0.0, 1.0], binary_outcome=[False, True])
+    from_list.calculate(criterion_values=[0.0, 0.5, 2.0])
+    from_array = Roc(input_values=[0.0, 1.0], binary_outcome=[False, True])
+    from_array.calculate(criterion_values=np.array([0.0, 0.5, 2.0]))
+
+    np.testing.assert_array_equal(from_list.tpr, from_array.tpr)
+    np.testing.assert_array_equal(from_list.fpr, from_array.fpr)
+    assert from_list.class_thr == from_array.class_thr
