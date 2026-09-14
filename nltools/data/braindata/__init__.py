@@ -1823,7 +1823,9 @@ class BrainData:
                 instead. Default False.
 
         Returns:
-            BrainData: One binary image per extracted region.
+            BrainData: One image per extracted region; binary when
+                ``is_mask=True``, and otherwise carrying the source values
+                inside each region.
 
         Raises:
             ValueError: If ``is_mask=True`` and no region reaches

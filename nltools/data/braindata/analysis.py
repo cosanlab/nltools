@@ -63,7 +63,7 @@ def _aligned_array(value):
 
 
 def _check_masks(bd, image):
-    """Resample two datasets onto their shared voxels when their masks differ.
+    """Sample two datasets on their shared voxels when their masks differ.
 
     Two masks that keep the same *number* of voxels can still keep different
     voxels, so the fast path requires the same grid and the same support, not
@@ -1094,7 +1094,9 @@ def _regions(
             ``False``.
 
     Returns:
-        BrainData: One binary image per extracted region.
+        BrainData: One image per extracted region; binary when
+            ``is_mask=True``, and otherwise carrying the source values inside
+            each region.
 
     Raises:
         ValueError: If ``is_mask=True`` and no region reaches
