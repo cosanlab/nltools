@@ -83,20 +83,22 @@ def _():
 def _(mo):
     mo.md(r"""
     `.Y` carries the condition of every TR, so ordinary indexing pulls one
-    condition out and `mean()` averages it. Face blocks minus rest is the response
-    to faces, and `iplot()` draws it in an interactive [niivue](https://niivue.com)
-    viewer: run the cell below, then drag the sliders to rewindow the map and
-    scroll a panel to move through slices.
+    condition out and `mean()` averages it; `smooth` first, because six face TRs
+    against one subject's noise make a speckled map. Face blocks minus rest leaves
+    the right fusiform as the strongest cluster, and `iplot()` draws it in an
+    interactive [niivue](https://niivue.com) viewer: run the cell below, then drag
+    the sliders to rewindow the map and scroll a panel to move through slices.
     """)
     return
 
 
 @app.cell
 def _(data):
-    faces = data[data.Y["condition"] == "face"].mean()
-    baseline = data[data.Y["condition"] == "rest"].mean()
+    smoothed = data.smooth(fwhm=6)
+    faces = smoothed[smoothed.Y["condition"] == "face"].mean()
+    baseline = smoothed[smoothed.Y["condition"] == "rest"].mean()
 
-    (faces - baseline).iplot(threshold="95%")
+    (faces - baseline).iplot(threshold="99%")
     return
 
 
