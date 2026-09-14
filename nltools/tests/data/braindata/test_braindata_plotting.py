@@ -183,6 +183,23 @@ class TestDefaultStatColormap:
         assert result is not None
         plt.close(fig)
 
+    def test_plot_nilearn_axis(self, minimal_brain_data):
+        """`ax` reaches nilearn as `axes=` and the caller keeps its figure.
+
+        The migration guide tells v0.5.1 users that `axes=` became `ax=`, but
+        only the matplotlib-based methods ever read it: glass and slice plots
+        drew into a figure of their own and closed the one they returned.
+        """
+        import matplotlib.pyplot as plt
+
+        single = minimal_brain_data[0]
+
+        fig, ax = plt.subplots()
+        result = single.plot(method="slices", view="z", cut_coords=[[0]], ax=ax)
+        assert result is ax.figure
+        assert fig.number in plt.get_fignums()
+        plt.close(fig)
+
     # ==================== Multi-image rendering (limit) ====================
 
     def test_plot_multi_image_returns_list_slices(self, minimal_brain_data):
