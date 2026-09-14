@@ -55,7 +55,10 @@ class BrainData:
             operations. Default ``False``.
         resample (bool): Whether to automatically resample data to mask space.
             If ``True`` (default), data is resampled to match the mask's spatial
-            characteristics. If ``False``, data must already be in mask space.
+            characteristics. If ``False``, the effect depends on the input: a
+            list of images or another BrainData raises on a mismatch, while a
+            single image or file is resampled anyway (masking requires it),
+            warning only when ``verbose=True``.
         interpolation (str): Interpolation method for resampling. ``'auto'``
             (default) detects based on data type — ``'nearest'`` for discrete data
             like atlases/masks and ``'continuous'`` for stat maps; ``'nearest'``
@@ -586,6 +589,9 @@ class BrainData:
             ValueError: If the mask is not a single 3-D image, or its shape or
                 affine differs from this object's.
             TypeError: If `mask` is not a BrainData, nibabel image, or file path.
+
+        Note:
+            Extraction is delegated to `nilearn.masking.apply_mask`.
         """
         from .analysis import _apply_mask
 
@@ -1825,6 +1831,11 @@ class BrainData:
             coarse = brain.resample(resolution=3.0)
             on_atlas_grid = brain.resample(img=atlas_img)
             ```
+
+        Note:
+            Resampling is delegated to `nilearn.image.resample_to_img` for the
+            ``img`` branch and `nilearn.image.resample_img` for the
+            ``resolution`` branch.
         """
         from .io import _resample
 
@@ -1992,6 +2003,10 @@ class BrainData:
 
         Returns:
             nibabel.Nifti1Image: Brain data as a NIfTI image.
+
+        Note:
+            The voxel values are placed back into the mask's grid by
+            `nilearn.masking.unmask`.
         """
         from .io import _to_nifti
 
