@@ -90,7 +90,8 @@ def _plot_brain(
         ax (matplotlib.axes.Axes, optional): Matplotlib axis to plot on. The
             nilearn methods receive it as ``axes=`` and the figure stays the
             caller's, so it is not closed on return. One axis holds one map, so
-            multi-image data with ``ax`` raises.
+            ``ax`` raises unless exactly one map is drawn (``limit=1`` on a
+            multi-image stack draws the first).
         figsize (tuple, optional): Figure size for the matplotlib-based methods
             (``"timeseries"``, ``"histogram"``) when no ``ax`` is given.
             Default ``(8, 6)``. A glass or slice figure takes its size from a
@@ -192,13 +193,15 @@ def _plot_brain(
     # programmatically access) each map instead of silently dropping all
     # but the first.
     multi = len(bd.shape) > 1 and bd.shape[0] > 1
-    if ax is not None and multi:
-        raise ValueError(
-            "ax draws one map; index or aggregate this BrainData, or pass limit=1"
-        )
     if multi:
         n_total = bd.shape[0]
         n_to_plot = min(n_total, limit)
+        # One axis holds one map: drawing several into it overplots them and
+        # makes the returned list the same figure repeated.
+        if ax is not None and n_to_plot > 1:
+            raise ValueError(
+                "ax draws one map; index or aggregate this BrainData, or pass limit=1"
+            )
         if n_total > limit:
             warnings.warn(
                 f"BrainData contains {n_total} images; plotting first "
