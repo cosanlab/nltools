@@ -292,3 +292,16 @@ def test_create_ncov_data_covariance_blocks_follow_each_region_size():
         ]
     )
     assert np.allclose(spy.cov, expected)
+
+
+def test_create_ncov_data_draws_noise_for_every_repetition():
+    """E-07: one voxel-shaped noise draw was broadcast across every repetition."""
+    sim = Simulator(brain_mask=_small_mask(), random_state=0)
+    sphere = sim.n_spheres(3, None)
+    masks = nib.Nifti1Image(sphere.astype(np.float32), affine=sim.brain_mask.affine)
+
+    sim.create_ncov_data(cor=1, cov=1, sigma=1, masks=masks, reps=3)
+
+    outside_sphere = sim.data.get_fdata()[sphere == 0]
+    assert not np.allclose(outside_sphere[:, 0], outside_sphere[:, 1])
+    assert not np.allclose(outside_sphere[:, 1], outside_sphere[:, 2])
