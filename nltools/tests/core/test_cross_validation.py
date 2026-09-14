@@ -1,5 +1,6 @@
 import numpy as np
 import pandas as pd
+import pytest
 from nltools.cross_validation import KFoldStratified
 
 
@@ -98,6 +99,29 @@ class TestKFoldStratifiedInputValidation:
         # Should work without errors
         splits = list(cv.split(X, y))
         assert len(splits) == 5
+
+    def test_multi_target_y_is_rejected(self):
+        """Stratification orders samples, so it needs one value per sample.
+
+        A wide target used to be flattened into twice as many fold labels as
+        there are rows, and the mismatch surfaced as an IndexError from numpy.
+        """
+        with pytest.raises(ValueError, match="one target per sample"):
+            list(
+                KFoldStratified(n_splits=2).split(
+                    np.zeros((3, 1)), np.array([[1, 2], [3, 4], [5, 6]])
+                )
+            )
+
+    def test_a_column_target_splits_like_the_vector(self):
+        """`(n, 1)` and `(n,)` are the same target, so they split alike."""
+        cv = KFoldStratified(n_splits=3)
+        vector = list(cv.split(np.zeros((3, 1)), np.array([1.0, 2.0, 3.0])))
+        column = list(cv.split(np.zeros((3, 1)), np.array([[1.0], [2.0], [3.0]])))
+
+        for (train_v, test_v), (train_c, test_c) in zip(vector, column):
+            np.testing.assert_array_equal(train_v, train_c)
+            np.testing.assert_array_equal(test_v, test_c)
 
 
 class TestKFoldStratifiedShuffle:
