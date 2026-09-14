@@ -177,7 +177,7 @@ def _convolve(
                 DesignMatrixWarning,
                 stacklevel=_find_stack_level(),
             )
-            return dm
+            return dm.copy()
     else:
         # Explicit columns=. Refuse names already in dm.convolved — there is
         # no mathematically sensible "re-convolve" operation. Convolving an
@@ -328,9 +328,9 @@ def _add_poly(
             poly_values = legendre(i)(norm_order)
             new_poly_cols[poly_name] = poly_values
 
-    # If no new polynomials to add, return dm unchanged
+    # If no new polynomials to add, hand back an independently owned copy
     if not new_poly_cols:
-        return dm
+        return dm.copy()
 
     # Add new polynomial columns using Polars .with_columns()
     new_df = dm.data.with_columns(
@@ -435,7 +435,7 @@ def _add_dct_basis(
             DesignMatrixWarning,
             stacklevel=_find_stack_level(),
         )
-        return dm
+        return dm.copy()
 
     if len(basis_to_add) < len(basis_col_names):
         warnings.warn(

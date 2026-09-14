@@ -176,8 +176,9 @@ def _clean(
             "columns is not supported as it can produce unexpected results."
         )
 
-    # Start with a copy
-    result = dm
+    # Start with an independently owned copy, so every return path below —
+    # including the ones that drop nothing — hands back a new object
+    result = dm.copy()
 
     # Fill NaN if requested
     if fill_na is not None:

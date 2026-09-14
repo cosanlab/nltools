@@ -1,4 +1,5 @@
 import numpy as np
+import polars as pl
 import pytest
 from nltools.data.designmatrix import DesignMatrix
 
@@ -208,6 +209,10 @@ class TestDesignMatrixConvolution:
         assert any("no-op" in str(x.message) for x in w), (
             "Expected a no-op warning when nothing is left to convolve"
         )
+        # The no-op result is its own object, so mutating it leaves the source alone
+        assert dm2 is not dm1
+        dm2.insert_column(1, pl.Series("extra", [0.0, 0.0, 0.0, 0.0]))
+        assert "extra" not in dm1.columns
 
     def test_convolve_refuses_explicit_already_convolved_column(self):
         """Explicit ``columns=`` cannot name an already-convolved column.
@@ -336,6 +341,10 @@ class TestDesignMatrixPolynomials:
 
         assert dm1.shape == dm2.shape, "Should not duplicate polynomials"
         assert dm1.columns == dm2.columns
+        # The no-op result is its own object, so mutating it leaves the source alone
+        assert dm2 is not dm1
+        dm2.insert_column(1, pl.Series("extra", [0.0, 0.0, 0.0, 0.0]))
+        assert "extra" not in dm1.columns
 
     def test_add_dct_basis_creates_cosine_filters(self):
         """
