@@ -222,9 +222,11 @@ def _correlation_permutation_cpu_parallel(
         indices = perm_rng.permutation(n_samples)
         perm_data1 = data1[indices]
 
-        # Compute correlation for each feature
+        # Compute correlation for each feature. Even a single feature comes
+        # back as a length-1 array, so `null_dist` always carries a feature
+        # axis alongside the permutation axis.
         if n_features == 1:
-            return corr_func(perm_data1[:, 0], data2[:, 0])
+            return np.array([corr_func(perm_data1[:, 0], data2[:, 0])])
         return np.array(
             [corr_func(perm_data1[:, i], data2[:, i]) for i in range(n_features)]
         )
@@ -239,7 +241,8 @@ def _correlation_permutation_cpu_parallel(
             unit="perm",
         )
     )
-    null_dist = np.array(null_dist)  # Shape: (n_permute, n_features)
+    # Shape: (n_permute, n_features), including when there are no permutations
+    null_dist = np.asarray(null_dist).reshape(n_permute, n_features)
 
     # Compute p-values
     p_values = _compute_pvalue(obs_corr, null_dist, tail=tail)
@@ -257,7 +260,10 @@ def _correlation_permutation_cpu_parallel(
 
     if return_null:
         if single_feature:
-            null_dist = null_dist.squeeze()
+            # Drop the feature axis, never the permutation axis: `squeeze()`
+            # collapsed a one-draw null to a 0-d array, which cannot be
+            # indexed or measured.
+            null_dist = null_dist[:, 0]
         result["null_dist"] = null_dist
 
     return result

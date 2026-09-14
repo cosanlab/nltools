@@ -159,3 +159,32 @@ class TestCorrelationPermutationStatisticalCorrectness:
                     f"{metric.capitalize()} should detect positive correlation. "
                     f"Got {result['correlation']:.4f}"
                 )
+
+
+class TestNullDistributionShape:
+    """G-13: `null_dist` keeps its permutation axis and its feature axis."""
+
+    def test_two_dimensional_single_column_keeps_a_feature_axis(self):
+        """`(N, 1)` input is not 1-D input: `correlation` has a feature axis."""
+        rng = np.random.RandomState(0)
+        x = rng.randn(20, 1)
+        y = x + rng.randn(20, 1)
+
+        result = correlation_permutation_test(
+            x, y, n_permute=3, return_null=True, random_state=0
+        )
+
+        assert result["correlation"].shape == (1,)
+        assert result["null_dist"].shape == (3, 1)
+
+    def test_one_draw_keeps_the_permutation_axis(self):
+        """A single-draw null is a length-1 distribution, not a scalar."""
+        rng = np.random.RandomState(0)
+        x = rng.randn(20)
+        y = x + rng.randn(20)
+
+        result = correlation_permutation_test(
+            x, y, n_permute=1, return_null=True, random_state=0
+        )
+
+        assert result["null_dist"].shape == (1,)
