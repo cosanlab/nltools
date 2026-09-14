@@ -64,6 +64,7 @@ apply `BrainData` methods per subject and stack the results with
 | Similarity | `brain.extract_roi(metric=…)` | `brain.extract_roi(method=…)` | `metric` is reserved for distances |
 | Similarity | `brain.multivariate_similarity(images, method='ols')` | `brain.multivariate_similarity(images, tail=2)` | OLS was the only mode |
 | Similarity | Manual per-ROI loop to paint an RSA map | `brain.distance(spatial_scale='roi', roi_mask=atlas)` then `roi_to_brain_from_atlas` | Explicit atlas mapping |
+| Similarity | `compute_similarity(metric='dot_product')` returned `(1, k)` for a single-row first input | Returns `(k,)` | The other three metrics and the documented contract already squeezed |
 | Alignment | `from nltools.external import SRM, DetSRM` | `brain.align(method='probabilistic_srm'\|'deterministic_srm')` | The estimators are internal |
 | Alignment | Procrustes back-projection was `transformed @ T` | `transformed @ T.T` | `transformation_matrix` is stored as `transformed = original @ T` |
 | Alignment | Procrustes aligned `Brain_Data` subjects with different voxel counts by zero-padding the feature axis | `align(method='procrustes')` raises; pass the `.data` arrays to get the padded result | The padded result has no mask that can describe it |
@@ -81,6 +82,11 @@ apply `BrainData` methods per subject and stack the results with
 | Statistics | `summarize_bootstrap`, `regress_permutation` | Removed | The bootstrap entry points return the summary |
 | Statistics | `double_center`, `u_center` | Removed | Internal steps of `distance_correlation` |
 | Statistics | `adjacency.isc()`, `adjacency.isc_group()` | `nltools.algorithms.isc()`, `isc_group()` | Standalone functions on arrays |
+| Statistics | `transform_pairwise` alternated its sign flip over candidate pairs, leaving the classes unbalanced | The `+1` and `-1` classes come out balanced | Pairs the group and target filters skip no longer consume an alternation slot |
+| Statistics | `adjacency.bootstrap` on a single matrix resampled its edges and returned a smaller matrix | Raises `ValueError` | It resamples matrices, so it needs at least two, like `adjacency.ttest` |
+| Statistics | The social relations model took its grand mean before masking the diagonal | Every SRM average excludes the diagonal | Only a directed matrix whose diagonal holds self-ratings moves; a NaN diagonal is unchanged |
+| Statistics | The social relations model paired each cell with the wrong reciprocal cell | Each dyad is paired with its own transpose | Variance components, reciprocity, reliabilities and the total variance all move |
+| Statistics | The SRM summary printed two-sided p-values above one when `t` was negative | `2 * sf(abs(t), df)` | Printed covariance rows only; no returned value changes |
 | Plotting | `brain.plot(view=…, threshold_upper=…, axes=…)` | `brain.plot(method=…, upper=…, ax=…)` | `ax` is the matplotlib spelling on every class |
 | Plotting | `adjacency.plot(limit, axes, *args)` | `adjacency.plot(*, limit=3, ax=None)` | Keyword-only; no positional passthrough |
 | Plotting | `plot_brain`, `plot_t_brain`, `plot_interactive_brain` | Removed | `BrainData.plot(method='glass'\|'mni'\|'full')` and `BrainData.iplot` |
@@ -91,6 +97,8 @@ apply `BrainData` methods per subject and stack the results with
 | Plotting | Glass brains hid a percentile of voxels (nilearn's `threshold='auto'`) | `brain.plot(method='glass')` draws every voxel | The colorbar keeps its 0 tick; pass `threshold=` for a cutoff |
 | Plotting | `adjacency.plot()` drew every matrix on a sequential ramp | Matrices whose off-diagonal values cross zero use `RdBu_r`, centered at 0 with symmetric limits | One-signed matrices are unchanged; `cmap`, `center`, `vmin`, `vmax` still win |
 | Plotting | `adjacency.squareform()` always wrote a zero diagonal | The diagonal follows `matrix_type`: 1 for a similarity, 0 for a distance | `Adjacency(sim.squareform())` now round-trips as a similarity |
+| Plotting | `adjacency.plot()` on a stack with shared labels tick-labelled panel *i* with label *i* alone | Every panel carries all the node labels | A nested per-matrix label grid is unchanged |
+| Plotting | `plot_between_label_distance` drew zeros, and annotated every cell as significant, for numeric labels | Draws the real means and p-values | Pivoted columns are matched by their string rendering |
 | IO | `onsets_to_dm(f, sampling_freq, run_length)` | `DesignMatrix(events_path, run_length=…, TR=…)` | HRF-convolves by default; `hrf_model=None` for boxcars |
 | IO | `from nltools.external import glover_hrf` | `from nilearn.glm.first_level import glover_hrf` | The five HRF wrappers were pass-throughs |
 | Datasets | `fetch_pain(data_dir=…, resume=…, verbose=1)` | `fetch_pain(verbose=0)` | Caching is handled for you; same for `fetch_emotion_ratings` |
