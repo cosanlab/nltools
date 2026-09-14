@@ -28,6 +28,15 @@ apply `BrainData` methods per subject and stack the results with
 | Data classes | `brain.icc()` | Removed, no successor | Use `pingouin.intraclass_corr` |
 | Data classes | `nltools.prefs.MNI_Template` | `set_brainspace()`, `get_brainspace()`, `reset_brainspace()`, `with_brainspace()` | Functions, not a mutable singleton |
 | Data classes | Legacy (≤ 0.5.1) HDF5 files load | `BrainData(path)` raises `ValueError` | Export to NIfTI or CSV under 0.5.1 before upgrading |
+| Data classes | Resampling to a resolution kept only the positive-coordinate octant — 8,039 of 238,955 voxels on the 2 mm MNI mask | `brain.resample(resolution=3)` keeps all 70,831 voxels | The target grid encloses the source field of view instead of starting at world zero |
+| Data classes | `len(single_image)` was its voxel count and `single_image[0]` raised | `len()` is 1, and a single image is indexable and iterable | Inherited v0.5.1 behaviour |
+| Data classes | A one-voxel mask squeezed three images into one three-voxel image | The voxel axis is kept; only a leading singleton image axis collapses | Affects objects whose mask holds a single voxel |
+| Data classes | `brain[0] = other` matched metadata columns by position and turned a mixed `Int64`/`String` frame into `Object` | Columns are matched by name and keep their dtypes; a name mismatch raises | Inherited v0.5.1 behaviour; the check is the one `append` already applied |
+| Data classes | `X` or `Y` with a row count that did not match the data was accepted | Construction and assignment raise `ValueError` | The mismatch used to surface later, from an unrelated operation |
+| Data classes | `BrainData(other, mask=submask)` reinterpreted the packed columns under the new mask | The values are re-extracted onto the new support | Voxels keep their locations; a wider mask widens with zeros |
+| Data classes | `BrainData([bd1, bd2])` dropped `.X`/`.Y` and ignored `mask=` | Row metadata is concatenated and `mask=` is applied | Same result as `concatenate` followed by the mask |
+| Data classes | `BrainData(path.h5, mask=other)` reinterpreted the stored columns under the new mask | They are re-extracted onto that mask, and a stored fit is dropped when the voxel axis changes | The warning now says the stored mask describes the stored columns |
+| Data classes | `a + b`, `a.append(b)` and `a[0] = b[0]` combined objects whose voxels were different voxels | Each raises `ValueError` unless the two grids and supports match | Inherited v0.5.1 laxity; use `resample()` and `apply_mask()` to establish a common voxel axis |
 | Design matrix | pandas subclass | polars-backed class | `.to_numpy()`, `.with_columns()`, `.corr()` |
 | Design matrix | `Design_Matrix_Series` | Removed, no successor | A single column is a `polars.Series` |
 | Design matrix | `dm.polys` | `dm.confounds` | Read-only; set columns as confounds when you append them |
