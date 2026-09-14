@@ -123,6 +123,21 @@ class TestComputeSearchlightNeighborhoods:
         with pytest.raises(ValueError, match="no non-zero voxels"):
             compute_searchlight_neighborhoods(empty_mask, radius=5.0)
 
+    def test_a_mask_that_is_not_3d_raises(self):
+        """Only the first three columns of `np.nonzero` become coordinates.
+
+        A 4-D image is accepted and its extra volumes become duplicate
+        neighborhoods at the same physical location; a 2-D image dies later
+        with an opaque IndexError.
+        """
+        four_d = nib.Nifti1Image(np.ones((1, 1, 1, 2)), np.eye(4))
+
+        with pytest.raises(ValueError, match=r"3-D.*\(1, 1, 1, 2\)"):
+            compute_searchlight_neighborhoods(four_d)
+
+        three_d = nib.Nifti1Image(np.ones((1, 1, 1)), np.eye(4))
+        assert compute_searchlight_neighborhoods(three_d).n_voxels == 1
+
 
 class TestRadiusKeyword:
     """The radius keyword follows nilearn: `radius`, in millimeters."""

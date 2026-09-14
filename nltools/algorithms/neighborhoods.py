@@ -158,7 +158,7 @@ def compute_searchlight_neighborhoods(
         _SphereNeighborhoods with precomputed adjacency matrix
 
     Raises:
-        ValueError: If mask has no non-zero voxels
+        ValueError: If the mask is not 3-D, or has no non-zero voxels
 
     Examples:
         ```python
@@ -174,6 +174,12 @@ def compute_searchlight_neighborhoods(
     from nilearn.image.resampling import coord_transform
 
     mask_data = mask_img.get_fdata().astype(bool)
+    if mask_data.ndim != 3:
+        raise ValueError(
+            f"mask_img must be a single 3-D mask volume, got shape "
+            f"{mask_data.shape}. A 4-D image would place one neighborhood per "
+            "volume at the same physical location."
+        )
     affine = mask_img.affine
 
     # Get voxel coordinates in world space (mm)
