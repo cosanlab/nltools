@@ -59,7 +59,14 @@ def _write_design(directory: Path, prefix: str | None, design) -> list[Path]:
 
     A `DesignMatrix` writes itself; a plain feature matrix goes through one so
     the file has a header and reads back the same way.
+
+    A feature space may be named anything, including something with a path
+    separator in it, so its name is percent-encoded for the filename. Ordinary
+    names are unchanged, the encoding is reversible, and the sidecar records
+    every space's real name.
     """
+    from urllib.parse import quote
+
     import numpy as np
 
     from nltools.data.designmatrix import DesignMatrix
@@ -69,7 +76,8 @@ def _write_design(directory: Path, prefix: str | None, design) -> list[Path]:
     if isinstance(design, dict):
         written = []
         for space, matrix in design.items():
-            path = _output_path(directory, prefix, f"design-{space}.csv")
+            name = quote(str(space), safe="")
+            path = _output_path(directory, prefix, f"design-{name}.csv")
             DesignMatrix(np.asarray(matrix)).write(str(path))
             written.append(path)
         return written
