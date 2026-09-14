@@ -15,13 +15,15 @@ from nltools.plotting import _plot_surf, _plot_flatmap
 
 
 class TestSurfaceProjection:
-    def test_display_mesh_does_not_change_sampled_values(self):
-        """The volume is always sampled on the pial mesh, never the display mesh."""
+    def test_display_mesh_does_not_change_sampled_values(self, monkeypatch):
+        """`surface=` picks the mesh drawn on, never the mesh sampled from."""
         import nibabel as nib
-        from nltools.plotting.brain import _project_to_surface
+        from nilearn import datasets
 
-        # Volume whose value is its x coordinate, so the sampled value reports
-        # which mesh was read.
+        from nltools.plotting import brain as bmod
+
+        # Volume whose value is its x coordinate, so a sampled value reports
+        # which mesh it was read from.
         data = np.zeros((20, 20, 20))
         for x in range(20):
             data[x] = float(x)
@@ -31,19 +33,34 @@ class TestSurfaceProjection:
             coords = np.array([[x, 10.0, 10.0], [x, 11.0, 10.0], [x, 10.0, 11.0]])
             return coords, np.array([[0, 1, 2]])
 
-        # The "inflated" display mesh sits five millimetres away from the pial one.
-        fs = {"pial_left": triangle(5.0), "infl_left": triangle(10.0)}
-        textures, *_ = _project_to_surface(
+        # The "inflated" display mesh sits five millimetres from the pial one.
+        fs = {
+            "pial_left": triangle(5.0),
+            "infl_left": triangle(10.0),
+            "curv_left": np.zeros(3),
+        }
+        monkeypatch.setattr(datasets, "fetch_surf_fsaverage", lambda template: fs)
+
+        drawn = {}
+
+        def capture(mesh, texture, **kwargs):
+            drawn["mesh"], drawn["texture"] = mesh, texture
+
+        monkeypatch.setattr(bmod, "plot_surf_stat_map", capture)
+
+        fig = _plot_surf(
             img,
-            None,
-            fs,
-            ["left"],
-            threshold=None,
-            cmap=None,
-            vmin=None,
-            vmax=None,
+            hemi="left",
+            view="lateral",
+            surface="inflated",
+            transparency=None,
+            colorbar=False,
         )
-        assert np.allclose(textures["left"], 5.0)
+        plt.close(fig)
+
+        assert np.allclose(drawn["texture"], 5.0)
+        # ...while the inflated mesh is what was drawn on.
+        assert np.allclose(drawn["mesh"][0][:, 0], 10.0)
 
 
 class TestStatMapDefaults:

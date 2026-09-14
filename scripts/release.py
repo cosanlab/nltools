@@ -177,9 +177,19 @@ def parse_pytest_summary(path: Path) -> tuple[int | None, int | None, str | None
         return None, None, None
 
     text = path.read_text(errors="replace")
+
+    summary = None
+    for line in reversed(text.splitlines()):
+        stripped = line.strip(" =")
+        if re.search(r"\b(?:passed|failed|errors?)\b", stripped):
+            summary = stripped[:140]
+            break
+
     passed_matches = re.findall(r"(\d+) passed", text)
     failed_matches = re.findall(r"(\d+) failed", text)
-    error_matches = re.findall(r"(\d+) errors?\b", text)
+    # Errors are counted in the summary line only: a test printing "3 errors"
+    # in its own captured output is not a pytest outcome.
+    error_matches = re.findall(r"(\d+) errors?\b", summary or "")
     passed = int(passed_matches[-1]) if passed_matches else None
     unsuccessful = (int(failed_matches[-1]) if failed_matches else 0) + (
         int(error_matches[-1]) if error_matches else 0
@@ -189,13 +199,6 @@ def parse_pytest_summary(path: Path) -> tuple[int | None, int | None, str | None
         if (failed_matches or error_matches or passed is not None)
         else None
     )
-
-    summary = None
-    for line in reversed(text.splitlines()):
-        stripped = line.strip(" =")
-        if re.search(r"\b(?:passed|failed|errors?)\b", stripped):
-            summary = stripped[:140]
-            break
     return passed, failed, summary
 
 
