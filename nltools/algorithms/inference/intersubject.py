@@ -312,35 +312,33 @@ def isfc(data, *, method="average", n_jobs=-1, random_state=None, progress_bar=F
         "unit": "subject",
     }
 
+    def _compute_one_subject_isfc(target_idx):
+        """Correlate one subject against the mean of the others.
+
+        The running total is float64 whatever the input dtype: accumulating in
+        an integer dtype wraps, which would make the answer depend on the
+        worker count.
+        """
+        m1 = data_arrays[target_idx]
+        sub_mean = np.zeros(m1.shape)
+        for y in (y for y in subjects if y != target_idx):
+            sub_mean += data_arrays[y]
+        return _compute_cross_correlation(m1, sub_mean / (n_subjects - 1))
+
     if n_jobs == 1:
         # Serial execution (for explicit serial control)
-        sub_isfc = []
-        for target in _maybe_tqdm(subjects, **progress_kwargs):
-            m1 = data_arrays[target]
-            sub_mean = np.zeros(m1.shape)
-            for y in (y for y in subjects if y != target):
-                sub_mean += data_arrays[y]
-            # Use inference module function for cross-correlation computation
-            sub_isfc.append(_compute_cross_correlation(m1, sub_mean / (n_subjects - 1)))
-    else:
-        # Parallel execution using joblib (default: n_jobs=-1 uses all cores)
-        from joblib import Parallel, delayed
-
-        def _compute_one_subject_isfc(target_idx):
-            """Compute ISFC for one subject (worker function)."""
-            m1 = data_arrays[target_idx]
-            sub_mean = np.zeros(m1.shape, dtype=m1.dtype)
-            for y in (y for y in subjects if y != target_idx):
-                sub_mean += data_arrays[y]
-            return _compute_cross_correlation(m1, sub_mean / (n_subjects - 1))
-
-        # Parallelize across subjects
-        sub_isfc = Parallel(n_jobs=n_jobs)(
-            delayed(_compute_one_subject_isfc)(target)
+        return [
+            _compute_one_subject_isfc(target)
             for target in _maybe_tqdm(subjects, **progress_kwargs)
-        )
+        ]
 
-    return sub_isfc
+    # Parallel execution using joblib (default: n_jobs=-1 uses all cores)
+    from joblib import Parallel, delayed
+
+    return Parallel(n_jobs=n_jobs)(
+        delayed(_compute_one_subject_isfc)(target)
+        for target in _maybe_tqdm(subjects, **progress_kwargs)
+    )
 
 
 def isps(
