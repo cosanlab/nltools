@@ -449,10 +449,13 @@ class Roc:
             np.sum(self.true_positive) + np.sum(self.false_positive)
         )
         if subject_ids is not None:
-            self.true_positive = self.true_positive[labels]
-            self.true_negative = self.true_negative[~labels]
-            self.false_negative = self.false_negative[labels]
-            self.false_positive = self.false_positive[~labels]
+            # One entry per subject, positives and negatives in the same subject
+            # order, so the two halves of a pair line up however the rows were
+            # ordered.
+            self.true_positive = self.true_positive[positive_idx]
+            self.true_negative = self.true_negative[negative_idx]
+            self.false_negative = self.false_negative[positive_idx]
+            self.false_positive = self.false_positive[negative_idx]
             self.misclass = (self.false_positive) | (self.false_negative)
 
         # Calculate Accuracy
