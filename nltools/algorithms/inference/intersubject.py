@@ -103,7 +103,8 @@ def isc(
         dict: Keys `'isc'` (observed ISC), `'p'`, and `'ci'` (tuple
             `(lower, upper)`) — floats for 2D data, arrays of length
             `n_voxels` for 3D — and, when `return_null=True`, `'null_dist'`
-            (np.ndarray).
+            (np.ndarray), holding every draw with `NaN` where a draw was
+            undefined.
 
     Note:
         `exclude_self_corr=True` (the default) sets a subject's correlation
@@ -211,7 +212,8 @@ def isc_group(
     Returns:
         dict: Keys `'isc_group_difference'` (float, observed difference), `'p'`
             (float), `'ci'` (tuple `(lower, upper)`), and — when
-            `return_null=True` — `'null_dist'` (np.ndarray).
+            `return_null=True` — `'null_dist'` (np.ndarray), holding every draw
+            with `NaN` where a draw was undefined.
 
     References:
         Chen, G., Shin, Y. W., Taylor, P. A., Glen, D. R., Reynolds, R. C.,
