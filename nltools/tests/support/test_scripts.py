@@ -37,3 +37,23 @@ class TestDocsShow:
 
         executed, _ = docs_show.transform_cell("x = 1; x")
         compile(executed, "<cell>", "exec")
+
+
+class TestReleaseTestState:
+    """A pytest log naming an error is not a clean test state."""
+
+    def test_error_counts_are_not_reported_as_passing(self, tmp_path, monkeypatch):
+        import release
+
+        log = tmp_path / "pytest.log"
+        log.write_text("collected 11 items\n\n=== 10 passed, 1 error in 0.1s ===\n")
+        assert release.parse_pytest_summary(log)[1] == 1
+
+        monkeypatch.setattr(release, "TEST_LOG", log)
+        # Decline the offered re-run, then continue past the warning.
+        monkeypatch.setattr(
+            release,
+            "confirm",
+            lambda prompt: "Run the current default suite" not in prompt,
+        )
+        assert release.step_review_test_state() == "failed"

@@ -168,22 +168,32 @@ def file_age_hours(path: Path) -> float | None:
 
 
 def parse_pytest_summary(path: Path) -> tuple[int | None, int | None, str | None]:
-    """Extract pass/fail counts and the final pytest summary line."""
+    """Extract pass/fail counts and the final pytest summary line.
+
+    Collection errors count as failures: a run that passed ten tests and could
+    not collect an eleventh is not a clean state, and `xfailed` stays clean.
+    """
     if not path.exists():
         return None, None, None
 
     text = path.read_text(errors="replace")
     passed_matches = re.findall(r"(\d+) passed", text)
     failed_matches = re.findall(r"(\d+) failed", text)
+    error_matches = re.findall(r"(\d+) errors?\b", text)
     passed = int(passed_matches[-1]) if passed_matches else None
+    unsuccessful = (int(failed_matches[-1]) if failed_matches else 0) + (
+        int(error_matches[-1]) if error_matches else 0
+    )
     failed = (
-        int(failed_matches[-1]) if failed_matches else 0 if passed is not None else None
+        unsuccessful
+        if (failed_matches or error_matches or passed is not None)
+        else None
     )
 
     summary = None
     for line in reversed(text.splitlines()):
         stripped = line.strip(" =")
-        if re.search(r"\b(?:passed|failed)\b", stripped):
+        if re.search(r"\b(?:passed|failed|errors?)\b", stripped):
             summary = stripped[:140]
             break
     return passed, failed, summary
@@ -218,7 +228,7 @@ def step_review_test_state() -> str:
         table.add_row(
             "pytest.log",
             f"{age:.1f}h",
-            f"{passed or 0} passed, {failed} failed",
+            summary or f"{passed or 0} passed, {failed} failed",
             "[red]FAIL[/]",
         )
     elif passed is None:
