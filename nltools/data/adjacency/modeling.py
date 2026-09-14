@@ -395,7 +395,7 @@ def _social_relations_model(adj, summarize_results=True, nan_replace=True):
             if tailed == 1:
                 p = 1 - scipy_stats.t.cdf(t, len(results[var_name]) - 1)
             elif tailed == 2:
-                p = 2 * (1 - scipy_stats.t.cdf(t, len(results[var_name]) - 1))
+                p = 2 * scipy_stats.t.sf(abs(t), len(results[var_name]) - 1)
             else:
                 raise ValueError("tailed can only be [1,2]")
             return (estimate, standardized, se, t, p)

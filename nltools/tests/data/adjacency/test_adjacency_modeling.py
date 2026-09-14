@@ -140,6 +140,25 @@ class TestAdjacencyModeling:
             results1["dyadic_reciprocity_correlation"], 0.2, significant=2
         )
 
+    def test_social_relations_model_summary_two_tailed_p(self, capsys):
+        """A two-sided p-value is never greater than one, whatever the sign of t."""
+        square = np.array(
+            [
+                [np.nan, 1.0, 4.0, 2.0],
+                [3.0, np.nan, 5.0, 9.0],
+                [2.0, 8.0, np.nan, 6.0],
+                [7.0, 4.0, 1.0, np.nan],
+            ]
+        )
+        adj = Adjacency(square, matrix_type="directed")
+        stack = adj.append(Adjacency(2 * square, matrix_type="directed"))
+        stack.social_relations_model(summarize_results=True, nan_replace=False)
+        printed = capsys.readouterr().out
+        row = next(
+            line for line in printed.splitlines() if line.startswith("dyadic_reciprocity")
+        )
+        assert float(row.split()[-1]) == pytest.approx(0.3440, abs=1e-4)
+
     def test_social_relations_model_pairs_reciprocal_dyads(self):
         """Relationship effects pair (i, j) with (j, i), so node order cannot matter."""
         square = np.array(
