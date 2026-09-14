@@ -684,6 +684,10 @@ class DesignMatrix:
 
         Returns:
             DesignMatrix: New DesignMatrix with convolved columns renamed.
+
+        Raises:
+            ValueError: If a column that is not being convolved already carries
+                one of the `<col>_c{i}` output names.
         """
         from .regressors import _convolve
 
