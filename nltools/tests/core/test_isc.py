@@ -401,48 +401,6 @@ def test_compute_pairwise_isc_cosine_handles_zero_norm():
 # =============================================================================
 
 
-def _generate_shared_signal_isc(
-    n_timepoints, n_subjects, isc_strength, random_state=None
-):
-    """
-    Generate time series data with known ISC.
-
-    Creates data where all subjects share a common signal with strength
-    controlled by isc_strength. Higher isc_strength → higher ISC.
-
-    Parameters
-    ----------
-    n_timepoints : int
-        Number of time points
-    n_subjects : int
-        Number of subjects
-    isc_strength : float
-        Strength of shared signal (0.0 = no ISC, 1.0 = perfect ISC)
-        Higher values → higher ISC
-    random_state : int or RandomState, optional
-        Random seed
-
-    Returns
-    -------
-    data : ndarray, shape (n_timepoints, n_subjects)
-        Time series data with known ISC structure
-    """
-    from sklearn.utils import check_random_state
-
-    rng = check_random_state(random_state)
-
-    # Generate shared signal
-    shared_signal = rng.randn(n_timepoints)
-
-    # Generate data for each subject: shared_signal * strength + noise * (1 - strength)
-    data = np.zeros((n_timepoints, n_subjects))
-    for i in range(n_subjects):
-        noise = rng.randn(n_timepoints)
-        data[:, i] = shared_signal * isc_strength + noise * np.sqrt(1 - isc_strength**2)
-
-    return data
-
-
 class TestISCStatisticalCorrectness:
     """Test statistical correctness of ISC permutation tests."""
 
