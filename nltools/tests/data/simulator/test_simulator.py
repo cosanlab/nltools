@@ -305,3 +305,16 @@ def test_create_ncov_data_draws_noise_for_every_repetition():
     outside_sphere = sim.data.get_fdata()[sphere == 0]
     assert not np.allclose(outside_sphere[:, 0], outside_sphere[:, 1])
     assert not np.allclose(outside_sphere[:, 1], outside_sphere[:, 2])
+
+
+def test_signal_mask_is_exactly_signal_width_wide():
+    """E-09: floor/ceil around the grid center made odd-parity masks a pixel wide.
+
+    The oversized mask also inflated recovery rates past 1, because both rates
+    divided by `signal_width**2` instead of the mask's own size.
+    """
+    sim = SimulateGrid(grid_width=6, signal_width=3, signal_amplitude=1, random_state=0)
+
+    assert sim.signal_mask.sum() == 9
+    assert sim._calc_true_positives(np.ones((6, 6))) == 1.0
+    assert sim._calc_false_positives((sim.signal_mask == 0).astype(float)) == 1.0
