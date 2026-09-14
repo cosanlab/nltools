@@ -473,20 +473,19 @@ class Simulator:
                 "one or more processing mask does not fit inside the brain mask"
             )
 
-        cov_matrix = np.zeros(
-            [np.sum(n_vox) + 1, np.sum(n_vox) + 1]
-        )  # one big covariance matrix
-        for i, nv in enumerate(n_vox):
-            cstart = np.sum(n_vox[:i]) + 1
-            cstop = cstart + nv
-            cov_matrix[0, cstart:cstop] = cor[i]  # set covariance with y
-            cov_matrix[cstart:cstop, 0] = cor[i]  # set covariance with all other voxels
+        # Block boundaries of each region in one big covariance matrix. Row and
+        # column 0 hold y, so region i's voxels occupy bounds[i]:bounds[i + 1].
+        bounds = np.concatenate([[1], np.cumsum(n_vox) + 1])
+        cov_matrix = np.zeros([bounds[-1], bounds[-1]])
+        for i in range(len(masks)):
+            cov_matrix[0, bounds[i] : bounds[i + 1]] = cor[i]  # covariance with y
+            cov_matrix[bounds[i] : bounds[i + 1], 0] = cor[i]
             for j in range(len(masks)):
-                rstart = np.sum(n_vox[:j]) + 1
-                rstop = rstart + nv
-                cov_matrix[cstart:cstop, rstart:rstop] = cov[i][
-                    j
-                ]  # set covariance of this mask's voxels with each of other masks
+                # Covariance of region i's voxels with region j's voxels; the
+                # block is region i tall and region j wide.
+                cov_matrix[bounds[i] : bounds[i + 1], bounds[j] : bounds[j + 1]] = cov[
+                    i
+                ][j]
         np.fill_diagonal(cov_matrix, 1)  # set diagonal to 1
 
         # these operations happen in one vector that we'll later split into the separate regions
@@ -500,8 +499,10 @@ class Simulator:
 
         for rep in range(reps):
             for mask_i in range(len(masks)):
-                start = int(np.sum(n_vox[:mask_i]))
-                stop = int(start + n_vox[mask_i])
+                # mv_sim has y dropped, so its columns sit one to the left of the
+                # covariance matrix's blocks.
+                start = int(bounds[mask_i]) - 1
+                stop = int(bounds[mask_i + 1]) - 1
                 new_dats[rep, np.where(flat_masks[mask_i, :] == 1)] = mv_sim[
                     rep, start:stop
                 ]
@@ -517,9 +518,7 @@ class Simulator:
             y = list(self.y)
             for s in range(1, n_sub):
                 # ask Luke about this new version
-                noise = (
-                    self.random_state.standard_normal(size=new_dats.shape[1]) * sigma
-                )
+                noise = self.random_state.standard_normal(size=new_dats.shape[1]) * sigma
                 next_subj = unmask(np.add(new_dats, noise), self.brain_mask)
                 self.data = nib.concat_images([self.data, next_subj], axis=3)
 

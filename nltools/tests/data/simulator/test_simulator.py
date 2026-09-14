@@ -241,3 +241,54 @@ def test_create_data_keeps_the_simulators_brain_mask():
     assert data.mask.shape == mask.shape
     assert np.allclose(data.mask.affine, mask.affine)
     assert data.data.shape[1] == int(np.prod(mask.shape))
+
+
+class _CovarianceSpy:
+    """Stands in for a RandomState and records the covariance it is handed."""
+
+    def __init__(self):
+        self.cov = None
+
+    def multivariate_normal(self, mean, cov, size=1):
+        self.cov = np.asarray(cov)
+        return np.zeros((size, len(mean)))
+
+    def standard_normal(self, size=None):
+        return np.zeros(size)
+
+
+def _one_voxel_mask(sim, ijk):
+    """A single-voxel region mask on the simulator's grid."""
+    data = np.zeros(sim.brain_mask.shape, dtype=np.float32)
+    data[ijk] = 1.0
+    return nib.Nifti1Image(data, affine=sim.brain_mask.affine)
+
+
+def test_create_ncov_data_covariance_blocks_follow_each_region_size():
+    """E-01: the cross-region blocks used the wrong region's voxel count.
+
+    With regions of one and two voxels the matrix came out asymmetric, so numpy
+    factorized something other than the requested covariance.
+    """
+    sim = Simulator(brain_mask=_small_mask(), random_state=0)
+    one_voxel = _one_voxel_mask(sim, (1, 1, 1))
+    two_voxel = np.zeros(sim.brain_mask.shape, dtype=np.float32)
+    two_voxel[5, 5, 5] = 1.0
+    two_voxel[5, 5, 6] = 1.0
+    masks = [one_voxel, nib.Nifti1Image(two_voxel, affine=sim.brain_mask.affine)]
+    spy = _CovarianceSpy()
+    sim.random_state = spy
+
+    sim.create_ncov_data(
+        cor=[0, 0], cov=[[0.2, 0.1], [0.1, 0.3]], sigma=0, masks=masks, reps=2
+    )
+
+    expected = np.array(
+        [
+            [1.0, 0.0, 0.0, 0.0],
+            [0.0, 1.0, 0.1, 0.1],
+            [0.0, 0.1, 1.0, 0.3],
+            [0.0, 0.1, 0.3, 1.0],
+        ]
+    )
+    assert np.allclose(spy.cov, expected)
