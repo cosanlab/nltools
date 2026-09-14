@@ -71,6 +71,14 @@ def _copy_metadata_frame(frame: pl.DataFrame, memo: dict | None = None) -> pl.Da
     read the clones back out. A caller holding a single frame — the `BrainData`
     constructor inheriting its source's `X`/`Y` — needs the same policy for that
     one frame, and the same answer as if the frame had been found in a graph.
+
+    Args:
+        frame: The frame to copy.
+        memo: Copy memo to share with other copies of the same graph. A fresh
+            one is used when None.
+
+    Returns:
+        pl.DataFrame: A clone whose `pl.Object` cells are detached.
     """
     if memo is None:
         memo = {}

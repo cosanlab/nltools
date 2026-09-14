@@ -87,24 +87,8 @@ def _initialize_mask(bd, mask):
         # For empty BrainData or when data not yet loaded, use default template
         # Template will be auto-detected during data loading if data is provided
         bd.mask = nib.load(get_brainspace().mask)
-    elif isinstance(mask, (str, Path)):
-        mask_str = str(mask)
-        # A template name string ({res}mm-MNI152-2009{version}) resolves through
-        # the templates registry; anything else is a plain file path.
-        if _split_template_name(mask_str) is not None:
-            from nltools.templates import _resolve_template_name
-
-            mask_path = _resolve_template_name(mask_str, file_type="mask")
-            bd.mask = nib.load(mask_path)
-        else:
-            bd.mask = nib.load(mask_str)
-    elif isinstance(mask, nib.Nifti1Image):
-        bd.mask = mask
     else:
-        raise TypeError(
-            f"mask must be a nibabel instance, file path, template name string, or None. "
-            f"Received {type(mask).__name__}"
-        )
+        bd.mask = _resolve_mask_argument(mask)
 
     # Extract voxel resolution from mask affine matrix
     # The diagonal elements of the affine matrix (excluding translation) give voxel sizes
@@ -170,6 +154,15 @@ def _adopt_mask_affine(data_img, mask_img):
     waved through. Re-homing moves no data — the two grids are the same grid to
     within the loader's tolerance — and it keeps the caller's image unmutated,
     the same construction `_mask_image_on_source_grid` uses for `apply_mask`.
+
+    Args:
+        data_img (Nifti1Image): Image the loader has already accepted as being
+            on ``mask_img``'s grid.
+        mask_img (Nifti1Image): Mask whose affine is authoritative.
+
+    Returns:
+        Nifti1Image: ``data_img`` itself when the affines already match,
+            otherwise a new image over the same voxel data.
     """
     import nibabel as nib
 
@@ -685,7 +678,7 @@ def _load_from_h5(bd, file_path, mask):
 
     stored_mask = h5_data.get("mask")
     voxel_axis_changed = False
-    if h5_data.get("load_mask", False):
+    if h5_data.get("stored_mask_is_authoritative", False):
         # No caller mask: the stored mask is the object's mask.
         bd.mask = stored_mask
         # Extract voxel resolution from mask affine matrix
