@@ -58,6 +58,7 @@ def _plot_brain(
     save=None,
     stat="mean",
     limit=3,
+    detach_single=True,
     **kwargs,
 ):
     """Plot BrainData instance using nilearn visualization or matplotlib.
@@ -104,6 +105,11 @@ def _plot_brain(
             ``limit``. Ignored for single-image data and for matplotlib-based
             methods (``"timeseries"``, ``"histogram"``), which already
             aggregate across images.
+        detach_single (bool): Internal. Single-image data closes the figure it
+            returns so a notebook does not render it twice through the returned
+            object *and* `flush_figures`. A caller that draws the figure as a
+            side effect and discards the return value passes ``False`` to leave
+            it attached.
         **kwargs (dict): Additional arguments forwarded to
             `nilearn.plotting.plot_glass_brain` / `plot_stat_map`.
 
@@ -358,7 +364,8 @@ def _plot_brain(
     # rendering doesn't duplicate via `flush_figures`. Any earlier per-view
     # figures from method="slices" stay on pyplot's tracker so the cell's
     # post-hook can display them.
-    plt.close(figures[-1])
+    if detach_single:
+        plt.close(figures[-1])
     return figures[-1]
 
 
