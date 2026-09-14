@@ -408,3 +408,11 @@ def test_missing_input_values_says_so():
     """A missing input_values is named rather than read as a NaN score."""
     with pytest.raises(ValueError, match="input_values is required"):
         Roc(binary_outcome=[False, True])
+
+
+def test_criterion_values_without_a_finite_threshold_are_rejected():
+    """Thresholds no observation can cross leave every metric undefined."""
+    roc = Roc(input_values=[0.0, 1.0], binary_outcome=[False, True])
+
+    with pytest.raises(ValueError, match="at least one finite threshold"):
+        roc.calculate(criterion_values=[np.inf, np.inf])

@@ -139,13 +139,15 @@ def _validated_criterion_values(criterion_values):
         np.ndarray: 1-D float array.
 
     Raises:
-        ValueError: If the thresholds are not 1-D.
+        ValueError: If the thresholds are not 1-D, or if none of them is finite.
     """
     values = _squeezed_trailing(np.asarray(criterion_values, dtype=float))
     if values.ndim != 1:
         raise ValueError(
             f"criterion_values must be 1-D; got shape {np.shape(criterion_values)}."
         )
+    if not np.any(np.isfinite(values)):
+        raise ValueError("criterion_values must contain at least one finite threshold.")
     return values
 
 
@@ -384,7 +386,8 @@ class Roc:
 
         Raises:
             ValueError: If any replacement input fails the checks the constructor
-                applies, if `method` is not one of the three variants, or if a
+                applies, if `criterion_values` is not 1-D or holds no finite
+                threshold, if `method` is not one of the three variants, or if a
                 `forced_choice` subject does not contribute exactly one positive
                 and one negative observation. Nothing is written when it raises.
         """
@@ -441,9 +444,6 @@ class Roc:
         # calls nothing positive, which leaves the positive predictive value
         # undefined. Choose among the thresholds the data can actually cross.
         selectable = np.isfinite(self.criterion_values)
-        if not selectable.any():
-            # Only reachable when the caller supplies no finite threshold
-            selectable = np.ones_like(selectable)
         candidates = self.criterion_values[selectable]
         tpr = self.tpr[selectable]
         fpr = self.fpr[selectable]
