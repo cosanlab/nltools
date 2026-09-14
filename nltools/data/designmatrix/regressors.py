@@ -247,6 +247,7 @@ def _convolve(
 
     convolved_series: list[pl.Series] = []
     new_convolved: list[str] = []
+    outputs_by_source: dict[str, list[str]] = {}
     for col in columns_to_convolve:
         # NECESSARY: both paths require numpy arrays (no Polars equivalent)
         col_data = dm.data[col].to_numpy()
@@ -257,20 +258,35 @@ def _convolve(
                 np.convolve(col_data, kernels_2d[:, k])[:n_rows]
                 for k in range(kernels_2d.shape[1])
             ]
+        outputs_by_source[col] = []
         for k_idx, result in enumerate(results):
             new_name = f"{col}_c{k_idx}"
             convolved_series.append(pl.Series(new_name, result))
             new_convolved.append(new_name)
+            outputs_by_source[col].append(new_name)
 
     # Drop source columns and add suffixed variants. Single-kernel and
     # multi-kernel are now uniform: source name never survives, output is
     # always ``<col>_c{i}``.
     new_df = dm.data.drop(columns_to_convolve).with_columns(convolved_series)
 
+    # An explicit ``columns=`` can name a confound; the role follows the
+    # generated columns rather than dying with the dropped source name.
+    new_confounds = [
+        name
+        for confound in dm.confounds
+        for name in outputs_by_source.get(confound, [confound])
+    ]
+
     # Re-convolution of already-convolved columns is refused above, so any
     # entries in ``dm.convolved`` survived in ``new_df`` untouched; just
     # append the freshly convolved names.
-    return _copy_with(dm, new_df, convolved=list(dm.convolved) + new_convolved)
+    return _copy_with(
+        dm,
+        new_df,
+        convolved=list(dm.convolved) + new_convolved,
+        confounds=new_confounds,
+    )
 
 
 def _add_poly(
