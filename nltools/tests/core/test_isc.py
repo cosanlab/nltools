@@ -397,6 +397,37 @@ def test_compute_pairwise_isc_cosine_handles_zero_norm():
     assert np.all(np.isfinite(result) | np.isnan(result))
 
 
+def test_isc_undefined_observed_reports_nan_not_a_significant_result():
+    """A feature whose observed ISC is undefined gets NaN for p and for both bounds.
+
+    No null value can exceed NaN, so the exceedance count was zero and p
+    collapsed to `1 / (n_permute + 1)` — in a whole-brain map every flat voxel
+    surfaced as the most significant hit — while the resamples that remained
+    defined still produced a confident-looking interval around nothing.
+    """
+    flat = _isc_permutation_test(
+        np.ones((4, 3)), method="circle_shift", n_permute=20, n_jobs=1, random_state=0
+    )
+    assert np.isnan(flat["p"]).all()
+    assert np.isnan(flat["ci"]).all()
+
+    # One constant subject makes the leave-one-out ISC undefined while the
+    # bootstrap draws that omit that subject stay finite.
+    data = np.random.default_rng(0).standard_normal((30, 4))
+    data[:, 3] = 2.0
+    loo = _isc_permutation_test(
+        data,
+        summary_statistic="leave-one-out",
+        method="bootstrap",
+        n_permute=50,
+        n_jobs=1,
+        random_state=0,
+    )
+    assert np.isnan(loo["isc"])
+    assert np.isnan(loo["p"]).all()
+    assert np.isnan(loo["ci"]).all()
+
+
 def test_isc_bootstrap_summarizes_only_defined_draws():
     """With two subjects half the draws duplicate a subject and are undefined.
 

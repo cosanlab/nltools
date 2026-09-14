@@ -270,9 +270,7 @@ def _compute_pairwise_isc(data, metric="correlation"):
     raise ValueError(f"data must be 2D or 3D, got shape {data.shape}")
 
 
-def _summarize_isc_resamples(
-    observed, null_dist, interval_source, tail, ci_percentile
-):
+def _summarize_isc_resamples(observed, null_dist, interval_source, tail, ci_percentile):
     """P-value and percentile interval over the resamples that are defined.
 
     A resample can be undefined: with few subjects a bootstrap draw may contain
@@ -280,7 +278,8 @@ def _summarize_isc_resamples(
     at all. Such a draw is dropped per feature instead of being counted as a
     non-exceedance, so the Phipson-Smyth denominator is the number of draws
     that exist — `(exceedances + 1) / (n_valid + 1)`. A feature with no defined
-    draw gets NaN for the p-value and for both bounds.
+    draw gets NaN for the p-value and for both bounds, and so does a feature
+    whose observed statistic is itself undefined.
 
     Args:
         observed (np.ndarray): Observed statistic, shape `()` or
@@ -317,6 +316,12 @@ def _summarize_isc_resamples(
     numerator = np.sum(exceeds & defined, axis=0) + 1.0
     p_values = np.where(n_valid > 0, numerator / (n_valid + 1.0), np.nan)
 
+    # An undefined observed statistic is not a significant one: no null value
+    # can exceed NaN, so the correction would report the smallest p it can
+    # produce for every flat or masked-out feature.
+    undefined = np.isnan(observed)
+    p_values = np.where(undefined, np.nan, p_values)
+
     lower_q = (100 - ci_percentile) / 2
     upper_q = ci_percentile + lower_q
     ci_lower = np.full(n_features, np.nan)
@@ -326,6 +331,8 @@ def _summarize_isc_resamples(
         usable = interval_source[:, has_interval]
         ci_lower[has_interval] = np.nanpercentile(usable, lower_q, axis=0)
         ci_upper[has_interval] = np.nanpercentile(usable, upper_q, axis=0)
+    ci_lower = np.where(undefined, np.nan, ci_lower)
+    ci_upper = np.where(undefined, np.nan, ci_upper)
 
     return p_values, ci_lower, ci_upper
 

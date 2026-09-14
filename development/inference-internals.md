@@ -198,7 +198,10 @@ subjects — and a flat feature has no correlation at all. Those draws are dropp
 per feature rather than counted as non-exceedances, so the denominator is the
 feature's valid-draw count plus one and the interval is a `np.nanpercentile` over
 the same draws. A feature with no defined draw reports NaN for the p-value and for
-both bounds. `return_null=True` still hands back the draws as drawn, NaNs included.
+both bounds, and so does a feature whose *observed* statistic is undefined — no null
+value exceeds NaN, so the correction would otherwise report `1 / (n + 1)`, the
+smallest p it can produce, for every flat or masked-out voxel.
+`return_null=True` still hands back the draws as drawn, NaNs included.
 
 ## Deterministic RNG (worker-count consistency)
 
