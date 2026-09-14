@@ -40,8 +40,11 @@ def regress(X, Y, *, stats: str = "full", tail: int | str = 2):
         raise ValueError("stats must be one of 'full', 'betas', 'tstats'")
     tail_internal = _validate_tail_parameter(tail)
 
-    X = np.asarray(X)
-    Y = np.asarray(Y)
+    # Promote to float before the covariance: an integer design overflows in
+    # `X.T @ X` (a column of 1e5 wraps in int32), which leaves `b` correct —
+    # `pinv` promotes — while se, t and p come out garbage with no warning.
+    X = np.asarray(X, dtype=float)
+    Y = np.asarray(Y, dtype=float)
     y_was_1d = Y.ndim == 1
     if y_was_1d:
         Y = Y[:, np.newaxis]

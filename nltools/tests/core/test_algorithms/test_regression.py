@@ -115,3 +115,21 @@ def test_regress_invalid_stats_raises(ols_data):
     X, _, y = ols_data
     with pytest.raises(ValueError):
         regress(X, y, stats="bogus")
+
+
+def test_regress_promotes_an_integer_design():
+    """An integer design must not overflow in X.T @ X (G-04).
+
+    `X.T @ X` for a column of 100000 is 4e10, which wraps in int32 and turns
+    every standard error, t and p into garbage while `b` stays right.
+    """
+    X = np.full((4, 1), 100000, dtype=np.int32)
+    Y = np.arange(1.0, 5.0)
+
+    b, se, t, p, df, _ = regress(X, Y)
+    b_f, se_f, t_f, p_f, df_f, _ = regress(X.astype(float), Y)
+
+    # Y = 1..4 against a constant column: t = sqrt(15) by hand.
+    assert t == pytest.approx(np.sqrt(15.0))
+    assert df == 3
+    assert (b, se, t, p, df) == pytest.approx((b_f, se_f, t_f, p_f, df_f))
