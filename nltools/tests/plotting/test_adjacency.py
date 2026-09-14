@@ -209,6 +209,49 @@ class TestAdjacencyPlot:
         plt.close("all")
 
 
+    def test_plot_draws_a_one_panel_stack(self):
+        """A one-row stack, and `limit=1` on any stack, still draws its panel."""
+        from nltools.data import Adjacency
+
+        adj = Adjacency(np.array([1.0, 2.0, 3.0]))
+        stack = adj.append(adj)
+
+        plt.close("all")
+        adj[[0]].plot()
+        assert len(plt.gcf().axes) == 2  # one heatmap plus its colorbar
+        plt.close("all")
+        stack.plot(limit=1)
+        assert len(plt.gcf().axes) == 2
+        plt.close("all")
+        adj[[0]].similarity(adj, method=None, plot=True, n_jobs=1)
+        assert plt.gcf().axes
+        plt.close("all")
+
+    def test_plot_gives_every_panel_of_a_shared_label_stack_all_the_labels(self):
+        """Shared labels describe nodes, so each panel of a stack carries all of them."""
+        from nltools.data import Adjacency
+
+        labels = ["a", "b", "c"]
+        matrix = Adjacency(np.array([1.0, 2.0, 3.0]), labels=labels)
+        stack = matrix.append(Adjacency(np.array([4.0, 5.0, 6.0]), labels=labels))
+
+        plt.close("all")
+        stack.plot(cbar=False)
+        for ax in plt.gcf().axes:
+            assert [t.get_text() for t in ax.get_xticklabels()] == labels
+            assert [t.get_text() for t in ax.get_yticklabels()] == labels
+        plt.close("all")
+
+        nested = Adjacency(
+            [matrix, matrix], labels=[["a", "b", "c"], ["d", "e", "f"]]
+        )
+        nested.plot(cbar=False)
+        panels = plt.gcf().axes
+        assert [t.get_text() for t in panels[0].get_xticklabels()] == ["a", "b", "c"]
+        assert [t.get_text() for t in panels[1].get_xticklabels()] == ["d", "e", "f"]
+        plt.close("all")
+
+
 def _correlation_adjacency(seed, n_nodes=6):
     """A signed subject x subject similarity matrix, the ISRSA case."""
     from nltools.data import Adjacency

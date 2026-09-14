@@ -154,8 +154,8 @@ def _similarity(
     if plot:
         import matplotlib.pyplot as plt
 
-        _, axes = plt.subplots(len(adj))
-        for matrix, matrix_ax in zip(adj, axes):
+        _, axes = plt.subplots(len(adj), squeeze=False)
+        for matrix, matrix_ax in zip(adj, axes.ravel()):
             _plot_stacked(matrix, data2, ax=matrix_ax)
     results = []
     arr2_base = _convert_data_similarity(data2, permutation_method=method)
