@@ -201,11 +201,15 @@ def _compute_pairwise_isc(data, metric="correlation"):
         # Then: distance = sqrt(squared_distance), similarity = 1 - distance
         if data.ndim == 2:
             # Single feature: (n_observations, n_subjects)
-            # Compute squared norms for each subject
-            norms_sq = np.sum(data**2, axis=0)  # (n_subjects,)
+            # Promote first: squaring in an integer dtype can overflow before
+            # the sum, which the other fast paths avoid by construction.
+            values = np.asarray(data, dtype=np.float64)
 
-            # Compute dot products: data.T @ data
-            dot_products = data.T @ data  # (n_subjects, n_subjects)
+            # Compute squared norms for each subject
+            norms_sq = np.sum(values**2, axis=0)  # (n_subjects,)
+
+            # Compute dot products: values.T @ values
+            dot_products = values.T @ values  # (n_subjects, n_subjects)
 
             # Compute squared distances: norms_sq[i] + norms_sq[j] - 2*dot_products[i, j]
             # Broadcasting: (n_subjects, 1) + (1, n_subjects) - 2*dot_products
@@ -225,13 +229,15 @@ def _compute_pairwise_isc(data, metric="correlation"):
 
             # Compute euclidean similarity per voxel
             for v in range(n_voxels):
+                # Promote first: squaring in an integer dtype can overflow
+                # before the sum.
+                values = np.asarray(data[:, :, v], dtype=np.float64)
+
                 # Compute squared norms for each subject
-                norms_sq = np.sum(data[:, :, v] ** 2, axis=0)  # (n_subjects,)
+                norms_sq = np.sum(values**2, axis=0)  # (n_subjects,)
 
                 # Compute dot products
-                dot_products = (
-                    data[:, :, v].T @ data[:, :, v]
-                )  # (n_subjects, n_subjects)
+                dot_products = values.T @ values  # (n_subjects, n_subjects)
 
                 # Compute squared distances
                 distances_sq = norms_sq[:, None] + norms_sq[None, :] - 2 * dot_products
