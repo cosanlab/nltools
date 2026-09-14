@@ -205,3 +205,13 @@ class TestDesignMatrixStatisticalOperations:
         # Check interpolated values (linear interpolation)
         expected = np.array([0.0, 0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5])
         np.testing.assert_allclose(dm_up["a"], expected, rtol=1e-10)
+
+    def test_resample_rejects_a_nonpositive_or_nonfinite_target(self):
+        """A target the constructor would reject cannot reach a new DesignMatrix."""
+        dm = DesignMatrix({"a": [1.0, 2.0, 3.0, 4.0]}, sampling_freq=1.0)
+
+        for target in (-1.0, np.nan, 0.0):
+            with pytest.raises(ValueError, match="finite and positive"):
+                dm.downsample(target=target)
+        with pytest.raises(ValueError, match="finite and positive"):
+            dm.upsample(target=np.inf)
