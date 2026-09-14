@@ -895,12 +895,14 @@ class SimulateGrid:
         """
         if not self.isfit:
             self.fit()
-        if self.thresholded is None:
-            self.threshold_simulation(
-                threshold=threshold,
-                threshold_type=threshold_type,
-                correction=correction,
-            )
+        # Always threshold with this call's arguments: the panel title and the
+        # null distribution describe them, so a cached map from an earlier
+        # threshold would put two different analyses in one figure.
+        self.threshold_simulation(
+            threshold=threshold,
+            threshold_type=threshold_type,
+            correction=correction,
+        )
         self.run_multiple_simulations(
             threshold=threshold,
             threshold_type=threshold_type,
