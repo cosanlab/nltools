@@ -317,6 +317,31 @@ def _check_space_match(data_img, mask_img):
     return affine_match and shape_match
 
 
+def _mask_support(mask_img):
+    """Return a mask image's binary support as a boolean array.
+
+    Support is every voxel greater than zero, the same rule
+    `nilearn.masking.apply_mask` applies, so an integer mask and an otherwise
+    identical float one compare equal.
+    """
+    return np.asanyarray(mask_img.dataobj) > 0
+
+
+def _remap_to_mask(data, source_mask, new_mask):
+    """Re-extract packed voxel values from ``source_mask``'s support onto ``new_mask``'s.
+
+    A packed voxel axis means nothing without the mask it was packed against,
+    so installing a different mask has to put the values back in the volume and
+    extract them again. Both masks must already describe the same grid; where
+    ``new_mask`` reaches past ``source_mask``'s support the result gains those
+    voxels with zero values, the widening rule `apply_mask` documents.
+    """
+    from nilearn.masking import apply_mask as nilearn_apply_mask
+    from nilearn.masking import unmask
+
+    return nilearn_apply_mask(unmask(data, source_mask), new_mask)
+
+
 def _warn_if_resampling(bd, context=""):
     """Emit a `ResamplingWarning` if ``verbose=True`` and ``resample=True``.
 
@@ -528,7 +553,14 @@ def _load_from_brain_data(bd, brain_data, mask=None):
                     "Set resample=True to automatically resample data to new mask space."
                 )
         else:
-            # Masks match - just update mask reference
+            # Same grid, so nothing is resampled — but a different support
+            # means the stored columns describe different voxels, so they are
+            # re-extracted rather than reinterpreted.
+            new_mask = _adopt_mask_affine(new_mask, brain_data.mask)
+            if bd.data.size and not np.array_equal(
+                _mask_support(new_mask), _mask_support(brain_data.mask)
+            ):
+                bd.data = _remap_to_mask(bd.data, brain_data.mask, new_mask)
             bd.mask = new_mask
             affine = bd.mask.affine
             bd._voxel_resolution = np.abs(np.diag(affine[:3, :3]))
