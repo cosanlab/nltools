@@ -396,6 +396,28 @@ def test_compute_pairwise_isc_cosine_handles_zero_norm():
     assert np.all(np.isfinite(result) | np.isnan(result))
 
 
+def test_isc_phase_randomize_surrogates_stay_floating_point():
+    """Voxelwise phase randomization does not truncate its surrogates.
+
+    `phase_randomize` returns float64; writing it into an integer-typed buffer
+    rounded every surrogate toward zero and destroyed the power-spectrum
+    preservation the method promises.
+    """
+    data = np.array([[0, 1, 2], [1, 0, 3], [2, 3, 1], [3, 2, 0], [1, 3, 2]])[:, :, None]
+
+    kwargs = {
+        "method": "phase_randomize",
+        "n_permute": 10,
+        "random_state": 0,
+        "n_jobs": 1,
+        "return_null": True,
+    }
+    integer_null = _isc_permutation_test(data, **kwargs)["null_dist"]
+    float_null = _isc_permutation_test(data.astype(float), **kwargs)["null_dist"]
+
+    np.testing.assert_allclose(integer_null, float_null)
+
+
 def test_compute_pairwise_isc_euclidean_promotes_integer_input():
     """Euclidean similarity squares in float64, so integer input cannot overflow.
 

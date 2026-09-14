@@ -1498,7 +1498,9 @@ def _isc_permutation_test(
             # For 3D data (n_obs, n_subjects, n_voxels), apply per subject
             if data.ndim == 3:
                 perm_rng = np.random.RandomState(seeds[i])
-                data_permuted = np.empty_like(data)
+                # `phase_randomize` returns float64; an `empty_like` buffer
+                # would truncate every surrogate for integer input.
+                data_permuted = np.empty(data.shape, dtype=np.float64)
                 for subj in range(data.shape[1]):
                     data_permuted[:, subj, :] = phase_randomize(
                         data[:, subj, :], random_state=perm_rng
