@@ -46,6 +46,20 @@ class TestAdjacencyStats:
                 > 0.5
             )
 
+    def test_similarity_null_keeps_its_permutation_axis(self, sim_adjacency_single):
+        """The caller passes 1-D arrays, and `method=None` asks for no draws (G-13)."""
+        other = sim_adjacency_single.copy()
+
+        one_draw = sim_adjacency_single.similarity(
+            other, method="1d", n_permute=1, return_null=True, random_state=0
+        )
+        no_draws = sim_adjacency_single.similarity(
+            other, method=None, return_null=True
+        )
+
+        assert one_draw["null_dist"].shape == (1,)
+        assert no_draws["null_dist"].shape == (0,)
+
     @pytest.mark.slow
     def test_similarity_matrix_and_directed(self):
         """Test similarity with 2D permutation and directed matrices."""
