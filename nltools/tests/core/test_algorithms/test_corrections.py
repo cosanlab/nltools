@@ -1,6 +1,8 @@
 """Tests for nltools.algorithms.corrections — multiple comparison corrections."""
 
+import nibabel as nib
 import numpy as np
+import pytest
 
 from nltools.algorithms.corrections import fdr, holm_bonf, threshold, multi_threshold
 
@@ -24,7 +26,9 @@ class TestHolmBonf:
         p_values = np.array([0.001, 0.01, 0.03, 0.5])
         thr = holm_bonf(p_values)
         assert isinstance(thr, (float, np.floating))
-        assert 0 < thr <= 0.05  # default alpha=0.05
+        # All three of 0.001, 0.01 and 0.03 clear their boundaries (0.0125,
+        # 0.0167, 0.025); 0.5 does not, so the threshold is the last that did.
+        assert thr == 0.01
 
     def test_holm_bonf_stops_at_the_first_failure(self):
         """The step-down walk stops at the first p above its boundary (G-01)."""
@@ -75,7 +79,6 @@ class TestMultiThreshold:
 
 def _brain_on_grid(values, mask_flat):
     """BrainData on a 4-voxel grid with the given boolean mask support."""
-    import nibabel as nib
     from nltools.data import BrainData
 
     spatial_shape = (4, 1, 1)
@@ -96,8 +99,6 @@ class TestThresholdVoxelCorrespondence:
 
     def test_threshold_rejects_disjoint_masks(self):
         """Equal voxel counts on disjoint mask support are not the same voxels."""
-        import pytest
-
         stat = _brain_on_grid([5.0, 6.0], [True, True, False, False])
         p = _brain_on_grid([0.01, 0.9], [False, False, True, True])
 

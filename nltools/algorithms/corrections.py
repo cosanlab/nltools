@@ -51,7 +51,7 @@ def holm_bonf(p, alpha=0.05):
     nvox = p.shape[0]
     null = alpha / (nvox - np.arange(1, nvox + 1) + 1)
     # Step *down*: walk up the sorted p-values and stop at the first one above
-    # its own boundary. Everything after it is rejected too, so the largest
+    # its own boundary. Everything from there on is retained, so the largest
     # index below its boundary (the step-up rule `fdr` uses) is not the answer
     # here — it would report a surviving threshold for a family in which the
     # walk had already stopped.
@@ -75,7 +75,8 @@ def _check_voxel_correspondence(stat, p, stat_name, p_name):
         p_name (str): Name of the p-value argument, for the message.
 
     Raises:
-        ValueError: If the data shapes, the grids, or the mask support differ.
+        ValueError: If the data shapes differ, if the two masks sit on different
+            grids, or if they cover different voxels on a shared grid.
     """
     from nltools.data.braindata.io import _check_space_match
 
@@ -85,19 +86,25 @@ def _check_voxel_correspondence(stat, p, stat_name, p_name):
             f"Got {stat.data.shape} and {p.data.shape}"
         )
 
-    same_grid = _check_space_match(stat.mask, p.mask)
-    # Compare the support, not the raw arrays: a mask saved as float and one
-    # saved as int describe the same voxels.
-    same_support = same_grid and np.array_equal(
-        stat.mask.get_fdata() > 0, p.mask.get_fdata() > 0
-    )
-    if not same_support:
+    if not _check_space_match(stat.mask, p.mask):
         raise ValueError(
-            f"{stat_name} and {p_name} must cover the same voxels: the "
-            f"p-values are applied position by position. {stat_name} is "
+            f"{stat_name} and {p_name} must lie on the same grid: {stat_name} is "
             f"{stat.mask.shape} with affine\n{stat.mask.affine}\nand {p_name} is "
             f"{p.mask.shape} with affine\n{p.mask.affine}\n"
-            "Bring them onto a common grid and mask with resample() first."
+            "Bring them onto a common grid with resample() first."
+        )
+
+    # Compare the support, not the raw arrays: a mask saved as float and one
+    # saved as int describe the same voxels.
+    stat_support = stat.mask.get_fdata() > 0
+    p_support = p.mask.get_fdata() > 0
+    if not np.array_equal(stat_support, p_support):
+        raise ValueError(
+            f"{stat_name} and {p_name} share a grid but not the same voxels, and "
+            f"the p-values are applied position by position: {stat_name} has "
+            f"{int(stat_support.sum())} in-mask voxels and {p_name} has "
+            f"{int(p_support.sum())}, at different positions. "
+            "Bring them onto a common mask with resample() first."
         )
 
 
