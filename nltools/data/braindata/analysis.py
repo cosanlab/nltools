@@ -21,7 +21,7 @@ def _subset_mask(bd, columns):
     return unmask(np.asarray(columns, dtype=np.uint8), bd.mask)
 
 
-def _mask_support(bd):
+def _mask_voxel_count(bd):
     """Count the voxels a BrainData object's mask keeps."""
     return int(np.count_nonzero(bd.mask.get_fdata() > 0))
 
@@ -46,7 +46,7 @@ def _brain_result(source, values, name, *, rows):
         ValueError: If the column count differs from the mask support.
     """
     values = np.asarray(values)
-    support = _mask_support(source)
+    support = _mask_voxel_count(source)
     if values.shape[-1] != support:
         raise ValueError(
             f"align() cannot return {name!r} as a BrainData: its shape is "
