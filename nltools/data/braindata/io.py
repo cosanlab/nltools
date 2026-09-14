@@ -80,6 +80,9 @@ def _initialize_mask(bd, mask):
     # Store whether mask was None (for auto-detection later)
     bd._mask_was_none = mask is None
 
+    # A new mask makes any support cached for the old one meaningless.
+    bd.__dict__.pop(_MASK_SUPPORT_CACHE, None)
+
     if mask is None:
         # For empty BrainData or when data not yet loaded, use default template
         # Template will be auto-detected during data loading if data is provided
@@ -323,8 +326,45 @@ def _mask_support(mask_img):
     Support is every voxel greater than zero, the same rule
     `nilearn.masking.apply_mask` applies, so an integer mask and an otherwise
     identical float one compare equal.
+
+    Args:
+        mask_img (Nifti1Image): Mask image to binarize.
+
+    Returns:
+        np.ndarray: Boolean array, True at every in-mask voxel.
     """
     return np.asanyarray(mask_img.dataobj) > 0
+
+
+#: Where `_cached_mask_support` parks one BrainData's `(mask image, support)`
+#: pair. Living in `__dict__` is what makes it survive the graph copier: the
+#: shared memo maps the mask and the tuple's first element to the same copy, so
+#: a derived object inherits the cache instead of re-reading the mask.
+_MASK_SUPPORT_CACHE = "_mask_support_cache"
+
+
+def _cached_mask_support(bd):
+    """Return ``bd.mask``'s binary support, reading the mask image at most once.
+
+    `_mask_support` decompresses a file-backed mask on every call — 3.3 ms for
+    the package's own gzipped 2 mm template — and every combine of two objects
+    wants it on both operands. The array is cached against the exact mask
+    object it came from, so installing a different mask invalidates it without
+    anything having to remember to.
+
+    Args:
+        bd (BrainData): Instance whose mask support is wanted.
+
+    Returns:
+        np.ndarray: Read-only boolean array, True at every in-mask voxel.
+    """
+    cached = getattr(bd, _MASK_SUPPORT_CACHE, None)
+    if cached is not None and cached[0] is bd.mask:
+        return cached[1]
+    support = _mask_support(bd.mask)
+    support.flags.writeable = False  # nobody may corrupt a shared cache entry
+    setattr(bd, _MASK_SUPPORT_CACHE, (bd.mask, support))
+    return support
 
 
 def _remap_to_mask(data, source_mask, new_mask):
@@ -335,6 +375,14 @@ def _remap_to_mask(data, source_mask, new_mask):
     extract them again. Both masks must already describe the same grid; where
     ``new_mask`` reaches past ``source_mask``'s support the result gains those
     voxels with zero values, the widening rule `apply_mask` documents.
+
+    Args:
+        data (np.ndarray): Voxel values packed against ``source_mask``.
+        source_mask (Nifti1Image): The mask ``data`` is packed against.
+        new_mask (Nifti1Image): The mask to re-extract onto, on the same grid.
+
+    Returns:
+        np.ndarray: ``data`` packed against ``new_mask``.
     """
     from nilearn.masking import apply_mask as nilearn_apply_mask
     from nilearn.masking import unmask

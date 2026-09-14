@@ -337,6 +337,46 @@ class TestVoxelCorrespondence:
             left[0] = right[0]
         np.testing.assert_array_equal(left.data, original)
 
+    def test_the_support_is_read_once_per_mask(self, monkeypatch):
+        """The binarized support is cached against the mask it came from.
+
+        Reading it is a full decompression for a file-backed mask, and every
+        combine wants it on both operands, so the validator must not re-read a
+        mask it has already seen — including one inherited by a derived object,
+        whose mask is a copy of the source's.
+        """
+        from nltools.data.braindata import io as bd_io
+
+        left, right = self._brain([0, 1]), self._brain([0, 1])
+        reads = []
+        original = bd_io._mask_support
+        monkeypatch.setattr(
+            bd_io,
+            "_mask_support",
+            lambda mask_img: (reads.append(mask_img), original(mask_img))[1],
+        )
+
+        left + right
+        left + right
+        left.append(right)
+        left[0:2] + right
+
+        assert len(reads) == 2
+
+    def test_replacing_the_mask_invalidates_the_cached_support(self):
+        """A cached support belongs to one mask object and dies with it."""
+        left, right = self._brain([0, 1]), self._brain([0, 1])
+        assert (left + right).shape == (2, 2)
+
+        moved = np.zeros(8, dtype=np.uint8)
+        moved[[2, 3]] = 1
+        import nibabel as nib
+
+        masked = left.apply_mask(nib.Nifti1Image(moved.reshape(2, 2, 2), np.eye(4)))
+        assert masked.shape == (2, 2)
+        with pytest.raises(ValueError, match="same voxels"):
+            masked + right
+
     def test_matching_voxels_still_combine(self):
         left, right = self._brain([0, 1]), self._brain([0, 1])
         assert (left + right).shape == (2, 2)
