@@ -841,8 +841,8 @@ def _fold_decision_values(fitted, X_test):
     """Return one continuous decision value per test row, or None if there is none.
 
     `decision_function` is preferred over `predict_proba`: it is the signed
-    distance from the boundary that v0.5.1's margin figure drew, and an
-    estimator exposing both reports the same ordering either way.
+    score v0.5.1's margin figure drew, its sign gives the predicted class, and
+    an estimator exposing both reports the same ordering either way.
     """
     if hasattr(fitted, "decision_function"):
         values = np.asarray(fitted.decision_function(X_test), dtype=float)
@@ -942,8 +942,8 @@ def _plot_whole_brain_result(record, *, y, out_of_fold_values, classifier) -> No
     cross-validated Pearson *r* — the correlation between the target and the
     out-of-fold predictions, not the R2 that `mean_score` reports. Binary
     classification gets the ROC of the out-of-fold decision values, then the
-    margin figure when the estimator scores by distance from the boundary and
-    the probability figure when it scores by probability. Both get the weight
+    margin figure when the estimator scores by `decision_function` and the
+    probability figure when it scores by `predict_proba`. Both get the weight
     map, as v0.5.1 did.
 
     The positive class is ``classes[1]``, matching the sign convention of both

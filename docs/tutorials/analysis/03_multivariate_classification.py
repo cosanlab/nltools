@@ -151,8 +151,8 @@ def _(mo):
 
     `PredictResult.predictions` holds the out-of-fold *label* for every image — what
     the classifier decided. Calibration and ROC analysis need the continuous
-    quantity behind that decision: the distance from the separating hyperplane,
-    or a probability.
+    quantity behind that decision: the signed `decision_function` score, or a
+    probability.
 
     `result.estimator` is the fitted pipeline, so scikit-learn's
     `cross_val_predict` will produce either one, over the same folds.
@@ -181,7 +181,7 @@ def _(labels, memory, pairs, subject_folds, subject_ids, svm):
         )
 
     decisions = out_of_fold(svm.estimator, "decision_function")
-    print(f"distance from the hyperplane, first six images: {decisions[:6].round(2)}")
+    print(f"decision function score, first six images: {decisions[:6].round(2)}")
     return decisions, out_of_fold
 
 
