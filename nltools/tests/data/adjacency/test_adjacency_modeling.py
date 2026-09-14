@@ -140,6 +140,44 @@ class TestAdjacencyModeling:
             results1["dyadic_reciprocity_correlation"], 0.2, significant=2
         )
 
+    def test_social_relations_model_ignores_the_diagonal(self):
+        """Self-ratings are not observations; a filled diagonal must not shift the fit."""
+        square = np.array(
+            [
+                [np.nan, 1.0, 4.0, 2.0],
+                [3.0, np.nan, 5.0, 9.0],
+                [2.0, 8.0, np.nan, 6.0],
+                [7.0, 4.0, 1.0, np.nan],
+            ]
+        )
+        nan_diagonal = Adjacency(square, matrix_type="directed")
+        filled = square.copy()
+        np.fill_diagonal(filled, 0.0)
+        zero_diagonal = Adjacency(filled, matrix_type="directed")
+
+        a = nan_diagonal.social_relations_model(
+            summarize_results=False, nan_replace=False
+        )
+        b = zero_diagonal.social_relations_model(
+            summarize_results=False, nan_replace=False
+        )
+        assert a["grand_mean"] == pytest.approx(b["grand_mean"])
+        for key in ["actor_effect", "partner_effect", "relationship_effect"]:
+            np.testing.assert_allclose(a[key], b[key])
+
+        # Imputation must draw its row and column means from off-diagonal cells too.
+        missing = square.copy()
+        missing[0, 1] = np.nan
+        missing_filled = missing.copy()
+        np.fill_diagonal(missing_filled, 0.0)
+        a = Adjacency(missing, matrix_type="directed").social_relations_model(
+            summarize_results=False, nan_replace=True
+        )
+        b = Adjacency(missing_filled, matrix_type="directed").social_relations_model(
+            summarize_results=False, nan_replace=True
+        )
+        assert a["relationship_variance"] == pytest.approx(b["relationship_variance"])
+
     def test_cluster_summary(self):
         """Test cluster-based summary statistics."""
         m1 = block_diag(np.ones((4, 4)), np.zeros((4, 4)), np.zeros((4, 4)))

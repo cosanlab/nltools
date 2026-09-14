@@ -297,9 +297,11 @@ def _social_relations_model(adj, summarize_results=True, nan_replace=True):
             raise ValueError(
                 "The Social Relations Model cannot be estimated when sample size is less than 4."
             )
-        grand_mean = data.mean()
-        dat = data.squareform().copy()
+        # A self-rating is not an observation of a dyad, so the diagonal is
+        # masked before anything is averaged, the grand mean included.
+        dat = np.asarray(data.squareform(), dtype=float).copy()
         np.fill_diagonal(dat, np.nan)
+        grand_mean = np.nanmean(dat)
         actor_mean = np.nanmean(dat, axis=1)
         partner_mean = np.nanmean(dat, axis=0)
 
@@ -503,11 +505,15 @@ def _social_relations_model(adj, summarize_results=True, nan_replace=True):
             Returns:
                 Tuple of (Adjacency with NaNs replaced, (row, col) coordinates of replaced values).
             """
-            X = data.squareform().copy()
+            X = np.asarray(data.squareform(), dtype=float).copy()
             x, y = np.where(np.isnan(X))
             for i, j in zip(x, y):
                 if i != j:
-                    X[i, j] = (np.nanmean(X[i, :]) + np.nanmean(X[:, j])) / 2
+                    # Drop the self-rating from each mean for the same reason
+                    # `estimate_srm` masks the diagonal.
+                    row = np.delete(X[i, :], i)
+                    col = np.delete(X[:, j], j)
+                    X[i, j] = (np.nanmean(row) + np.nanmean(col)) / 2
             X = Adjacency(X, matrix_type=data.matrix_type)
             return (X, (x, y))
 
