@@ -224,3 +224,10 @@ class TestDesignMatrixStatisticalOperations:
 
         assert dm_down["_group_idx"].to_list() == [15.0, 35.0]
         assert dm["_group_idx"].to_list() == [10.0, 20.0, 30.0, 40.0]
+
+    def test_resampling_a_column_less_design_updates_its_row_count(self):
+        """A design that only records rows resamples to the populated shapes."""
+        dm = DesignMatrix(n_rows=4, sampling_freq=1.0)
+
+        assert dm.downsample(target=0.5).shape == (2, 0)
+        assert dm.upsample(target=2.0).shape == (6, 0)
