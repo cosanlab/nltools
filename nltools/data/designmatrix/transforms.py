@@ -155,7 +155,7 @@ def _upsample(dm: DesignMatrix, target: float, method: str = "linear") -> Design
         dm_up = upsample(dm, target=2.0)  # 1 Hz → 2 Hz (10 → 18 samples)
         ```
     """
-    from scipy.interpolate import interp1d
+    from nltools.algorithms.signal import _upsample_frame
 
     if dm.sampling_freq is None:
         raise ValueError(
@@ -172,29 +172,14 @@ def _upsample(dm: DesignMatrix, target: float, method: str = "linear") -> Design
     if method not in ("linear", "nearest"):
         raise ValueError("method must be 'linear' or 'nearest'")
 
-    # Calculate step size (this matches stats.upsample logic)
-    # For hz target_type: n_samples = sampling_freq / target
+    # Spacing of the new samples, in units of original samples; the same
+    # interpolation nltools.algorithms.upsample performs on a bare frame.
     step_size = dm.sampling_freq / target
 
-    # Create original and new index arrays (matches stats.upsample)
-    orig_indices = np.arange(0, dm.shape[0], 1)
-    new_indices = np.arange(0, dm.shape[0] - 1, step_size)
-
-    # Get all data columns (including confounds - upsample everything)
+    # Interpolate every column, confounds included
     data_cols = _get_data_columns(dm, exclude_confounds=False)
-
-    # Interpolate each column using scipy (matches stats.upsample)
-    upsampled_data = {}
-    for col in data_cols:
-        col_data = dm.data[col].to_numpy()
-
-        # Create interpolation function
-        interpolate = interp1d(orig_indices, col_data, kind=method)
-
-        # Interpolate to new indices
-        upsampled_data[col] = interpolate(new_indices)
-
-    # Create new Polars DataFrame
-    upsampled_df = pl.DataFrame(upsampled_data)
+    upsampled_df = _upsample_frame(
+        dm.data.select(data_cols), dm.shape[0], step_size, method
+    )
 
     return _copy_with(dm, upsampled_df, sampling_freq=target)

@@ -88,6 +88,42 @@ def downsample(
     return downsampled_df
 
 
+def _upsample_indices(n_rows, n_samples):
+    """Positions of the upsampled samples, in units of original samples.
+
+    Args:
+        n_rows (int): Number of original samples.
+        n_samples (float): Spacing between new samples, in original samples.
+
+    Returns:
+        np.ndarray: The new sample positions.
+    """
+    return np.arange(0, n_rows - 1, n_samples)
+
+
+def _upsample_frame(frame, n_rows, n_samples, method):
+    """Interpolate every column of `frame` onto a finer, evenly spaced grid.
+
+    Args:
+        frame (pl.DataFrame): Columns to interpolate.
+        n_rows (int): Number of original samples. A column-less frame carries its
+            row count outside the frame, so callers pass it explicitly.
+        n_samples (float): Spacing between new samples, in original samples.
+        method (str): Interpolation kind passed to `scipy.interpolate.interp1d`.
+
+    Returns:
+        pl.DataFrame: One interpolated column per input column.
+    """
+    orig_spacing = np.arange(0, n_rows, 1)
+    new_spacing = _upsample_indices(n_rows, n_samples)
+    return pl.DataFrame(
+        {
+            col: interp1d(orig_spacing, frame[col].to_numpy(), kind=method)(new_spacing)
+            for col in frame.columns
+        }
+    )
+
+
 def upsample(
     data, *, sampling_freq=None, target=None, target_type="samples", method="linear"
 ):
@@ -131,22 +167,7 @@ def upsample(
     else:
         raise ValueError('Make sure target_type is "samples", "seconds", or "hz".')
 
-    orig_spacing = np.arange(0, df.shape[0], 1)
-    new_spacing = np.arange(0, df.shape[0] - 1, n_samples)
-
-    # Interpolate each column using scipy (matches stats.upsample logic)
-    upsampled_data = {}
-    for col in df.columns:
-        col_data = df[col].to_numpy()
-
-        # Create interpolation function
-        interpolate = interp1d(orig_spacing, col_data, kind=method)
-
-        # Interpolate to new indices
-        upsampled_data[col] = interpolate(new_spacing)
-
-    # Create new Polars DataFrame
-    upsampled_df = pl.DataFrame(upsampled_data)
+    upsampled_df = _upsample_frame(df, df.shape[0], n_samples, method)
 
     # Return Series if input was Series, otherwise DataFrame
     if return_series:
