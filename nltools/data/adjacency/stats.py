@@ -99,10 +99,14 @@ def _similarity(
         return arr1[mask], arr2[mask]
 
     data1 = adj.copy()
-    if not isinstance(data, Adjacency):
-        data2 = Adjacency(data)
-    else:
+    if isinstance(data, Adjacency):
         data2 = data.copy()
+    elif np.ndim(data) == 1:
+        # A flat comparison vector carries no diagonal, so it is read as the
+        # same kind of matrix as `adj` rather than re-inferred as a distance.
+        data2 = Adjacency(data, matrix_type=f"{adj.matrix_type}_flat")
+    else:
+        data2 = Adjacency(data)
 
     if method is None:
         n_permute = 0

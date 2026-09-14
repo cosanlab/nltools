@@ -80,6 +80,41 @@ class TestAdjacencyStats:
         except TypeError:
             pass
 
+    def test_similarity_flat_vector_takes_the_source_matrix_type(self):
+        """A flat comparison vector is read as the same kind of matrix as `self`."""
+        directed = Adjacency(
+            np.arange(9.0).reshape(3, 3), matrix_type="directed"
+        )
+        flat = directed.similarity(
+            directed.data.copy(),
+            method=None,
+            metric="pearson",
+            include_diag=True,
+            n_jobs=1,
+        )
+        assert flat["correlation"] == pytest.approx(1.0)
+        assert flat["correlation"] == pytest.approx(
+            directed.similarity(
+                directed, method=None, metric="pearson", include_diag=True, n_jobs=1
+            )["correlation"]
+        )
+
+        # `method='2d'` rebuilds the square, whose diagonal depends on the kind.
+        rng = np.random.default_rng(0)
+        similarity = Adjacency(
+            np.corrcoef(rng.normal(size=(8, 20))), matrix_type="similarity"
+        )
+        other = Adjacency(
+            np.corrcoef(rng.normal(size=(8, 20))), matrix_type="similarity"
+        )
+        assert similarity.similarity(
+            other.data.copy(), method="2d", n_permute=100, random_state=0, n_jobs=1
+        )["correlation"] == pytest.approx(
+            similarity.similarity(
+                other, method="2d", n_permute=100, random_state=0, n_jobs=1
+            )["correlation"]
+        )
+
     def test_similarity_nan_handling(self):
         """Test NaN handling in similarity with all nan_policy and perm_type options."""
         rng = np.random.default_rng(42)
