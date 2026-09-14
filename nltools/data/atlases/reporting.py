@@ -353,7 +353,9 @@ def _build_peaks_dataframe(
     # two different sizes for one cluster. Every peak lies in a nonzero voxel of
     # `renumbered`, so the lookup is always defined.
     cluster_sizes = np.bincount(renumbered.ravel(), minlength=int(renumbered.max()) + 1)
-    n_voxels = cluster_sizes[peak_cluster_ids]
+    # cluster_sizes[0] counts background voxels, so a peak that somehow resolved
+    # to id 0 would claim the whole background as its extent; report 0 instead.
+    n_voxels = np.where(peak_cluster_ids > 0, cluster_sizes[peak_cluster_ids], 0)
     volume_mm3 = n_voxels * voxel_volume_mm3
 
     base = pl.DataFrame(
