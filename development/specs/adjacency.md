@@ -70,7 +70,9 @@ inconsistent shapes raise during construction rather than failing later in
 Retain inference for unambiguous inputs: symmetric square matrices whose entire
 diagonal is zero infer distance; an all-one diagonal infers similarity;
 asymmetric square matrices infer directed. A flat symmetric vector defaults to
-distance because it has no diagonal evidence. Other symmetric diagonals require
+distance because it has no diagonal evidence; `similarity` overrides that default
+for its comparison operand and reads a flat vector as the same kind of matrix as
+the one it is compared against. Other symmetric diagonals require
 an explicit type. Explicit distance/similarity inputs must be symmetric, including
 matching missing-value positions. Floating-point symmetry allows roundoff with
 `rtol=1e-12` and `atol=1e-12`; integer and boolean comparisons are exact. Reject
@@ -174,6 +176,8 @@ Preserve RSS-based residual-scale calculations and tail semantics. Add numerical
 reference tests and shape tests together.
 
 Bootstrap aggregate maps use single-matrix shape and valid node metadata.
+`bootstrap` resamples matrices, so it requires at least two and raises otherwise,
+matching the one-sample t-test.
 The broader BootstrapResult/API transition belongs to `5mz1`. The shared
 [one-sample t-test contract](ttest.md) defines dictionary results, permutation
 nulls and preservation of directed storage; implementation belongs to `hrgf`.
