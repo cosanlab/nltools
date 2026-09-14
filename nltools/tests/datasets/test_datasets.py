@@ -89,6 +89,14 @@ class TestFetchNeurovaultCollection:
         with pytest.raises(RuntimeError, match="Failed to download collection 123"):
             fetch_neurovault_collection(123)
 
+    @patch("nltools.datasets.fetch_neurovault_ids")
+    def test_empty_images_raises_runtime_error(self, mock_fetch):
+        """Should raise RuntimeError naming the collection when nothing downloaded"""
+        mock_fetch.return_value = {"images": [], "images_meta": []}
+
+        with pytest.raises(RuntimeError, match="collection 123 returned no images"):
+            fetch_neurovault_collection(123)
+
 
 class TestFetchPain:
     """HF-backed pain dataset loader."""

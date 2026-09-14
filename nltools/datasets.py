@@ -118,7 +118,7 @@ def fetch_neurovault_collection(collection_id, data_dir=None, verbose=1):
 
     Raises:
         ValueError: If collection_id is invalid
-        RuntimeError: If download fails
+        RuntimeError: If download fails, or if the collection returns no images
     """
     import polars as pl
 
@@ -139,12 +139,22 @@ def fetch_neurovault_collection(collection_id, data_dir=None, verbose=1):
             )
 
         files = nv_data["images"]
-        metadata = pl.DataFrame(nv_data["images_meta"])
-
-        return metadata, files
 
     except Exception as e:
         raise RuntimeError(f"Failed to download collection {collection_id}: {e}")
+
+    if not files:
+        # nilearn's `fetch_neurovault_ids` logs per-image download failures but
+        # returns whatever succeeded, so a Neurovault outage or an emptied
+        # collection yields `[]` with no exception of its own.
+        raise RuntimeError(
+            f"NeuroVault collection {collection_id} returned no images; "
+            "the download failed or the collection is empty"
+        )
+
+    metadata = pl.DataFrame(nv_data["images_meta"])
+
+    return metadata, files
 
 
 def fetch_pain(verbose=0):
