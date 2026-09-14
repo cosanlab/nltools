@@ -507,7 +507,7 @@ class Simulator:
                     rep, start:stop
                 ]
 
-        noise = self.random_state.standard_normal(size=new_dats.shape[1]) * sigma
+        noise = self.random_state.standard_normal(size=new_dats.shape) * sigma
         self.data = unmask(
             np.add(new_dats, noise), self.brain_mask
         )  # append 3d simulated data to list
@@ -518,7 +518,7 @@ class Simulator:
             y = list(self.y)
             for s in range(1, n_sub):
                 # ask Luke about this new version
-                noise = self.random_state.standard_normal(size=new_dats.shape[1]) * sigma
+                noise = self.random_state.standard_normal(size=new_dats.shape) * sigma
                 next_subj = unmask(np.add(new_dats, noise), self.brain_mask)
                 self.data = nib.concat_images([self.data, next_subj], axis=3)
 
