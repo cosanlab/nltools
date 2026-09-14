@@ -627,7 +627,7 @@ class _Ridge:
     Examples:
         ```python
         import numpy as np
-        from nltools.models import Ridge
+        from nltools.models import _Ridge
 
         X = np.random.randn(100, 50)
         y = np.random.randn(100)

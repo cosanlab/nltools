@@ -164,7 +164,7 @@ class _SRM(BaseEstimator, TransformerMixin):
     Examples:
         ```python
         import numpy as np
-        from nltools.algorithms import SRM
+        from nltools.algorithms.alignment import _SRM
 
         data = [np.random.randn(100, 50) for _ in range(3)]  # 3 subjects
 
@@ -533,7 +533,7 @@ class _DetSRM(BaseEstimator, TransformerMixin):
     Examples:
         ```python
         import numpy as np
-        from nltools.algorithms import DetSRM
+        from nltools.algorithms.alignment import _DetSRM
 
         data = [np.random.randn(100, 50) for _ in range(3)]  # 3 subjects
 
