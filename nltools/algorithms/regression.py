@@ -33,6 +33,12 @@ def regress(X, Y, *, stats: str = "full", tail: int | str = 2):
             standard errors, t-statistics, p-values (per `tail`), residual
             degrees of freedom, and residuals. `stats='betas'` returns just `b`;
             `stats='tstats'` returns `(b, t)`.
+
+    Note:
+        Residual degrees of freedom are `n - rank(X)`, so a rank-deficient design
+        is scored against the subspace it actually fits. A target whose fit is
+        undefined (a NaN in `Y`, say) scores `t` and `p` as NaN; a perfect fit,
+        whose standard error is finite but near zero, scores `t = 0`, `p = 1`.
     """
     from .validation import _validate_tail_parameter
 
@@ -66,8 +72,14 @@ def regress(X, Y, *, stats: str = "full", tail: int | str = 2):
     xtx_inv_diag = np.diag(np.linalg.pinv(X.T @ X))  # (n_regressors,)
     se = np.sqrt(xtx_inv_diag)[:, np.newaxis] * sigma[np.newaxis, :]
 
+    # Two reasons a t-statistic is not b / se. A finite but near-zero se is a
+    # perfect fit, which scores t = 0, p = 1 (GH #434). A nonfinite b or se is
+    # an undefined fit, which scores NaN — "no effect" would be a confident
+    # claim about a regression that never happened.
     t = np.zeros_like(b)
-    mask = se > 1e-6
+    finite = np.isfinite(b) & np.isfinite(se)
+    t[~finite] = np.nan
+    mask = finite & (se > 1e-6)
     t[mask] = b[mask] / se[mask]
 
     if stats == "tstats":
