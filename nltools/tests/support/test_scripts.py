@@ -27,3 +27,13 @@ class TestCheckKwonly:
 
         assert len(check_kwonly.check_file(bad, {})) == 1
         assert check_kwonly.check_file(good, {}) == []
+
+
+class TestDocsShow:
+    """A cell's final expression is wrapped in place, not by whole lines."""
+
+    def test_statement_sharing_the_last_line_still_compiles(self):
+        import docs_show
+
+        executed, _ = docs_show.transform_cell("x = 1; x")
+        compile(executed, "<cell>", "exec")

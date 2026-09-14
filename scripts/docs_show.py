@@ -334,9 +334,13 @@ def transform_cell(code: str) -> tuple[str, str]:
     last = tree.body[-1] if tree.body else None
     if isinstance(last, ast.Expr):
         start, end = last.lineno - 1, last.end_lineno or last.lineno
-        # The call opens and closes on lines of its own, so a trailing comment
-        # on the expression does not comment out the closing parenthesis.
-        lines[start:end] = ["__cell.show(", *lines[start:end], ")"]
+        # Split at the expression's column, so a statement sharing its line
+        # (`x = 1; x`) stays outside the call. The call opens and closes on
+        # lines of its own, so a trailing comment on the expression does not
+        # comment out the closing parenthesis.
+        head = lines[start][: last.col_offset]
+        tail = lines[start][last.col_offset :]
+        lines[start:end] = [head + "__cell.show(", tail, *lines[start + 1 : end], ")"]
     header = [
         "import docs_show as __docs_show",
         "__cell = __docs_show.Cell(print)",
