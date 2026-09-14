@@ -102,6 +102,21 @@ class TestBrainDataBootstrapSurface:
         ):
             minimal_brain_data.bootstrap("invalid_name", n_samples=10)
 
+    def test_a_single_image_raises_instead_of_resampling_its_voxels(self):
+        """One image has no observation axis, so its voxels must not be resampled.
+
+        A 1-D `BrainData` reached the engine's single-feature path, which treated
+        the three voxels as three observations and returned one scalar wrapped in
+        a three-voxel mask.
+        """
+        import nibabel as nb
+
+        mask = nb.Nifti1Image(np.ones((3, 1, 1)), np.eye(4))
+        single = BrainData(np.array([1.0, 2.0, 3.0]), mask=mask)
+
+        with pytest.raises(ValueError, match="two observations"):
+            single.bootstrap("mean", n_samples=100, n_jobs=1)
+
 
 class TestBrainDataBootstrapBasicStatistics:
     """The six reductions, their shapes, and the arguments they refuse."""
