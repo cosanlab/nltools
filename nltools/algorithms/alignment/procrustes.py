@@ -175,7 +175,10 @@ def align(
             `BrainData` input — that transform spans images on both axes and has
             no voxel axis to be returned on — or `method='procrustes'` is given
             `BrainData` subjects with different voxel counts, whose zero-padded
-            results would not fit their own masks.
+            results would not fit their own masks. Pass the subjects' `.data`
+            arrays to get the zero-padded result instead; it has no mask that
+            could describe it. An SRM `n_features` above any subject's voxel
+            count also raises.
 
     Examples:
         ```python

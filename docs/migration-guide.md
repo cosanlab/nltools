@@ -44,7 +44,7 @@ apply `BrainData` methods per subject and stack the results with
 | GLM | `nltools.stats.regress(X, Y, mode=…)` | `nltools.algorithms.regress(X, Y, *, stats=…, tail=…)` | OLS was the only working mode; robust/ARMA are gone |
 | GLM | `brain.randomise(...)` | `brain.ttest(permutation=True)` | Voxelwise permutation on the entry point that already existed |
 | GLM | `adjacency.regress(X, mode='ols')` | `adjacency.regress(X)` | Same removal as the standalone `regress`; `tail` is keyword-only |
-| GLM | A ridge fit scored a non-finite voxel `0.0`, the constant-target value | That voxel's `r2` is `NaN` | A finite constant target still scores exactly `0.0` |
+| GLM | Before this fix, a ridge `FitResult` scored a non-finite voxel `0.0` | That voxel's `r2` is `NaN` | v0.5.1 had no ridge `FitResult`; a finite constant target still scores exactly `0.0` |
 | Prediction | `brain.predict(algorithm='svm', cv_dict=…)` → dict | `brain.predict(y=…, estimator=…, cv=…)` → `PredictResult` | Frozen record with `weight_map`, `scores`, `predictions` |
 | Prediction | `brain.predict_multi(...)` | `brain.predict(spatial_scale='roi'\|'searchlight')` | One entry point, three spatial scales |
 | Prediction | `set_cv(Y, cv_dict)` | `cv=<int>` or an sklearn splitter, plus `groups=` | Removed; an int is that many unshuffled stratified folds |
@@ -59,7 +59,8 @@ apply `BrainData` methods per subject and stack the results with
 | Similarity | Manual per-ROI loop to paint an RSA map | `brain.distance(spatial_scale='roi', roi_mask=atlas)` then `roi_to_brain_from_atlas` | Explicit atlas mapping |
 | Alignment | `from nltools.external import SRM, DetSRM` | `brain.align(method='probabilistic_srm'\|'deterministic_srm')` | The estimators are internal |
 | Alignment | Procrustes back-projection was `transformed @ T` | `transformed @ T.T` | `transformation_matrix` is stored as `transformed = original @ T` |
-| Alignment | An SRM `n_features` above a subject's voxel count silently fit a smaller model | Both SRM estimators raise, naming the subject and both counts | The returned model was never the one that was asked for |
+| Alignment | Procrustes aligned `Brain_Data` subjects with different voxel counts by zero-padding the feature axis | `align(method='procrustes')` raises; pass the `.data` arrays to get the padded result | The padded result has no mask that can describe it |
+| Alignment | An SRM `n_features` above a subject's voxel count silently fit a smaller model (`deterministic_srm`) or failed with a numpy broadcast error (`probabilistic_srm`) | Both SRM estimators raise, naming the subject and both counts | The returned model was never the one that was asked for |
 | Alignment | `align_states(..., replace_zero_variance=True)` on integer maps raised `ValueError: matrix contains invalid numeric entries` | The maps are converted to float, so the replacement noise survives | The non-replacement path still keeps the caller's dtype |
 | Statistics | `nltools.stats` | `nltools.algorithms` | Same functions, one namespace |
 | Statistics | `one_sample_permutation`, `two_sample_permutation`, `correlation_permutation`, `matrix_permutation` | Same names with a `_test` suffix | Keyword-only after the data arguments |
