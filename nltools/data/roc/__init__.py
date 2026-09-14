@@ -8,7 +8,209 @@ import numpy as np
 from nltools.plotting import _plot_roc
 from scipy.stats import norm, binomtest
 from sklearn.metrics import auc
-from copy import deepcopy
+
+_VALID_METHODS = ("optimal_overall", "optimal_balanced", "minimum_sdt_bias")
+
+
+def _validated_method(method):
+    """Check a threshold-selection variant name.
+
+    Args:
+        method (str): Variant name to check.
+
+    Returns:
+        str: The same name.
+
+    Raises:
+        ValueError: If `method` is not one of the three variants.
+    """
+    if method not in _VALID_METHODS:
+        raise ValueError(
+            f"method must be one of {list(_VALID_METHODS)}, got {method!r}"
+        )
+    return method
+
+
+def _validated_scores(input_values):
+    """Coerce decision values to an owned 1-D float array.
+
+    Args:
+        input_values (array-like): Decision values, one per observation.
+
+    Returns:
+        np.ndarray: 1-D float array.
+
+    Raises:
+        ValueError: If the values are not 1-D once trailing singleton axes are
+            dropped, or if any of them is not finite.
+    """
+    scores = np.atleast_1d(np.squeeze(np.asarray(input_values, dtype=float)))
+    if scores.ndim != 1:
+        raise ValueError(
+            "input_values must be 1-D, one decision value per observation; got "
+            f"shape {np.shape(input_values)}."
+        )
+    if not np.all(np.isfinite(scores)):
+        raise ValueError(
+            "input_values must all be finite; NaN or infinite decision values "
+            "make every threshold comparison false and the metrics meaningless."
+        )
+    return scores
+
+
+def _validated_outcome(binary_outcome):
+    """Coerce class labels to an owned 1-D boolean array.
+
+    Args:
+        binary_outcome (array-like): Class label per observation.
+
+    Returns:
+        np.ndarray: 1-D boolean array.
+
+    Raises:
+        ValueError: If the labels are not 1-D, or if one class is missing.
+    """
+    labels = np.atleast_1d(np.squeeze(np.asarray(binary_outcome))).astype(bool)
+    if labels.ndim != 1:
+        raise ValueError(
+            "binary_outcome must be 1-D, one label per observation; got "
+            f"shape {np.shape(binary_outcome)}."
+        )
+    if labels.all() or not labels.any():
+        raise ValueError(
+            "binary_outcome must contain both positive and negative cases "
+            "(True and False)."
+        )
+    return labels
+
+
+def _validated_subject_ids(forced_choice, n_observations):
+    """Coerce forced-choice subject ids to an owned 1-D array.
+
+    Args:
+        forced_choice (array-like): Subject id per observation.
+        n_observations (int): Number of observations the ids must cover.
+
+    Returns:
+        np.ndarray: 1-D array of subject ids.
+
+    Raises:
+        ValueError: If the ids are not 1-D or do not cover every observation.
+    """
+    ids = np.atleast_1d(np.squeeze(np.asarray(forced_choice)))
+    if ids.ndim != 1:
+        raise ValueError(
+            "forced_choice must be 1-D, one subject id per observation; got "
+            f"shape {np.shape(forced_choice)}."
+        )
+    if len(ids) != n_observations:
+        raise ValueError(
+            f"forced_choice has {len(ids)} subject ids for {n_observations} "
+            "observations; it needs one id per observation."
+        )
+    return ids
+
+
+def _validated_criterion_values(criterion_values):
+    """Coerce caller-supplied thresholds to an owned 1-D float array.
+
+    Args:
+        criterion_values (array-like): Thresholds to evaluate the curve at.
+
+    Returns:
+        np.ndarray: 1-D float array.
+
+    Raises:
+        ValueError: If the thresholds are not 1-D.
+    """
+    values = np.atleast_1d(np.squeeze(np.asarray(criterion_values, dtype=float)))
+    if values.ndim != 1:
+        raise ValueError(
+            f"criterion_values must be 1-D; got shape {np.shape(criterion_values)}."
+        )
+    return values
+
+
+def _validated_inputs(input_values, binary_outcome, forced_choice):
+    """Coerce and cross-check the three per-observation inputs together.
+
+    Args:
+        input_values (array-like): Decision values.
+        binary_outcome (array-like): Class labels.
+        forced_choice (array-like | None): Subject ids, or None for
+            single-interval classification.
+
+    Returns:
+        tuple[np.ndarray, np.ndarray, np.ndarray | None]: Scores, labels and
+            subject ids, each owned by the caller.
+
+    Raises:
+        ValueError: If any input fails its own checks, or if the scores and the
+            labels are different lengths.
+    """
+    scores = _validated_scores(input_values)
+    labels = _validated_outcome(binary_outcome)
+    if len(scores) != len(labels):
+        raise ValueError(
+            f"input_values has {len(scores)} values and binary_outcome has "
+            f"{len(labels)} labels; they must be the same length."
+        )
+    ids = (
+        None
+        if forced_choice is None
+        else _validated_subject_ids(forced_choice, len(labels))
+    )
+    return scores, labels, ids
+
+
+def _forced_choice_pairs(forced_choice, binary_outcome):
+    """Locate each subject's positive and negative observation.
+
+    Args:
+        forced_choice (np.ndarray): Subject id per observation.
+        binary_outcome (np.ndarray): Boolean label per observation.
+
+    Returns:
+        tuple[np.ndarray, np.ndarray]: Row index of the positive observation and
+            of the negative observation, both in the same subject order.
+
+    Raises:
+        ValueError: If a subject does not contribute exactly one positive and
+            one negative observation.
+    """
+    positive_idx = []
+    negative_idx = []
+    for subject in np.unique(forced_choice):
+        in_subject = forced_choice == subject
+        positives = np.flatnonzero(in_subject & binary_outcome)
+        negatives = np.flatnonzero(in_subject & ~binary_outcome)
+        if len(positives) != 1 or len(negatives) != 1:
+            raise ValueError(
+                f"forced_choice subject {subject!r} has {len(positives)} positive "
+                f"and {len(negatives)} negative observations; each subject must "
+                "contribute exactly one positive and one negative observation."
+            )
+        positive_idx.append(positives[0])
+        negative_idx.append(negatives[0])
+    return np.array(positive_idx, dtype=int), np.array(negative_idx, dtype=int)
+
+
+def _centered_within_pairs(scores, positive_idx, negative_idx):
+    """Center each subject's two scores on their own mean.
+
+    Args:
+        scores (np.ndarray): 1-D decision values.
+        positive_idx (np.ndarray): Row index of each subject's positive observation.
+        negative_idx (np.ndarray): Row index of each subject's negative observation.
+
+    Returns:
+        np.ndarray: A new array holding the centered values.
+    """
+    centered = scores.copy()
+    pair_means = (scores[positive_idx] + scores[negative_idx]) / 2
+    centered[positive_idx] = scores[positive_idx] - pair_means
+    centered[negative_idx] = scores[negative_idx] - pair_means
+    return centered
 
 
 class Roc:
@@ -73,6 +275,12 @@ class Roc:
             `calculate`.
         gaussian_auc (float): Gaussian-model area under the curve for forced-choice
             data; set by `plot(method='gaussian')`. Never read by `calculate`.
+
+    Raises:
+        ValueError: If `input_values` is not 1-D or holds a non-finite value, if
+            it and `binary_outcome` have different lengths, if `binary_outcome`
+            holds only one class, if `forced_choice` does not carry one subject
+            id per observation, or if `method` is not one of the three variants.
     """
 
     def __init__(
@@ -83,29 +291,13 @@ class Roc:
         method="optimal_overall",
         forced_choice=None,
     ):
-        if len(input_values) != len(binary_outcome):
-            raise ValueError(
-                "Data Problem: input_value and binary_outcomeare different lengths."
-            )
-
-        binary_outcome = np.asarray(binary_outcome).astype(bool).flatten()
-        if binary_outcome.all() or not binary_outcome.any():
-            raise ValueError(
-                "Data Problem: binary_outcome must contain both positive and "
-                "negative cases (True and False)."
-            )
-
-        valid_methods = ["optimal_overall", "optimal_balanced", "minimum_sdt_bias"]
-        if method not in valid_methods:
-            raise ValueError(
-                "method must be ['optimal_overall', "
-                "'optimal_balanced','minimum_sdt_bias']"
-            )
-
-        self.input_values = np.array(input_values)
-        self.method = deepcopy(method)
-        self.forced_choice = deepcopy(forced_choice)
-        self.binary_outcome = binary_outcome
+        scores, labels, subject_ids = _validated_inputs(
+            input_values, binary_outcome, forced_choice
+        )
+        self.input_values = scores
+        self.binary_outcome = labels
+        self.forced_choice = subject_ids
+        self.method = _validated_method(method)
 
     def calculate(
         self,
@@ -145,6 +337,12 @@ class Roc:
                 sensitivity/specificity.
             tail (int | str): `2`/`'two'` for two-tailed (default); `1`/`'one'` for
                 one-tailed (accuracy > chance) in the binomial test for `accuracy_p`.
+
+        Raises:
+            ValueError: If any replacement input fails the checks the constructor
+                applies, if `method` is not one of the three variants, or if a
+                `forced_choice` subject does not contribute exactly one positive
+                and one negative observation. Nothing is written when it raises.
         """
         from nltools.algorithms.validation import _validate_tail_parameter
 
@@ -152,134 +350,92 @@ class Roc:
             "two-sided" if _validate_tail_parameter(tail) == "two" else "greater"
         )
 
-        if input_values is not None:
-            self.input_values = np.array(input_values)
+        # An explicit method= overrides the instance's configured self.method for
+        # this call only; self.method itself is left untouched so a later bare
+        # calculate() reverts to it (q31x fvgk #12). Resolve it before any result
+        # attribute is written, so a bad name leaves the last results intact.
+        resolved_method = _validated_method(self.method if method is None else method)
 
-        if binary_outcome is not None:
-            self.binary_outcome = np.asarray(binary_outcome).astype(bool).flatten()
+        scores, labels, subject_ids = _validated_inputs(
+            self.input_values if input_values is None else input_values,
+            self.binary_outcome if binary_outcome is None else binary_outcome,
+            self.forced_choice if forced_choice is None else forced_choice,
+        )
+        self.input_values = scores
+        self.binary_outcome = labels
+        self.forced_choice = subject_ids
 
         # Create Criterion Values
         if criterion_values is not None:
-            self.criterion_values = deepcopy(criterion_values)
+            self.criterion_values = _validated_criterion_values(criterion_values)
         else:
             self.criterion_values = np.linspace(
-                np.min(self.input_values.squeeze()),
-                np.max(self.input_values.squeeze()),
-                num=50 * len(self.binary_outcome),
+                np.min(scores), np.max(scores), num=50 * len(labels)
             )
 
-        if forced_choice is not None:
-            self.forced_choice = deepcopy(forced_choice)
-
-        if self.forced_choice is not None:
-            sub_idx = np.unique(self.forced_choice)
-            if len(sub_idx) != len(self.binary_outcome) / 2:
-                raise ValueError(
-                    "Make sure that subject ids are correct for 'forced_choice'."
-                )
-            if len(
-                set(sub_idx).union(
-                    set(np.array(self.forced_choice)[self.binary_outcome])
-                )
-            ) != len(sub_idx):
-                raise ValueError("Issue with forced_choice subject labels.")
-            if len(
-                set(sub_idx).union(
-                    set(np.array(self.forced_choice)[~self.binary_outcome])
-                )
-            ) != len(sub_idx):
-                raise ValueError("Issue with forced_choice subject labels.")
-            for sub in sub_idx:
-                sub_mn = (
-                    self.input_values[
-                        (self.forced_choice == sub) & (self.binary_outcome)
-                    ]
-                    + self.input_values[
-                        (self.forced_choice == sub) & (~self.binary_outcome)
-                    ]
-                )[0] / 2
-                self.input_values[
-                    (self.forced_choice == sub) & (self.binary_outcome)
-                ] = (
-                    self.input_values[
-                        (self.forced_choice == sub) & (self.binary_outcome)
-                    ][0]
-                    - sub_mn
-                )
-                self.input_values[
-                    (self.forced_choice == sub) & (~self.binary_outcome)
-                ] = (
-                    self.input_values[
-                        (self.forced_choice == sub) & (~self.binary_outcome)
-                    ][0]
-                    - sub_mn
-                )
-            self.class_thr = 0
+        # Forced choice scores each subject's pair against the pair's own mean
+        if subject_ids is None:
+            positive_idx = negative_idx = None
+            evaluated = scores
+        else:
+            positive_idx, negative_idx = _forced_choice_pairs(subject_ids, labels)
+            self.input_values = _centered_within_pairs(
+                scores, positive_idx, negative_idx
+            )
+            evaluated = self.input_values
 
         # Calculate true positive and false positive rate
         self.tpr = np.zeros(self.criterion_values.shape)
         self.fpr = np.zeros(self.criterion_values.shape)
         for i, x in enumerate(self.criterion_values):
-            wh = self.input_values >= x
-            self.tpr[i] = np.sum(wh[self.binary_outcome]) / np.sum(self.binary_outcome)
-            self.fpr[i] = np.sum(wh[~self.binary_outcome]) / np.sum(
-                ~self.binary_outcome
-            )
-        self.n_true = np.sum(self.binary_outcome)
-        self.n_false = np.sum(~self.binary_outcome)
+            wh = evaluated >= x
+            self.tpr[i] = np.sum(wh[labels]) / np.sum(labels)
+            self.fpr[i] = np.sum(wh[~labels]) / np.sum(~labels)
+        self.n_true = np.sum(labels)
+        self.n_false = np.sum(~labels)
         self.auc = auc(self.fpr, self.tpr)
 
-        # Get criterion threshold. An explicit method= overrides the instance's
-        # configured self.method for this call only; self.method itself is left
-        # untouched so a later bare calculate() reverts to it (q31x fvgk #12).
-        if self.forced_choice is None:
-            resolved_method = self.method if method is None else method
-            if resolved_method == "optimal_balanced":
-                # Balanced accuracy is the mean of sensitivity and specificity.
-                # Averaging tpr with fpr instead maximizes at the lowest
-                # criterion value, where everything is called positive.
-                balanced_accuracy = (self.tpr + (1 - self.fpr)) / 2
-                self.class_thr = self.criterion_values[np.argmax(balanced_accuracy)]
-            elif resolved_method == "optimal_overall":
-                n_corr_t = self.tpr * self.n_true
-                n_corr_f = (1 - self.fpr) * self.n_false
-                sm = n_corr_t + n_corr_f
-                self.class_thr = self.criterion_values[np.argmax(sm)]
-            elif resolved_method == "minimum_sdt_bias":
-                # Calculate  MacMillan and Creelman 2005 Response Bias (c_bias)
-                c_bias = (
-                    norm.ppf(np.maximum(0.0001, np.minimum(0.9999, self.tpr)))
-                    + norm.ppf(np.maximum(0.0001, np.minimum(0.9999, self.fpr)))
-                ) / float(2)
-                self.class_thr = self.criterion_values[np.argmin(abs(c_bias))]
+        # Get criterion threshold
+        if subject_ids is not None:
+            # Centering puts a pair's two scores either side of zero
+            self.class_thr = 0
+        elif resolved_method == "optimal_balanced":
+            # Balanced accuracy is the mean of sensitivity and specificity.
+            # Averaging tpr with fpr instead maximizes at the lowest
+            # criterion value, where everything is called positive.
+            balanced_accuracy = (self.tpr + (1 - self.fpr)) / 2
+            self.class_thr = self.criterion_values[np.argmax(balanced_accuracy)]
+        elif resolved_method == "optimal_overall":
+            n_corr_t = self.tpr * self.n_true
+            n_corr_f = (1 - self.fpr) * self.n_false
+            sm = n_corr_t + n_corr_f
+            self.class_thr = self.criterion_values[np.argmax(sm)]
+        elif resolved_method == "minimum_sdt_bias":
+            # Calculate  MacMillan and Creelman 2005 Response Bias (c_bias)
+            c_bias = (
+                norm.ppf(np.maximum(0.0001, np.minimum(0.9999, self.tpr)))
+                + norm.ppf(np.maximum(0.0001, np.minimum(0.9999, self.fpr)))
+            ) / float(2)
+            self.class_thr = self.criterion_values[np.argmin(abs(c_bias))]
 
         # Calculate output
-        self.false_positive = (self.input_values >= self.class_thr) & (
-            ~self.binary_outcome
-        )
-        self.false_negative = (self.input_values < self.class_thr) & (
-            self.binary_outcome
-        )
+        self.false_positive = (evaluated >= self.class_thr) & (~labels)
+        self.false_negative = (evaluated < self.class_thr) & labels
         self.misclass = (self.false_negative) | (self.false_positive)
-        self.true_positive = (self.binary_outcome) & (~self.misclass)
-        self.true_negative = (~self.binary_outcome) & (~self.misclass)
-        self.sensitivity = (
-            np.sum(self.input_values[self.binary_outcome] >= self.class_thr)
-            / self.n_true
-        )
+        self.true_positive = labels & (~self.misclass)
+        self.true_negative = (~labels) & (~self.misclass)
+        self.sensitivity = np.sum(evaluated[labels] >= self.class_thr) / self.n_true
         self.specificity = (
-            1
-            - np.sum(self.input_values[~self.binary_outcome] >= self.class_thr)
-            / self.n_false
+            1 - np.sum(evaluated[~labels] >= self.class_thr) / self.n_false
         )
         self.ppv = np.sum(self.true_positive) / (
             np.sum(self.true_positive) + np.sum(self.false_positive)
         )
-        if self.forced_choice is not None:
-            self.true_positive = self.true_positive[self.binary_outcome]
-            self.true_negative = self.true_negative[~self.binary_outcome]
-            self.false_negative = self.false_negative[self.binary_outcome]
-            self.false_positive = self.false_positive[~self.binary_outcome]
+        if subject_ids is not None:
+            self.true_positive = self.true_positive[labels]
+            self.true_negative = self.true_negative[~labels]
+            self.false_negative = self.false_negative[labels]
+            self.false_positive = self.false_positive[~labels]
             self.misclass = (self.false_positive) | (self.false_negative)
 
         # Calculate Accuracy
@@ -328,18 +484,14 @@ class Roc:
 
         if method == "gaussian":
             if self.forced_choice is not None:
-                sub_idx = np.unique(self.forced_choice)
-                diff_scores = []
-                for sub in sub_idx:
-                    diff_scores.append(
-                        self.input_values[
-                            (self.forced_choice == sub) & (self.binary_outcome)
-                        ][0]
-                        - self.input_values[
-                            (self.forced_choice == sub) & (~self.binary_outcome)
-                        ][0]
-                    )
-                diff_scores = np.array(diff_scores)
+                positive_idx, negative_idx = _forced_choice_pairs(
+                    self.forced_choice, self.binary_outcome
+                )
+                # Within-pair centering shifts both scores of a pair equally, so
+                # the differences are the same on the raw scores.
+                diff_scores = (
+                    self.input_values[positive_idx] - self.input_values[negative_idx]
+                )
                 mn_diff = np.mean(diff_scores)
                 d = mn_diff / np.std(diff_scores)
                 pooled_sd = np.std(diff_scores) / np.sqrt(2)
