@@ -72,6 +72,45 @@ class TestToH5Adjacency:
         assert list(Adjacency(path).labels) == ["1", "right"]
 
 
+class TestFitRecordDesignSpaces:
+    """Banded feature-space names are user text, not HDF5 paths."""
+
+    def test_names_with_slashes_round_trip(self, tmp_path):
+        from types import SimpleNamespace
+
+        import numpy as np
+
+        from nltools.io.h5 import _read_fit_record, _write_fit_record
+
+        h5py = pytest.importorskip("h5py")
+        design = {
+            "a": np.array([[1.0], [2.0]]),
+            "a/b": np.array([[3.0], [4.0]]),
+            "/abs": np.array([[5.0], [6.0]]),
+        }
+        fit = SimpleNamespace(
+            kind="ridge",
+            betas=None,
+            predicted=None,
+            residual=None,
+            r2=None,
+            alpha=None,
+            design=design,
+        )
+
+        path = str(tmp_path / "banded.h5")
+        with h5py.File(path, "w") as f:
+            _write_fit_record(f, fit, "gzip")
+        with h5py.File(path, "r") as f:
+            # Nothing escaped the model group into the file root.
+            assert set(f.keys()) == {"model"}
+            record = _read_fit_record(f)
+
+        assert list(record["design"]) == ["a", "a/b", "/abs"]
+        for name, matrix in design.items():
+            np.testing.assert_allclose(record["design"][name], matrix)
+
+
 class TestLegacyLayoutRejected:
     """Files written by nltools 0.5.1 and earlier are refused with an export hint."""
 

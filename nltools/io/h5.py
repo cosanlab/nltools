@@ -294,15 +294,17 @@ def _write_fit_record(h5_file, fit, compression):
         _write_h5_group(group.create_group("design"), design, compression)
     elif isinstance(design, Mapping):
         spaces = group.create_group("design_spaces")
-        # h5py iterates a group's members by name, but the coefficient blocks
-        # follow the order the fit saw the spaces, so the order is recorded
-        # rather than recovered from the member names.
+        # The datasets are numbered rather than named: a feature-space name is
+        # user text and h5py reads a `/` in it as a group path, so a name like
+        # "vis/motion" or "/abs" would nest or escape the group. The names live
+        # in this attribute, which also fixes the order — h5py iterates members
+        # by name, but the coefficient blocks follow the order the fit saw.
         spaces.attrs["order"] = np.array(
             [str(name) for name in design], dtype=h5py.string_dtype("utf-8")
         )
-        for name, matrix in design.items():
+        for position, matrix in enumerate(design.values()):
             spaces.create_dataset(
-                str(name), data=np.asarray(matrix), compression=compression
+                str(position), data=np.asarray(matrix), compression=compression
             )
     elif design is not None:
         group.create_dataset(
@@ -339,7 +341,7 @@ def _read_fit_record(h5_file):
             name.decode() if isinstance(name, bytes) else str(name)
             for name in spaces.attrs["order"]
         ]
-        design = {name: np.array(spaces[name]) for name in order}
+        design = {name: np.array(spaces[str(i)]) for i, name in enumerate(order)}
     elif "design_array" in group:
         design = np.array(group["design_array"])
 
