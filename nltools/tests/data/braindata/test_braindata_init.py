@@ -435,3 +435,41 @@ class TestLoaderAffineTolerance:
         brain = BrainData([img], mask=mask)
         np.testing.assert_array_equal(brain.data[0], expected)
         np.testing.assert_array_equal(img.affine, original_affine)
+
+
+class TestConstructFromBrainDataWithADifferentMask:
+    """A replacement mask on the same grid re-extracts; it does not reinterpret.
+
+    The packed voxel axis is meaningless without the mask it was packed
+    against, so installing a new mask has to unmask and re-extract. The
+    widening rule is `apply_mask`'s: support the new mask adds arrives as zeros.
+    """
+
+    @staticmethod
+    def _grid_mask(flat_indices):
+        values = np.zeros(8, dtype=np.uint8)
+        values[list(flat_indices)] = 1
+        return nib.Nifti1Image(values.reshape(2, 2, 2), np.eye(4))
+
+    def test_partly_overlapping_support_is_re_extracted(self):
+        source = BrainData(
+            np.array([[10.0, 20.0], [30.0, 40.0]]), mask=self._grid_mask([0, 1])
+        )
+        result = BrainData(source, mask=self._grid_mask([1, 2]))
+        np.testing.assert_array_equal(result.data, [[20.0, 0.0], [40.0, 0.0]])
+
+    def test_a_wider_mask_widens_the_voxel_axis(self):
+        source = BrainData(
+            np.array([[10.0, 20.0], [30.0, 40.0]]), mask=self._grid_mask([0, 1])
+        )
+        result = BrainData(source, mask=self._grid_mask([0, 1, 2]))
+        assert result.shape == (2, 3)
+        np.testing.assert_array_equal(result.data, [[10.0, 20.0, 0.0], [30.0, 40.0, 0.0]])
+        assert result.to_nifti().shape == (2, 2, 2, 2)
+
+    def test_identical_support_keeps_the_values(self):
+        source = BrainData(
+            np.array([[10.0, 20.0], [30.0, 40.0]]), mask=self._grid_mask([0, 1])
+        )
+        result = BrainData(source, mask=self._grid_mask([0, 1]))
+        np.testing.assert_array_equal(result.data, source.data)
