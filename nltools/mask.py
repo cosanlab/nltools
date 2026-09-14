@@ -136,11 +136,11 @@ def expand_mask(mask, custom_mask=None):
         raise ValueError("Make sure mask is a nibabel or BrainData instance.")
     # int32, not the platform `int`: NIfTI tooling cannot carry 64-bit ints, so
     # nilearn downcasts them (with a warning) the moment the mask is written or
-    # plotted.
-    mask.data = np.round(mask.data).astype(np.int32)
+    # plotted. Rounded into a local, never back onto the caller's object.
+    labels = np.round(mask.data).astype(np.int32)
     tmp = []
-    for i in np.unique(mask.data[mask.data != 0]):
-        tmp.append((mask.data == i).astype(np.int32))
+    for i in np.unique(labels[labels != 0]):
+        tmp.append((labels == i).astype(np.int32))
     out = mask.create_empty()
     out.data = np.array(tmp)
     return out

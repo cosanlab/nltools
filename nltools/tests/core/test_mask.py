@@ -238,3 +238,17 @@ def test_collapse_mask_drops_every_overlap():
     collapsed = collapse_mask(masks)
 
     assert collapsed.data.tolist() == [1, 0, 2, 3]
+
+
+def test_expand_mask_leaves_the_caller_s_data_alone():
+    # E-13: the rounding to int32 was written back onto the input object, so a
+    # caller's labeled image was silently rounded and retyped under it.
+    labels = BrainData(np.array([[0.0, 1.2, 2.0, 0.0]]), mask=_four_voxel_mask())
+    before = labels.data.copy()
+
+    expanded = expand_mask(labels)
+
+    assert labels.data.dtype == before.dtype
+    assert np.array_equal(labels.data, before)
+    assert expanded.data.dtype == np.int32
+    assert expanded.data.tolist() == [[0, 1, 0, 0], [0, 0, 1, 0]]
