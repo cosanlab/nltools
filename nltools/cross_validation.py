@@ -59,14 +59,24 @@ class KFoldStratified(_BaseKFold):
             X (array-like): Training data of shape `(n_samples, n_features)`. Only
                 `y` is needed to generate the splits, so `np.zeros(n_samples)` works
                 as a placeholder.
-            y (array-like): Continuous target of shape `(n_samples,)`; stratification
-                is based on its ordering.
+            y (array-like): Continuous target of shape `(n_samples,)` or
+                `(n_samples, 1)`; stratification is based on its ordering.
             groups (array-like, optional): Always ignored; exists for sklearn
                 compatibility.
 
         Yields:
             tuple[np.ndarray, np.ndarray]: `(train, test)` — the training set indices
                 and the testing set indices for that split.
+
+        Raises:
+            ValueError: If `y` carries more than one target per sample. Ordering
+                samples by a multi-target response has no single meaning, and
+                flattening one would produce more fold labels than there are rows.
         """
         y = check_array(y, ensure_2d=False, dtype=None)
+        if y.ndim > 2 or (y.ndim == 2 and y.shape[1] != 1):
+            raise ValueError(
+                f"y must hold one target per sample, got shape {y.shape}. "
+                "Stratify on a single continuous response."
+            )
         return super().split(X, y, groups)
