@@ -2014,7 +2014,8 @@ class BrainData:
         each peak/cluster against one or more atlases.
 
         Args:
-            stat_threshold: Voxel-level threshold (e.g. z- or t-cutoff).
+            stat_threshold: Voxel-level threshold (e.g. z- or t-cutoff), applied
+                exclusively: a voxel exactly at the threshold is dropped.
                 ``None`` treats ``self`` as already thresholded.
             cluster_threshold: Minimum cluster size in voxels.
             two_sided: Report negative clusters separately.

@@ -273,3 +273,25 @@ def test_peak_rows_carry_their_parent_clusters_extent():
     assert clusters["n_voxels"].to_list() == [2]
     assert peaks["n_voxels"].to_list() == [2, 2]
     assert peaks["volume_mm3"].to_list() == [54.0, 54.0]
+
+
+def test_voxels_exactly_at_the_threshold_are_excluded():
+    """E-06: the threshold is exclusive, as it is in `get_clusters_table`.
+
+    A voxel equal to `stat_threshold` used to survive into `clusters` and
+    `stat_img` while nilearn's strict comparison dropped it from `peaks`, so the
+    cluster had no peak row to join to.
+    """
+    brain = _two_voxel_brain({(2, 2, 2): 3.0})
+
+    peaks, clusters, stat_img = _cluster_report_data(
+        brain,
+        stat_threshold=3.0,
+        cluster_threshold=1,
+        two_sided=False,
+        atlas=[],
+    )
+
+    assert clusters.height == 0
+    assert peaks.height == 0
+    assert np.all(stat_img.data == 0)

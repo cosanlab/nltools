@@ -127,14 +127,17 @@ def _build_threshold_mask(
 ) -> np.ndarray:
     """Return a boolean mask of voxels surviving the voxel-level threshold.
 
+    The threshold is exclusive, matching `get_clusters_table`, so a voxel exactly
+    at ``stat_threshold`` is dropped by both the clusters and the peaks table.
+
     If ``stat_threshold is None``, treat the input as already thresholded
     (only zero vs non-zero matters).
     """
     if stat_threshold is None:
         return data != 0 if two_sided else data > 0
     if two_sided:
-        return np.abs(data) >= stat_threshold
-    return data >= stat_threshold
+        return np.abs(data) > stat_threshold
+    return data > stat_threshold
 
 
 def _label_clusters(data: np.ndarray, mask: np.ndarray, two_sided: bool) -> np.ndarray:
