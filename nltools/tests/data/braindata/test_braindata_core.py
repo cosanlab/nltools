@@ -205,6 +205,70 @@ class TestBrainDataCore:
     def test_empty_data_has_length_zero(self, minimal_brain_data):
         assert len(minimal_brain_data.create_empty()) == 0
 
+    def test_setitem_replaces_metadata_by_column_name(self):
+        """Row assignment matches metadata columns by name, and keeps their dtypes.
+
+        Routing the replacement through one NumPy matrix matched columns by
+        position — so a differently ordered replacement installed the wrong
+        values — and collapsed a mixed-dtype frame to Object.
+        """
+        import nibabel as nib
+
+        mask = nib.Nifti1Image(np.ones((2, 2, 2), dtype=np.uint8), np.eye(4))
+        brain = BrainData(
+            np.zeros((3, 8)),
+            mask=mask,
+            X=pl.DataFrame({"a": [1, 2, 3], "b": ["x", "y", "z"]}),
+        )
+        replacement = BrainData(
+            np.ones((1, 8)),
+            mask=mask,
+            X=pl.DataFrame({"b": ["q"], "a": [9]}),
+        )
+
+        brain[0] = replacement
+
+        assert brain.X.schema == pl.Schema([("a", pl.Int64), ("b", pl.String)])
+        assert brain.X.to_dicts()[0] == {"a": 9, "b": "q"}
+
+    def test_setitem_writes_a_single_column_metadata_frame(self):
+        """A one-column metadata frame is the common case and must not crash.
+
+        Polars hands back a read-only zero-copy view for a single numeric
+        column, so assigning into `to_numpy()` raised before anything was
+        written.
+        """
+        import nibabel as nib
+
+        mask = nib.Nifti1Image(np.ones((2, 2, 2), dtype=np.uint8), np.eye(4))
+        brain = BrainData(
+            np.zeros((3, 8)), mask=mask, Y=pl.DataFrame({"label": [1.0, 2.0, 3.0]})
+        )
+        replacement = BrainData(
+            np.ones((1, 8)), mask=mask, Y=pl.DataFrame({"label": [9.0]})
+        )
+
+        brain[0] = replacement
+
+        assert brain.Y["label"].to_list() == [9.0, 2.0, 3.0]
+        np.testing.assert_array_equal(brain.data[0], replacement.data)
+        assert brain.model is None
+
+    def test_setitem_rejects_unknown_metadata_columns(self):
+        import nibabel as nib
+
+        mask = nib.Nifti1Image(np.ones((2, 2, 2), dtype=np.uint8), np.eye(4))
+        brain = BrainData(
+            np.zeros((3, 8)), mask=mask, Y=pl.DataFrame({"label": [1.0, 2.0, 3.0]})
+        )
+        replacement = BrainData(
+            np.ones((1, 8)), mask=mask, Y=pl.DataFrame({"other": [9.0]})
+        )
+
+        with pytest.raises(ValueError, match="compatible Y metadata"):
+            brain[0] = replacement
+        assert brain.Y["label"].to_list() == [1.0, 2.0, 3.0]
+
     # ==================== Statistical Methods ====================
 
     def test_distance(self, minimal_brain_data):
