@@ -109,6 +109,20 @@ class TestISFC:
             np.array(isfc_out).mean(axis=0).mean(), 0, decimal=1
         )
 
+    def test_isfc_worker_count_does_not_change_integer_results(self):
+        """Parallel ISFC accumulates in float64, like the serial path.
+
+        Three identical subjects correlate perfectly, whatever the input dtype;
+        summing them in `int8` wrapped 70 + 70 to -116 and gave -0.825.
+        """
+        data = [np.array([[50], [60], [70]], dtype=np.int8) for _ in range(3)]
+
+        serial = np.array(isfc(data, n_jobs=1))
+        parallel = np.array(isfc(data, n_jobs=2))
+
+        np.testing.assert_allclose(serial, 1.0)
+        np.testing.assert_allclose(parallel, 1.0)
+
 
 class TestISPS:
     """Test intersubject phase synchrony."""
