@@ -543,7 +543,8 @@ def align_states(
             reordered data. Defaults to False.
         replace_zero_variance (bool): Replace zero-variance columns with uniform
             random numbers before computing distances; avoids NaNs with the
-            correlation metric. Defaults to False.
+            correlation metric. Integer inputs are converted to float so the
+            replacement noise survives. Defaults to False.
 
     Returns:
         np.ndarray: If `return_index=False` (default), `target[:, remapping]` — the
@@ -563,12 +564,18 @@ def align_states(
         Prevents NaN values when correlation-based distance metrics encounter
         constant columns.
 
+        The array is converted to float first: writing U(0, 1) draws into an
+        integer array truncates every one of them to zero, leaving the constant
+        column constant and the correlation distance NaN.
+
         Args:
             data (np.ndarray): 2-D array whose columns are checked for zero variance.
 
         Returns:
-            np.ndarray: Array with zero-variance columns replaced by U(0, 1) values.
+            np.ndarray: Float array with zero-variance columns replaced by
+                U(0, 1) values.
         """
+        data = np.asarray(data, dtype=float)
         if np.any(data.std(axis=0) == 0):
             for i in np.where(data.std(axis=0) == 0)[0]:
                 data[:, i] = np.random.uniform(low=0, high=1, size=data.shape[0])

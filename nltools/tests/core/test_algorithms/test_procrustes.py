@@ -157,6 +157,25 @@ class TestAlignStates:
             states.shape, align_states(scrambled, states, return_index=False).shape
         )
 
+    def test_replacement_noise_survives_an_integer_state_map(self):
+        """Uniform noise truncates to zero when written into an integer copy.
+
+        The constant column then stays constant, correlation distance is still
+        NaN, and the Hungarian solver refuses the matrix — so the option did
+        nothing for exactly the inputs it exists to rescue.
+        """
+        reference = np.array([[0, 1], [0, 2], [0, 3]])
+        target = np.array([[0, 1], [0, 2], [0, 3]])
+
+        index = align_states(
+            reference, target, return_index=True, replace_zero_variance=True
+        )
+
+        assert len(index) == 2
+        assert reference.dtype == np.int64
+        assert np.array_equal(reference, [[0, 1], [0, 2], [0, 3]])
+        assert np.array_equal(target, [[0, 1], [0, 2], [0, 3]])
+
 
 class TestTransformationMatrixOrientation:
     """Both alignment entry points return `T` with `transformed = original @ T`."""
