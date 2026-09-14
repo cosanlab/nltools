@@ -233,6 +233,12 @@ def find_spikes(
             `.nl_global_spike*` one is kept. Without `TR` / `sampling_freq` the
             result has `sampling_freq=None` and can still be appended to a
             DesignMatrix that has one.
+
+    Raises:
+        ValueError: If both cutoffs are None, if `data` is neither a `BrainData`
+            nor a `nibabel.Nifti1Image`, if a NIfTI is not 4-D once trailing
+            singleton axes are dropped, or if both `TR` and `sampling_freq` are
+            given.
     """
 
     from nltools.data import BrainData
@@ -248,10 +254,17 @@ def find_spikes(
     elif isinstance(data, nib.Nifti1Image):
         # Avoid deepcopy overhead - just copy the data array
         data_array = data.get_fdata().copy()
-        if len(data_array.shape) > 3:
-            data_array = np.squeeze(data_array)
-        elif len(data_array.shape) < 3:
-            raise ValueError("nibabel instance does not appear to be 4D data.")
+        # Drop *trailing* singleton axes only, so an (x, y, z, t, 1) image still
+        # works. A blanket squeeze also removed a singleton spatial axis — a
+        # single-slice acquisition or a one-voxel-wide FOV — and left a 3-D
+        # array the time-axis arithmetic below cannot index.
+        while data_array.ndim > 4 and data_array.shape[-1] == 1:
+            data_array = data_array[..., 0]
+        if data_array.ndim != 4:
+            raise ValueError(
+                "find_spikes requires 4D data (x, y, z, time); got shape "
+                f"{data_array.shape}"
+            )
         global_mn = np.mean(data_array, axis=(0, 1, 2))
         frame_diff = np.mean(np.abs(np.diff(data_array, axis=3)), axis=(0, 1, 2))
     else:

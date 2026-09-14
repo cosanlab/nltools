@@ -320,3 +320,20 @@ class TestFindSpikesDiffAlignment:
 
         flagged = np.flatnonzero(dm.to_numpy()[:, 0])
         np.testing.assert_array_equal(flagged, [9])
+
+
+class TestFindSpikesRank:
+    """G-15: a singleton spatial axis must not be squeezed away."""
+
+    def test_single_slice_acquisition(self):
+        """`(1, 2, 2, 10)` is 4-D data, not 3-D."""
+        import nibabel as nib
+
+        data = np.zeros((1, 2, 2, 10))
+        data[..., 9] = 100.0
+        img = nib.Nifti1Image(data, affine=np.eye(4))
+
+        dm = find_spikes(img, global_spike_cutoff=None, diff_spike_cutoff=2)
+
+        assert dm.shape[0] == 10
+        np.testing.assert_array_equal(np.flatnonzero(dm.to_numpy()[:, 0]), [9])
