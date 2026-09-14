@@ -1266,8 +1266,9 @@ class BrainData:
             bg_img (str/nibabel image, optional): Background image.
             ax (matplotlib.axes.Axes, optional): Matplotlib axis to draw on.
                 The nilearn methods receive it as ``axes=``, and the figure
-                stays the caller's. One axis holds one map, so multi-image data
-                with ``ax`` raises.
+                stays the caller's. One axis holds one map, so ``ax`` raises
+                unless exactly one map is drawn (``limit=1`` on a multi-image
+                stack draws the first).
             figsize (tuple, optional): Figure size for ``method='timeseries'``
                 and ``method='histogram'`` when no ``ax`` is given. Default
                 ``(8, 6)``. A glass or slice figure takes its size from a

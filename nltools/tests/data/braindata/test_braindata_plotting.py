@@ -206,18 +206,26 @@ class TestDefaultStatColormap:
         assert fig.number in plt.get_fignums()
         plt.close(fig)
 
-    def test_plot_rejects_an_axis_for_multi_image_data(self, minimal_brain_data):
-        """One axis cannot hold several maps, so asking for that raises.
+    def test_plot_rejects_an_axis_for_more_than_one_map(self, minimal_brain_data):
+        """One axis holds one map, so `ax` raises unless exactly one is drawn.
 
         Without the guard every map is drawn into the caller's axis and the
         documented list of one figure per image becomes the same figure
-        repeated.
+        repeated. `limit=1` draws one map, so it is the escape the message
+        names.
         """
         import matplotlib.pyplot as plt
 
         fig, ax = plt.subplots()
         with pytest.raises(ValueError, match="ax draws one map"):
             minimal_brain_data.plot(method="glass", ax=ax)
+        plt.close(fig)
+
+        fig, ax = plt.subplots()
+        with pytest.warns(UserWarning, match="plotting first"):
+            result = minimal_brain_data.plot(method="glass", ax=ax, limit=1)
+        assert result == [ax.figure]
+        assert fig.number in plt.get_fignums()
         plt.close(fig)
 
     # ==================== Multi-image rendering (limit) ====================
