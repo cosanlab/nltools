@@ -53,9 +53,7 @@ class TestAdjacencyStats:
         one_draw = sim_adjacency_single.similarity(
             other, method="1d", n_permute=1, return_null=True, random_state=0
         )
-        no_draws = sim_adjacency_single.similarity(
-            other, method=None, return_null=True
-        )
+        no_draws = sim_adjacency_single.similarity(other, method=None, return_null=True)
 
         assert one_draw["null_dist"].shape == (1,)
         assert no_draws["null_dist"].shape == (0,)
