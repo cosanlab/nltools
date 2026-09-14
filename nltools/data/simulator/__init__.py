@@ -805,10 +805,12 @@ class SimulateGrid:
         """
         if self.signal_mask is None:
             raise ValueError("No mask exists, run add_signal() first.")
-        fp_percent = np.sum(thresholded[self.signal_mask == 0] > 0) / np.sum(
-            thresholded > 0
-        )
-        return fp_percent
+        # Thresholding is two-sided, so a negative value is a discovery too, and
+        # a map with no discoveries has a rate of 0 rather than 0/0.
+        discoveries = thresholded != 0
+        if discoveries.sum() == 0:
+            return 0.0
+        return np.sum(discoveries & (self.signal_mask == 0)) / discoveries.sum()
 
     def run_multiple_simulations(
         self, threshold, threshold_type, n_simulations=100, correction=None
