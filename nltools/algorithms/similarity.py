@@ -214,10 +214,12 @@ def _compute_multivariate_similarity(y, X, tail=2):
     # Add intercept (first column)
     X_with_intercept = np.hstack([np.ones((X.shape[0], 1)), X])
 
-    b, _, t_out, p, _, res = regress(X_with_intercept, y, tail=tail)
+    b, _, t_out, p, residual_df, res = regress(X_with_intercept, y, tail=tail)
 
-    n, p_cols = X_with_intercept.shape
-    df = n - p_cols
+    # `regress` counts residual df by the design's rank and scores t and p
+    # against it, so take the value it returned rather than recomputing one the
+    # returned p-values would disagree with.
+    df = int(np.asarray(residual_df).ravel()[0])
     # Unbiased estimator of residual standard error: sqrt(RSS / df); correct for
     # both intercept and intercept-free models. See GH #287.
     sigma = float(np.sqrt(np.dot(res, res) / df))
