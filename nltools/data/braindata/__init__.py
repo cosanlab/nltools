@@ -244,7 +244,10 @@ class BrainData:
         if not isinstance(other, BrainData):
             return False
 
-        eq_data = np.all(self.data == other.data)
+        # array_equal, not `np.all(a == b)`: the latter broadcasts, so one map
+        # equalled a stack of identical ones and unequal row counts raised out
+        # of __eq__. The NaN policy is the same either way (NaN != NaN).
+        eq_data = np.array_equal(self.data, other.data)
         eq_X = self.X.equals(other.X)
         eq_Y = self.Y.equals(other.Y)
 
