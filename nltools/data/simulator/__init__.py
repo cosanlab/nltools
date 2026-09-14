@@ -676,14 +676,11 @@ class SimulateGrid:
         """
 
         mask = np.zeros((self.grid_width, self.grid_width))
-        mask[
-            int(np.floor((self.grid_width / 2) - (signal_width / 2))) : int(
-                np.ceil((self.grid_width / 2) + (signal_width / 2))
-            ),
-            int(np.floor((self.grid_width / 2) - (signal_width / 2))) : int(
-                np.ceil((self.grid_width / 2) + (signal_width / 2))
-            ),
-        ] = 1
+        # One start index for both axes: rounding the two edges separately made
+        # the box a pixel wider whenever the grid and signal widths had different
+        # parity.
+        start = int(round((self.grid_width - signal_width) / 2))
+        mask[start : start + signal_width, start : start + signal_width] = 1
         self.signal_width = signal_width
         self.signal_mask = mask
 
@@ -776,8 +773,9 @@ class SimulateGrid:
         if self.signal_mask is None:
             fp_percent = np.sum(thresholded != 0) / (self.grid_width**2)
         else:
+            n_signal = int(self.signal_mask.sum())
             fp_percent = np.sum(thresholded[self.signal_mask != 1] != 0) / (
-                self.grid_width**2 - self.signal_width**2
+                self.grid_width**2 - n_signal
             )
         return fp_percent
 
@@ -792,8 +790,8 @@ class SimulateGrid:
 
         if self.signal_mask is None:
             raise ValueError("No mask exists, run add_signal() first.")
-        tp_percent = np.sum(thresholded[self.signal_mask == 1] != 0) / (
-            self.signal_width**2
+        tp_percent = np.sum(thresholded[self.signal_mask == 1] != 0) / int(
+            self.signal_mask.sum()
         )
         return tp_percent
 
