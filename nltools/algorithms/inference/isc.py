@@ -27,7 +27,7 @@ from sklearn.utils import check_random_state
 from sklearn.metrics import pairwise_distances
 
 from .utils import EPSILON, _maybe_tqdm
-from ..validation import _compute_pvalue, _validate_tail_parameter
+from ..validation import _normalize_tail_internal, _validate_tail_parameter
 
 
 # ============================================================================
@@ -268,6 +268,66 @@ def _compute_pairwise_isc(data, metric="correlation"):
             pairwise_all[:, v] = squareform(sim_matrix, checks=False)
         return pairwise_all
     raise ValueError(f"data must be 2D or 3D, got shape {data.shape}")
+
+
+def _summarize_isc_resamples(
+    observed, null_dist, interval_source, tail, ci_percentile
+):
+    """P-value and percentile interval over the resamples that are defined.
+
+    A resample can be undefined: with few subjects a bootstrap draw may contain
+    nothing but duplicated-subject pairs, and a flat feature has no correlation
+    at all. Such a draw is dropped per feature instead of being counted as a
+    non-exceedance, so the Phipson-Smyth denominator is the number of draws
+    that exist — `(exceedances + 1) / (n_valid + 1)`. A feature with no defined
+    draw gets NaN for the p-value and for both bounds.
+
+    Args:
+        observed (np.ndarray): Observed statistic, shape `()` or
+            `(n_features,)`.
+        null_dist (np.ndarray): Draws the p-value counts against, shape
+            `(n_resamples,)` or `(n_resamples, n_features)`.
+        interval_source (np.ndarray): Draws the interval is taken over, shaped
+            like `null_dist`. The bootstrap paths pass the uncentered draws.
+        tail (int | str): Tail vocabulary, as `_compute_pvalue` accepts it.
+        ci_percentile (float): Interval width in percent.
+
+    Returns:
+        tuple[np.ndarray, np.ndarray, np.ndarray]: P-values, lower bounds and
+            upper bounds, each shape `(n_features,)`.
+    """
+    observed = np.atleast_1d(np.asarray(observed, dtype=np.float64))
+    n_features = observed.shape[0]
+    null_dist = np.asarray(null_dist, dtype=np.float64).reshape(-1, n_features)
+    interval_source = np.asarray(interval_source, dtype=np.float64).reshape(
+        -1, n_features
+    )
+
+    defined = ~np.isnan(null_dist)
+    n_valid = defined.sum(axis=0)
+
+    tail_normalized = _normalize_tail_internal(tail)
+    if tail_normalized == "upper":
+        exceeds = null_dist >= observed
+    elif tail_normalized == "lower":
+        exceeds = null_dist <= observed
+    else:
+        exceeds = np.abs(null_dist) >= np.abs(observed)
+
+    numerator = np.sum(exceeds & defined, axis=0) + 1.0
+    p_values = np.where(n_valid > 0, numerator / (n_valid + 1.0), np.nan)
+
+    lower_q = (100 - ci_percentile) / 2
+    upper_q = ci_percentile + lower_q
+    ci_lower = np.full(n_features, np.nan)
+    ci_upper = np.full(n_features, np.nan)
+    has_interval = (~np.isnan(interval_source)).any(axis=0)
+    if has_interval.any():
+        usable = interval_source[:, has_interval]
+        ci_lower[has_interval] = np.nanpercentile(usable, lower_q, axis=0)
+        ci_upper[has_interval] = np.nanpercentile(usable, upper_q, axis=0)
+
+    return p_values, ci_lower, ci_upper
 
 
 def _validate_group_shapes(group1, group2):
@@ -949,35 +1009,7 @@ def _isc_group_permutation_test(
             max_memory_gb=None,  # Auto-detect
         )
 
-    # Handle NaN values (from exclude_self_corr masking)
-    # For single feature: remove all NaN values
-    # For voxel-wise: keep NaN per voxel (they represent valid bootstrap samples)
-    if null_dist.ndim == 1:
-        # Single feature: filter out NaN values
-        null_dist = null_dist[~np.isnan(null_dist)]
-    # For voxel-wise, keep NaN values (they're handled by nanpercentile)
-
-    # Phase 3: Compute p-value and confidence interval
-    # Handle scalar vs array observed_diff
-    if isinstance(observed_diff, np.ndarray) and observed_diff.ndim > 0:
-        # Voxel-wise: (n_voxels,)
-        if null_dist.ndim == 1:
-            # This shouldn't happen - voxel-wise should produce 2D null_dist
-            raise ValueError("Voxel-wise data should produce 2D null_dist")
-        # null_dist shape: (n_permute, n_voxels)
-        p_values = _compute_pvalue(observed_diff, null_dist, tail=tail)
-    else:
-        # Single feature: scalar observed_diff
-        if null_dist.ndim == 1:
-            # null_dist shape: (n_permute,)
-            p_values = _compute_pvalue(
-                np.array([observed_diff]), null_dist.reshape(-1, 1), tail=tail
-            )[0]
-        else:
-            # Shouldn't happen for single feature
-            raise ValueError("Single feature should produce 1D null_dist")
-
-    # Compute confidence intervals.
+    # Phase 3: Compute p-value and confidence interval.
     # For method='bootstrap' the draws in null_dist are CENTERED
     # (boot_estimate - observed_diff) so that the permutation-style p-value tests
     # against H0: difference == 0. A confidence interval, however, must bracket
@@ -986,16 +1018,14 @@ def _isc_group_permutation_test(
     # _isc_permutation_test). For method='permute' the null is a label-permutation
     # band around zero, not a bootstrap of the estimate; its percentiles describe
     # the null spread and are left uncentered.
-    ci_source = null_dist + observed_diff if method == "bootstrap" else null_dist
-    if ci_source.ndim == 1:
-        ci_lower = np.percentile(ci_source, (100 - ci_percentile) / 2)
-        ci_upper = np.percentile(ci_source, ci_percentile + (100 - ci_percentile) / 2)
-    else:
-        # Voxel-wise: compute CI per voxel
-        ci_lower = np.nanpercentile(ci_source, (100 - ci_percentile) / 2, axis=0)
-        ci_upper = np.nanpercentile(
-            ci_source, ci_percentile + (100 - ci_percentile) / 2, axis=0
-        )
+    interval_source = null_dist + observed_diff if method == "bootstrap" else null_dist
+    p_values, ci_lower, ci_upper = _summarize_isc_resamples(
+        observed_diff, null_dist, interval_source, tail, ci_percentile
+    )
+
+    voxelwise = isinstance(observed_diff, np.ndarray) and observed_diff.ndim > 0
+    if not voxelwise:
+        p_values, ci_lower, ci_upper = p_values[0], ci_lower[0], ci_upper[0]
 
     # Build result dictionary
     result = {
@@ -1573,23 +1603,15 @@ def _isc_permutation_test(
         bootstraps = np.array(bootstraps)
         null_distribution = bootstraps
 
-    # Compute p-value (Phipson-Smyth correction)
-    # NOTE: _compute_pvalue signature is (obs_stat, null_dist, tail)
-    p_value = _compute_pvalue(observed_isc, null_distribution, tail=tail)
+    # Compute the p-value (Phipson-Smyth correction) and the interval over the
+    # uncentered resamples.
+    p_value, ci_lower, ci_upper = _summarize_isc_resamples(
+        observed_isc, null_distribution, bootstraps, tail, ci_percentile
+    )
 
-    # Compute confidence interval
-    ci_lower = (100 - ci_percentile) / 2
-    ci_upper = ci_percentile + ci_lower
-
-    if observed_isc.ndim == 0 or observed_isc.shape == ():
-        # Single value
-        ci = (np.percentile(bootstraps, ci_lower), np.percentile(bootstraps, ci_upper))
-    else:
-        # Per-voxel
-        ci = (
-            np.percentile(bootstraps, ci_lower, axis=0),
-            np.percentile(bootstraps, ci_upper, axis=0),
-        )
+    if observed_isc.ndim == 0:
+        ci_lower, ci_upper = ci_lower[0], ci_upper[0]
+    ci = (ci_lower, ci_upper)
 
     # Build result dictionary
     result = {
