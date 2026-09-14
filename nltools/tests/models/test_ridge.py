@@ -292,6 +292,17 @@ class TestNumericalBehavior:
         expected = 1 - ((Y - predictions) ** 2).sum(0) / ((Y - Y.mean(0)) ** 2).sum(0)
         np.testing.assert_allclose(scores, expected)
 
+    def test_a_non_finite_target_scores_nan_not_zero(self):
+        """A NaN target is unscoreable, and must not read as a constant target.
+
+        Zero is the constant-target score, a number a user would threshold or
+        plot; a target nltools cannot score has to say so.
+        """
+        X = np.arange(3.0).reshape(-1, 1)
+        model = _Ridge(alpha=1.0).fit(X, np.array([1.0, 2.0, 3.0]))
+        assert np.isnan(model.score(X, np.array([1.0, np.nan, 3.0])))
+        assert model.score(X, np.array([2.0, 2.0, 2.0])) == 0.0
+
 
 # ------------------------------------------------------------------ himalaya parity
 

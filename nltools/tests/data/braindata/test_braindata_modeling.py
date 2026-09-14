@@ -111,6 +111,31 @@ class TestBrainDataModeling:
         with pytest.raises(ValueError, match="features"):
             minimal_brain_data.predict(X=X_wrong)
 
+    def test_ridge_fit_predicts_the_training_response_once(
+        self, minimal_brain_data, monkeypatch
+    ):
+        """Building the `FitResult` must not repeat the whole-brain prediction.
+
+        The fitted values and the R-squared map come from the same prediction;
+        asking the estimator for it twice repeats the feature-space alignment
+        and the full `(samples, features) @ (features, voxels)` product.
+        """
+        from nltools.models.ridge import _Ridge
+
+        calls = []
+        original = _Ridge.predict
+
+        def counted(self, X):
+            calls.append(X)
+            return original(self, X)
+
+        monkeypatch.setattr(_Ridge, "predict", counted)
+
+        X_train = np.random.randn(len(minimal_brain_data), 10)
+        minimal_brain_data.fit(model="ridge", ridge_alpha=1.0, X=X_train)
+
+        assert len(calls) == 1
+
     # ==================== Fit inplace parameter tests ====================
 
     def test_fit_inplace_default_true(self, minimal_brain_data):
