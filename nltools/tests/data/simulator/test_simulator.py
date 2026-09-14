@@ -333,3 +333,22 @@ def test_false_discovery_rate_counts_negative_discoveries():
 
     assert sim._calc_false_discovery_rate(thresholded) == 0.5
     assert sim._calc_false_discovery_rate(np.zeros((4, 4))) == 0.0
+
+
+def test_add_signal_clears_the_previous_fit():
+    """E-11: statistics computed before `add_signal` used to survive it.
+
+    The object reported t-values for data it no longer held and refused to refit.
+    """
+    sim = SimulateGrid(grid_width=4, n_subjects=10, random_state=0)
+    sim.fit()
+    sim.threshold_simulation(threshold=0.05, threshold_type="p")
+
+    sim.add_signal(signal_width=2, signal_amplitude=10)
+
+    assert sim.isfit is False
+    assert sim.thresholded is None
+    sim.fit()
+    assert sim.t_values[sim.signal_mask == 1].mean() > sim.t_values[
+        sim.signal_mask == 0
+    ].mean()
