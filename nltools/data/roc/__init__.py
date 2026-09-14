@@ -12,6 +12,24 @@ from sklearn.metrics import auc
 _VALID_METHODS = ("optimal_overall", "optimal_balanced", "minimum_sdt_bias")
 
 
+def _squeezed_trailing(values):
+    """Drop trailing singleton axes, leaving any leading axis in place.
+
+    An `(n, 1)` column of one value per observation becomes `(n,)`; a `(1, n)`
+    row stays two-dimensional, so it is reported rather than silently read as n
+    observations.
+
+    Args:
+        values (np.ndarray): Array to squeeze.
+
+    Returns:
+        np.ndarray: The array with its trailing singleton axes dropped.
+    """
+    while values.ndim > 1 and values.shape[-1] == 1:
+        values = values[..., 0]
+    return np.atleast_1d(values)
+
+
 def _validated_method(method):
     """Check a threshold-selection variant name.
 
@@ -44,7 +62,7 @@ def _validated_scores(input_values):
         ValueError: If the values are not 1-D once trailing singleton axes are
             dropped, or if any of them is not finite.
     """
-    scores = np.atleast_1d(np.squeeze(np.asarray(input_values, dtype=float)))
+    scores = _squeezed_trailing(np.asarray(input_values, dtype=float))
     if scores.ndim != 1:
         raise ValueError(
             "input_values must be 1-D, one decision value per observation; got "
@@ -70,7 +88,7 @@ def _validated_outcome(binary_outcome):
     Raises:
         ValueError: If the labels are not 1-D, or if one class is missing.
     """
-    labels = np.atleast_1d(np.squeeze(np.asarray(binary_outcome))).astype(bool)
+    labels = _squeezed_trailing(np.asarray(binary_outcome)).astype(bool)
     if labels.ndim != 1:
         raise ValueError(
             "binary_outcome must be 1-D, one label per observation; got "
@@ -97,7 +115,7 @@ def _validated_subject_ids(forced_choice, n_observations):
     Raises:
         ValueError: If the ids are not 1-D or do not cover every observation.
     """
-    ids = np.atleast_1d(np.squeeze(np.asarray(forced_choice)))
+    ids = _squeezed_trailing(np.asarray(forced_choice))
     if ids.ndim != 1:
         raise ValueError(
             "forced_choice must be 1-D, one subject id per observation; got "
@@ -123,7 +141,7 @@ def _validated_criterion_values(criterion_values):
     Raises:
         ValueError: If the thresholds are not 1-D.
     """
-    values = np.atleast_1d(np.squeeze(np.asarray(criterion_values, dtype=float)))
+    values = _squeezed_trailing(np.asarray(criterion_values, dtype=float))
     if values.ndim != 1:
         raise ValueError(
             f"criterion_values must be 1-D; got shape {np.shape(criterion_values)}."
@@ -145,9 +163,11 @@ def _validated_inputs(input_values, binary_outcome, forced_choice):
             subject ids, each owned by the caller.
 
     Raises:
-        ValueError: If any input fails its own checks, or if the scores and the
-            labels are different lengths.
+        ValueError: If `input_values` is missing, if any input fails its own
+            checks, or if the scores and the labels are different lengths.
     """
+    if input_values is None:
+        raise ValueError("input_values is required.")
     scores = _validated_scores(input_values)
     labels = _validated_outcome(binary_outcome)
     if len(scores) != len(labels):
@@ -413,7 +433,17 @@ class Roc:
         self.n_false = np.sum(~labels)
         self.auc = auc(self.fpr, self.tpr)
 
-        # Get criterion threshold
+        # Get criterion threshold. The corner above the largest score belongs on
+        # the curve but not in the selection: a threshold no observation reaches
+        # calls nothing positive, which leaves the positive predictive value
+        # undefined. Choose among the thresholds the data can actually cross.
+        selectable = np.isfinite(self.criterion_values)
+        if not selectable.any():
+            # Only reachable when the caller supplies no finite threshold
+            selectable = np.ones_like(selectable)
+        candidates = self.criterion_values[selectable]
+        tpr = self.tpr[selectable]
+        fpr = self.fpr[selectable]
         if subject_ids is not None:
             # Centering puts a pair's two scores either side of zero
             self.class_thr = 0
@@ -421,20 +451,20 @@ class Roc:
             # Balanced accuracy is the mean of sensitivity and specificity.
             # Averaging tpr with fpr instead maximizes at the lowest
             # criterion value, where everything is called positive.
-            balanced_accuracy = (self.tpr + (1 - self.fpr)) / 2
-            self.class_thr = self.criterion_values[np.argmax(balanced_accuracy)]
+            balanced_accuracy = (tpr + (1 - fpr)) / 2
+            self.class_thr = candidates[np.argmax(balanced_accuracy)]
         elif resolved_method == "optimal_overall":
-            n_corr_t = self.tpr * self.n_true
-            n_corr_f = (1 - self.fpr) * self.n_false
+            n_corr_t = tpr * self.n_true
+            n_corr_f = (1 - fpr) * self.n_false
             sm = n_corr_t + n_corr_f
-            self.class_thr = self.criterion_values[np.argmax(sm)]
+            self.class_thr = candidates[np.argmax(sm)]
         elif resolved_method == "minimum_sdt_bias":
             # Calculate  MacMillan and Creelman 2005 Response Bias (c_bias)
             c_bias = (
-                norm.ppf(np.maximum(0.0001, np.minimum(0.9999, self.tpr)))
-                + norm.ppf(np.maximum(0.0001, np.minimum(0.9999, self.fpr)))
+                norm.ppf(np.maximum(0.0001, np.minimum(0.9999, tpr)))
+                + norm.ppf(np.maximum(0.0001, np.minimum(0.9999, fpr)))
             ) / float(2)
-            self.class_thr = self.criterion_values[np.argmin(abs(c_bias))]
+            self.class_thr = candidates[np.argmin(abs(c_bias))]
 
         # Calculate output
         self.false_positive = (evaluated >= self.class_thr) & (~labels)

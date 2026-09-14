@@ -1,4 +1,5 @@
 import inspect
+import warnings
 
 import numpy as np
 import pytest
@@ -382,3 +383,28 @@ def test_forced_choice_results_repeat_and_match_pre_centered_scores():
     assert (pre_centered.auc, pre_centered.accuracy) == first
     # The caller's scores are left as they were passed
     assert roc.input_values.tolist() == scores
+
+
+def test_threshold_is_never_the_corner_above_every_score():
+    """With negatives in the majority the "call nothing positive" corner wins the
+    count, but a threshold no observation reaches leaves `ppv` undefined."""
+    roc = Roc(input_values=[0.0, 1.0, 2.0], binary_outcome=[True, False, False])
+
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")
+        roc.calculate()
+
+    assert np.isfinite(roc.class_thr)
+    assert np.isfinite(roc.ppv)
+
+
+def test_row_shaped_scores_are_rejected():
+    """Only trailing singleton axes are squeezed, so a (1, n) row is reported."""
+    with pytest.raises(ValueError, match="1-D"):
+        Roc(input_values=np.array([[0.0, 1.0]]), binary_outcome=[False, True])
+
+
+def test_missing_input_values_says_so():
+    """A missing input_values is named rather than read as a NaN score."""
+    with pytest.raises(ValueError, match="input_values is required"):
+        Roc(binary_outcome=[False, True])
