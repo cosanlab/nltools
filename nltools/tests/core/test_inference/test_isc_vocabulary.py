@@ -88,10 +88,30 @@ class TestWrapperProgressBarThreading:
             fn()
         return buf.getvalue()
 
-    def test_isc_silent_by_default_bar_when_asked(self, subjects_data):
-        kwargs = {"n_samples": 20, "random_state": 0, "n_jobs": 1}
+    @pytest.mark.parametrize("method", ["bootstrap", "circle_shift", "phase_randomize"])
+    def test_isc_silent_by_default_bar_when_asked(self, subjects_data, method):
+        kwargs = {"n_samples": 20, "random_state": 0, "n_jobs": 1, "method": method}
         assert self._stderr_of(lambda: isc(subjects_data, **kwargs)) == ""
         assert (
             self._stderr_of(lambda: isc(subjects_data, progress_bar=True, **kwargs))
             != ""
         )
+
+
+def test_isc_surrogate_worker_count_is_numerically_invisible(subjects_data):
+    """The surrogate methods parallelize their resamples without moving a number.
+
+    Seeds are drawn per replicate before the joblib block, so one worker and
+    two must agree bit for bit.
+    """
+    kwargs = {
+        "n_samples": 20,
+        "random_state": 0,
+        "method": "circle_shift",
+        "return_null": True,
+    }
+
+    serial = isc(subjects_data, n_jobs=1, **kwargs)
+    parallel = isc(subjects_data, n_jobs=2, **kwargs)
+
+    np.testing.assert_array_equal(serial["null_dist"], parallel["null_dist"])
