@@ -312,6 +312,32 @@ def _validate_group_shapes(group1, group2):
         )
 
 
+def _mask_duplicate_subject_pairs(condensed, bootstrap_subjects):
+    """Set the pairs a resampled subject forms with itself to NaN.
+
+    A subject drawn twice pairs with itself, and that pair carries no
+    information about between-subject similarity. The mask is keyed to the
+    sampled original indices, not to the similarity values: two *distinct*
+    subjects may legitimately correlate at +1 or -1, and for `'euclidean'` or
+    `'cosine'` the perfect-similarity value is not 1 at all.
+
+    Args:
+        condensed (np.ndarray): Pairwise similarities of the resampled
+            subjects in condensed upper-triangle order, shape `(n_pairs,)` or
+            `(n_pairs, n_voxels)`.
+        bootstrap_subjects (np.ndarray): The original subject index behind each
+            resampled position, shape `(n_subjects,)`.
+
+    Returns:
+        np.ndarray: `condensed` as float64 with the duplicate pairs set to NaN.
+    """
+    rows, cols = np.triu_indices(len(bootstrap_subjects), k=1)
+    duplicated = bootstrap_subjects[rows] == bootstrap_subjects[cols]
+    if condensed.ndim > 1:
+        duplicated = duplicated[:, None]
+    return np.where(duplicated, np.nan, condensed)
+
+
 def _compute_isc_group_difference(
     group1,
     group2,
@@ -599,8 +625,8 @@ def _bootstrap_isc_group_numpy(
             to center the draw.
         summary (str): `'median'` (default) or `'mean'`.
         summary_statistic (str): `'pairwise'` (default) or `'leave-one-out'`.
-        exclude_self_corr (bool): Mask the perfect correlations a duplicated
-            subject produces (pairwise only). Defaults to True.
+        exclude_self_corr (bool): Mask the pairs a duplicated subject forms
+            with itself (pairwise only). Defaults to True.
         random_state (int | np.random.RandomState | None): Random state for
             reproducibility.
         metric (str): Similarity metric for pairwise ISC. Defaults to
@@ -635,14 +661,14 @@ def _bootstrap_isc_group_numpy(
         pairwise1_boot = _compute_pairwise_isc(group1_boot, metric=metric)
         pairwise2_boot = _compute_pairwise_isc(group2_boot, metric=metric)
 
-        # Handle exclude_self_corr: mask perfect correlations from duplicate subjects
+        # Handle exclude_self_corr: mask the pairs a duplicated subject forms
+        # with itself, identified by the drawn indices rather than by value
         if exclude_self_corr:
-            # Mask correlations >= 0.99999 (perfect correlations from duplicates)
-            pairwise1_boot = np.where(
-                np.abs(pairwise1_boot) >= 0.99999, np.nan, pairwise1_boot
+            pairwise1_boot = _mask_duplicate_subject_pairs(
+                pairwise1_boot, boot_indices1
             )
-            pairwise2_boot = np.where(
-                np.abs(pairwise2_boot) >= 0.99999, np.nan, pairwise2_boot
+            pairwise2_boot = _mask_duplicate_subject_pairs(
+                pairwise2_boot, boot_indices2
             )
 
         # Handle single feature vs voxel-wise
@@ -711,8 +737,8 @@ def _bootstrap_isc_group_cpu_parallel(
         n_permute (int): Number of bootstrap iterations. Defaults to 5000.
         summary (str): `'median'` (default) or `'mean'`.
         summary_statistic (str): `'pairwise'` (default) or `'leave-one-out'`.
-        exclude_self_corr (bool): Mask the perfect correlations a duplicated
-            subject produces (pairwise only). Defaults to True.
+        exclude_self_corr (bool): Mask the pairs a duplicated subject forms
+            with itself (pairwise only). Defaults to True.
         n_jobs (int): CPU cores; -1 (default) picks the worker count from
             available memory.
         random_state (int | None): Random seed for reproducibility.
@@ -827,9 +853,9 @@ def _isc_group_permutation_test(
             result. Defaults to False.
         progress_bar (bool): Show a progress bar over the resamples. Defaults to
             False.
-        exclude_self_corr (bool): In the bootstrap, mask the perfect
-            correlations a duplicated subject produces (pairwise only).
-            Defaults to True.
+        exclude_self_corr (bool): In the bootstrap, mask the pairs a
+            duplicated subject forms with itself (pairwise only). Defaults to
+            True.
         metric (str): Similarity metric for pairwise ISC; any metric accepted by
             `sklearn.metrics.pairwise_distances`. Ignored for
             `summary_statistic='leave-one-out'`. Defaults to `'correlation'`.
@@ -1113,9 +1139,9 @@ def _bootstrap_pairwise_numpy(
     (Chen et al. 2016): resample subjects, extract submatrix, mask
     same-subject pairs (self-correlations from duplicates).
 
-    A subject drawn twice correlates perfectly with itself; with
-    `exclude_self_corr=True` those entries are masked as NaN before the summary,
-    as Chen et al. (2016) recommend.
+    A subject drawn twice pairs with itself; with `exclude_self_corr=True`
+    those entries are identified by the drawn indices and masked as NaN before
+    the summary, as Chen et al. (2016) recommend.
 
     Args:
         pairwise_condensed (np.ndarray): Pre-computed pairwise correlations in
@@ -1152,12 +1178,14 @@ def _bootstrap_pairwise_numpy(
         # Index by bootstrap subjects (symmetric: rows and columns)
         boot_matrix = corr_matrix[bootstrap_subjects, :][:, bootstrap_subjects]
 
-        # Mask self-correlations if requested
-        if exclude_self_corr:
-            boot_matrix[boot_matrix >= 0.99999] = np.nan
-
         # Extract upper triangle (excluding diagonal)
         boot_condensed = squareform(boot_matrix, checks=False)
+
+        # Mask self-correlations if requested
+        if exclude_self_corr:
+            boot_condensed = _mask_duplicate_subject_pairs(
+                boot_condensed, bootstrap_subjects
+            )
 
     else:
         # Voxel-wise: (n_pairs, n_voxels)
@@ -1183,14 +1211,16 @@ def _bootstrap_pairwise_numpy(
             :, bootstrap_subjects, :
         ]
 
-        # Mask self-correlations if requested (vectorized across all voxels)
-        if exclude_self_corr:
-            boot_matrices[boot_matrices >= 0.99999] = np.nan
-
         # Extract upper triangle for all voxels
         boot_condensed = np.zeros((n_pairs, n_voxels), dtype=pairwise_condensed.dtype)
         for v in range(n_voxels):
             boot_condensed[:, v] = squareform(boot_matrices[:, :, v], checks=False)
+
+        # Mask self-correlations if requested (vectorized across all voxels)
+        if exclude_self_corr:
+            boot_condensed = _mask_duplicate_subject_pairs(
+                boot_condensed, bootstrap_subjects
+            )
 
     # Compute summary (ignoring NaNs from masked pairs)
     axis = 0 if boot_condensed.ndim > 1 else None
@@ -1330,8 +1360,8 @@ def _isc_permutation_test(
             result. Defaults to False.
         progress_bar (bool): Show a progress bar over the resamples. Defaults to
             False.
-        exclude_self_corr (bool): In the pairwise bootstrap, mask the perfect
-            correlations a duplicated subject produces as NaN. Defaults to True.
+        exclude_self_corr (bool): In the pairwise bootstrap, mask the pairs a
+            duplicated subject forms with itself as NaN. Defaults to True.
         metric (str): Similarity metric for pairwise ISC; any metric accepted by
             `sklearn.metrics.pairwise_distances` (`'correlation'`,
             `'spearman'`, `'cosine'`, and `'euclidean'` take fast paths). Ignored

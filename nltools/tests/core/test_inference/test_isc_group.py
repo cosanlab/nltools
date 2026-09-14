@@ -28,6 +28,7 @@ import numpy as np
 import pytest
 
 from nltools.algorithms.inference.isc import (
+    _bootstrap_isc_group_numpy,
     _compute_isc_group_difference,
     _compute_pairwise_isc,
     _isc_group_permutation_test,
@@ -95,6 +96,21 @@ def test_compute_isc_group_difference_mismatched_observations():
             summary="median",
             summary_statistic="pairwise",
         )
+
+
+def test_bootstrap_isc_group_keeps_anticorrelated_distinct_subjects():
+    """A perfect anticorrelation between two distinct subjects is not a self-correlation.
+
+    The group bootstrap masked `|r| >= 0.99999`, so a legitimate pair at -1
+    was dropped and the draw came back NaN.
+    """
+    group1 = np.array([[1.0, -1.0], [2.0, -2.0], [3.0, -3.0], [1.5, -1.5]])
+    group2 = np.array([[1.0, 0.5], [2.0, -0.5], [3.0, 2.0], [1.5, 0.25]])
+    group2_corr = np.corrcoef(group2.T)[0, 1]
+
+    draw = _bootstrap_isc_group_numpy(group1, group2, observed_diff=0.0, random_state=0)
+
+    np.testing.assert_allclose(draw, -1.0 - group2_corr)
 
 
 @pytest.mark.parametrize("method", ["bootstrap", "permute"])

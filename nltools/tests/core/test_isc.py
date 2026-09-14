@@ -23,6 +23,7 @@ from scipy.spatial.distance import squareform
 
 from nltools.algorithms.inference.isc import (
     _bootstrap_loo_numpy,
+    _bootstrap_pairwise_numpy,
     _compute_loo_isc,
     _compute_pairwise_isc,
     _isc_permutation_test,
@@ -394,6 +395,20 @@ def test_compute_pairwise_isc_cosine_handles_zero_norm():
     assert result.shape == (10,)  # 5*4/2 = 10 pairs
     # Values should be finite or NaN (for zero-norm cases)
     assert np.all(np.isfinite(result) | np.isnan(result))
+
+
+def test_bootstrap_pairwise_masks_duplicate_subjects_by_identity():
+    """Only pairs of the same original subject are masked, not similar ones.
+
+    Drawing subjects [0, 1, 1] gives two genuine (0, 1) pairs that happen to
+    correlate at 1.0 and one true duplicate pair; masking by value dropped all
+    three and returned NaN.
+    """
+    result = _bootstrap_pairwise_numpy(
+        np.array([1.0, 0.2, 0.2]), bootstrap_subjects=np.array([0, 1, 1])
+    )
+
+    assert result == 1.0
 
 
 def test_isc_phase_randomize_surrogates_stay_floating_point():
