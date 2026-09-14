@@ -217,7 +217,8 @@ def find_spikes(
             Defaults to 3.
         diff_spike_cutoff (float | None): Cutoff in standard deviations for
             spikes in the per-TR mean absolute frame-to-frame difference; None
-            skips this detector. Defaults to 3.
+            skips this detector. The difference is attributed to the later of
+            the two volumes, as framewise displacement is. Defaults to 3.
         TR (float | None): Repetition time in seconds; sets the returned
             DesignMatrix's `sampling_freq` for downstream `.append()` /
             `.convolve()`. Pass at most one of `TR` and `sampling_freq`.
@@ -292,7 +293,11 @@ def find_spikes(
         for i, loc in enumerate(frame_outliers):
             col_name = f"diff_spike{i + 1}"
             col_values = [0] * len(global_mn)
-            col_values[int(loc)] = 1
+            # `np.diff` index i is the jump from volume i into volume i + 1, and
+            # the later volume is the corrupted one — the standard framewise-
+            # displacement convention. The largest index is n - 2, so this never
+            # runs past the last scan.
+            col_values[int(loc) + 1] = 1
             outlier_data[col_name] = col_values
 
     # Two detectors, one timeline: the same TR can be flagged by both, and a

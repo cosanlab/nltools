@@ -303,3 +303,20 @@ class TestFindSpikesReservedPrefix:
         assert all(
             c.startswith((".nl_global_spike", ".nl_diff_spike")) for c in dm.columns
         )
+
+
+class TestFindSpikesDiffAlignment:
+    """G-07: a frame difference belongs to the volume it moved into."""
+
+    def test_diff_spike_flags_the_corrupted_volume(self):
+        """`np.diff` index i is the jump from volume i into volume i + 1."""
+        import nibabel as nib
+
+        data = np.zeros((2, 2, 2, 10))
+        data[..., 9] = 100.0
+        img = nib.Nifti1Image(data, affine=np.eye(4))
+
+        dm = find_spikes(img, global_spike_cutoff=None, diff_spike_cutoff=2)
+
+        flagged = np.flatnonzero(dm.to_numpy()[:, 0])
+        np.testing.assert_array_equal(flagged, [9])
