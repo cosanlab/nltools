@@ -385,7 +385,11 @@ def _perform_arithmetic(
     Returns:
         BrainData: Result of the operation.
     """
-    from .validation import _validate_arithmetic_operand, _validate_brain_data_shapes
+    from .validation import (
+        _validate_arithmetic_operand,
+        _validate_brain_data_shapes,
+        _validate_voxel_correspondence,
+    )
 
     operand_type = _validate_arithmetic_operand(other, operation_name)
 
@@ -396,6 +400,7 @@ def _perform_arithmetic(
             result_data = operation(bd.data, other)
     elif operand_type == "brain_data":
         _validate_brain_data_shapes(bd, other, operation_name)
+        _validate_voxel_correspondence(bd, other, operation_name)
         if reverse:
             result_data = operation(other.data, bd.data)
         else:

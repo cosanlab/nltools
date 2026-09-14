@@ -355,11 +355,13 @@ class BrainData:
 
     def __setitem__(self, index, value):
         from .utils import _clear_fit_state, _replace_metadata_row
+        from .validation import _validate_voxel_correspondence
 
         if not isinstance(value, BrainData):
             raise ValueError(
                 "Make sure the value you are trying to set is a BrainData() instance."
             )
+        _validate_voxel_correspondence(self, value, "assign a row")
         new_data = self.data.copy()
         new_data[index, :] = value.data
         new_y = None
@@ -550,7 +552,7 @@ class BrainData:
             ValueError: Metadata is present on only one input or has incompatible columns.
         """
         from .utils import _result_from_rows
-        from .validation import _validate_append_shapes
+        from .validation import _validate_append_shapes, _validate_voxel_correspondence
         import polars as pl
 
         data = _check_brain_data(data)
@@ -562,6 +564,7 @@ class BrainData:
                 Y=None if ignore_attrs else data.Y,
             )
         _validate_append_shapes(self.shape, data.shape)
+        _validate_voxel_correspondence(self, data, "append")
         frames = []
         for name in ("X", "Y"):
             left, right = getattr(self, name), getattr(data, name)

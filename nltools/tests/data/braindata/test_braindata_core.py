@@ -285,6 +285,77 @@ class TestBrainDataCore:
             brain[0] = replacement
         assert brain.Y["label"].to_list() == [1.0, 2.0, 3.0]
 
+
+class TestVoxelCorrespondence:
+    """Combining two objects requires that their voxels be the same voxels.
+
+    Matching array dimensions are not enough: two objects can pack disjoint
+    parts of the brain, or the same support on grids 50 mm apart, and the
+    result silently inherits the left operand's spatial interpretation.
+    """
+
+    @staticmethod
+    def _brain(flat_indices, affine=None, values=None):
+        import nibabel as nib
+
+        mask_values = np.zeros(8, dtype=np.uint8)
+        mask_values[list(flat_indices)] = 1
+        mask = nib.Nifti1Image(
+            mask_values.reshape(2, 2, 2), np.eye(4) if affine is None else affine
+        )
+        if values is None:
+            values = np.arange(4, dtype=float).reshape(2, 2)
+        return BrainData(values, mask=mask)
+
+    def _disjoint_pair(self):
+        return self._brain([0, 1]), self._brain([2, 3])
+
+    def _translated_pair(self):
+        shifted = np.eye(4)
+        shifted[:3, 3] = 50.0
+        return self._brain([0, 1]), self._brain([0, 1], affine=shifted)
+
+    @pytest.mark.parametrize("pair", ["disjoint", "translated"])
+    def test_arithmetic_rejects_mismatched_voxels(self, pair):
+        left, right = getattr(self, f"_{pair}_pair")()
+        original = left.data.copy()
+        with pytest.raises(ValueError, match="same voxels"):
+            left + right
+        np.testing.assert_array_equal(left.data, original)
+
+    @pytest.mark.parametrize("pair", ["disjoint", "translated"])
+    def test_append_rejects_mismatched_voxels(self, pair):
+        left, right = getattr(self, f"_{pair}_pair")()
+        with pytest.raises(ValueError, match="same voxels"):
+            left.append(right)
+
+    @pytest.mark.parametrize("pair", ["disjoint", "translated"])
+    def test_row_assignment_rejects_mismatched_voxels(self, pair):
+        left, right = getattr(self, f"_{pair}_pair")()
+        original = left.data.copy()
+        with pytest.raises(ValueError, match="same voxels"):
+            left[0] = right[0]
+        np.testing.assert_array_equal(left.data, original)
+
+    def test_matching_voxels_still_combine(self):
+        left, right = self._brain([0, 1]), self._brain([0, 1])
+        assert (left + right).shape == (2, 2)
+        assert left.append(right).shape == (4, 2)
+        left[0] = right[0]
+        np.testing.assert_array_equal(left.data[0], right.data[0])
+
+    def test_an_integer_mask_matches_an_identical_float_one(self):
+        import nibabel as nib
+
+        values = np.zeros((2, 2, 2))
+        values.flat[[0, 1]] = 1
+        left = self._brain([0, 1])
+        right = BrainData(
+            np.arange(4, dtype=float).reshape(2, 2),
+            mask=nib.Nifti1Image(values.astype(np.float32), np.eye(4)),
+        )
+        assert (left + right).shape == (2, 2)
+
     # ==================== Statistical Methods ====================
 
     def test_distance(self, minimal_brain_data):
