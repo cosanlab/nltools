@@ -34,6 +34,11 @@ def downsample(
 
     Returns:
         pl.DataFrame | pl.Series: Downsampled data (same type as input).
+
+    Note:
+        Rows are binned by `floor(row / n_samples)`, the same rule
+        `DesignMatrix.downsample` uses, so a non-integer ratio spreads its
+        leftover rows across the bins rather than into an extra final one.
     """
     if isinstance(data, pl.DataFrame):
         df = data.clone()
@@ -56,30 +61,34 @@ def downsample(
     else:
         raise ValueError('Make sure target_type is "samples", "seconds",  or "hz".')
 
-    # Calculate grouping indices more efficiently (matches design_matrix.py pattern)
-    n_groups = int(np.ceil(df.shape[0] / n_samples))
-    idx = pl.Series(np.repeat(np.arange(n_groups), int(n_samples))[: df.shape[0]])
+    # Assign each row to a group via floor(row / n_samples), the same rule
+    # DesignMatrix.downsample uses. For integer ratios this reproduces the old
+    # [0,0,1,1,...] grouping exactly; for non-integer ratios it spreads the
+    # leftover rows evenly across bins instead of truncating the bin width and
+    # opening an extra group at the end.
+    idx = pl.Series(np.floor(np.arange(df.shape[0]) / n_samples).astype(int))
 
-    # Handle remainder samples (last incomplete group)
-    if df.shape[0] > len(idx):
-        remainder = pl.Series(np.repeat(idx[-1] + 1, df.shape[0] - len(idx)))
-        idx = pl.concat([idx, remainder])
+    # The grouping key is a transient that never reaches the result, so it takes
+    # a name the frame does not already use.
+    group_key = "_group_idx"
+    while group_key in df.columns:
+        group_key += "_"
 
     # Add grouping index to dataframe
-    df_with_idx = df.with_columns(idx.alias("_group_idx"))
+    df_with_idx = df.with_columns(idx.alias(group_key))
 
     # Group by index and aggregate using Polars group_by
     if method == "mean":
         downsampled_df = (
-            df_with_idx.group_by("_group_idx", maintain_order=True)
+            df_with_idx.group_by(group_key, maintain_order=True)
             .agg([pl.col(col).mean() for col in df.columns])
-            .drop("_group_idx")
+            .drop(group_key)
         )
     else:  # median
         downsampled_df = (
-            df_with_idx.group_by("_group_idx", maintain_order=True)
+            df_with_idx.group_by(group_key, maintain_order=True)
             .agg([pl.col(col).median() for col in df.columns])
-            .drop("_group_idx")
+            .drop(group_key)
         )
 
     # Return Series if input was Series, otherwise DataFrame
