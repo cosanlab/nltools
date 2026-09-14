@@ -222,7 +222,9 @@ def test_collapse_mask_stays_in_the_input_space():
     # mask, so a custom-space input came back as an all-zero template vector
     # attached to the original mask, and `to_nifti()` raised.
     mask_img = _four_voxel_mask()
-    masks = BrainData(np.array([[1.0, 1.0, 0.0, 0.0], [0.0, 0.0, 1.0, 1.0]]), mask=mask_img)
+    masks = BrainData(
+        np.array([[1.0, 1.0, 0.0, 0.0], [0.0, 0.0, 1.0, 1.0]]), mask=mask_img
+    )
 
     collapsed = collapse_mask(masks)
 

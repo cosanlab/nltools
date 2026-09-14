@@ -348,9 +348,10 @@ def test_add_signal_clears_the_previous_fit():
     assert sim.isfit is False
     assert sim.thresholded is None
     sim.fit()
-    assert sim.t_values[sim.signal_mask == 1].mean() > sim.t_values[
-        sim.signal_mask == 0
-    ].mean()
+    assert (
+        sim.t_values[sim.signal_mask == 1].mean()
+        > sim.t_values[sim.signal_mask == 0].mean()
+    )
 
 
 def test_plot_grid_simulation_rethresholds_at_the_requested_threshold():
