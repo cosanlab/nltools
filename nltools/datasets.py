@@ -102,7 +102,7 @@ def download_nifti(url, data_dir=None):
 def fetch_neurovault_collection(collection_id, data_dir=None, verbose=1):
     """Download images and metadata from a Neurovault collection.
 
-    This function uses the modern nilearn API to download collections from Neurovault.
+    Wraps `nilearn.datasets.fetch_neurovault_ids`.
 
     Args:
         collection_id (int): Neurovault collection ID

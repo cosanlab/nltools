@@ -54,7 +54,7 @@ def _():
     from nltools.algorithms import isc
     from nltools.data import BrainData
     from nltools.mask import roi_to_brain_from_atlas
-    from nltools.templates import fetch_resource
+    from nltools.datasets import fetch_resource
 
     memory = Memory(".tutorial-cache", verbose=0)
     return (
