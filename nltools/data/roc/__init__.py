@@ -237,15 +237,16 @@ def _default_criterion_values(scores):
     """Operating points of the empirical ROC curve for `scores`.
 
     Classification is `score >= criterion`, so the curve can only move at a value
-    some observation actually takes; the extra point above the largest score is
-    the corner where nothing is called positive. These are the thresholds
-    `sklearn.metrics.roc_curve` evaluates.
+    some observation actually takes; the final `np.inf` is the corner where
+    nothing is called positive. These are the same operating points
+    `sklearn.metrics.roc_curve` uses with `drop_intermediate=False`, in ascending
+    order.
 
     Args:
         scores (np.ndarray): 1-D decision values the curve is evaluated against.
 
     Returns:
-        np.ndarray: Ascending thresholds, ending above the largest score.
+        np.ndarray: The distinct scores in ascending order, followed by `np.inf`.
     """
     return np.append(np.unique(scores), np.inf)
 
@@ -286,11 +287,13 @@ class Roc:
         forced_choice (np.ndarray | None): Subject ids for forced-choice classification.
         criterion_values (np.ndarray): Thresholds at which `tpr`/`fpr` were evaluated;
             set by `calculate`. By default the distinct decision values in
-            ascending order, plus one threshold above the largest.
+            ascending order followed by `np.inf`, the corner where nothing is
+            called positive. `class_thr` is chosen among the finite ones.
         tpr (np.ndarray): True positive rate per criterion value; set by `calculate`.
         fpr (np.ndarray): False positive rate per criterion value; set by `calculate`.
         auc (float): Area under the ROC curve; set by `calculate`.
-        class_thr (float): Selected classification threshold; set by `calculate`.
+        class_thr (float): Selected classification threshold, always one of the
+            finite `criterion_values`; set by `calculate`.
         sensitivity (float): Sensitivity at `class_thr`; set by `calculate`.
         specificity (float): Specificity at `class_thr`; set by `calculate`.
         ppv (float): Positive predictive value at `class_thr`; set by `calculate`.
@@ -359,8 +362,8 @@ class Roc:
                 observation. Defaults to the labels given at construction.
             criterion_values (array-like, optional): Thresholds at which to evaluate
                 `fpr` and `tpr`. Defaults to the empirical operating points: each
-                distinct decision value in ascending order, plus one threshold
-                above the largest, where nothing is called positive.
+                distinct decision value in ascending order, followed by `np.inf`,
+                where nothing is called positive.
             method (str, optional): Threshold-selection variant, one of
                 `'optimal_overall'` (maximize correct classifications),
                 `'optimal_balanced'` (maximize balanced accuracy, the mean of
