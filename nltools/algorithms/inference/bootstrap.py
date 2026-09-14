@@ -510,6 +510,24 @@ def _bootstrap_simple_method_worker(
     raise ValueError(f"Unsupported method: {method}")
 
 
+def _bootstrap_index_size_mb(n_obs: int, n_samples: int) -> float:
+    """Megabytes of the resampling index matrix every CPU worker pickles.
+
+    `_generate_bootstrap_indices` materializes one `(n_samples, n_obs)` int64
+    array and each worker's closure captures the whole of it, so the worker
+    planner has to count it alongside the data.
+
+    Args:
+        n_obs (int): Observations resampled per replicate.
+        n_samples (int): Number of bootstrap replicates.
+
+    Returns:
+        float: Size in MB, on the same mebibyte scale as
+            `_estimate_data_size_mb`.
+    """
+    return int(n_obs) * int(n_samples) * 8 / 1024**2
+
+
 def _bootstrap_simple_cpu_parallel(
     data: np.ndarray,
     method: str,
@@ -579,7 +597,7 @@ def _bootstrap_simple_cpu_parallel(
     output_shape = (1,) if single_feature else (n_features,)
 
     workers = _bootstrap_n_jobs_cpu(
-        _estimate_data_size_mb(data),
+        _estimate_data_size_mb(data) + _bootstrap_index_size_mb(n_obs, n_samples),
         n_samples,
         memory_budget_gb=memory_budget_gb,
         n_jobs=n_jobs,
@@ -589,6 +607,7 @@ def _bootstrap_simple_cpu_parallel(
         n_samples,
         confidence_level=confidence_level,
         return_samples=return_samples,
+        n_obs=n_obs,
         n_workers=workers,
         memory_budget_gb=memory_budget_gb,
     )
@@ -796,8 +815,15 @@ def _bootstrap_ridge_weights_cpu_parallel(
     n_features = sum(space.shape[1] for space in spaces)
     output_shape = (n_features, y.shape[1])
 
+    # Each worker pickles the resident design — every feature space and the
+    # targets — plus the whole index matrix, not `y` alone.
+    worker_size_mb = (
+        sum(_estimate_data_size_mb(space) for space in spaces)
+        + _estimate_data_size_mb(y)
+        + _bootstrap_index_size_mb(n_obs, n_samples)
+    )
     workers = _bootstrap_n_jobs_cpu(
-        _estimate_data_size_mb(y),
+        worker_size_mb,
         n_samples,
         memory_budget_gb=memory_budget_gb,
         n_jobs=n_jobs,
@@ -807,6 +833,7 @@ def _bootstrap_ridge_weights_cpu_parallel(
         n_samples,
         confidence_level=confidence_level,
         return_samples=return_samples,
+        n_obs=n_obs,
         n_workers=workers,
         memory_budget_gb=memory_budget_gb,
     )
@@ -940,8 +967,16 @@ def _bootstrap_ridge_predict_cpu_parallel(
     n_obs = spaces[0].shape[0]
     output_shape = (X_pred.shape[0], y.shape[1])
 
+    # The closure pickles the resident design, the test matrix and the whole
+    # index matrix.
+    worker_size_mb = (
+        sum(_estimate_data_size_mb(space) for space in spaces)
+        + _estimate_data_size_mb(y)
+        + _estimate_data_size_mb(X_pred)
+        + _bootstrap_index_size_mb(n_obs, n_samples)
+    )
     workers = _bootstrap_n_jobs_cpu(
-        _estimate_data_size_mb(y),
+        worker_size_mb,
         n_samples,
         memory_budget_gb=memory_budget_gb,
         n_jobs=n_jobs,
@@ -951,6 +986,7 @@ def _bootstrap_ridge_predict_cpu_parallel(
         n_samples,
         confidence_level=confidence_level,
         return_samples=return_samples,
+        n_obs=n_obs,
         n_workers=workers,
         memory_budget_gb=memory_budget_gb,
     )
@@ -1142,6 +1178,7 @@ def _bootstrap_ridge_gpu_batched(
         n_samples,
         confidence_level=confidence_level,
         return_samples=return_samples,
+        n_obs=n_obs,
         memory_budget_gb=memory_budget_gb,
         backend=backend,
     )

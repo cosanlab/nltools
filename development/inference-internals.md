@@ -144,11 +144,16 @@ Memory is planned in `nltools/algorithms/backends.py` and nowhere else.
 run holds at once — the two bounded tails, the replicates buffered before the
 next flush and the two temporaries that flush builds, one dispatch window, every
 replicate when `return_samples=True`, and the two Welford accumulators plus the
-four summary payloads — and raises *before* resampling if that exceeds the
-budget, naming the requirement, the measured budget, and the `memory_budget_gb`
+four summary payloads — plus the `(n_samples, n_obs)` int64 resampling index
+matrix, charged twice because building it holds the per-draw vectors alongside
+the stacked result. It raises *before* resampling if that exceeds the budget,
+naming the requirement, the measured budget, and the `memory_budget_gb`
 override. It never weakens the interval, reduces `n_samples`, or disables
 `return_samples`. `_bootstrap_n_jobs_cpu` treats `n_jobs` as a ceiling and lowers
-it when a worker's copy of the data would not fit;
+it when a worker's copy of the data would not fit — each engine supplies what
+its closure actually pickles, which for the ridge engines is every feature
+space, the targets, the test matrix where there is one, and the whole index
+matrix, never the targets alone;
 `_bootstrap_replicate_window` turns that worker count into the dispatch window.
 `BOOTSTRAP_TAIL_FLUSH_BLOCK` lives there too rather than in the engine, so the
 one budget owner sees every constant it has to charge for.

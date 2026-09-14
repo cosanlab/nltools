@@ -654,6 +654,10 @@ def _ridge_bootstrap_batch_size(
 #: every summary payload is converted to CPU float64 before it is retained.
 _BOOTSTRAP_OUTPUT_ITEMSIZE = 8
 
+#: Bytes per resampling index. `_generate_bootstrap_indices` returns an int64
+#: matrix, and every CPU worker's closure captures it.
+_BOOTSTRAP_INDEX_ITEMSIZE = 8
+
 #: Output-sized arrays a bootstrap run always holds beyond its retained
 #: replicates: the two Welford accumulators (running mean and running sum of
 #: squared deviations) and the four `BootstrapResult` summary payloads.
@@ -734,15 +738,19 @@ def _bootstrap_output_bytes(
     *,
     confidence_level: float,
     return_samples: bool,
+    n_obs: int,
     n_workers: int = 1,
 ) -> int:
-    """Bytes a bootstrap run must hold for its retained output.
+    """Bytes a bootstrap run must hold for its retained output and its indices.
 
     Charges eight bytes for every output-sized array a run holds at once: the
     two bounded tails, the replicates buffered before the next flush and the
     two temporaries that flush builds, one dispatch window of in-flight
     replicates, every replicate when `return_samples=True`, and the two Welford
-    accumulators plus the four summary payloads.
+    accumulators plus the four summary payloads. On top of that it charges the
+    resampling index matrix twice: the run retains one `(n_samples, n_obs)`
+    int64 array, and building it holds the per-draw vectors alongside the
+    stacked result.
 
     Args:
         output_shape (tuple[int, ...]): Shape of one replicate's output.
@@ -750,6 +758,8 @@ def _bootstrap_output_bytes(
         confidence_level (float): Interval confidence level, which sets the
             retained tail size.
         return_samples (bool): Whether the complete distribution is retained.
+        n_obs (int): Observations resampled per replicate, which sizes the
+            index matrix.
         n_workers (int): Planned CPU worker count, which sets the dispatch
             window. Defaults to 1 (the GPU driver budgets its own batch through
             `_ridge_bootstrap_batch_size` instead).
@@ -770,7 +780,8 @@ def _bootstrap_output_bytes(
         + (int(n_samples) if return_samples else 0)
         + _BOOTSTRAP_FIXED_OUTPUT_ARRAYS
     )
-    return output_size * arrays * _BOOTSTRAP_OUTPUT_ITEMSIZE
+    index_bytes = 2 * int(n_obs) * int(n_samples) * _BOOTSTRAP_INDEX_ITEMSIZE
+    return output_size * arrays * _BOOTSTRAP_OUTPUT_ITEMSIZE + index_bytes
 
 
 def _bootstrap_memory_preflight(
@@ -779,6 +790,7 @@ def _bootstrap_memory_preflight(
     *,
     confidence_level: float,
     return_samples: bool,
+    n_obs: int,
     n_workers: int = 1,
     memory_budget_gb: float | None = None,
     backend: "_Backend | None" = None,
@@ -795,6 +807,8 @@ def _bootstrap_memory_preflight(
         n_samples (int): Number of bootstrap replicates.
         confidence_level (float): Interval confidence level.
         return_samples (bool): Whether the complete distribution is retained.
+        n_obs (int): Observations resampled per replicate, which sizes the
+            index matrix.
         n_workers (int): Planned CPU worker count, which sets the dispatch
             window. Defaults to 1.
         memory_budget_gb (float | None): Explicit budget in GB, or None to
@@ -813,6 +827,7 @@ def _bootstrap_memory_preflight(
         n_samples,
         confidence_level=confidence_level,
         return_samples=return_samples,
+        n_obs=n_obs,
         n_workers=n_workers,
     )
     required_gb = required_bytes / 1e9
