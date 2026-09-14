@@ -145,15 +145,21 @@ class BrainData:
         # Initialize data based on type
         data_type = _validate_data_type(data)
 
+        # The object whose row metadata this one inherits when the caller
+        # supplied none: the source BrainData, or the concatenation of a list
+        # of them. A list of files or images has none to inherit.
+        metadata_source = None
+
         if data_type == "none":
             self.data = np.array([])
         elif data_type == "brain_data":
             _load_from_brain_data(self, data, mask)
+            metadata_source = data
         elif data_type == "h5":
             _load_from_h5(self, data, mask)
             return
         elif data_type == "list":
-            _load_from_list(self, data)
+            metadata_source = _load_from_list(self, data, mask)
         elif data_type == "url":
             _load_from_url(self, data)
         elif data_type in ["file", "nibabel"]:
@@ -192,19 +198,8 @@ class BrainData:
         # Set X and Y. Invariant: .X and .Y are always polars DataFrames
         # (possibly empty). Assignment goes through the property setter,
         # which pipes through _validate_frame for pandas/numpy/csv ingress.
-        if X is not None:
-            self.X = X
-        elif data_type == "brain_data" and hasattr(data, "X"):
-            self.X = data.X
-        else:
-            self.X = None
-
-        if Y is not None:
-            self.Y = Y
-        elif data_type == "brain_data" and hasattr(data, "Y"):
-            self.Y = data.Y
-        else:
-            self.Y = None
+        self.X = X if X is not None else getattr(metadata_source, "X", None)
+        self.Y = Y if Y is not None else getattr(metadata_source, "Y", None)
 
     # =========================================================================
     # Dunders (alphabetical)

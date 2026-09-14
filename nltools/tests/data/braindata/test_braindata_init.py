@@ -473,3 +473,43 @@ class TestConstructFromBrainDataWithADifferentMask:
         )
         result = BrainData(source, mask=self._grid_mask([0, 1]))
         np.testing.assert_array_equal(result.data, source.data)
+
+
+class TestConstructFromAListOfBrainData:
+    """A list of BrainData is concatenated the way `concatenate` concatenates it.
+
+    Row metadata survives, and an explicit ``mask`` is applied to the result
+    rather than discarded.
+    """
+
+    @staticmethod
+    def _grid_mask(flat_indices):
+        values = np.zeros(8, dtype=np.uint8)
+        values[list(flat_indices)] = 1
+        return nib.Nifti1Image(values.reshape(2, 2, 2), np.eye(4))
+
+    def _pair(self):
+        import polars as pl
+
+        mask = self._grid_mask(range(8))
+        left = BrainData(
+            np.arange(16, dtype=float).reshape(2, 8),
+            mask=mask,
+            Y=pl.DataFrame({"row": [0, 1]}),
+        )
+        right = BrainData(
+            np.arange(16, 32, dtype=float).reshape(2, 8),
+            mask=mask,
+            Y=pl.DataFrame({"row": [2, 3]}),
+        )
+        return left, right
+
+    def test_row_metadata_survives(self):
+        left, right = self._pair()
+        assert BrainData([left, right]).Y["row"].to_list() == [0, 1, 2, 3]
+
+    def test_an_explicit_mask_is_applied(self):
+        left, right = self._pair()
+        result = BrainData([left, right], mask=self._grid_mask([1, 2]))
+        assert result.shape == (4, 2)
+        np.testing.assert_array_equal(result.data[0], [1.0, 2.0])
