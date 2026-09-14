@@ -214,6 +214,15 @@ class TestDesignMatrixConvolution:
         dm2.insert_column(1, pl.Series("extra", [0.0, 0.0, 0.0, 0.0]))
         assert "extra" not in dm1.columns
 
+    def test_convolve_refuses_to_overwrite_an_existing_output_name(self):
+        """A column already named `<col>_c0` is not silently replaced."""
+        dm = DesignMatrix(
+            {"a": [1.0, 0.0, 0.0], "a_c0": [9.0, 8.0, 7.0]}, sampling_freq=1
+        )
+
+        with pytest.raises(ValueError, match="a_c0"):
+            dm.convolve(kernel=np.array([1.0]), columns=["a"])
+
     def test_convolve_refuses_explicit_already_convolved_column(self):
         """Explicit ``columns=`` cannot name an already-convolved column.
 

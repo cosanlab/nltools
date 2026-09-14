@@ -129,6 +129,10 @@ def _convolve(
     Returns:
         DesignMatrix: New DesignMatrix with convolved columns.
 
+    Raises:
+        ValueError: If a column that is not being convolved already carries one
+            of the ``<col>_c{i}`` output names.
+
     Examples:
         ```python
         # Canonical Glover HRF → produces 'stim_c0'
@@ -220,6 +224,23 @@ def _convolve(
         raise TypeError(
             f"kernel must be an HRF model name ({_kernel_names()}) or a numpy "
             f"array, got {type(kernel).__name__}."
+        )
+
+    # Refuse to overwrite a column that happens to carry an output name. The
+    # source columns are dropped, so only the columns that survive can collide.
+    n_kernels = 1 if kernels_2d is None else kernels_2d.shape[1]
+    untouched = set(dm.columns) - set(columns_to_convolve)
+    collisions = [
+        f"{col}_c{k_idx}"
+        for col in columns_to_convolve
+        for k_idx in range(n_kernels)
+        if f"{col}_c{k_idx}" in untouched
+    ]
+    if collisions:
+        raise ValueError(
+            f"Convolution would overwrite existing columns: {collisions}. "
+            "Convolved columns are named '<col>_c{i}'; rename or drop the "
+            "existing columns first."
         )
 
     n_rows = dm.shape[0]
