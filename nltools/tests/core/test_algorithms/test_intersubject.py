@@ -21,6 +21,21 @@ class TestISC:
         pl_result = isc(pl_df, n_samples=50, random_state=1)
         np.testing.assert_allclose(pl_result["isc"], np_result["isc"])
 
+    def test_isc_returns_scalars_for_two_dimensional_input(self):
+        """2-D input gives floats for `'isc'`, `'p'` and both `'ci'` bounds.
+
+        `'p'` came back as a length-1 array while its neighbours were floats,
+        contradicting the documented return shape.
+        """
+        data = np.random.default_rng(0).standard_normal((40, 5))
+
+        result = isc(data, n_samples=20, random_state=0)
+
+        assert np.ndim(result["isc"]) == 0
+        assert np.ndim(result["p"]) == 0
+        assert np.ndim(result["ci"][0]) == 0
+        assert np.ndim(result["ci"][1]) == 0
+
     def test_summary_statistic_selects_leave_one_out(self):
         """`summary_statistic='leave-one-out'` reaches the engine's LOO path."""
         data = np.random.default_rng(3).standard_normal((60, 3))

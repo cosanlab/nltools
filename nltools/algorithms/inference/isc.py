@@ -1652,7 +1652,8 @@ def _isc_permutation_test(
     )
 
     if observed_isc.ndim == 0:
-        ci_lower, ci_upper = ci_lower[0], ci_upper[0]
+        # A single feature summarizes to floats, like `observed_isc` itself.
+        p_value, ci_lower, ci_upper = p_value[0], ci_lower[0], ci_upper[0]
     ci = (ci_lower, ci_upper)
 
     # Build result dictionary
