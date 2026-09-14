@@ -85,7 +85,9 @@ def _spearman_correlation(x: np.ndarray, y: np.ndarray) -> np.ndarray | float:
 
     # Rank-transform data (average method for tied ranks)
     # For vectorized case, rank each permutation separately
-    x_ranked = np.empty_like(x)
+    # Tied observations get fractional average ranks, so the buffer is float
+    # regardless of the input dtype.
+    x_ranked = np.empty(x.shape, dtype=float)
     for i in range(n_permute):
         x_ranked[i] = rankdata(x[i], method="average")
 

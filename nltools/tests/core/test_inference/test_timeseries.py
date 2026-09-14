@@ -136,3 +136,32 @@ class TestTimeseriesCorrelation:
 # ============================================================================
 # Test Timeseries Correlation Statistical Correctness
 # ============================================================================
+
+
+class TestTimeseriesSpearmanDtype:
+    """G-16: integer input must rank the same way float input does."""
+
+    def test_integer_input_ranks_like_float(self):
+        """Average ranks are fractional, so an integer rank buffer truncates them."""
+        from nltools.algorithms.inference import (
+            _timeseries_correlation_permutation_test,
+        )
+
+        x = np.array([0, 0, 1, 2])
+        y = np.array([0.0, 1.0, 2.0, 3.0])
+
+        integer_result = _timeseries_correlation_permutation_test(
+            x, y, method="circle_shift", metric="spearman", n_permute=10, random_state=1
+        )
+        float_result = _timeseries_correlation_permutation_test(
+            x.astype(float),
+            y,
+            method="circle_shift",
+            metric="spearman",
+            n_permute=10,
+            random_state=1,
+        )
+
+        assert integer_result["correlation"] == pytest.approx(
+            float_result["correlation"]
+        )
