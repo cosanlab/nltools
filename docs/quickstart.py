@@ -98,7 +98,7 @@ def _(data):
     faces = smoothed[smoothed.Y["condition"] == "face"].mean()
     baseline = smoothed[smoothed.Y["condition"] == "rest"].mean()
 
-    (faces - baseline).iplot(threshold="99%")
+    (faces - baseline).iplot(threshold="99.5%")
     return
 
 
