@@ -1,6 +1,12 @@
 import warnings
 
-from nltools.mask import collapse_mask, create_sphere, expand_mask, roi_to_brain
+from nltools.mask import (
+    collapse_mask,
+    create_sphere,
+    expand_mask,
+    roi_to_brain,
+    roi_to_brain_from_atlas,
+)
 import nibabel as nib
 from nltools.data import BrainData
 import numpy as np
@@ -252,3 +258,27 @@ def test_expand_mask_leaves_the_caller_s_data_alone():
     assert np.array_equal(labels.data, before)
     assert expanded.data.dtype == np.int32
     assert expanded.data.tolist() == [[0, 1, 0, 0], [0, 0, 1, 0]]
+
+
+def test_roi_to_brain_from_atlas_rejects_a_zero_roi_label():
+    # E-14: label 0 is background and receives `fill`, as the docstring says. An
+    # explicit roi_labels=[0, ...] used to paint its value over the background
+    # instead, contradicting both the docstring and the automatic path.
+    mask_img = _four_voxel_mask()
+    atlas = nib.Nifti1Image(
+        np.array([0.0, 1.0, 0.0, 1.0], dtype=np.float32).reshape(4, 1, 1), np.eye(4)
+    )
+
+    with pytest.raises(ValueError, match="background"):
+        roi_to_brain_from_atlas(
+            np.array([99.0, 7.0]), atlas, mask_img, roi_labels=[0, 1], fill=-1.0
+        )
+
+    with pytest.raises(ValueError, match="background"):
+        roi_to_brain_from_atlas(
+            np.array([[99.0, 7.0], [98.0, 6.0]]),
+            atlas,
+            mask_img,
+            roi_labels=[0, 1],
+            fill=-1.0,
+        )
