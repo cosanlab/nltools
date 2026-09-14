@@ -187,7 +187,6 @@ def _project_to_surface(
     nifti_img,
     mask_img,
     fs,
-    surf_key,
     hemis,
     *,
     threshold,
@@ -197,17 +196,18 @@ def _project_to_surface(
 ):
     """Project a volume onto fsaverage meshes and resolve the display range.
 
-    Shared by `plot_surf` and `plot_flatmap`. Both sample `vol_to_surf` with a
-    3 mm ball and linear interpolation. Vertices outside `mask_img` are set to
-    NaN so the background shows through; the `>= 0.5` cut needs a graded mask to
-    place the brain edge.
+    Shared by `plot_surf` and `plot_flatmap`. Both sample `vol_to_surf` on the
+    pial mesh with a 3 mm ball and linear interpolation; the display mesh never
+    changes the sampled values, which is what lets a caller render on an
+    inflated or flattened surface. Vertices outside `mask_img` are set to NaN so
+    the background shows through; the `>= 0.5` cut needs a graded mask to place
+    the brain edge.
 
     Args:
         nifti_img (nibabel.Nifti1Image): Volume to project.
         mask_img (nibabel.Nifti1Image | None): Transparency mask, or None.
         fs (sklearn.utils.Bunch): fsaverage surfaces from
             `nilearn.datasets.fetch_surf_fsaverage`.
-        surf_key (str): Mesh key prefix, e.g. `'pial'` or `'infl'`.
         hemis (list[str]): Hemispheres to project, e.g. `['left', 'right']`.
         threshold (float | str | None): Absolute cutoff or percentile string.
         cmap (str | None): Explicit colormap, or None for the sign-aware default.
@@ -223,14 +223,14 @@ def _project_to_surface(
     for h in hemis:
         tex = vol_to_surf(
             nifti_img,
-            fs[f"{surf_key}_{h}"],
+            fs[f"pial_{h}"],
             radius=3.0,
             interpolation="linear",
         )
         if mask_img is not None:
             mk = vol_to_surf(
                 mask_img,
-                fs[f"{surf_key}_{h}"],
+                fs[f"pial_{h}"],
                 radius=3.0,
                 interpolation="linear",
             )
@@ -291,7 +291,8 @@ def _plot_surf(
             single view string, or any list subset of `'lateral'`, `'medial'`,
             `'dorsal'`, `'ventral'`, `'anterior'`, `'posterior'`.
         surface (str): fsaverage mesh to render on. One of `'pial'` (default),
-            `'inflated'`, `'white'`, `'sphere'`.
+            `'inflated'`, `'white'`, `'sphere'`. The data is always sampled on
+            the pial mesh, so this changes the geometry only.
         template (str): fsaverage resolution (`'fsaverage3'` … `'fsaverage'`).
             Default `'fsaverage5'`.
         threshold (float | str, optional): Absolute cutoff (`0.3`) or percentile
@@ -362,7 +363,6 @@ def _plot_surf(
         nifti_img,
         mask_img,
         fs,
-        surf_key,
         hemis,
         threshold=threshold,
         cmap=cmap,
@@ -552,7 +552,6 @@ def _plot_flatmap(
         nifti_img,
         mask_img,
         fs,
-        "pial",
         ["left", "right"],
         threshold=threshold,
         cmap=cmap,
