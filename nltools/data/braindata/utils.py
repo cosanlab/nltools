@@ -411,7 +411,9 @@ def _perform_arithmetic(
                 f"Vector {operation_name} requires that the length of the vector "
                 f"({len(other)}) match the number of images ({len(bd)})"
             )
-        result_data = np.dot(bd.data.T, other).T
+        # atleast_2d so a single image — stored 1-D — still has the image axis
+        # the weights are matched against.
+        result_data = np.dot(np.atleast_2d(bd.data).T, other).T
 
     if inplace:
         _clear_fit_state(bd)
