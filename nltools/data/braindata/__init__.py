@@ -2015,7 +2015,8 @@ class BrainData:
 
         Args:
             stat_threshold: Voxel-level threshold (e.g. z- or t-cutoff), applied
-                exclusively: a voxel exactly at the threshold is dropped.
+                exclusively: a voxel exactly at the threshold is dropped, unlike
+                `BrainData.threshold`, whose cutoffs are inclusive.
                 ``None`` treats ``self`` as already thresholded.
             cluster_threshold: Minimum cluster size in voxels.
             two_sided: Report negative clusters separately.
