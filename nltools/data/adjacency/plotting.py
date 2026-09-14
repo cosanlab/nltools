@@ -248,16 +248,21 @@ def _plot_adjacency(adj, *, limit=3, ax=None, **kwargs):
         if ax is not None:
             print("ax is ignored when plotting multiple images")
         n_subs = np.minimum(len(adj), limit)
-        _, a = plt.subplots(nrows=n_subs, figsize=(7, len(adj) * 5))
+        # `squeeze=False` keeps a single panel indexable like any other.
+        _, a = plt.subplots(nrows=n_subs, figsize=(7, len(adj) * 5), squeeze=False)
+        a = a.ravel()
         for i in range(n_subs):
-            square = adj[i].squareform()
+            # Selecting the matrix resolves shared and nested labels alike;
+            # `adj.labels[i]` would index a node when the labels are shared.
+            matrix = adj[i]
+            square = matrix.squareform()
             heatmap_kwargs = _heatmap_kwargs(square, kwargs)
-            if adj.labels:
+            if matrix.labels:
                 sns.heatmap(
                     square,
                     square=True,
-                    xticklabels=adj.labels[i],
-                    yticklabels=adj.labels[i],
+                    xticklabels=matrix.labels,
+                    yticklabels=matrix.labels,
                     ax=a[i],
                     **heatmap_kwargs,
                 )
