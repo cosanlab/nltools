@@ -169,6 +169,19 @@ class TestDesignMatrixDiagnostics:
             "Only the first instance should be kept; both duplicates dropped"
         )
 
+    def test_clean_does_not_drop_through_an_already_dropped_column(self):
+        """A dropped column cannot go on to drop columns it correlates with.
+
+        `b` correlates with both `a` and `c`, but `a` and `c` are orthogonal,
+        so dropping `b` must leave `c` in place.
+        """
+        a = [-1.0, -1.0, 1.0, 1.0]
+        c = [-1.0, 1.0, -1.0, 1.0]
+        b = [ai + ci for ai, ci in zip(a, c)]
+        dm = DesignMatrix({"a": a, "b": b, "c": c}, sampling_freq=1)
+
+        assert list(dm.clean(thresh=0.7).columns) == ["a", "c"]
+
 
 # ============================================================================
 # 9. Utility Tests
