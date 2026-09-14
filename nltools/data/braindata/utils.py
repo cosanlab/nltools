@@ -173,6 +173,50 @@ def _n_observations(data):
     return 1 if data.ndim <= 1 else data.shape[0]
 
 
+def _replace_metadata_row(dest, repl, index, name):
+    """Write ``repl``'s rows into ``dest`` at ``index``, matching columns by name.
+
+    Row assignment used to route both frames through one NumPy matrix, which
+    matched columns by position (a replacement ordered ``b, a`` installed b's
+    value under ``a``) and collapsed a mixed-dtype frame to ``pl.Object``.
+    Writing column by column keeps each column's dtype, and the name check is
+    the one `append` already applies to the same metadata.
+
+    Args:
+        dest (pl.DataFrame): Frame being written into; never mutated.
+        repl (pl.DataFrame): Replacement rows.
+        index (int | slice | np.ndarray): Rows of `dest` to replace.
+        name (str): ``"X"`` or ``"Y"``, for the error messages.
+
+    Returns:
+        pl.DataFrame: A new frame with the replacement rows installed.
+
+    Raises:
+        ValueError: If the two frames name different columns, or the
+            replacement's height does not match the selected rows.
+    """
+    import polars as pl
+
+    if set(dest.columns) != set(repl.columns):
+        raise ValueError(
+            f"Row assignment requires compatible {name} metadata on both "
+            f"operands: destination has {dest.columns}, replacement has "
+            f"{repl.columns}"
+        )
+    positions = np.atleast_1d(np.arange(dest.height)[index])
+    if positions.size != repl.height:
+        raise ValueError(
+            f"Row assignment replaces {positions.size} rows but the "
+            f"replacement {name} has {repl.height}"
+        )
+    return pl.DataFrame(
+        [
+            dest[column].scatter(positions.tolist(), repl[column])
+            for column in dest.columns
+        ]
+    )
+
+
 #: The one attribute a fit leaves on a BrainData. Copying with this name
 #: excluded is how every derived result comes back unfitted; `BrainData`
 #: declares `model = None` in `__init__`, so an excluded clone still answers

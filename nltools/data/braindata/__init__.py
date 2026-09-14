@@ -343,8 +343,7 @@ class BrainData:
         return _perform_arithmetic(self, y, np.subtract, "subtract", reverse=True)
 
     def __setitem__(self, index, value):
-        import polars as pl
-        from .utils import _clear_fit_state
+        from .utils import _clear_fit_state, _replace_metadata_row
 
         if not isinstance(value, BrainData):
             raise ValueError(
@@ -356,18 +355,14 @@ class BrainData:
         if not value.Y.is_empty():
             if self.Y.is_empty():
                 raise ValueError("Cannot set Y values: self.Y is empty.")
-            arr = self.Y.to_numpy()
-            arr[index] = value.Y.to_numpy()
-            new_y = pl.DataFrame(arr, schema=self.Y.columns)
+            new_y = _replace_metadata_row(self.Y, value.Y, index, "Y")
         new_X = None
         if not value.X.is_empty():
             if self.X.is_empty():
                 raise ValueError("Cannot set X values: self.X is empty.")
             if self.X.shape[1] != value.X.shape[1]:
                 raise ValueError("Make sure self.X is the same size as value.X.")
-            arr = self.X.to_numpy()
-            arr[index] = value.X.to_numpy()
-            new_X = pl.DataFrame(arr, schema=self.X.columns)
+            new_X = _replace_metadata_row(self.X, value.X, index, "X")
 
         _clear_fit_state(self)
         self.data = new_data
