@@ -397,6 +397,23 @@ def test_compute_pairwise_isc_cosine_handles_zero_norm():
     assert np.all(np.isfinite(result) | np.isnan(result))
 
 
+def test_isc_bootstrap_summarizes_only_defined_draws():
+    """With two subjects half the draws duplicate a subject and are undefined.
+
+    Those draws used to count toward the p-value's denominator and to poison
+    the interval, giving p = 1/21 and `ci = (nan, nan)` where the eight defined
+    draws give p = 1/9 and a degenerate interval at the observed ISC.
+    """
+    data = np.array([[0.0, 0.0], [1.0, 2.0], [2.0, 1.0]])
+
+    result = _isc_permutation_test(
+        data, method="bootstrap", n_permute=20, n_jobs=1, random_state=0
+    )
+
+    np.testing.assert_allclose(result["p"], 1 / 9)
+    np.testing.assert_allclose(result["ci"], (0.5, 0.5))
+
+
 def test_bootstrap_pairwise_masks_duplicate_subjects_by_identity():
     """Only pairs of the same original subject are masked, not similar ones.
 

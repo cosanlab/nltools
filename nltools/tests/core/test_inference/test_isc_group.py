@@ -98,6 +98,26 @@ def test_compute_isc_group_difference_mismatched_observations():
         )
 
 
+def test_isc_group_bootstrap_pvalue_ignores_undefined_draws():
+    """An undefined bootstrap draw is dropped, not counted as a non-exceedance.
+
+    The same data used to give p = 1/6 as 2-D input and p = 1/21 once a
+    singleton voxel axis was added, because the voxelwise branch kept all 20
+    draws and NaN never exceeded the observed difference.
+    """
+    group1 = np.array([[0.0, 0.0], [1.0, 2.0], [2.0, 1.0]])
+    group2 = np.array([[0.0, 1.0], [1.0, 0.0], [2.0, 1.0]])
+    kwargs = {"method": "bootstrap", "n_permute": 20, "n_jobs": 1, "random_state": 0}
+
+    flat = _isc_group_permutation_test(group1, group2, **kwargs)
+    voxelwise = _isc_group_permutation_test(
+        group1[:, :, None], group2[:, :, None], **kwargs
+    )
+
+    np.testing.assert_allclose(flat["p"], 1 / 6)
+    np.testing.assert_allclose(voxelwise["p"], [1 / 6])
+
+
 def test_bootstrap_isc_group_keeps_anticorrelated_distinct_subjects():
     """A perfect anticorrelation between two distinct subjects is not a self-correlation.
 

@@ -102,6 +102,7 @@ apply `BrainData` methods per subject and stack the results with
 | Statistics | The social relations model paired each cell with the wrong reciprocal cell | Each dyad is paired with its own transpose | Variance components, reciprocity, reliabilities and the total variance all move |
 | Statistics | The SRM summary printed two-sided p-values above one when `t` was negative | `2 * sf(abs(t), df)` | Printed covariance rows only; no returned value changes |
 | Statistics | `brain.bootstrap('mean')` on a single image resampled its voxels as observations | Raises `ValueError` | The old result was one scalar wrapped in the source's full mask, which could not be written or plotted |
+| Statistics | An ISC bootstrap counted undefined draws in the p-value denominator and let one of them make the whole interval `NaN` | Undefined draws are dropped per feature: the denominator is that feature's valid-draw count and the interval is a NaN-aware percentile | The same data gave p = 1/6 as 2-D input and p = 1/21 once a singleton voxel axis was added |
 | Plotting | `brain.plot(view=…, threshold_upper=…, axes=…)` | `brain.plot(method=…, upper=…, ax=…)` | `ax` is the matplotlib spelling on every class |
 | Plotting | `adjacency.plot(limit, axes, *args)` | `adjacency.plot(*, limit=3, ax=None)` | Keyword-only; no positional passthrough |
 | Plotting | `plot_brain`, `plot_t_brain`, `plot_interactive_brain` | Removed | `BrainData.plot(method='glass'\|'mni'\|'full')` and `BrainData.iplot` |

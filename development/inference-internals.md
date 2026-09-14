@@ -191,6 +191,15 @@ where `count` = number of null statistics ≥ |observed|. This prevents `p = 0`
 standard practice (scipy, FSL, AFNI). Two-tailed uses `|null| ≥ |observed|`; one-tailed
 `'upper'`/`'lower'` are also supported.
 
+The ISC tests summarize through `isc._summarize_isc_resamples`, which applies the
+same correction over the draws that are *defined*. A bootstrap draw is undefined
+when every pair it contains is a duplicated subject — unavoidable with few
+subjects — and a flat feature has no correlation at all. Those draws are dropped
+per feature rather than counted as non-exceedances, so the denominator is the
+feature's valid-draw count plus one and the interval is a `np.nanpercentile` over
+the same draws. A feature with no defined draw reports NaN for the p-value and for
+both bounds. `return_null=True` still hands back the draws as drawn, NaNs included.
+
 ## Deterministic RNG (worker-count consistency)
 
 The load-bearing pattern (matching MNE-Python): pre-generate an independent seed per
