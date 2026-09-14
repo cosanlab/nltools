@@ -34,6 +34,21 @@ class TestCircleShift:
         for i in range(data.shape[1]):
             assert sorted(shifted[:, i]) == pytest.approx(sorted(data[:, i]))
 
+    def test_shift_larger_than_the_series_wraps(self):
+        """A shift of 7 on five samples is a shift of 2, not the identity (G-14)."""
+        np.testing.assert_array_equal(
+            circle_shift(np.arange(5), shift_amount=7), [3, 4, 0, 1, 2]
+        )
+
+    def test_oversized_shift_wraps_per_column(self):
+        """One oversized column must not sit still while its neighbour rotates."""
+        data = np.column_stack([np.arange(5), np.arange(5) * 2])
+
+        shifted = circle_shift(data, shift_amount=np.array([7, 2]))
+
+        np.testing.assert_array_equal(shifted[:, 0], [3, 4, 0, 1, 2])
+        np.testing.assert_array_equal(shifted[:, 1], [6, 8, 0, 2, 4])
+
     def test_explicit_shift_1d(self):
         """Test circle_shift with explicit shift amount for 1D."""
         data = np.array([1, 2, 3, 4, 5])

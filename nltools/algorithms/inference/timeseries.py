@@ -45,7 +45,8 @@ def circle_shift(
         data (np.ndarray): Time series, shape (n_samples,) or (n_samples, n_features).
         shift_amount (int | np.ndarray | None): Shift amount: an int for 1D data,
             or an array of length n_features (one shift per column) for 2D data.
-            None draws random shift(s). Defaults to None.
+            Shifts wrap, so a shift at or beyond the series length is the same
+            as its remainder. None draws random shift(s). Defaults to None.
         random_state (int | np.random.RandomState | None): Random seed used when
             `shift_amount` is None.
 
@@ -73,7 +74,9 @@ def circle_shift(
         if shift_amount is None:
             shift_amount = rng.randint(1, len(data))
         shift_amount = int(shift_amount)
-        return np.concatenate([data[-shift_amount:], data[:-shift_amount]])
+        # `np.roll` wraps the shift; slicing clamped it, so any shift at or
+        # above the series length silently returned the input unchanged.
+        return np.roll(data, shift_amount)
 
     # 2D case
     if data.ndim == 2:
@@ -93,7 +96,7 @@ def circle_shift(
         # Shift each feature independently
         shifted = np.empty_like(data)
         for i, shift in enumerate(shift_amount):
-            shifted[:, i] = np.concatenate([data[-shift:, i], data[:-shift, i]])
+            shifted[:, i] = np.roll(data[:, i], shift)
         return shifted
 
     raise ValueError(f"data must be 1D or 2D, got shape {data.shape}")
