@@ -86,7 +86,7 @@ def _to_graph(adj):
             G = nx.Graph(square)
         if adj.labels:
             labels = dict(zip(G.nodes, adj.labels))
-            nx.relabel_nodes(G, labels, copy=False)
+            G = nx.relabel_nodes(G, labels, copy=True)
         return G
     raise NotImplementedError("This function currently only works on single matrices.")
 
