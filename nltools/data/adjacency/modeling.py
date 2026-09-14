@@ -582,4 +582,4 @@ def _generate_permutations(adj, n_permute, random_state=None):
         )
         # Permute rows and columns using numpy advanced indexing (faster than pandas)
         dat = dat[np.ix_(permuted_idx, permuted_idx)]
-        yield Adjacency(dat)
+        yield Adjacency(dat, matrix_type=adj.matrix_type)

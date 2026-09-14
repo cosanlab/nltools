@@ -224,6 +224,21 @@ class TestAdjacencyModeling:
         )
         assert a["relationship_variance"] == pytest.approx(b["relationship_variance"])
 
+    def test_generate_permutations_keeps_the_declared_matrix_type(self):
+        """A permutation is the same kind of matrix as its source, whatever its values."""
+        adj = Adjacency(np.ones((3, 3)), matrix_type="directed")
+        perm = next(adj.generate_permutations(1, random_state=0))
+        assert perm.matrix_type == "directed"
+        assert perm.data.shape == (9,)
+        np.testing.assert_allclose(perm.squareform(), adj.squareform())
+
+        # A constant diagonal that inference cannot name no longer raises.
+        square = np.full((3, 3), 2.0)
+        np.fill_diagonal(square, 7.0)
+        constant_diagonal = Adjacency(square, matrix_type="directed")
+        perm = next(constant_diagonal.generate_permutations(1, random_state=0))
+        assert perm.matrix_type == "directed"
+
     def test_cluster_summary(self):
         """Test cluster-based summary statistics."""
         m1 = block_diag(np.ones((4, 4)), np.zeros((4, 4)), np.zeros((4, 4)))
