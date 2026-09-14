@@ -212,7 +212,11 @@ smallest p it can produce, for every flat or masked-out voxel.
 
 The load-bearing pattern (matching MNE-Python): pre-generate an independent seed per
 permutation, then give each permutation its own `RandomState`. This makes results
-identical regardless of joblib worker count.
+identical regardless of joblib worker count. The surrogate ISC methods
+(`circle_shift`, `phase_randomize`) follow it through `isc._surrogate_isc_null`,
+which plans workers the way the bootstrap paths do and drives one shared per-replicate
+worker for both surrogates, so `n_jobs` and `progress_bar` behave the same on every
+`method`.
 
 ```python
 MAX_INT = 2**31 - 1

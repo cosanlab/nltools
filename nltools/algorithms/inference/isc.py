@@ -1346,6 +1346,110 @@ def _bootstrap_pairwise_cpu_parallel(
     return np.array(bootstraps)
 
 
+def _summarize_surrogate_isc(data, summary, summary_statistic, metric):
+    """ISC of one surrogate dataset, summarized the way the observed one is.
+
+    Args:
+        data (np.ndarray): One surrogate dataset, shaped like the input.
+        summary (str): `'median'` or `'mean'` (Fisher z-transformed).
+        summary_statistic (str): `'pairwise'` or `'leave-one-out'`.
+        metric (str): Similarity metric for the pairwise statistic.
+
+    Returns:
+        np.ndarray: The surrogate ISC, shape `()` or `(n_voxels,)`.
+    """
+    if summary_statistic == "leave-one-out":
+        values = _compute_loo_isc(data)
+        if summary == "median":
+            return np.median(values, axis=0)
+        z = np.arctanh(np.clip(values, -0.9999, 0.9999))
+        return np.tanh(np.mean(z, axis=0))
+
+    values = _compute_pairwise_isc(data, metric=metric)
+    if summary == "median":
+        return np.nanmedian(values, axis=0)
+    z = np.arctanh(np.clip(values, -0.9999, 0.9999))
+    return np.tanh(np.nanmean(z, axis=0))
+
+
+def _one_surrogate_isc(data, surrogate, seed, summary, summary_statistic, metric):
+    """Build one surrogate dataset from `seed` and compute its ISC.
+
+    Args:
+        data (np.ndarray): Shape `(n_observations, n_subjects)` or
+            `(n_observations, n_subjects, n_voxels)`.
+        surrogate (Callable): `circle_shift` or `phase_randomize`.
+        seed (int): This replicate's seed, drawn before the joblib block so the
+            result does not depend on the worker count.
+        summary (str): `'median'` or `'mean'`.
+        summary_statistic (str): `'pairwise'` or `'leave-one-out'`.
+        metric (str): Similarity metric for the pairwise statistic.
+
+    Returns:
+        np.ndarray: The surrogate ISC, shape `()` or `(n_voxels,)`.
+    """
+    rng = np.random.RandomState(seed)
+    if data.ndim == 3:
+        # Voxel-wise: surrogate each subject's whole time-series block. The
+        # buffer is float64 because both surrogates return float64.
+        surrogates = np.empty(data.shape, dtype=np.float64)
+        for subject in range(data.shape[1]):
+            surrogates[:, subject, :] = surrogate(data[:, subject, :], random_state=rng)
+    else:
+        surrogates = surrogate(data, random_state=rng)
+
+    return _summarize_surrogate_isc(surrogates, summary, summary_statistic, metric)
+
+
+def _surrogate_isc_null(
+    data,
+    surrogate,
+    seeds,
+    summary,
+    summary_statistic,
+    metric,
+    desc,
+    n_jobs=-1,
+    progress_bar=False,
+):
+    """Null distribution of surrogate ISC values, one per seed.
+
+    Args:
+        data (np.ndarray): Shape `(n_observations, n_subjects)` or
+            `(n_observations, n_subjects, n_voxels)`.
+        surrogate (Callable): `circle_shift` or `phase_randomize`.
+        seeds (np.ndarray): One seed per replicate.
+        summary (str): `'median'` or `'mean'`.
+        summary_statistic (str): `'pairwise'` or `'leave-one-out'`.
+        metric (str): Similarity metric for the pairwise statistic.
+        desc (str): Progress-bar label.
+        n_jobs (int): CPU workers; -1 (default) picks the count from available
+            memory.
+        progress_bar (bool): Show a progress bar. Defaults to False.
+
+    Returns:
+        np.ndarray: Shape `(n_permute,)` or `(n_permute, n_voxels)`.
+    """
+    from joblib import Parallel, delayed
+    from nltools.algorithms.backends import _auto_n_jobs_cpu, _estimate_data_size_mb
+
+    n_permute = len(seeds)
+    if n_jobs == -1:
+        n_jobs = _auto_n_jobs_cpu(
+            data_size_mb=_estimate_data_size_mb(data),
+            n_permute=n_permute,
+        )
+
+    iterator = _maybe_tqdm(range(n_permute), progress_bar=progress_bar, desc=desc)
+    surrogates = Parallel(n_jobs=n_jobs)(
+        delayed(_one_surrogate_isc)(
+            data, surrogate, seeds[i], summary, summary_statistic, metric
+        )
+        for i in iterator
+    )
+    return np.array(surrogates)
+
+
 def _isc_permutation_test(
     # Required
     data: np.ndarray,
@@ -1518,96 +1622,27 @@ def _isc_permutation_test(
         # Center bootstrap distribution by subtracting observed (Chen et al. 2016)
         null_distribution = bootstraps - observed_isc
 
-    elif method == "circle_shift":
-        # Import timeseries utilities
-        from .timeseries import circle_shift
+    else:
+        # Surrogate methods: one seed per replicate, drawn before the joblib
+        # block so any worker count gives the same null.
+        from .timeseries import circle_shift, phase_randomize
 
-        # Permute data and recompute ISC
+        surrogate = circle_shift if method == "circle_shift" else phase_randomize
         rng = check_random_state(random_state)
         seeds = rng.randint(0, 2**31 - 1, size=n_permute)
 
-        bootstraps = []
-        for i in range(n_permute):
-            # Circle shift the data
-            # For 3D data (n_obs, n_subjects, n_voxels), apply per subject
-            if data.ndim == 3:
-                perm_rng = np.random.RandomState(seeds[i])
-                data_permuted = np.empty_like(data)
-                for subj in range(data.shape[1]):
-                    data_permuted[:, subj, :] = circle_shift(
-                        data[:, subj, :], random_state=perm_rng
-                    )
-            else:
-                data_permuted = circle_shift(
-                    data, random_state=np.random.RandomState(seeds[i])
-                )
-
-            # Recompute ISC
-            if summary_statistic == "leave-one-out":
-                loo_perm = _compute_loo_isc(data_permuted)
-                if summary == "median":
-                    isc_perm = np.median(loo_perm, axis=0)
-                else:
-                    z = np.arctanh(np.clip(loo_perm, -0.9999, 0.9999))
-                    isc_perm = np.tanh(np.mean(z, axis=0))
-            else:  # pairwise
-                pair_perm = _compute_pairwise_isc(data_permuted, metric=metric)
-                if summary == "median":
-                    isc_perm = np.nanmedian(pair_perm, axis=0)
-                else:
-                    z = np.arctanh(np.clip(pair_perm, -0.9999, 0.9999))
-                    isc_perm = np.tanh(np.nanmean(z, axis=0))
-
-            bootstraps.append(isc_perm)
-
-        bootstraps = np.array(bootstraps)
-        null_distribution = bootstraps  # Already centered for permutation methods
-
-    elif method == "phase_randomize":
-        # Import timeseries utilities
-        from .timeseries import phase_randomize
-
-        # Similar to circle_shift but with phase randomization
-        rng = check_random_state(random_state)
-        seeds = rng.randint(0, 2**31 - 1, size=n_permute)
-
-        bootstraps = []
-        for i in range(n_permute):
-            # Phase randomize the data
-            # For 3D data (n_obs, n_subjects, n_voxels), apply per subject
-            if data.ndim == 3:
-                perm_rng = np.random.RandomState(seeds[i])
-                # `phase_randomize` returns float64; an `empty_like` buffer
-                # would truncate every surrogate for integer input.
-                data_permuted = np.empty(data.shape, dtype=np.float64)
-                for subj in range(data.shape[1]):
-                    data_permuted[:, subj, :] = phase_randomize(
-                        data[:, subj, :], random_state=perm_rng
-                    )
-            else:
-                data_permuted = phase_randomize(
-                    data, random_state=np.random.RandomState(seeds[i])
-                )
-
-            # Recompute ISC
-            if summary_statistic == "leave-one-out":
-                loo_perm = _compute_loo_isc(data_permuted)
-                if summary == "median":
-                    isc_perm = np.median(loo_perm, axis=0)
-                else:
-                    z = np.arctanh(np.clip(loo_perm, -0.9999, 0.9999))
-                    isc_perm = np.tanh(np.mean(z, axis=0))
-            else:  # pairwise
-                pair_perm = _compute_pairwise_isc(data_permuted, metric=metric)
-                if summary == "median":
-                    isc_perm = np.nanmedian(pair_perm, axis=0)
-                else:
-                    z = np.arctanh(np.clip(pair_perm, -0.9999, 0.9999))
-                    isc_perm = np.tanh(np.nanmean(z, axis=0))
-
-            bootstraps.append(isc_perm)
-
-        bootstraps = np.array(bootstraps)
+        bootstraps = _surrogate_isc_null(
+            data,
+            surrogate,
+            seeds,
+            summary,
+            summary_statistic,
+            metric,
+            f"ISC {method}",
+            n_jobs=n_jobs,
+            progress_bar=progress_bar,
+        )
+        # Already centered: a surrogate null is built under H0.
         null_distribution = bootstraps
 
     # Compute the p-value (Phipson-Smyth correction) and the interval over the
