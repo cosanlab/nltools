@@ -56,6 +56,21 @@ class TestToH5Adjacency:
         _to_h5(sim_adjacency_single, path, obj_type="adjacency")
         assert os.path.exists(path)
 
+    def test_mixed_type_labels_round_trip_as_text(self, tmp_path):
+        """Labels the constructor accepts are writable; mixed ones become text."""
+        import numpy as np
+
+        from nltools.data import Adjacency
+
+        adj = Adjacency(
+            np.array([[0.0, 1.0], [1.0, 0.0]]),
+            matrix_type="similarity",
+            labels=[1, "right"],
+        )
+        path = str(tmp_path / "mixed_labels.h5")
+        _to_h5(adj, path, obj_type="adjacency")
+        assert list(Adjacency(path).labels) == ["1", "right"]
+
 
 class TestLegacyLayoutRejected:
     """Files written by nltools 0.5.1 and earlier are refused with an export hint."""
