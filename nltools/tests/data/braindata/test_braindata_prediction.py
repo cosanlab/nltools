@@ -1112,6 +1112,22 @@ class TestPredictPlot:
         assert "ROC Plot" in titles
         assert "Classification margin" in titles
 
+    def test_the_weight_map_figure_is_drawn_alongside_the_diagnostics(
+        self, _close_figs, minimal_brain_data
+    ):
+        """`plot=True` leaves three figures open, the weight map among them.
+
+        Drawing the weight map through the user-facing `plot()` closed the one
+        figure it returned — the guard against a notebook rendering it twice —
+        and the caller discarded the return value, so it was never displayed.
+        """
+        plt = _close_figs
+        y = _binary_labels(minimal_brain_data)
+
+        minimal_brain_data.predict(y=y, cv=3, plot=True)
+
+        assert len(plt.get_fignums()) == 3
+
     def test_multiclass_raises(self, _close_figs, minimal_brain_data):
         y = _three_class_labels(minimal_brain_data)
 

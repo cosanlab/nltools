@@ -985,7 +985,11 @@ def _plot_whole_brain_result(record, *, y, out_of_fold_values, classifier) -> No
             _plot_decision_margin(out_of_fold_values, y)
         else:
             _plot_class_probability(out_of_fold_values, y)
-    record.weight_map.plot()
+    # Drawn as a side effect, not returned, so it has to stay on pyplot's
+    # tracker: the user-facing plot() closes the single figure it hands back.
+    from .plotting import _plot_brain
+
+    _plot_brain(record.weight_map, detach_single=False)
 
 
 def _to_braindata(bd, arr):
