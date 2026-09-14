@@ -179,14 +179,15 @@ def _to_h5(obj, file_name, obj_type="brain_data", h5_compression="gzip"):
             f.create_dataset("issymmetric", data=obj.issymmetric)
             f.create_dataset("is_single_matrix", data=obj.is_single_matrix)
             if obj.labels:
+                # Build the array once so the dtype probe and the buffer cannot
+                # disagree. A mixed list such as [1, "right"] becomes text, so
+                # it is stored as text rather than refused.
+                labels = np.asarray(obj.labels)
+                is_text = labels.dtype.kind in "US"
                 f.create_dataset(
                     "labels",
-                    data=np.asarray(obj.labels, dtype=object)
-                    if np.asarray(obj.labels).dtype.kind in "US"
-                    else np.asarray(obj.labels),
-                    dtype=h5py.string_dtype(encoding="utf-8")
-                    if np.asarray(obj.labels).dtype.kind in "US"
-                    else None,
+                    data=labels.astype(object) if is_text else labels,
+                    dtype=h5py.string_dtype(encoding="utf-8") if is_text else None,
                 )
             else:
                 f.create_dataset("labels", data=np.array([], dtype="float64"))
