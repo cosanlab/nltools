@@ -11,7 +11,7 @@ import numpy as np
 import polars as pl
 
 
-def _validate_frame(frame, data_shape=None, frame_type="DataFrame"):
+def _validate_frame(frame, n_rows=None, frame_type="DataFrame"):
     """Validate and process an X or Y frame for a data class.
 
     Accepts pandas DataFrames for user convenience but always returns a
@@ -21,7 +21,9 @@ def _validate_frame(frame, data_shape=None, frame_type="DataFrame"):
         frame (pl.DataFrame | pd.DataFrame | dict | np.ndarray | str | Path | None):
             Input to validate: ``None``, a path to a CSV, a polars or pandas
             DataFrame, a dict of columns, or a 1D/2D numpy array.
-        data_shape (tuple | None): Data shape to validate the row count against.
+        n_rows (int | None): Number of observations the frame must have one row
+            per. ``None`` skips the check, which is what callers pass when
+            nothing constrains the count yet.
         frame_type (str): Name of the frame for error messages (e.g. ``"X"``,
             ``"Y"``).
 
@@ -31,7 +33,7 @@ def _validate_frame(frame, data_shape=None, frame_type="DataFrame"):
 
     Raises:
         TypeError: If frame is not a supported type.
-        ValueError: If frame rows do not match ``data_shape[0]`` or CSV read fails.
+        ValueError: If frame rows do not match ``n_rows`` or CSV read fails.
     """
     if frame is None:
         return pl.DataFrame()
@@ -72,12 +74,11 @@ def _validate_frame(frame, data_shape=None, frame_type="DataFrame"):
                 f"polars/pandas DataFrame. Received {type(frame).__name__}"
             )
 
-    if not out.is_empty() and data_shape is not None:
-        if out.shape[0] != data_shape[0]:
-            raise ValueError(
-                f"{frame_type} rows ({out.shape[0]}) do not match "
-                f"data rows ({data_shape[0]}). Each row in {frame_type} should "
-                f"correspond to an image in the data."
-            )
+    if not out.is_empty() and n_rows is not None and out.height != n_rows:
+        raise ValueError(
+            f"{frame_type} rows ({out.height}) do not match "
+            f"data rows ({n_rows}). Each row in {frame_type} should "
+            f"correspond to an image in the data."
+        )
 
     return out

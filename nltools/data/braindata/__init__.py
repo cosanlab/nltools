@@ -420,8 +420,11 @@ class BrainData:
     @X.setter
     def X(self, value):
         from ..validation import _validate_frame
+        from .utils import _metadata_row_requirement
 
-        self._X = _validate_frame(value, frame_type="X")
+        self._X = _validate_frame(
+            value, n_rows=_metadata_row_requirement(self), frame_type="X"
+        )
 
     @property
     def Y(self):
@@ -431,8 +434,11 @@ class BrainData:
     @Y.setter
     def Y(self, value):
         from ..validation import _validate_frame
+        from .utils import _metadata_row_requirement
 
-        self._Y = _validate_frame(value, frame_type="Y")
+        self._Y = _validate_frame(
+            value, n_rows=_metadata_row_requirement(self), frame_type="Y"
+        )
 
     # =========================================================================
     # Public methods (alphabetical)
