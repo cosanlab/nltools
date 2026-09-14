@@ -4,6 +4,7 @@ import warnings
 from dataclasses import dataclass
 
 import numpy as np
+from nibabel.affines import voxel_sizes
 
 from nltools.utils import ResamplingWarning, _find_stack_level
 
@@ -30,9 +31,11 @@ class _TemplateMatch:
 def _detect_resolution(affine: np.ndarray) -> tuple[float, bool]:
     """Detect voxel resolution (mm) and isotropy from a NIfTI affine.
 
-    Voxels are treated as isotropic when the per-axis sizes agree to within
-    three decimals. The reported resolution is that shared isotropic size, or
-    the mean of the per-axis sizes when non-isotropic.
+    Per-axis voxel sizes come from `nibabel.affines.voxel_sizes`, so rotated and
+    permuted axes report their true size. Voxels are treated as isotropic when
+    the per-axis sizes agree to within three decimals. The reported resolution is
+    that shared isotropic size, or the mean of the per-axis sizes when
+    non-isotropic.
 
     Args:
         affine (np.ndarray): 4x4 affine matrix from a NIfTI image.
@@ -40,7 +43,7 @@ def _detect_resolution(affine: np.ndarray) -> tuple[float, bool]:
     Returns:
         tuple[float, bool]: `(resolution_mm, is_isotropic)`.
     """
-    res_array = np.abs(np.diag(affine[:3, :3]))
+    res_array = voxel_sizes(affine)
     voxel_dims = np.unique(np.round(res_array, 3))
     is_isotropic = len(voxel_dims) == 1
     resolution_mm = float(voxel_dims[0]) if is_isotropic else float(np.mean(res_array))
@@ -133,7 +136,7 @@ def _is_standard_space(affine: np.ndarray) -> tuple[bool, str | None]:
     """
     res, is_isotropic = _detect_resolution(affine)
     if not is_isotropic:
-        res_array = np.abs(np.diag(affine[:3, :3]))
+        res_array = voxel_sizes(affine)
         zooms = tuple(round(float(r), 2) for r in res_array)
         return False, f"voxels are non-isotropic (zooms={zooms} mm)"
     res_int = int(round(res))

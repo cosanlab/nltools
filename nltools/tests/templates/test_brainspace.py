@@ -229,6 +229,18 @@ class TestIsStandardSpace:
             assert ok, f"{mm}mm should be standard, got reason={reason!r}"
             assert reason is None
 
+    def test_rotated_axes_keep_their_voxel_size(self):
+        # E-08: voxel size is the column norm of the affine, not its diagonal. A
+        # 2mm image whose axes are rotated read as 0.67mm non-isotropic and was
+        # refused by every plotting path.
+        from nltools.templates import _detect_resolution, _is_standard_space
+
+        aff = np.eye(4)
+        aff[:3, :3] = np.array([[0.0, -2.0, 0.0], [2.0, 0.0, 0.0], [0.0, 0.0, 2.0]])
+
+        assert _detect_resolution(aff) == (2.0, True)
+        assert _is_standard_space(aff) == (True, None)
+
     def test_non_isotropic_rejected(self):
         # Miyawaki-shaped voxels: non-isotropic in subject native space.
         from nltools.templates import _is_standard_space
