@@ -105,6 +105,16 @@ the result clears both metadata frames.
 One shared result-construction policy must enforce these rules. Individual
 methods must not mechanically copy row metadata and then repair mismatches.
 
+## Voxel correspondence
+
+Arithmetic with another `BrainData`, `append()`, and row assignment each combine
+two objects' voxel axes, so all three require that those axes describe the same
+voxels: the two masks pass `_check_space_match` and their binarized supports are
+identical. A mismatch raises, naming `resample()` and `apply_mask()` as the way
+to establish a common grid and support. Matching array dimensions are not
+sufficient — two objects can hold the same voxel count while packing disjoint
+parts of the brain, or the same support on grids far apart.
+
 ## Spatial transformations
 
 Spatial resampling and masking are separate operations:

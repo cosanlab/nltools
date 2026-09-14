@@ -55,6 +55,45 @@ def _validate_brain_data_shapes(brain1, brain2, operation="operation"):
     return brain1_is_single, brain2_is_single
 
 
+def _validate_voxel_correspondence(left, right, operation):
+    """Require that two BrainData objects' voxel axes describe the same voxels.
+
+    Matching array dimensions are not enough. Two objects can hold the same
+    number of voxels while packing disjoint parts of the brain, or the same
+    support on grids 50 mm apart; combining them produces a result carrying the
+    left operand's spatial interpretation of the right operand's values, which
+    is silently wrong neuroimaging.
+
+    Sameness is `_check_space_match` — the tolerance the loader and
+    `apply_mask` already share — plus an exact comparison of the binarized
+    supports, so an integer mask and an identical float one still match.
+
+    Args:
+        left (BrainData): Left operand.
+        right (BrainData): Right operand.
+        operation (str): Name of the operation, for the error message.
+
+    Raises:
+        ValueError: If the two grids or the two supports differ.
+    """
+    from .io import _check_space_match, _mask_support
+
+    left_mask, right_mask = left.mask, right.mask
+    if left_mask is right_mask:
+        return
+    if _check_space_match(left_mask, right_mask) and np.array_equal(
+        _mask_support(left_mask), _mask_support(right_mask)
+    ):
+        return
+    raise ValueError(
+        f"Cannot {operation}: the two objects' voxels are not the same voxels. "
+        f"Left is {left_mask.shape} with affine\n{left_mask.affine}\nand right "
+        f"is {right_mask.shape} with affine\n{right_mask.affine}\n"
+        "Bring them onto a common grid with resample() and onto a common "
+        "support with apply_mask() first."
+    )
+
+
 def _validate_arithmetic_operand(other, operation_name):
     """Validate operand type for arithmetic operations.
 
