@@ -18,6 +18,10 @@ ipywidgets = _attempt_to_import(
 def component_viewer(output, tr=2.0):
     """Interactively view the results of a `BrainData.decompose()` run.
 
+    Each component is drawn with nilearn's `plot_stat_map` above its time
+    course and power spectrum, with sliders for the component index and the
+    display threshold.
+
     Args:
         output (dict): Output dictionary from `BrainData.decompose()` (keys
             `'components'`, `'weights'`, `'decomposition_object'`).
