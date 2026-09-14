@@ -171,3 +171,15 @@ class TestOneSampleStatistics:
             out[key][...] = -999.0
         out["null_dist"][...] = -999.0
         np.testing.assert_array_equal(data, original)
+
+
+class TestOneSampleNullDistributionShape:
+    """G-13: a single-draw null keeps its permutation axis."""
+
+    def test_one_draw_keeps_the_permutation_axis(self):
+        rng = np.random.RandomState(0)
+        result = one_sample_permutation_test(
+            rng.randn(20), n_permute=1, return_null=True, random_state=0
+        )
+
+        assert result["null_dist"].shape == (1,)

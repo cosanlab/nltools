@@ -88,7 +88,8 @@ def _two_sample_permutation_cpu_parallel(
             unit="perm",
         )
     )
-    null_dist = np.array(null_dist)  # Shape: (n_permute, n_features)
+    # Shape: (n_permute, n_features), including when there are no permutations
+    null_dist = np.asarray(null_dist).reshape(n_permute, n_features)
 
     # Compute p-values
     p_values = _compute_pvalue(obs_diff, null_dist, tail=tail)
@@ -106,7 +107,10 @@ def _two_sample_permutation_cpu_parallel(
 
     if return_null:
         if single_feature:
-            null_dist = null_dist.squeeze()
+            # Drop the feature axis, never the permutation axis: `squeeze()`
+            # collapsed a one-draw null to a 0-d array, which cannot be
+            # indexed or measured.
+            null_dist = null_dist[:, 0]
         result["null_dist"] = null_dist
 
     return result
