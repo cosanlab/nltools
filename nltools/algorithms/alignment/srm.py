@@ -104,6 +104,34 @@ def _init_w_transforms(
     return w, voxels
 
 
+def _check_n_features(X: list[np.ndarray], n_features: int) -> None:
+    """Reject a feature count no subject's voxel dimension can support.
+
+    `_init_w_transforms` takes a reduced QR, which silently returns
+    `min(voxels, n_features)` columns, so an oversized request would otherwise
+    produce a model of a dimension the caller never asked for.
+
+    Args:
+        X (list[np.ndarray]): One (voxels_i, samples) array per subject.
+        n_features (int): Requested number of shared features.
+
+    Raises:
+        ValueError: If `n_features` is not a positive integer, or exceeds any
+            subject's voxel count.
+    """
+    if not isinstance(n_features, (int, np.integer)) or n_features < 1:
+        raise ValueError(f"n_features must be a positive integer, got {n_features!r}.")
+    for subject, data in enumerate(X):
+        if data is None:
+            continue
+        if data.shape[0] < n_features:
+            raise ValueError(
+                f"subject {subject} has {data.shape[0]} voxels, too few to "
+                f"support {n_features} features. Lower n_features to at most "
+                "the smallest subject's voxel count."
+            )
+
+
 def _update_transform_subject(Xi: np.ndarray, S: np.ndarray) -> np.ndarray:
     """Update the mapping $W_i$ for one subject.
 
@@ -195,6 +223,11 @@ class _SRM(BaseEstimator, TransformerMixin):
 
         Returns:
             _SRM: Fitted model (`self`).
+
+        Raises:
+            ValueError: If there are fewer than two subjects, the subjects
+                disagree on sample count, or `n_features` exceeds any subject's
+                voxel count.
         """
         logger.info("Starting Probabilistic SRM")
 
@@ -210,6 +243,7 @@ class _SRM(BaseEstimator, TransformerMixin):
                 "There are not enough samples to train the model with "
                 f"{self.n_features:d} features."
             )
+        _check_n_features(X, self.n_features)
 
         # Check if all subjects have same number of samples
         sample_counts = [subj.shape[1] for subj in X]
@@ -563,6 +597,11 @@ class _DetSRM(BaseEstimator, TransformerMixin):
 
         Returns:
             _DetSRM: Fitted model (`self`).
+
+        Raises:
+            ValueError: If there are fewer than two subjects, the subjects
+                disagree on sample count, or `n_features` exceeds any subject's
+                voxel count.
         """
         logger.info("Starting Deterministic SRM")
 
@@ -578,6 +617,7 @@ class _DetSRM(BaseEstimator, TransformerMixin):
                 "There are not enough samples to train the model with "
                 f"{self.n_features:d} features."
             )
+        _check_n_features(X, self.n_features)
 
         # Check if all subjects have same number of TRs
         number_trs = X[0].shape[1]

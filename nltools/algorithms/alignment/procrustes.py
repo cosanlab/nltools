@@ -151,7 +151,8 @@ def align(
         method (str): One of `'probabilistic_srm'`, `'deterministic_srm'`, or
             `'procrustes'`. Defaults to `'deterministic_srm'`.
         n_features (int | None): Number of features in the common space (SRM only).
-            None uses the number of voxels. Must be None for `'procrustes'`.
+            None uses the number of voxels, and may not exceed any subject's
+            voxel count. Must be None for `'procrustes'`.
         axis (int): Axis to align on: 0 aligns timepoints (ISC computed per voxel),
             1 aligns voxels (ISC computed per timepoint). Defaults to 0.
         n_iter (int): Number of `_SRM`/`_DetSRM` iterations; ignored by
