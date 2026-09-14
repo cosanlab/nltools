@@ -297,9 +297,13 @@ def _summarize_isc_resamples(observed, null_dist, interval_source, tail, ci_perc
     """
     observed = np.atleast_1d(np.asarray(observed, dtype=np.float64))
     n_features = observed.shape[0]
-    null_dist = np.asarray(null_dist, dtype=np.float64).reshape(-1, n_features)
+    # Reshape against the resample count rather than -1, so a null that does not
+    # describe these features raises instead of being silently re-blocked.
+    null_dist = np.asarray(null_dist, dtype=np.float64).reshape(
+        len(null_dist), n_features
+    )
     interval_source = np.asarray(interval_source, dtype=np.float64).reshape(
-        -1, n_features
+        len(interval_source), n_features
     )
 
     defined = ~np.isnan(null_dist)
@@ -932,7 +936,8 @@ def _isc_group_permutation_test(
             difference), `'p'` (float or np.ndarray, p-value with the
             `(count + 1) / (n + 1)` correction), `'ci'` (tuple
             `(lower, upper)`), and — when `return_null=True` — `'null_dist'`
-            (np.ndarray).
+            (np.ndarray), holding every draw with `NaN` where a draw was
+            undefined.
 
     Examples:
         ```python
@@ -1346,6 +1351,38 @@ def _bootstrap_pairwise_cpu_parallel(
     return np.array(bootstraps)
 
 
+def _summarize_isc_values(values, summary, summary_statistic):
+    """Central tendency of a set of ISC values, observed or surrogate.
+
+    Pairwise values are summarized NaN-aware: a duplicated-subject pair is
+    masked before the summary. Leave-one-out values carry no such mask.
+
+    Args:
+        values (np.ndarray): Leave-one-out values, shape `(n_subjects,)` or
+            `(n_subjects, n_voxels)`, or pairwise similarities in condensed
+            form, shape `(n_pairs,)` or `(n_pairs, n_voxels)`.
+        summary (str): `'median'` or `'mean'` (Fisher z-transformed:
+            arctanh → mean → tanh).
+        summary_statistic (str): `'pairwise'` or `'leave-one-out'`, which says
+            whether the summary ignores NaN.
+
+    Returns:
+        np.ndarray: The summarized ISC, shape `()` or `(n_voxels,)`.
+
+    Raises:
+        ValueError: If `summary` is neither `'median'` nor `'mean'`.
+    """
+    if summary not in ["median", "mean"]:
+        raise ValueError(f"summary must be 'median' or 'mean', got {summary}")
+
+    nan_aware = summary_statistic == "pairwise"
+    if summary == "median":
+        return np.nanmedian(values, axis=0) if nan_aware else np.median(values, axis=0)
+
+    z = np.arctanh(np.clip(values, -0.9999, 0.9999))
+    return np.tanh(np.nanmean(z, axis=0) if nan_aware else np.mean(z, axis=0))
+
+
 def _summarize_surrogate_isc(data, summary, summary_statistic, metric):
     """ISC of one surrogate dataset, summarized the way the observed one is.
 
@@ -1360,16 +1397,9 @@ def _summarize_surrogate_isc(data, summary, summary_statistic, metric):
     """
     if summary_statistic == "leave-one-out":
         values = _compute_loo_isc(data)
-        if summary == "median":
-            return np.median(values, axis=0)
-        z = np.arctanh(np.clip(values, -0.9999, 0.9999))
-        return np.tanh(np.mean(z, axis=0))
-
-    values = _compute_pairwise_isc(data, metric=metric)
-    if summary == "median":
-        return np.nanmedian(values, axis=0)
-    z = np.arctanh(np.clip(values, -0.9999, 0.9999))
-    return np.tanh(np.nanmean(z, axis=0))
+    else:
+        values = _compute_pairwise_isc(data, metric=metric)
+    return _summarize_isc_values(values, summary, summary_statistic)
 
 
 def _one_surrogate_isc(data, surrogate, seed, summary, summary_statistic, metric):
@@ -1517,7 +1547,8 @@ def _isc_permutation_test(
         dict: Keys `'isc'` (float or np.ndarray, observed ISC), `'p'` (float or
             np.ndarray, p-value with the `(count + 1) / (n + 1)` correction),
             `'ci'` (tuple `(lower, upper)` percentiles of the resamples), and
-            — when `return_null=True` — `'null_dist'` (np.ndarray).
+            — when `return_null=True` — `'null_dist'` (np.ndarray), holding
+            every draw with `NaN` where a draw was undefined.
 
     Examples:
         ```python
@@ -1564,33 +1595,17 @@ def _isc_permutation_test(
             f"got {method}"
         )
 
-    # Phase 1: Compute ISC (run once)
+    # Phase 1: Compute ISC (run once). The per-subject or per-pair values are
+    # kept because the bootstrap resamples them directly.
     if summary_statistic == "leave-one-out":
-        # Compute leave-one-out values
         loo_values = _compute_loo_isc(data)
-
-        # Compute observed summary statistic
-        if summary == "median":
-            observed_isc = np.median(loo_values, axis=0)
-        elif summary == "mean":
-            z = np.arctanh(np.clip(loo_values, -0.9999, 0.9999))
-            observed_isc = np.tanh(np.mean(z, axis=0))
-        else:
-            raise ValueError(f"summary must be 'median' or 'mean', got {summary}")
-
+        observed_isc = _summarize_isc_values(loo_values, summary, summary_statistic)
     else:  # pairwise
-        # Compute pairwise correlation matrix (condensed form)
         pairwise_condensed = _compute_pairwise_isc(data, metric=metric)
         n_subjects = data.shape[1]
-
-        # Compute observed summary statistic
-        if summary == "median":
-            observed_isc = np.nanmedian(pairwise_condensed, axis=0)
-        elif summary == "mean":
-            z = np.arctanh(np.clip(pairwise_condensed, -0.9999, 0.9999))
-            observed_isc = np.tanh(np.nanmean(z, axis=0))
-        else:
-            raise ValueError(f"summary must be 'median' or 'mean', got {summary}")
+        observed_isc = _summarize_isc_values(
+            pairwise_condensed, summary, summary_statistic
+        )
 
     # Phase 2: Bootstrap/permutation (run n_permute times)
     if method == "bootstrap":

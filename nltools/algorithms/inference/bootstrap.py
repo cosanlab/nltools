@@ -534,7 +534,9 @@ def _bootstrap_index_size_mb(n_obs: int, n_samples: int) -> float:
         float: Size in MB, on the same mebibyte scale as
             `_estimate_data_size_mb`.
     """
-    return int(n_obs) * int(n_samples) * 8 / 1024**2
+    from nltools.algorithms.backends import _BOOTSTRAP_INDEX_ITEMSIZE
+
+    return int(n_obs) * int(n_samples) * _BOOTSTRAP_INDEX_ITEMSIZE / 1024**2
 
 
 def _bootstrap_simple_cpu_parallel(
