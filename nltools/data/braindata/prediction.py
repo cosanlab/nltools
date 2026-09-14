@@ -1078,8 +1078,14 @@ def _run_searchlight(
     estimator — only the cross-fold mean score at each sphere center.
     """
     from joblib import Parallel, delayed
+    from sklearn.metrics import check_scoring
 
     from nltools.algorithms.neighborhoods import compute_searchlight_neighborhoods
+
+    # Resolve the scorer once, before any sphere runs: the per-sphere handler
+    # below turns a failure into NaN, which is right for a degenerate sphere and
+    # wrong for a misconfigured scorer that would fail everywhere.
+    check_scoring(pipe, scoring=scoring)
 
     neighborhoods = compute_searchlight_neighborhoods(bd.mask, radius=radius)
 
@@ -1179,6 +1185,10 @@ def _run_roi(
 
     from nltools.data.braindata.analysis import _resolve_atlas_label_vec
     from nltools.data.results import _fold_mean
+
+    # Same reason as the searchlight runner: a scorer that cannot be built at
+    # all must not arrive as one failed parcel after another.
+    check_scoring(pipe, scoring=scoring)
 
     _, label_vec, unique_labels = _resolve_atlas_label_vec(bd, roi_mask)
 
