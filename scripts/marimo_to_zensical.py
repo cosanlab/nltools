@@ -53,6 +53,7 @@ import hashlib
 import re
 import subprocess
 import sys
+from importlib.metadata import version
 from pathlib import Path
 from textwrap import indent
 
@@ -74,9 +75,11 @@ NOTEBOOK_GLOBS = [
 # the package from PyPI on the first Run.
 LIVE_NOTEBOOKS = {"docs/quickstart.py"}
 
-# What the first `pyodide` cell of a live page installs. Pinned, because the page
-# documents the version of the library it was built from, not the latest release.
-LIVE_INSTALL = "nltools==0.6.0.dev0"
+# What the first `pyodide` cell of a live page installs: the version that built
+# the page, not the latest release, so a reader runs the library the outputs came
+# from. A live notebook's own PEP 723 header pin is updated by hand at each
+# release, because `uvx marimo edit` reads it without this script.
+LIVE_INSTALL = f"nltools=={version('nltools')}"
 
 # Where the source notebooks live on GitHub. The docs site deploys from `master`,
 # so links (and molab, which fetches the notebook from GitHub) target that branch.
