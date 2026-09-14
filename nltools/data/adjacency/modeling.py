@@ -46,8 +46,9 @@ def _bootstrap(
             `return_samples=True`.
 
     Raises:
-        ValueError: If `statistic` is unknown, an argument is out of range, or
-            the retained output cannot fit the measured memory budget.
+        ValueError: If `adj` holds fewer than two matrices, `statistic` is
+            unknown, an argument is out of range, or the retained output cannot
+            fit the measured memory budget.
 
     Examples:
         ```python
@@ -58,6 +59,12 @@ def _bootstrap(
     from nltools.algorithms.inference.bootstrap import (
         _bootstrap_simple_cpu_parallel,
     )
+
+    if adj.is_single_matrix or adj.data.shape[0] < 2:
+        raise ValueError(
+            "bootstrap requires multiple matrices (got fewer than 2). "
+            "Stack matrices into a single Adjacency first."
+        )
 
     SIMPLE_STATS = ["mean", "median", "std", "sum", "min", "max"]
     if statistic not in SIMPLE_STATS:

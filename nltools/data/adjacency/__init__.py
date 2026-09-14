@@ -231,6 +231,9 @@ class Adjacency:
                 array with the bootstrap axis first when
                 ``return_samples=True``.
 
+        Raises:
+            ValueError: If this Adjacency holds fewer than two matrices.
+
         Examples:
             ```python
             boot = adj.bootstrap("mean", n_samples=1000)

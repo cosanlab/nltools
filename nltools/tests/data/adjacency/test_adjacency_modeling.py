@@ -19,6 +19,17 @@ pytestmark = [
 
 
 class TestAdjacencyModeling:
+    def test_bootstrap_requires_multiple_matrices(self):
+        """Bootstrap resamples matrices, so a single matrix is an error."""
+        single = Adjacency(np.array([1.0, 2.0, 3.0]))
+        with pytest.raises(ValueError, match="requires multiple matrices"):
+            single.bootstrap("mean", n_samples=2, n_jobs=1)
+        with pytest.raises(ValueError, match="requires multiple matrices"):
+            single.append(single)[[0]].bootstrap("mean", n_samples=2, n_jobs=1)
+
+        stack = single.append(single)
+        assert stack.bootstrap("mean", n_samples=2, n_jobs=1).estimate.n_nodes == 3
+
     @pytest.mark.slow
     def test_bootstrap_estimate_is_the_unresampled_statistic(
         self, sim_adjacency_multiple
