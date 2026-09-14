@@ -59,6 +59,14 @@ def winsorize(data, cutoff=None, replace_with_cutoff=True):
 
     Returns:
         pl.DataFrame | pl.Series: Winsorized data, the same type as the input.
+
+    Raises:
+        ValueError: If `data` is not Polars, if `cutoff` has neither key, or if
+            a quantile cutoff is asked of a column with no present values.
+
+    Note:
+        Missing values are skipped when the cutoffs are computed and left in
+        place in the result, so `winsorize(trim(x))` is meaningful.
     """
     return _transform_outliers(
         data, cutoff, replace_with_cutoff=replace_with_cutoff, method="winsorize"
@@ -76,6 +84,10 @@ def trim(data, cutoff=None):
     Returns:
         pl.DataFrame | pl.Series: Trimmed data (outliers replaced with NaN), the
             same type as the input.
+
+    Raises:
+        ValueError: If `data` is not Polars, if `cutoff` has neither key, or if
+            a quantile cutoff is asked of a column with no present values.
     """
     return _transform_outliers(data, cutoff, replace_with_cutoff=None, method="trim")
 
@@ -114,8 +126,17 @@ def _transform_outliers(data, cutoff, replace_with_cutoff, method):
         if isinstance(cutoff, dict):
             if "quantile" in cutoff:
                 quantiles = cutoff["quantile"]
-                # Use numpy quantile to match pandas interpolation behavior
-                series_array = series.to_numpy()
+                # Use numpy quantile to match pandas interpolation behavior.
+                # Drop missing values first: `to_numpy` renders a Polars null as
+                # NaN, which np.quantile propagates into both cutoffs and which
+                # the comparison chain below then spreads over the whole column.
+                # The std branch already skips them, and `trim` emits them, so
+                # winsorize(trim(x)) has to survive them.
+                series_array = series.drop_nulls().drop_nans().to_numpy()
+                if series_array.size == 0:
+                    raise ValueError(
+                        f"Column '{col}' has no present values to take quantiles from."
+                    )
                 lower_q = float(np.quantile(series_array, quantiles[0]))
                 upper_q = (
                     float(np.quantile(series_array, quantiles[1]))
