@@ -373,6 +373,7 @@ def _ridge_fit_result(bd, X, model):
     is one map in every case.
     """
     from nltools.data.results import FitResult
+    from nltools.models.ridge import _r2_from_predictions
 
     n_voxels = bd.data.shape[-1]
     # _Ridge.coef_ is (n_features, n_voxels); no transpose.
@@ -384,7 +385,9 @@ def _ridge_fit_result(bd, X, model):
         predicted=_result_from_array(bd, fitted, rows="preserve"),
         residual=_result_from_array(bd, bd.data - fitted, rows="preserve"),
         r2=_result_from_array(
-            bd, np.asarray(model.score(X, bd.data)).reshape(1, -1), rows="clear"
+            bd,
+            np.asarray(_r2_from_predictions(bd.data, fitted)).reshape(1, -1),
+            rows="clear",
         ),
         design=_owned_design(X),
         alpha=_result_from_array(bd, alpha.reshape(1, -1), rows="clear"),

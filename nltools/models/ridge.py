@@ -550,6 +550,58 @@ def _snap_to_grid(values: np.ndarray, grid: np.ndarray) -> np.ndarray:
     return np.asarray(grid, dtype=np.float64)[nearest]
 
 
+def _r2_from_predictions(y, predictions) -> float | np.ndarray:
+    """Coefficient of determination for predictions already computed.
+
+    Separate from `_Ridge.score` so a caller holding the fitted values — the
+    `FitResult` producer, which needs them anyway — scores them without asking
+    the estimator to predict the whole response a second time.
+
+    A target with no variance has no explainable signal, so it scores zero. A
+    target that is not finite cannot be scored at all and comes back NaN,
+    rather than being mistaken for a constant target: on a whole-brain fit a
+    single bad voxel must not read as a plausible zero next to the NaN its
+    betas and predictions already carry.
+
+    Args:
+        y (np.ndarray): True targets, `(n_samples,)` or `(n_samples, n_targets)`.
+        predictions (np.ndarray): Predicted targets, aligned with `y`.
+
+    Returns:
+        float | np.ndarray: A `float` for one-dimensional `y`, otherwise an
+            array of shape `(n_targets,)`.
+
+    Raises:
+        ValueError: If `y` is not 1-D or 2-D, or its sample or target count
+            disagrees with `predictions`.
+    """
+    y = np.asarray(y, dtype=np.float64)
+    if y.ndim not in (1, 2):
+        raise ValueError(f"y must be 1D or 2D, got {y.ndim}D array")
+    predictions = np.asarray(predictions, dtype=np.float64)
+    if y.shape[0] != predictions.shape[0]:
+        raise ValueError(
+            f"X and y have inconsistent sample counts: X gives "
+            f"{predictions.shape[0]} predictions, y has {y.shape[0]}"
+        )
+    was_1d = y.ndim == 1
+    y_2d = y[:, None] if was_1d else y
+    predicted_2d = predictions[:, None] if predictions.ndim == 1 else predictions
+    if y_2d.shape[1] != predicted_2d.shape[1]:
+        raise ValueError(
+            f"y has {y_2d.shape[1]} targets, but Ridge predicts {predicted_2d.shape[1]}"
+        )
+
+    residual = np.sum((y_2d - predicted_2d) ** 2, axis=0)
+    total = np.sum((y_2d - y_2d.mean(axis=0)) ** 2, axis=0)
+    scores = np.full(y_2d.shape[1], np.nan, dtype=np.float64)
+    finite = np.isfinite(residual) & np.isfinite(total)
+    scores[finite & (total == 0)] = 0.0
+    varying = finite & (total > 0)
+    scores[varying] = 1.0 - residual[varying] / total[varying]
+    return float(scores[0]) if was_1d else scores
+
+
 class _Ridge:
     """Ridge regression over one or several named feature spaces.
 
@@ -1267,36 +1319,14 @@ class _Ridge:
 
         Returns:
             float | np.ndarray: A `float` for one-dimensional `y`, otherwise an
-                array of shape `(n_targets,)`. A constant target scores zero.
+                array of shape `(n_targets,)`. A finite constant target scores
+                zero; a non-finite target scores NaN.
 
         Raises:
             ValueError: If the model is not fitted, or the shapes disagree.
         """
         _check_is_fitted(self)
-        y = np.asarray(y, dtype=np.float64)
-        if y.ndim not in (1, 2):
-            raise ValueError(f"y must be 1D or 2D, got {y.ndim}D array")
-        predictions = np.asarray(self.predict(X), dtype=np.float64)
-        if y.shape[0] != predictions.shape[0]:
-            raise ValueError(
-                f"X and y have inconsistent sample counts: X gives "
-                f"{predictions.shape[0]} predictions, y has {y.shape[0]}"
-            )
-        was_1d = y.ndim == 1
-        y_2d = y[:, None] if was_1d else y
-        predicted_2d = predictions[:, None] if predictions.ndim == 1 else predictions
-        if y_2d.shape[1] != predicted_2d.shape[1]:
-            raise ValueError(
-                f"y has {y_2d.shape[1]} targets, but Ridge predicts "
-                f"{predicted_2d.shape[1]}"
-            )
-
-        residual = np.sum((y_2d - predicted_2d) ** 2, axis=0)
-        total = np.sum((y_2d - y_2d.mean(axis=0)) ** 2, axis=0)
-        scores = np.zeros(y_2d.shape[1], dtype=np.float64)
-        varying = total > 0
-        scores[varying] = 1.0 - residual[varying] / total[varying]
-        return float(scores[0]) if was_1d else scores
+        return _r2_from_predictions(y, self.predict(X))
 
     def __repr__(self) -> str:
         """Return a short constructor-style summary of the model."""
