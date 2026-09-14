@@ -118,6 +118,34 @@ class TestComputeMultivariateSimilarity:
             result["residual"] @ result["residual"], 78.72307692247742, rtol=1e-12
         )
 
+    def test_reported_df_reproduces_the_reported_p(self):
+        """A rank-deficient design must not report a df its own p disagrees with.
+
+        `regress` scores t and p against `n - rank(X)`, so recomputing the df
+        from the column count would describe a different test than the one the
+        returned p-values came from.
+        """
+        from scipy.stats import t as t_dist
+
+        rng = np.random.default_rng(0)
+        x0 = rng.standard_normal(50)
+        X = np.column_stack([x0, x0])  # duplicated column: rank 1, not 2
+        y = rng.standard_normal(50)
+
+        result = _compute_multivariate_similarity(y, X)
+
+        assert result["df"] == 48  # 50 - rank([1, x0, x0]) = 50 - 2
+        np.testing.assert_allclose(
+            result["p"],
+            2 * (1 - t_dist.cdf(np.abs(result["t"]), result["df"])),
+            rtol=1e-12,
+        )
+        np.testing.assert_allclose(
+            result["sigma"],
+            np.sqrt(result["residual"] @ result["residual"] / result["df"]),
+            rtol=1e-12,
+        )
+
     def test_ols_transposed_input(self):
         """A (n_predictors, n_features) X is transposed into place."""
         np.random.seed(42)
