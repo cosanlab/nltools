@@ -50,8 +50,14 @@ def holm_bonf(p, alpha=0.05):
     s = np.sort(p)
     nvox = p.shape[0]
     null = alpha / (nvox - np.arange(1, nvox + 1) + 1)
-    below = np.where(s <= null)[0]
-    return s[max(below)] if len(below) else -1
+    # Step *down*: walk up the sorted p-values and stop at the first one above
+    # its own boundary. Everything after it is rejected too, so the largest
+    # index below its boundary (the step-up rule `fdr` uses) is not the answer
+    # here — it would report a surviving threshold for a family in which the
+    # walk had already stopped.
+    failed = np.where(s > null)[0]
+    n_rejected = int(failed[0]) if len(failed) else nvox
+    return s[n_rejected - 1] if n_rejected else -1
 
 
 def threshold(stat, p, thr=0.05, return_mask=False):
