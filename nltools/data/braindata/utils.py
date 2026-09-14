@@ -153,6 +153,26 @@ def _check_brain_data_is_single(data):
     return len(data.shape) <= 1
 
 
+def _n_observations(data):
+    """Count the images a packed voxel array holds.
+
+    The one place the image-axis convention is written down: an empty array
+    holds nothing, a 1-D array is one image (`_check_brain_data_is_single`'s
+    rule), and anything else counts along its leading axis. Counting
+    `shape[0]` directly would report a single image's voxel count instead.
+
+    Args:
+        data (np.ndarray): A BrainData object's packed voxel array.
+
+    Returns:
+        int: Number of images.
+    """
+    data = np.asarray(data)
+    if data.size == 0:
+        return 0
+    return 1 if data.ndim <= 1 else data.shape[0]
+
+
 #: The one attribute a fit leaves on a BrainData. Copying with this name
 #: excluded is how every derived result comes back unfitted; `BrainData`
 #: declares `model = None` in `__init__`, so an excluded clone still answers
@@ -199,7 +219,7 @@ def _row_values(data, X, Y):
     from ..validation import _validate_frame
 
     data = np.asarray(data)
-    count = 0 if data.size == 0 else (1 if data.ndim == 1 else data.shape[0])
+    count = _n_observations(data)
     X, Y = _validate_frame(X, frame_type="X"), _validate_frame(Y, frame_type="Y")
     for name, frame in (("X", X), ("Y", Y)):
         if not frame.is_empty() and frame.height != count:
@@ -232,7 +252,9 @@ def _result_from_selection(source, index):
     """Apply one observation selection to data and both metadata frames."""
     if not isinstance(index, (int, np.integer, slice)):
         index = np.asarray(index).flatten()
-    data = source.data[index, :]
+    # atleast_2d so a single image — stored 1-D — is still selectable along
+    # its image axis, where index 0 is the image itself.
+    data = np.atleast_2d(source.data)[index, :]
     if not isinstance(index, slice) and data.ndim == 2 and data.shape[0] == 1:
         data = data[0]
     return _result_from_rows(
