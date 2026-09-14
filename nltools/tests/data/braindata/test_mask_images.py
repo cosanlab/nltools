@@ -1,10 +1,9 @@
 """Part B: mask-once dedup in list construction (``io.mask_images``).
 
-The GLM builds result maps as ``BrainData(list_of_niftis, mask=bd.mask)``,
-routing through ``_load_from_list`` -> ``_mask_images``. These tests pin the
-byte-equivalence contract (must reproduce the functional per-item
-``apply_mask`` + ``vstack`` exactly) and the perf contract (the mask is
-validated once per call, not once per image).
+``BrainData(list_of_niftis, mask=mask)`` routes through ``_load_from_list`` ->
+``_mask_images``. These tests pin the byte-equivalence contract (must reproduce
+the functional per-item ``apply_mask`` + ``vstack`` exactly) and the perf
+contract (the mask is validated once per call, not once per image).
 """
 
 from unittest import mock
@@ -13,7 +12,7 @@ import numpy as np
 import nibabel as nib
 import nilearn.masking as nm
 
-from nltools.data import BrainData, DesignMatrix
+from nltools.data import BrainData
 from nltools.data.braindata import io as bd_io
 
 
@@ -37,34 +36,29 @@ class TestListConstruction:
             BrainData(imgs, mask=mask)
         assert spy.call_count == 1
 
+    def test_list_construction_matches_per_image_apply_mask(self):
+        """List construction is byte-identical to per-image ``apply_mask`` + vstack."""
+        mask, imgs = _make_mask_and_imgs(n=4)
+        expected = np.vstack([nm.apply_mask(im, mask) for im in imgs])
+        assert np.array_equal(BrainData(imgs, mask=mask).data, expected)
 
-class TestGLMFitMapsByteIdentical:
-    def test_glm_maps_identical_across_mask_paths(
-        self, minimal_brain_data, monkeypatch
-    ):
-        """The attached GLM maps are byte-identical fast-path vs functional-path."""
-        design = DesignMatrix(
-            {
-                "Intercept": np.ones(len(minimal_brain_data)),
-                "X1": np.random.RandomState(1).randn(len(minimal_brain_data)),
-            }
-        )
+    def test_list_construction_with_a_4d_item_matches_apply_mask(self):
+        """A 4-D item in the list contributes one row per volume, as apply_mask does."""
+        mask, imgs = _make_mask_and_imgs(n=2)
+        rng = np.random.RandomState(2)
+        four_d = nib.Nifti1Image(rng.randn(4, 4, 3, 3), np.eye(4))
+        items = [imgs[0], four_d, imgs[1]]
+        expected = np.vstack([nm.apply_mask(im, mask) for im in items])
+        result = BrainData(items, mask=mask).data
+        assert result.shape == (5, 10)
+        assert np.array_equal(result, expected)
 
-        # Fast path (default _mask_images dedup).
-        fast = minimal_brain_data.copy()
-        fast.fit(model="glm", X=design)
-
-        # Reference: force list masking through the functional per-item path.
-        def functional_mask_images(mask, imgs):
-            return np.vstack([nm.apply_mask(im, mask) for im in imgs])
-
-        monkeypatch.setattr(bd_io, "_mask_images", functional_mask_images)
-        ref = minimal_brain_data.copy()
-        ref.fit(model="glm", X=design)
-
-        for name in ("betas", "residual", "predicted", "r2"):
-            fast_map = getattr(fast.model, name)
-            ref_map = getattr(ref.model, name)
-            assert np.array_equal(fast_map.data, ref_map.data), (
-                f"{name} differs between fast and functional mask paths"
-            )
+    def test_mask_images_fallback_matches_fast_path(self):
+        """The functional fallback in ``_mask_images`` reproduces the fast path."""
+        mask, imgs = _make_mask_and_imgs(n=3)
+        fast = bd_io._mask_images_fast(mask, imgs)
+        with mock.patch.object(
+            bd_io, "_mask_images_fast", side_effect=RuntimeError("forced")
+        ):
+            fallback = bd_io._mask_images(mask, imgs)
+        assert np.array_equal(fast, fallback)
