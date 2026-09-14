@@ -86,8 +86,13 @@ def _plot_brain(
             ``"Reds"``, negative-only maps use ``"Blues_r"``, and mixed maps
             use ``"RdBu_r"``.
         bg_img (Nifti1Image or str, optional): Background image for slice views.
-        ax (matplotlib.axes.Axes, optional): Matplotlib axis to plot on.
-        figsize (tuple, optional): default figure size if no axis (8, 6)
+        ax (matplotlib.axes.Axes, optional): Matplotlib axis to plot on. The
+            nilearn methods receive it as ``axes=`` and the figure stays the
+            caller's, so it is not closed on return.
+        figsize (tuple, optional): Figure size for the matplotlib-based methods
+            (``"timeseries"``, ``"histogram"``) when no ``ax`` is given.
+            Default ``(8, 6)``. A glass or slice figure takes its size from a
+            supplied ``ax``, or from nilearn's own default.
         title (str, optional): Plot title.
         colorbar (bool): Whether to show colorbar. Default: True.
         save (str, optional): Path to save figure(s).
@@ -290,6 +295,10 @@ def _plot_brain(
         if threshold_use is not None:
             plot_kwargs["threshold"] = threshold_use
         plot_kwargs.setdefault("transparency", obj.mask)
+        if ax is not None:
+            # `ax` is nltools' spelling of nilearn's `axes`; an explicit
+            # `axes=` kwarg still wins.
+            plot_kwargs.setdefault("axes", ax)
 
         if method == "glass":
             # nilearn's own default is threshold='auto', a data percentile that
@@ -342,6 +351,9 @@ def _plot_brain(
         # auto-display via `flush_figures` renders each one. Return the
         # list for programmatic access.
         return figures
+    if ax is not None:
+        # The figure belongs to the caller, who decides when it closes.
+        return ax.figure
     # Single image: detach only the figure we return so its `_repr_*_`
     # rendering doesn't duplicate via `flush_figures`. Any earlier per-view
     # figures from method="slices" stay on pyplot's tracker so the cell's

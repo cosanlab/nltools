@@ -1264,8 +1264,13 @@ class BrainData:
                 keyed by axis letter.
             cmap (str, optional): Colormap name. Defaults are sign-aware.
             bg_img (str/nibabel image, optional): Background image.
-            ax (matplotlib.axes.Axes, optional): Matplotlib axis.
-            figsize (tuple, optional): default figure size if no axis (8, 6)
+            ax (matplotlib.axes.Axes, optional): Matplotlib axis to draw on.
+                The nilearn methods receive it as ``axes=``, and the figure
+                stays the caller's.
+            figsize (tuple, optional): Figure size for ``method='timeseries'``
+                and ``method='histogram'`` when no ``ax`` is given. Default
+                ``(8, 6)``. A glass or slice figure takes its size from a
+                supplied ``ax``, or from nilearn's own default.
             title (str, optional): Plot title.
             colorbar (bool): Whether to show colorbar. Default: True.
             save (str, optional): Path to save figure(s).
