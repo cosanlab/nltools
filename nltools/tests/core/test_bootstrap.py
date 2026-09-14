@@ -481,6 +481,29 @@ class TestBootstrapMemoryPreflight:
         assert "memory_budget_gb=" in message
         assert "return_samples=True" in message
 
+    def test_the_index_matrix_is_charged_against_the_budget(self, monkeypatch):
+        """A tiny output over many observations is still an 8 MB index matrix.
+
+        1000 draws over 1000 observations retain an int64 matrix the preflight
+        used to ignore entirely, so a run accepted against a 1 MB budget went
+        on to peak at 16 MB.
+        """
+        from nltools.algorithms.inference import bootstrap as engine
+
+        def _never(*args, **kwargs):
+            raise AssertionError("resampling started despite an over-budget preflight")
+
+        monkeypatch.setattr(engine, "_generate_bootstrap_indices", _never)
+
+        with pytest.raises(ValueError, match="exceeds the .* GB budget"):
+            _bootstrap_simple_cpu_parallel(
+                np.zeros((1000, 1)),
+                "mean",
+                n_samples=1000,
+                n_jobs=1,
+                memory_budget_gb=0.001,
+            )
+
     def test_the_dispatch_window_never_scales_with_the_replicate_count(self):
         from nltools.algorithms.backends import _bootstrap_replicate_window
 
@@ -492,6 +515,34 @@ class TestBootstrapMemoryPreflight:
 
 class TestBootstrapWorkerPlanning:
     """`n_jobs` is a ceiling the memory planner may lower, never raise."""
+
+    def test_ridge_workers_are_planned_from_the_features_each_one_pickles(
+        self, monkeypatch
+    ):
+        """The closure pickles the design and the index matrix, not just `y`.
+
+        Planning from `y` alone put 8 MB of features in every worker against a
+        budget that had been checked for 8 KB.
+        """
+        from nltools.algorithms import backends
+        from nltools.algorithms.backends import _estimate_data_size_mb
+
+        recorded = []
+
+        def _spy(data_size_mb, n_samples, **kwargs):
+            recorded.append(data_size_mb)
+            return 1
+
+        monkeypatch.setattr(backends, "_bootstrap_n_jobs_cpu", _spy)
+
+        rng = np.random.default_rng(0)
+        X, y = rng.standard_normal((200, 500)), rng.standard_normal((200, 1))
+        coef = _ridge_coefficients(X, y)
+        _bootstrap_ridge_weights_cpu_parallel(
+            X, y, 1.0, coef, n_samples=10, n_jobs=1, random_state=0
+        )
+
+        assert recorded and recorded[0] >= _estimate_data_size_mb(X)
 
     def test_a_tight_budget_lowers_the_worker_count(self):
         from nltools.algorithms.backends import _bootstrap_n_jobs_cpu
@@ -624,6 +675,7 @@ class TestBootstrapPeakMemory:
             self.N_SAMPLES,
             confidence_level=0.95,
             return_samples=False,
+            n_obs=10,
             n_workers=1,
         )
 
