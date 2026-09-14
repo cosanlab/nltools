@@ -1,5 +1,7 @@
 """Temporal signal processing — resampling, filtering, and basis functions."""
 
+import warnings
+
 import numpy as np
 import polars as pl
 from scipy.interpolate import interp1d
@@ -151,6 +153,13 @@ def upsample(
 
     Returns:
         pl.DataFrame | pl.Series: Upsampled data, the same type as the input.
+
+    Raises:
+        ValueError: If `data` is not Polars, if `method` or `target_type` is
+            unknown, or if the frame has no numeric columns to interpolate.
+
+    Warns:
+        UserWarning: When non-numeric columns are dropped, naming them.
     """
     if isinstance(data, pl.DataFrame):
         df = data.clone()
@@ -176,7 +185,23 @@ def upsample(
     else:
         raise ValueError('Make sure target_type is "samples", "seconds", or "hz".')
 
-    upsampled_df = _upsample_frame(df, df.shape[0], n_samples, method)
+    # The docstring promises non-numeric columns are dropped, as v0.5.1 did;
+    # handing one to interp1d raises instead.
+    numeric_cols = [c for c in df.columns if df[c].dtype.is_numeric()]
+    dropped = [c for c in df.columns if c not in numeric_cols]
+    if dropped:
+        warnings.warn(
+            f"Dropping {len(dropped)} non-numeric column(s) before "
+            f"interpolating: {', '.join(dropped)}",
+            UserWarning,
+            stacklevel=2,
+        )
+    if not numeric_cols:
+        raise ValueError("Data has no numeric columns to upsample.")
+
+    upsampled_df = _upsample_frame(
+        df.select(numeric_cols), df.shape[0], n_samples, method
+    )
 
     # Return Series if input was Series, otherwise DataFrame
     if return_series:

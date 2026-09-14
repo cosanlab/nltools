@@ -2,6 +2,7 @@
 
 import numpy as np
 import polars as pl
+import pytest
 
 from nltools.algorithms.signal import downsample, upsample, calc_bpm, make_cosine_basis
 
@@ -57,6 +58,25 @@ class TestUpsample:
         fs = 2
         us = upsample(dat, sampling_freq=1, target=fs, target_type="hz")
         assert dat.shape[0] * fs - fs == us.shape[0]
+
+
+    def test_non_numeric_columns_are_dropped_with_a_warning(self):
+        """The docstring promises non-numeric columns are dropped (G-17)."""
+        data = pl.DataFrame({"x": [0.0, 2.0, 4.0], "label": ["a", "b", "c"]})
+
+        with pytest.warns(UserWarning, match="label"):
+            out = upsample(
+                data, sampling_freq=1, target=0.5, target_type="samples"
+            )
+
+        assert out.columns == ["x"]
+        assert out["x"].to_list() == [0.0, 1.0, 2.0, 3.0]
+
+    def test_a_frame_with_no_numeric_columns_raises(self):
+        data = pl.DataFrame({"label": ["a", "b", "c"]})
+
+        with pytest.raises(ValueError, match="numeric"):
+            upsample(data, sampling_freq=1, target=0.5, target_type="samples")
 
 
 class TestMakeCosineBasis:
