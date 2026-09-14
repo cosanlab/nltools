@@ -142,7 +142,8 @@ def upsample(
 
     Args:
         data (pl.DataFrame | pl.Series): Data to upsample. Non-numeric columns
-            are dropped from a DataFrame.
+            are dropped from a DataFrame; Boolean columns count as numeric and
+            are interpolated as 0/1.
         sampling_freq (float): Sampling frequency of the data in Hz.
         target (float): Upsampling target.
         target_type (str): Unit of `target`, one of 'samples', 'seconds', or 'hz'.
@@ -158,8 +159,8 @@ def upsample(
         ValueError: If `data` is not Polars, if `method` or `target_type` is
             unknown, or if the frame has no numeric columns to interpolate.
 
-    Warns:
-        UserWarning: When non-numeric columns are dropped, naming them.
+    Note:
+        Dropping non-numeric columns emits a `UserWarning` naming them.
     """
     if isinstance(data, pl.DataFrame):
         df = data.clone()
@@ -186,9 +187,13 @@ def upsample(
         raise ValueError('Make sure target_type is "samples", "seconds", or "hz".')
 
     # The docstring promises non-numeric columns are dropped, as v0.5.1 did;
-    # handing one to interp1d raises instead.
-    numeric_cols = [c for c in df.columns if df[c].dtype.is_numeric()]
-    dropped = [c for c in df.columns if c not in numeric_cols]
+    # handing one to interp1d raises instead. Booleans count as numeric here —
+    # pandas' `_get_numeric_data()` kept them, so v0.5.1 interpolated them —
+    # and are cast to float for interp1d.
+    kept = [
+        c for c in df.columns if df[c].dtype.is_numeric() or df[c].dtype == pl.Boolean
+    ]
+    dropped = [c for c in df.columns if c not in kept]
     if dropped:
         warnings.warn(
             f"Dropping {len(dropped)} non-numeric column(s) before "
@@ -196,11 +201,11 @@ def upsample(
             UserWarning,
             stacklevel=2,
         )
-    if not numeric_cols:
+    if not kept:
         raise ValueError("Data has no numeric columns to upsample.")
 
     upsampled_df = _upsample_frame(
-        df.select(numeric_cols), df.shape[0], n_samples, method
+        df.select(pl.col(kept).cast(pl.Float64)), df.shape[0], n_samples, method
     )
 
     # Return Series if input was Series, otherwise DataFrame

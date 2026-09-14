@@ -69,6 +69,15 @@ class TestUpsample:
         assert out.columns == ["x"]
         assert out["x"].to_list() == [0.0, 1.0, 2.0, 3.0]
 
+    def test_boolean_columns_are_interpolated(self):
+        """Booleans are numbers to interpolate over, as they were in v0.5.1."""
+        data = pl.DataFrame({"x": [0.0, 2.0, 4.0], "flag": [True, False, True]})
+
+        out = upsample(data, sampling_freq=1, target=0.5, target_type="samples")
+
+        assert out.columns == ["x", "flag"]
+        assert out["flag"].to_list() == [1.0, 0.5, 0.0, 0.5]
+
     def test_a_frame_with_no_numeric_columns_raises(self):
         data = pl.DataFrame({"label": ["a", "b", "c"]})
 
