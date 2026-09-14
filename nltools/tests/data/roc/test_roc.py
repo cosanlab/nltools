@@ -336,3 +336,26 @@ def test_default_criterion_values_are_the_empirical_operating_points():
     ordered.calculate()
     assert ordered.auc == 1.0
     assert ordered.accuracy == 1.0
+
+
+def test_forced_choice_accuracy_does_not_depend_on_row_order():
+    """A pair's two errors are matched by subject, not by position."""
+    scores = [2.0, 0.0, 1.0, 1.0]
+    labels = [True, True, False, False]
+    ids = [0, 1, 0, 1]
+    order = [0, 1, 3, 2]
+
+    original = Roc(input_values=scores, binary_outcome=labels, forced_choice=ids)
+    original.calculate()
+    permuted = Roc(
+        input_values=[scores[i] for i in order],
+        binary_outcome=[labels[i] for i in order],
+        forced_choice=[ids[i] for i in order],
+    )
+    permuted.calculate()
+
+    # Subject 0 ranks its positive above its negative; subject 1 does not
+    for roc in (original, permuted):
+        assert roc.accuracy == 0.5
+        assert roc.n == 2
+        assert roc.accuracy_p.k == 1
