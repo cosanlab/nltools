@@ -109,6 +109,23 @@ def _hyperalign(data, n_iter):
     return aligned, transformation_matrix, template, disparity, scale
 
 
+def _procrustes_similarity(mat1, mat2):
+    """One minus scipy's Procrustes disparity, the only value inference needs.
+
+    Module level so `loky` can pickle it, and returning the scalar rather than
+    scipy's full tuple keeps the two transformed matrices out of the payload
+    every permutation ships back to the parent process.
+
+    Args:
+        mat1 (np.ndarray): Reference matrix, `(n_rows, n_cols)`.
+        mat2 (np.ndarray): Matrix fit to `mat1`, same shape.
+
+    Returns:
+        float: `1 - disparity`, higher meaning more similar.
+    """
+    return 1 - procrust(mat1, mat2)[2]
+
+
 def align(
     data,
     method="deterministic_srm",
@@ -478,14 +495,12 @@ def procrustes_distance(
     # the SAME scale. Previously the observed disparity was compared against a
     # null of similarities, inverting the scales and yielding p ~ 1 for
     # near-identical matrices.
-    _, _, disparity = procrust(mat1, mat2)
-    observed_similarity = 1 - disparity
+    observed_similarity = _procrustes_similarity(mat1, mat2)
 
-    null_disparities = Parallel(n_jobs=n_jobs)(
-        delayed(procrust)(random_state.permutation(mat1), mat2)
+    null_similarity = Parallel(n_jobs=n_jobs)(
+        delayed(_procrustes_similarity)(random_state.permutation(mat1), mat2)
         for _ in range(n_permute)
     )
-    null_similarity = [1 - x[2] for x in null_disparities]
 
     # Use _compute_pvalue from inference module (signature: obs_stat, null_dist, tail)
     stats = {"similarity": float(observed_similarity)}
