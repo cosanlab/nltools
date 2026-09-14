@@ -478,14 +478,13 @@ class Simulator:
         bounds = np.concatenate([[1], np.cumsum(n_vox) + 1])
         cov_matrix = np.zeros([bounds[-1], bounds[-1]])
         for i in range(len(masks)):
-            cov_matrix[0, bounds[i] : bounds[i + 1]] = cor[i]  # covariance with y
-            cov_matrix[bounds[i] : bounds[i + 1], 0] = cor[i]
+            region_i = slice(bounds[i], bounds[i + 1])
+            cov_matrix[0, region_i] = cor[i]  # set covariance with y
+            cov_matrix[region_i, 0] = cor[i]
             for j in range(len(masks)):
                 # Covariance of region i's voxels with region j's voxels; the
                 # block is region i tall and region j wide.
-                cov_matrix[bounds[i] : bounds[i + 1], bounds[j] : bounds[j + 1]] = cov[
-                    i
-                ][j]
+                cov_matrix[region_i, bounds[j] : bounds[j + 1]] = cov[i][j]
         np.fill_diagonal(cov_matrix, 1)  # set diagonal to 1
 
         # these operations happen in one vector that we'll later split into the separate regions
