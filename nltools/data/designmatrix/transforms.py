@@ -75,8 +75,8 @@ def _downsample(dm: DesignMatrix, target: float, method: str = "mean") -> Design
         DesignMatrix: Downsampled DesignMatrix with updated `sampling_freq`.
 
     Raises:
-        ValueError: If `sampling_freq` is not set, `target` >= current
-            `sampling_freq`, or `method` is invalid.
+        ValueError: If `sampling_freq` is not set, `target` is not finite and
+            positive, `target` >= current `sampling_freq`, or `method` is invalid.
 
     Examples:
         ```python
@@ -89,6 +89,9 @@ def _downsample(dm: DesignMatrix, target: float, method: str = "mean") -> Design
             "DesignMatrix must have sampling_freq set for downsampling. "
             "Specify sampling_freq when creating: DesignMatrix(..., sampling_freq=0.5)"
         )
+
+    if not np.isfinite(target) or target <= 0:
+        raise ValueError("target must be finite and positive.")
 
     if target >= dm.sampling_freq:
         raise ValueError(
@@ -146,8 +149,8 @@ def _upsample(dm: DesignMatrix, target: float, method: str = "linear") -> Design
         DesignMatrix: Upsampled DesignMatrix with updated `sampling_freq`.
 
     Raises:
-        ValueError: If `sampling_freq` is not set, `target` <= current
-            `sampling_freq`, or `method` is invalid.
+        ValueError: If `sampling_freq` is not set, `target` is not finite and
+            positive, `target` <= current `sampling_freq`, or `method` is invalid.
 
     Examples:
         ```python
@@ -162,6 +165,9 @@ def _upsample(dm: DesignMatrix, target: float, method: str = "linear") -> Design
             "DesignMatrix must have sampling_freq set for upsampling. "
             "Specify sampling_freq when creating: DesignMatrix(..., sampling_freq=0.5)"
         )
+
+    if not np.isfinite(target) or target <= 0:
+        raise ValueError("target must be finite and positive.")
 
     if target <= dm.sampling_freq:
         raise ValueError(
