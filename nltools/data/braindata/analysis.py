@@ -341,44 +341,11 @@ def _distance_roi(bd, *, metric, roi_mask, **kwargs):
 
     Return an ordinary stack in sorted nonzero atlas-label order within the source mask.
     """
-    from pathlib import Path
-
-    import nibabel as nib
-    from nilearn.image import resample_to_img
-    from nilearn.masking import apply_mask
     from scipy.spatial.distance import cdist
 
-    from nltools.data import Adjacency, BrainData
+    from nltools.data import Adjacency
 
-    if roi_mask is None:
-        raise ValueError("roi_mask is required when spatial_scale='roi'.")
-
-    # Coerce roi_mask to a Nifti1Image aligned with bd.mask.
-    if isinstance(roi_mask, BrainData):
-        roi_img = roi_mask.to_nifti()
-    elif isinstance(roi_mask, (str, Path)):
-        roi_img = nib.load(str(roi_mask))
-    else:
-        roi_img = roi_mask
-
-    if roi_img.shape != bd.mask.shape or not np.allclose(
-        roi_img.affine, bd.mask.affine
-    ):
-        roi_img = resample_to_img(
-            roi_img,
-            bd.mask,
-            interpolation="nearest",
-            force_resample=True,
-            copy_header=True,
-        )
-
-    # Per-mask-voxel atlas labels.
-    label_vec = apply_mask(roi_img, bd.mask).astype(np.int64)
-    unique_labels = np.unique(label_vec)
-    unique_labels = unique_labels[unique_labels != 0]
-
-    if unique_labels.size == 0:
-        raise ValueError("roi_mask has no nonzero labels in the BrainData mask space.")
+    _, label_vec, unique_labels = _resolve_atlas_label_vec(bd, roi_mask)
 
     matrices = []
     for label in unique_labels:
