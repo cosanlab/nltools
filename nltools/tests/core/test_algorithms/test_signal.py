@@ -26,6 +26,27 @@ class TestDownsample:
         )
         assert (result_values == expected).all()
 
+    def test_fractional_ratio_bins_by_floor(self):
+        """A 5 Hz to 2 Hz ratio of 2.5 gives four bins, not five (G-09).
+
+        Floor grouping spreads the leftover rows across bins instead of
+        truncating the bin width and opening an extra group at the end.
+        """
+        result = downsample(
+            pl.Series("x", range(10)), sampling_freq=5, target=2, target_type="hz"
+        )
+
+        assert result.to_list() == [1.0, 3.5, 6.0, 8.5]
+
+    def test_a_group_idx_column_is_not_clobbered(self):
+        """The transient grouping key must not collide with a real column."""
+        data = pl.DataFrame({"_group_idx": [0.0, 2.0, 4.0, 6.0]})
+
+        result = downsample(data, sampling_freq=2, target=1, target_type="hz")
+
+        assert result.columns == ["_group_idx"]
+        assert result["_group_idx"].to_list() == [1.0, 5.0]
+
 
 class TestUpsample:
     """Test upsampling algorithm."""
