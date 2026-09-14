@@ -60,6 +60,47 @@ def holm_bonf(p, alpha=0.05):
     return s[n_rejected - 1] if n_rejected else -1
 
 
+def _check_voxel_correspondence(stat, p, stat_name, p_name):
+    """Raise unless two images describe the same voxels in the same order.
+
+    Both functions in this module apply one image's p-values to another image
+    by array position, which is only meaningful when the two arrays index the
+    same voxels. v0.5.1 resolved the two images spatially, through the NIfTI
+    grid; the masked-array rewrite has to check the correspondence instead.
+
+    Args:
+        stat (BrainData): Statistic image.
+        p (BrainData): P-value image.
+        stat_name (str): Name of the statistic argument, for the message.
+        p_name (str): Name of the p-value argument, for the message.
+
+    Raises:
+        ValueError: If the data shapes, the grids, or the mask support differ.
+    """
+    from nltools.data.braindata.io import _check_space_match
+
+    if stat.data.shape != p.data.shape:
+        raise ValueError(
+            f"{stat_name} and {p_name} must have the same shape. "
+            f"Got {stat.data.shape} and {p.data.shape}"
+        )
+
+    same_grid = _check_space_match(stat.mask, p.mask)
+    # Compare the support, not the raw arrays: a mask saved as float and one
+    # saved as int describe the same voxels.
+    same_support = same_grid and np.array_equal(
+        stat.mask.get_fdata() > 0, p.mask.get_fdata() > 0
+    )
+    if not same_support:
+        raise ValueError(
+            f"{stat_name} and {p_name} must cover the same voxels: the "
+            f"p-values are applied position by position. {stat_name} is "
+            f"{stat.mask.shape} with affine\n{stat.mask.affine}\nand {p_name} is "
+            f"{p.mask.shape} with affine\n{p.mask.affine}\n"
+            "Bring them onto a common grid and mask with resample() first."
+        )
+
+
 def threshold(stat, p, thr=0.05, return_mask=False):
     """Threshold a statistic image by the p-values in a separate image.
 
@@ -75,6 +116,10 @@ def threshold(stat, p, thr=0.05, return_mask=False):
         BrainData | tuple[BrainData, BrainData]: The thresholded image, or the
             tuple `(thresholded, mask)` when `return_mask=True`.
 
+    Raises:
+        ValueError: If either argument is not a `BrainData`, or if the two
+            images do not cover the same voxels on the same grid.
+
     Note:
         `BrainData.threshold` and `nilearn.image.threshold_img` threshold an image
         by its own values; this function is the only one that thresholds one
@@ -89,19 +134,14 @@ def threshold(stat, p, thr=0.05, return_mask=False):
     if not isinstance(p, BrainData):
         raise ValueError("Make sure p is a BrainData instance")
 
-    # Ensure stat and p have compatible shapes
-    if len(stat.data) != len(p.data):
-        raise ValueError(
-            f"stat and p must have the same number of voxels. "
-            f"Got {len(stat.data)} and {len(p.data)}"
-        )
+    _check_voxel_correspondence(stat, p, "stat", "p")
 
     # Work with masked data arrays directly
     # Create binary mask: p < thr
     if thr > 0:
         p_mask = (p.data < thr).astype(float)
     else:
-        p_mask = np.zeros(len(p.data), dtype=float)
+        p_mask = np.zeros_like(p.data, dtype=float)
 
     # Apply mask to stat data
     if np.sum(p_mask) > 0:
@@ -110,7 +150,7 @@ def threshold(stat, p, thr=0.05, return_mask=False):
         thresholded_data[p_mask == 0] = 0.0
     else:
         # No voxels pass threshold - return zeros
-        thresholded_data = np.zeros(len(stat.data), dtype=float)
+        thresholded_data = np.zeros_like(stat.data, dtype=float)
 
     # Create output BrainData with same mask as stat
     out = _result_from_array(stat, thresholded_data, rows="clear")
@@ -135,6 +175,11 @@ def multi_threshold(t_map, p_map, thresh):
             positive statistic passed; negative values count the same for negative
             statistics.
 
+    Raises:
+        ValueError: If either image is not a `BrainData`, if `thresh` is not a
+            list, or if the two images do not cover the same voxels on the same
+            grid.
+
     Note:
         Calling `threshold` once per level gives separate images; this returns a
         single map of the threshold hierarchy, which `nilearn.image.threshold_img`
@@ -151,16 +196,11 @@ def multi_threshold(t_map, p_map, thresh):
     if not isinstance(thresh, list):
         raise ValueError("Make sure thresh is a list of p-values")
 
-    # Ensure compatible shapes
-    if len(t_map.data) != len(p_map.data):
-        raise ValueError(
-            f"t_map and p_map must have the same number of voxels. "
-            f"Got {len(t_map.data)} and {len(p_map.data)}"
-        )
+    _check_voxel_correspondence(t_map, p_map, "t_map", "p_map")
 
     # Initialize cumulative maps (working with masked data arrays)
-    pos_out = np.zeros(len(t_map.data), dtype=float)
-    neg_out = np.zeros(len(t_map.data), dtype=float)
+    pos_out = np.zeros_like(t_map.data, dtype=float)
+    neg_out = np.zeros_like(t_map.data, dtype=float)
 
     # Accumulate threshold contributions for each threshold level
     for thr in thresh:
