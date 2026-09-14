@@ -9,7 +9,7 @@ Based on research documented in claude-guidelines/srm-hyperalignment-testing-str
 
 import pytest
 import numpy as np
-from nltools.algorithms.alignment import _SRM
+from nltools.algorithms.alignment import _SRM, _DetSRM
 from sklearn.exceptions import NotFittedError
 
 pytestmark = pytest.mark.slow
@@ -120,6 +120,30 @@ class TestSRMContract:
         srm = _SRM()
         with pytest.raises(ValueError, match="Different number of samples"):
             srm.fit(data)
+
+    @pytest.mark.parametrize("estimator", [_SRM, _DetSRM])
+    def test_fit_rejects_more_features_than_a_subject_has_voxels(self, estimator):
+        """A subject cannot support more shared features than it has voxels.
+
+        The random initialization takes a reduced QR, which silently returns
+        `min(voxels, n_features)` columns, so `_DetSRM` delivered a model of a
+        dimension nobody asked for and `_SRM` died in a numpy broadcast.
+        """
+        data = [np.ones((2, 4)), np.ones((2, 4))]
+
+        with pytest.raises(ValueError, match="subject 0.*2 voxels.*3 features"):
+            estimator(n_features=3).fit(data)
+
+    @pytest.mark.parametrize("estimator", [_SRM, _DetSRM])
+    def test_fit_accepts_as_many_features_as_the_smallest_subject(self, estimator):
+        """The boundary case still fits, at the dimension that was asked for."""
+        np.random.seed(7)
+        data = [np.random.randn(2, 4), np.random.randn(2, 4)]
+
+        model = estimator(n_features=2, n_iter=2).fit(data)
+
+        assert model.s_.shape[0] == 2
+        assert all(w.shape[1] == 2 for w in model.w_)
 
     def test_fit_sets_attributes(self, multi_subject_data):
         """Test that fit() creates required attributes."""
