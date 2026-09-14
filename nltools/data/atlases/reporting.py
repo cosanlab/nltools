@@ -37,7 +37,8 @@ class _ClusterReport:
             `cluster_id`, `x`, `y`, `z` (mm), `peak_stat`, `volume_mm3`,
             `n_voxels`, then one Utf8 column per atlas. `cluster_id` shares the
             integer id space of `clusters` (they are joinable); sub-peaks carry
-            their parent cluster's id.
+            their parent cluster's id. `volume_mm3` and `n_voxels` are the parent
+            cluster's extent, so they match the `clusters` row with that id.
         clusters (pl.DataFrame): One row per cluster. Columns `cluster_id`,
             `peak_x`, `peak_y`, `peak_z`, `mean_stat`, `volume_mm3`, `n_voxels`,
             then one Utf8 column per atlas (mass-weighted top regions).
@@ -305,7 +306,6 @@ def _build_peaks_dataframe(
     share one id space and can be joined; sub-peaks inherit their parent
     cluster's id automatically.
     """
-    import pandas as pd
     from nilearn.reporting import get_clusters_table
 
     thresh = 0.0 if stat_threshold is None else float(stat_threshold)
@@ -336,17 +336,6 @@ def _build_peaks_dataframe(
         coords, atlas=atlas_names, prob_threshold=prob_threshold
     ).drop(["x", "y", "z"])
 
-    # nilearn emits one row per peak AND per sub-peak; sub-peak rows carry an
-    # empty string '' in 'Cluster Size (mm3)'. Coerce to numeric (sub-peaks ->
-    # NaN) and forward-fill so each sub-peak inherits its parent peak's cluster
-    # size (nilearn lists the parent peak row immediately before its sub-peaks).
-    cluster_size = pd.to_numeric(table["Cluster Size (mm3)"], errors="coerce").ffill()
-    volume_mm3 = cluster_size.to_numpy(dtype=float)
-    # Guard .astype(int) against any residual NaN (would yield platform garbage).
-    n_voxels = np.rint(np.nan_to_num(volume_mm3, nan=0.0) / voxel_volume_mm3).astype(
-        int
-    )
-
     # Look up each peak's (sub-peak's) voxel in the renumbered label volume so
     # cluster_id shares the clusters table's size-ordered integer id space
     # (F043). Sub-peaks fall inside their parent cluster, so they inherit its id.
@@ -354,6 +343,15 @@ def _build_peaks_dataframe(
     peak_cluster_ids = renumbered[
         peak_ijk[:, 0], peak_ijk[:, 1], peak_ijk[:, 2]
     ].astype(np.int64)
+
+    # Extents come from the same 26-connected labeling as the clusters table, not
+    # from nilearn's 6-connected 'Cluster Size (mm3)' column: the two definitions
+    # disagree about diagonally touching voxels, and joined rows must not report
+    # two different sizes for one cluster. Every peak lies in a nonzero voxel of
+    # `renumbered`, so the lookup is always defined.
+    cluster_sizes = np.bincount(renumbered.ravel(), minlength=int(renumbered.max()) + 1)
+    n_voxels = cluster_sizes[peak_cluster_ids]
+    volume_mm3 = n_voxels * voxel_volume_mm3
 
     base = pl.DataFrame(
         {

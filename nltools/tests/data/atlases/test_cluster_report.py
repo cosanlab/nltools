@@ -239,3 +239,37 @@ def test_peaks_cluster_id_shares_integer_label_space(two_peak_brain):
     # And a join actually works.
     joined = peaks.join(clusters, on="cluster_id", how="inner")
     assert joined.height == peaks.height
+
+
+def _two_voxel_brain(values):
+    """A 3mm grid holding the given `{ijk: value}` voxels and nothing else."""
+    shape = (5, 5, 5)
+    data = np.zeros(shape, dtype=np.float32)
+    for ijk, value in values.items():
+        data[ijk] = value
+    affine = np.diag([3.0, 3.0, 3.0, 1.0])
+    img = nb.Nifti1Image(data, affine)
+    mask = nb.Nifti1Image(np.ones(shape, dtype=np.uint8), affine)
+    return BrainData(img, mask=mask)
+
+
+def test_peak_rows_carry_their_parent_clusters_extent():
+    """E-05: peak extents came from nilearn's 6-connected labeling.
+
+    nltools defines a cluster with 26 connectivity, so two corner-touching voxels
+    are one cluster; the peaks table used to report each of them as a 1-voxel
+    cluster, disagreeing with the clusters table it joins to.
+    """
+    brain = _two_voxel_brain({(1, 1, 1): 5.0, (2, 2, 2): 4.0})
+
+    peaks, clusters, _ = _cluster_report_data(
+        brain,
+        stat_threshold=3.0,
+        cluster_threshold=1,
+        two_sided=False,
+        atlas=[],
+    )
+
+    assert clusters["n_voxels"].to_list() == [2]
+    assert peaks["n_voxels"].to_list() == [2, 2]
+    assert peaks["volume_mm3"].to_list() == [54.0, 54.0]
