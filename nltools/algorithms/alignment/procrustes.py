@@ -170,9 +170,11 @@ def align(
 
     Raises:
         ValueError: If `data` is not a same-typed list, `method` or `axis` is
-            unknown, or `method='procrustes'` is combined with `axis=1` on
+            unknown, `method='procrustes'` is combined with `axis=1` on
             `BrainData` input — that transform spans images on both axes and has
-            no voxel axis to be returned on.
+            no voxel axis to be returned on — or `method='procrustes'` is given
+            `BrainData` subjects with different voxel counts, whose zero-padded
+            results would not fit their own masks.
 
     Examples:
         ```python
@@ -202,6 +204,7 @@ def align(
         )
 
     if isinstance(data[0], BrainData):
+        from nltools.data.braindata.analysis import _brain_result
         from nltools.data.braindata.utils import _result_from_array
 
         data_type = "BrainData"
@@ -268,18 +271,22 @@ def align(
 
     if data_type == "BrainData":
         if method == "procrustes":
+            # `_hyperalign` zero-pads every subject's feature axis up to the
+            # widest subject, so a narrower subject's result is wider than its
+            # own mask. `_brain_result` refuses that rather than returning an
+            # object whose `to_nifti` fails later.
             out["transformed"] = [
-                _result_from_array(source, values.T, rows="preserve")
+                _brain_result(source, values.T, "transformed", rows="preserve")
                 for source, values in zip(sources, out["transformed"])
             ]
-            out["common_model"] = _result_from_array(
-                sources[0], out["common_model"], rows="clear"
+            out["common_model"] = _brain_result(
+                sources[0], out["common_model"], "common_model", rows="clear"
             )
             # `_hyperalign` already returns these in the
             # `transformed = original @ T` orientation, and they are square on
             # the voxel axis, so unlike the SRM matrices they are wrapped as-is.
             out["transformation_matrix"] = [
-                _result_from_array(source, values, rows="clear")
+                _brain_result(source, values, "transformation_matrix", rows="clear")
                 for source, values in zip(sources, out["transformation_matrix"])
             ]
         else:
