@@ -55,7 +55,7 @@ def _():
     from joblib import Memory
 
     from nltools.data import Adjacency, BrainData
-    from nltools.templates import fetch_resource
+    from nltools.datasets import fetch_resource
 
     memory = Memory(".tutorial-cache", verbose=0)
     return Adjacency, BrainData, fetch_resource, memory, np, pd
