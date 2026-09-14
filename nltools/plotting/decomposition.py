@@ -19,7 +19,7 @@ def component_viewer(output, tr=2.0):
     """Interactively view the results of a `BrainData.decompose()` run.
 
     Each component is drawn with nilearn's `plot_stat_map` above its time
-    course and power spectrum, with sliders for the component index and the
+    course and power spectrum, with number boxes for the component index and the
     display threshold.
 
     Args:

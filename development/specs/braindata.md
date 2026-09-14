@@ -747,9 +747,11 @@ its kind in a `model` group, so a load restores `data.model` with its
 `_estimator` `None`: every map reads back and a contrast effect, a linear
 combination of the betas, still computes, while inference, `predict(X=...)` and
 `bootstrap` raise and name the one-line refit from `data.model.design`. A banded
-design's feature-space order is written as an attribute on the group, because
-h5py iterates members by name and the coefficient blocks follow the fitted
-order. Neither format stores result records, masker caches, or execution
+design's feature spaces are stored as numbered datasets whose names live in an
+`order` attribute on the group: a feature-space name is user text and h5py
+reads a `/` in a dataset name as a group path. The attribute also fixes the
+order, since h5py iterates members by name while the coefficient blocks follow
+the fitted order. Neither format stores result records, masker caches, or execution
 settings.
 
 The fitted estimator itself is not persisted. Storing it — joblib bytes in a
