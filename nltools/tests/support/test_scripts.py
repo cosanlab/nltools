@@ -57,3 +57,37 @@ class TestReleaseTestState:
             lambda prompt: "Run the current default suite" not in prompt,
         )
         assert release.step_review_test_state() == "failed"
+
+
+class TestMakeTutorialData:
+    """A trim that cuts through a block is refused, not silently dropped."""
+
+    def test_event_straddling_the_trim_raises(self):
+        import pandas as pd
+
+        import make_tutorial_data
+
+        events = pd.DataFrame(
+            {
+                "onset": [0.0, 2.0, 4.0],
+                "duration": [2.0, 2.0, 2.0],
+                "trial_type": ["language", "string", "language"],
+            }
+        )
+        with pytest.raises(ValueError, match="cuts through an event"):
+            make_tutorial_data.trim_events(events, 5.0, subject="01", volumes=5)
+
+    def test_trim_on_a_block_boundary_keeps_whole_events(self):
+        import pandas as pd
+
+        import make_tutorial_data
+
+        events = pd.DataFrame(
+            {
+                "onset": [0.0, 2.0, 4.0],
+                "duration": [2.0, 2.0, 2.0],
+                "trial_type": ["language", "string", "language"],
+            }
+        )
+        kept = make_tutorial_data.trim_events(events, 4.0, subject="01", volumes=4)
+        assert list(kept["onset"]) == [0.0, 2.0]
