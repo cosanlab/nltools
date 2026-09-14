@@ -46,10 +46,9 @@ def test_plot_grid_simulation_forwards_correction_to_run_multiple_simulations():
     """C3 (q31x trs9, row 16): plot_grid_simulation must forward `correction` to
     the `run_multiple_simulations` call it makes internally.
 
-    `self.thresholded` is set beforehand so `plot_grid_simulation` skips its own
-    `threshold_simulation` call (which *does* forward `correction` today) and the
-    only remaining path for `correction` to reach validation is the
-    `run_multiple_simulations` call — isolating exactly the dropped forward.
+    Both of `plot_grid_simulation`'s internal calls validate `correction`, so an
+    unsupported value raises whichever one is reached first; the test pins that
+    the value is forwarded at all, not which call rejects it.
     """
     sim = SimulateGrid(grid_width=10, n_subjects=10, random_state=0)
     sim.fit()
@@ -352,3 +351,21 @@ def test_add_signal_clears_the_previous_fit():
     assert sim.t_values[sim.signal_mask == 1].mean() > sim.t_values[
         sim.signal_mask == 0
     ].mean()
+
+
+def test_plot_grid_simulation_rethresholds_at_the_requested_threshold():
+    """E-12: a cached thresholded map was drawn under the new threshold's caption.
+
+    The middle panel showed the old map while the panel title and the null
+    distribution came from the arguments of this call.
+    """
+    sim = SimulateGrid(grid_width=2, n_subjects=10, random_state=0)
+    sim.fit()
+    sim.t_values = np.array([[2.0, 4.0], [0.0, 0.0]])
+    sim.p_values = np.full((2, 2), 0.01)
+    sim.threshold_simulation(threshold=1.0, threshold_type="t")
+
+    sim.plot_grid_simulation(threshold=3.0, threshold_type="t", n_simulations=2)
+
+    assert sim.thresholded.tolist() == [[0.0, 4.0], [0.0, 0.0]]
+    assert sim.threshold == 3.0
