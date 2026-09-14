@@ -26,6 +26,12 @@ class TestHolmBonf:
         assert isinstance(thr, (float, np.floating))
         assert 0 < thr <= 0.05  # default alpha=0.05
 
+    def test_holm_bonf_stops_at_the_first_failure(self):
+        """The step-down walk stops at the first p above its boundary (G-01)."""
+        # Boundaries are [0.025, 0.05]; 0.03 fails the first one, so the whole
+        # family fails and no threshold survives.
+        assert holm_bonf(np.array([0.03, 0.04])) == -1
+
 
 class TestThreshold:
     """Test statistical thresholding on BrainData."""
