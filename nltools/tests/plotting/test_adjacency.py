@@ -84,6 +84,24 @@ class TestPlotSilhouette:
         assert isinstance(out, pl.DataFrame)
         assert "p" in out.columns
 
+    def test_draws_on_supplied_ax(self):
+        """The silhouette fills land on `ax`, not on whichever axis is current."""
+        distance = np.array(
+            [
+                [0.0, 0.1, 0.8, 0.8],
+                [0.1, 0.0, 0.8, 0.8],
+                [0.8, 0.8, 0.0, 0.1],
+                [0.8, 0.8, 0.1, 0.0],
+            ]
+        )
+        labels = np.array([0, 0, 1, 1])
+        _, axs = plt.subplots(1, 2)
+        plt.sca(axs[1])
+        _plot_silhouette(distance, labels, ax=axs[0], permutation_test=False)
+        assert len(axs[0].collections) == 2
+        assert len(axs[1].collections) == 0
+        plt.close("all")
+
 
 class TestPlotMDS:
     def test_plot_mds_uses_current_sklearn_api(self, well_separated_distance):

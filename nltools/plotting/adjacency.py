@@ -323,7 +323,7 @@ def _plot_silhouette(
         x_upper = x_lower + size
         color = colors[ci]
         with sns.axes_style("white"):
-            plt.fill_between(
+            ax.fill_between(
                 np.arange(x_lower, x_upper),
                 0,
                 cluster_vals,

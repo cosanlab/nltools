@@ -60,3 +60,12 @@ class TestAdjacencyIO:
         # A similarity's unit diagonal is not an edge.
         similarity = sim_adjacency_single.distance_to_similarity()
         assert not list(nx.selfloop_edges(similarity.to_graph()))
+
+    def test_graph_conversion_with_permuting_numeric_labels(self):
+        """Numeric labels that permute the node ids relabel without raising."""
+        adj = Adjacency(
+            np.array([[0.0, 2.0], [3.0, 0.0]]), matrix_type="directed", labels=[1, 0]
+        )
+        graph = adj.to_graph()
+        assert graph[1][0]["weight"] == 2
+        assert graph[0][1]["weight"] == 3
