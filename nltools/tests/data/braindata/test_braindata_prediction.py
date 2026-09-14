@@ -265,7 +265,7 @@ class TestSearchlight:
         n = minimal_brain_data.shape[0]
         y = np.array([0] * (n // 2) + [1] * (n - n // 2))
 
-        with pytest.raises(Exception, match="not_a_scorer"):
+        with pytest.raises(ValueError, match="not_a_scorer"):
             minimal_brain_data.predict(
                 y=y,
                 spatial_scale="searchlight",
@@ -1126,7 +1126,16 @@ class TestPredictPlot:
 
         minimal_brain_data.predict(y=y, cv=3, plot=True)
 
+        diagnostics = {"ROC Plot", "Classification margin"}
+        weight_maps = [
+            number
+            for number in plt.get_fignums()
+            if not diagnostics.intersection(
+                ax.get_title() for ax in plt.figure(number).axes
+            )
+        ]
         assert len(plt.get_fignums()) == 3
+        assert len(weight_maps) == 1
 
     def test_multiclass_raises(self, _close_figs, minimal_brain_data):
         y = _three_class_labels(minimal_brain_data)
