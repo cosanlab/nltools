@@ -2,7 +2,7 @@
 # requires-python = ">=3.11"
 # dependencies = [
 #     "marimo",
-#     "nltools==0.6.0.dev1",
+#     "nltools==0.6.0.dev2",
 # ]
 # ///
 # Quickstart — marimo notebook. Source of truth for the docs page; rendered to the docs page by scripts/marimo_to_zensical.py.
