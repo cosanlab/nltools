@@ -35,6 +35,22 @@ class TestBrainDataCore:
 
         assert BrainData(data, mask=mask_a) == BrainData(data.copy(), mask=mask_b)
 
+    def test_equality_compares_shapes_too(self):
+        """Unequal shapes are unequal, and never raise out of `__eq__`.
+
+        `np.all(a == b)` broadcasts, so one all-ones map read as equal to a
+        stack of three identical ones, and two rows against three raised.
+        """
+        import nibabel as nib
+
+        mask = nib.Nifti1Image(np.ones((2, 2, 2), dtype=np.uint8), np.eye(4))
+        single = BrainData(np.ones(8), mask=mask)
+        three = BrainData(np.ones((3, 8)), mask=mask)
+        two = BrainData(np.ones((2, 8)), mask=mask)
+
+        assert single != three
+        assert two != three
+
     def test_copy_owns_complete_fitted_state(self, minimal_brain_data):
         """Copying a fitted BrainData produces an independent snapshot."""
         X = np.random.default_rng(0).standard_normal((len(minimal_brain_data), 3))
