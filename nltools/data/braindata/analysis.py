@@ -582,18 +582,18 @@ def _extract_roi(bd, mask, method="mean", n_components=None):
     else:
         mask_brain = BrainData(mask, mask=bd.mask, interpolation="nearest")
 
-    # Check if binary or labeled mask
+    # Classify by the labels the atlas actually carries. Counting every unique
+    # value would call a background-free two-label atlas binary and an atlas
+    # that fills its mask empty.
     unique_values = np.unique(mask_brain.data)
-    n_unique = len(unique_values)
+    nonzero_labels = unique_values[unique_values != 0]
 
-    if n_unique < 2:
+    if nonzero_labels.size == 0:
         raise ValueError(
             "No voxels remain after masking - mask may not overlap with data"
         )
 
-    mask_img = mask_brain.to_nifti()
-
-    if n_unique == 2:
+    if nonzero_labels.size == 1:
         # Binary mask - use simple extraction
         masked = _apply_mask(bd, mask_brain)
         is_single = _check_brain_data_is_single(masked)
@@ -610,7 +610,7 @@ def _extract_roi(bd, mask, method="mean", n_components=None):
             )
             out = output["weights"].T
 
-    elif n_unique > 2:
+    else:
         # Labeled atlas - use NiftiLabelsMasker for efficiency
         # Round values to ensure integer labels (use int32 for nilearn/FSL/SPM
         # compatibility) on a copy, so a caller's mask is never mutated.
@@ -672,11 +672,6 @@ def _extract_roi(bd, mask, method="mean", n_components=None):
 
             if len(out) > 0:
                 out = np.array(out) if n_components == 1 else out
-
-    else:
-        raise ValueError(
-            "Mask must be binary (2 unique values) or labeled atlas (>2 unique values)"
-        )
 
     return out
 

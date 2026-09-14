@@ -87,6 +87,30 @@ class TestBrainDataAnalysis:
         assert atlas.data.dtype == before.dtype
         np.testing.assert_array_equal(atlas.data, before)
 
+    def test_extract_roi_classifies_an_atlas_by_its_nonzero_labels(self):
+        """An atlas whose labels fill the mask is still an atlas.
+
+        Counting every unique value, background included, sent a `{1, 2}` atlas
+        with no background down the binary branch and rejected an all-ones mask
+        as empty. Classification now counts nonzero labels only.
+        """
+        affine = np.eye(4)
+
+        def img(values, shape=(3, 1, 1)):
+            return nb.Nifti1Image(
+                np.asarray(values, dtype=float).reshape(shape), affine
+            )
+
+        mask = img([1, 1, 1])
+        volume = img(np.array([[2.0, 4, 8], [4, 8, 16]]).T, shape=(3, 1, 1, 2))
+        bd = BrainData(volume, mask=mask)
+
+        two_labels = bd.extract_roi(BrainData(img([1, 1, 2]), mask=mask), method="mean")
+        np.testing.assert_allclose(two_labels, [[3.0, 6.0], [8.0, 16.0]])
+
+        one_label = bd.extract_roi(BrainData(img([1, 1, 1]), mask=mask), method="mean")
+        np.testing.assert_allclose(one_label, [14 / 3, 28 / 3])
+
     @pytest.mark.slow
     def test_extract_roi_resamples_mask_onto_object_grid(self, sim_brain_data):
         """extract_roi coerces a foreign-grid mask onto the object's own grid.
