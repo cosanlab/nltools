@@ -800,8 +800,9 @@ def _filter_data(  # nosemgrep: kwargs-internal-forwarding  # forwards to nilear
 def _standardize(bd, *, method="center", axis=0):
     """Standardize data by centering it, optionally scaling to unit variance.
 
-    Computed in float64 and cast back to the input dtype, so raw float32 BOLD
-    (large offsets) stays exact. Constant voxels/observations z-score to 0.
+    Computed in float64 and cast back to a floating input's dtype, so raw
+    float32 BOLD (large offsets) stays exact. Integer and boolean input is left
+    floating rather than truncated. Constant voxels/observations z-score to 0.
 
     Args:
         bd (BrainData): Data to standardize.
@@ -830,11 +831,12 @@ def _standardize(bd, *, method="center", axis=0):
         std[std == 0] = 1.0  # constant along `axis` -> 0, not nan
         centered /= std
 
+    # Restore a floating input's precision, but never cast back to an integer
+    # or boolean dtype: that truncates the centred values it was meant to hold.
     # The output immediately replaces data, so avoid copying the source buffer.
-    out = _result_from_array(
-        bd, centered.astype(bd.data.dtype, copy=False), rows="preserve"
-    )
-    return out
+    if np.issubdtype(bd.data.dtype, np.floating):
+        centered = centered.astype(bd.data.dtype, copy=False)
+    return _result_from_array(bd, centered, rows="preserve")
 
 
 def _scale_data(bd, scale_val=100.0, axis=None):

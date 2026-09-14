@@ -230,6 +230,20 @@ class TestBrainDataAnalysis:
         np.testing.assert_allclose(z.data[:, 1:].mean(axis=0), 0.0, atol=1e-5)
         np.testing.assert_allclose(z.data[:, 1:].std(axis=0), 1.0, atol=1e-5)
 
+    def test_standardize_promotes_integer_data_instead_of_truncating(self):
+        """Integer input is promoted to float so the centred values survive.
+
+        Casting the float64 result back to the input dtype turned a centred
+        int32 column of `[0, 1]` into `[0, 0]` rather than `[-0.5, 0.5]`.
+        """
+        mask = nb.Nifti1Image(np.ones((2, 1, 1)), np.eye(4))
+        bd = BrainData(np.array([[0, 0], [1, 2]], dtype=np.int32), mask=mask)
+
+        centered = bd.standardize(method="center")
+
+        assert np.issubdtype(centered.data.dtype, np.floating)
+        np.testing.assert_allclose(centered.data, [[-0.5, -1.0], [0.5, 1.0]])
+
     def test_filter_band_pass(self, minimal_brain_data):
         """Test band-pass filtering (both high and low pass)."""
         filtered = minimal_brain_data.filter(
