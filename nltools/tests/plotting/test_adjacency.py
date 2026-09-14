@@ -85,6 +85,22 @@ class TestLongToMatrix:
         )
         np.testing.assert_allclose(out, [[1.0, 4.0], [4.0, 2.0]])
 
+    def test_boolean_labels_reach_the_matrix(self):
+        """Polars renders `True` as `true`, so the column axis is matched in polars' own spelling."""
+        from nltools.plotting.adjacency import _long_to_matrix
+
+        long_df = pl.DataFrame(
+            {
+                "label1": [False, False, True, True],
+                "label2": [False, True, False, True],
+                "mean_distance": [1.0, 4.0, 4.0, 2.0],
+            }
+        )
+        out = _long_to_matrix(
+            long_df, "label1", "label2", "mean_distance", np.array([False, True])
+        )
+        np.testing.assert_allclose(out, [[1.0, 4.0], [4.0, 2.0]])
+
     def test_integer_labels_reach_the_public_heatmap(self):
         """The drawn between-label heatmap carries the real means for integer labels."""
         distance = np.array(

@@ -242,17 +242,20 @@ def _plot_between_label_distance(
 
 def _long_to_matrix(long_df, row_col, col_col, value_col, order):
     """Pivot a long-format polars frame into a numpy matrix using *order* for row/col order."""
-    wide = long_df.pivot(
+    # `pivot` names its new columns after the values it pivoted on, and polars
+    # renders a value differently from Python (`True` becomes `"true"`). Casting
+    # the column axis to text on both sides is what makes every label kind —
+    # integer, boolean or string — find its own column.
+    wide = long_df.with_columns(pl.col(col_col).cast(pl.Utf8)).pivot(
         values=value_col, index=row_col, on=col_col, aggregate_function="first"
     )
+    column_names = pl.Series(order).cast(pl.Utf8).to_list()
     out = np.zeros((len(order), len(order)), dtype=float)
     wide_dict = {row[row_col]: row for row in wide.iter_rows(named=True)}
     for i, r in enumerate(order):
         row = wide_dict.get(r, {})
-        for j, c in enumerate(order):
-            # `pivot` names the new columns by the string rendering of the
-            # values it pivoted on, so a numeric label never matches itself.
-            val = row.get(str(c))
+        for j, name in enumerate(column_names):
+            val = row.get(name)
             out[i, j] = float(val) if val is not None else 0.0
     return out
 
