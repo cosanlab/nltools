@@ -989,7 +989,7 @@ def _plot_whole_brain_result(record, *, y, out_of_fold_values, classifier) -> No
     # tracker: the user-facing plot() closes the single figure it hands back.
     from .plotting import _plot_brain
 
-    _plot_brain(record.weight_map, detach_single=False)
+    _plot_brain(record.weight_map, _detach_single=False)
 
 
 def _to_braindata(bd, arr):
