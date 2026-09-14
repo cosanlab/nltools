@@ -187,6 +187,24 @@ class TestBrainDataCore:
         with pytest.raises(TypeError):
             minimal_brain_data.append(minimal_brain_data, foo=1)
 
+    def test_single_image_is_one_observation(self, minimal_brain_data):
+        """A single image is one image, not one observation per voxel.
+
+        `__len__` and `__getitem__` both count along the image axis, which for a
+        1-D single image is a length of one — not the voxel count, which made
+        `len()` meaningless and iteration impossible.
+        """
+        single = minimal_brain_data[0]
+        assert single.shape == (5,)
+        assert len(single) == 1
+        assert len(list(single)) == 1
+        np.testing.assert_array_equal(single[0].data, single.data)
+        with pytest.raises(IndexError):
+            single[1]
+
+    def test_empty_data_has_length_zero(self, minimal_brain_data):
+        assert len(minimal_brain_data.create_empty()) == 0
+
     # ==================== Statistical Methods ====================
 
     def test_distance(self, minimal_brain_data):

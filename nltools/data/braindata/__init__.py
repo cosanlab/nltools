@@ -293,7 +293,10 @@ class BrainData:
             return _perform_arithmetic(self, y, np.divide, "divide", inplace=True)
 
     def __len__(self):
-        return self.shape[0]
+        """Number of images, which for a single image is one, not its voxel count."""
+        from .utils import _n_observations
+
+        return _n_observations(self.data)
 
     def __mul__(self, y):
         """Multiply BrainData."""
