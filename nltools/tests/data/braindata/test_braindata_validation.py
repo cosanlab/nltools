@@ -53,4 +53,49 @@ class TestValidateFrame:
     def test_shape_mismatch_raises(self):
         df = pl.DataFrame({"a": [1, 2, 3]})
         with pytest.raises(ValueError, match="rows"):
-            _validate_frame(df, data_shape=(5, 100), frame_type="Y")
+            _validate_frame(df, n_rows=5, frame_type="Y")
+
+
+class TestMetadataRowCount:
+    """Metadata rows are validated at ingress, not at the next unrelated operation.
+
+    Each row of `X`/`Y` describes one image, so a count that does not match the
+    data is wrong the moment it arrives.
+    """
+
+    @staticmethod
+    def _brain(n_images):
+        import nibabel as nib
+        from nltools.data import BrainData
+
+        mask = nib.Nifti1Image(np.ones((2, 2, 2), dtype=np.uint8), np.eye(4))
+        return BrainData(np.zeros((n_images, 8)), mask=mask)
+
+    def test_constructor_rejects_a_short_frame(self):
+        import nibabel as nib
+        from nltools.data import BrainData
+
+        mask = nib.Nifti1Image(np.ones((2, 2, 2), dtype=np.uint8), np.eye(4))
+        with pytest.raises(ValueError, match="rows"):
+            BrainData(
+                np.zeros((3, 8)), mask=mask, Y=pl.DataFrame({"label": [1.0, 2.0]})
+            )
+
+    def test_assignment_rejects_a_short_frame(self):
+        brain = self._brain(3)
+        with pytest.raises(ValueError, match="rows"):
+            brain.X = pl.DataFrame({"cond": [1.0, 2.0]})
+
+    def test_a_single_image_takes_exactly_one_row(self):
+        single = self._brain(3)[0]
+        single.Y = pl.DataFrame({"label": [1.0]})
+        assert single.Y.height == 1
+        with pytest.raises(ValueError, match="rows"):
+            single.Y = pl.DataFrame({"label": [1.0, 2.0]})
+
+    def test_an_empty_object_accepts_any_height(self):
+        from nltools.data import BrainData
+
+        brain = BrainData()
+        brain.Y = pl.DataFrame({"label": [1.0, 2.0, 3.0]})
+        assert brain.Y.height == 3

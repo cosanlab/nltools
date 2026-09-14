@@ -173,6 +173,20 @@ def _n_observations(data):
     return 1 if data.ndim <= 1 else data.shape[0]
 
 
+def _metadata_row_requirement(bd):
+    """How many rows `X`/`Y` must have on ``bd``, or None when nothing constrains it.
+
+    Nothing constrains the count while the object holds no data: `BrainData()`
+    followed by `.Y = ...` is a supported assembly order, and it is the data
+    arriving later that has to match.
+    """
+    data = getattr(bd, "data", None)
+    if data is None:
+        return None
+    count = _n_observations(data)
+    return count if count else None
+
+
 def _replace_metadata_row(dest, repl, index, name):
     """Write ``repl``'s rows into ``dest`` at ``index``, matching columns by name.
 
