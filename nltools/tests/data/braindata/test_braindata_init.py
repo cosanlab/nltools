@@ -401,3 +401,37 @@ class TestBrainDataInitFromArray:
         arr = np.zeros(n_vox - 1, dtype=np.float32)
         with pytest.raises(ValueError, match="must match the number of in-mask voxels"):
             BrainData(arr, mask=mask_img)
+
+
+class TestLoaderAffineTolerance:
+    """The loader's "same grid" band is the one `_check_space_match` defines.
+
+    An image inside the band loads without resampling by adopting the mask's
+    exact affine, which is what keeps nilearn's stricter internal check from
+    rejecting sub-tolerance drift.
+    """
+
+    @staticmethod
+    def _mask_and_drifted_image():
+        mask_affine = np.eye(4)
+        mask_affine[:3, 3] = 100.0
+        mask = nib.Nifti1Image(np.ones((2, 2, 2), dtype=np.uint8), mask_affine)
+
+        img_affine = mask_affine.copy()
+        img_affine[0, 3] += 0.05  # tolerance is 1e-8 + 1e-3 * 100 = 0.1 mm
+        values = np.arange(8, dtype=np.float32).reshape(2, 2, 2)
+        return mask, nib.Nifti1Image(values, img_affine), values.ravel()
+
+    def test_single_image_within_tolerance_loads(self):
+        mask, img, expected = self._mask_and_drifted_image()
+        original_affine = img.affine.copy()
+        brain = BrainData(img, mask=mask)
+        np.testing.assert_array_equal(brain.data, expected)
+        np.testing.assert_array_equal(img.affine, original_affine)
+
+    def test_list_item_within_tolerance_loads(self):
+        mask, img, expected = self._mask_and_drifted_image()
+        original_affine = img.affine.copy()
+        brain = BrainData([img], mask=mask)
+        np.testing.assert_array_equal(brain.data[0], expected)
+        np.testing.assert_array_equal(img.affine, original_affine)
