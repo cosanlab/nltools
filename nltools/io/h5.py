@@ -209,13 +209,13 @@ def _load_brain_data_h5(file_path, mask=None):
     Args:
         file_path (str | Path): Path to the HDF5 file.
         mask (nibabel.Nifti1Image, optional): Mask the caller wants the loaded
-            object to carry. Only `'load_mask'` depends on it.
+            object to carry. Only `'stored_mask_is_authoritative'` depends on it.
 
     Returns:
         dict: Keys `'data'` (np.ndarray), `'X'` and `'Y'` (pl.DataFrame),
-            `'load_mask'` (bool — whether the stored mask is also the mask the
-            caller asked for), and `'mask'` (nibabel.Nifti1Image) when the file
-            embeds one.
+            `'stored_mask_is_authoritative'` (bool — whether the stored mask is
+            also the mask the caller asked for), and `'mask'`
+            (nibabel.Nifti1Image) when the file embeds one.
 
     Raises:
         ValueError: If the file was written by nltools 0.5.1 or earlier.
@@ -248,7 +248,7 @@ def _load_brain_data_h5(file_path, mask=None):
                 affine=np.array(f["mask_affine"]),
                 file_map=file_map,
             )
-        result["load_mask"] = mask is None and "mask_data" in f
+        result["stored_mask_is_authoritative"] = mask is None and "mask_data" in f
 
     return result
 

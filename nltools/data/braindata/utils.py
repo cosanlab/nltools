@@ -205,6 +205,12 @@ def _metadata_row_requirement(bd):
     Nothing constrains the count while the object holds no data: `BrainData()`
     followed by `.Y = ...` is a supported assembly order, and it is the data
     arriving later that has to match.
+
+    Args:
+        bd (BrainData): Instance a frame is being installed on.
+
+    Returns:
+        int | None: The number of images, or None when nothing constrains it.
     """
     data = getattr(bd, "data", None)
     if data is None:
