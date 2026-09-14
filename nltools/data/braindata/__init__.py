@@ -206,8 +206,16 @@ class BrainData:
         # Set X and Y. Invariant: .X and .Y are always polars DataFrames
         # (possibly empty). Assignment goes through the property setter,
         # which pipes through _validate_frame for pandas/numpy/csv ingress.
-        self.X = X if X is not None else getattr(metadata_source, "X", None)
-        self.Y = Y if Y is not None else getattr(metadata_source, "Y", None)
+        # Inherited frames are copied, not aliased: polars frames are mutable
+        # in place (`replace_column`), so sharing one would let either object
+        # rewrite the other's metadata.
+        from ..ownership import _copy_metadata_frame
+
+        for name, given in (("X", X), ("Y", Y)):
+            if given is None:
+                inherited = getattr(metadata_source, name, None)
+                given = None if inherited is None else _copy_metadata_frame(inherited)
+            setattr(self, name, given)
 
     # =========================================================================
     # Dunders (alphabetical)

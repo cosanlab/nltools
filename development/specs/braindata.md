@@ -71,7 +71,9 @@ voxel axis.
 
 All semantic entry points use the same graph-copy engine and expose no
 ownership or data-copy controls. Every mutable value retained by the result is
-independently owned.
+independently owned. `BrainData(other)` is one of them: the mask, the voxel
+resolution, and inherited `.X`/`.Y` frames are copied, so neither object can
+mutate the other's state.
 
 ## Row metadata
 

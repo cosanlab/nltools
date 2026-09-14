@@ -64,6 +64,20 @@ def _copy_frame(frame: pl.DataFrame, memo: dict | None = None) -> pl.DataFrame:
     return memo[id(frame)]
 
 
+def _copy_metadata_frame(frame: pl.DataFrame, memo: dict | None = None) -> pl.DataFrame:
+    """Copy one frame under `_copy_object_frames`' policy, for callers outside a graph.
+
+    `_copy_graph` primes its memo with `_copy_object_frames` and lets `deepcopy`
+    read the clones back out. A caller holding a single frame — the `BrainData`
+    constructor inheriting its source's `X`/`Y` — needs the same policy for that
+    one frame, and the same answer as if the frame had been found in a graph.
+    """
+    if memo is None:
+        memo = {}
+    _copy_object_frames({"frame": frame}, memo)
+    return deepcopy(frame, memo)
+
+
 def _copy_graph(source, *, memo=None, exclude=(), replacements=None):
     """Copy one retained object graph, preserving its internal aliases."""
     if memo is None:

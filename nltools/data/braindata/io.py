@@ -601,9 +601,13 @@ def _load_from_brain_data(bd, brain_data, mask=None):
             "Source BrainData",
         )
     else:
-        # Use source mask
-        bd.mask = brain_data.mask
-        bd._voxel_resolution = brain_data._voxel_resolution
+        # The source's mask and its spatial state, independently owned: a
+        # result must not be able to mutate the object it was built from, and
+        # the constructor is a result constructor like any other.
+        from copy import deepcopy
+
+        bd.mask = deepcopy(brain_data.mask)
+        bd._voxel_resolution = np.array(brain_data._voxel_resolution)
         bd._space = brain_data._space
 
     if hasattr(brain_data, "_mask_was_none"):
