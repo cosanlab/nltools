@@ -161,6 +161,38 @@ class TestFitResultWrite:
         assert (tmp_path / "design-a.csv").exists()
         assert (tmp_path / "design-b.csv").exists()
 
+    def test_a_feature_space_name_with_a_separator_stays_one_file(
+        self, minimal_brain_data, tmp_path
+    ):
+        """A space named like a path must not write itself into a subdirectory.
+
+        `_Ridge` accepts any string as a feature-space name, so `'visual/early'`
+        fits and then failed to save. The name is percent-encoded for the
+        filename; the sidecar keeps the real names.
+        """
+        import json
+
+        rng = np.random.default_rng(3)
+        spaces = {
+            "visual/early": rng.normal(size=(len(minimal_brain_data), 3)),
+            "visual%2Fearly": rng.normal(size=(len(minimal_brain_data), 2)),
+        }
+        minimal_brain_data.fit(
+            model="ridge",
+            X=spaces,
+            ridge_alpha=[1.0, 10.0],
+            ridge_cv=3,
+            ridge_search_iterations=4,
+            random_state=0,
+        )
+
+        minimal_brain_data.model.write(tmp_path)
+
+        assert (tmp_path / "design-visual%2Fearly.csv").exists()
+        assert (tmp_path / "design-visual%252Fearly.csv").exists()
+        sidecar = json.loads((tmp_path / "fit.json").read_text())
+        assert sidecar["spaces"] == ["visual/early", "visual%2Fearly"]
+
     def test_the_sidecar_names_the_columns_the_design_csv_carries(
         self, minimal_brain_data, tmp_path
     ):
