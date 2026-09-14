@@ -464,7 +464,9 @@ class TestConstructFromBrainDataWithADifferentMask:
         )
         result = BrainData(source, mask=self._grid_mask([0, 1, 2]))
         assert result.shape == (2, 3)
-        np.testing.assert_array_equal(result.data, [[10.0, 20.0, 0.0], [30.0, 40.0, 0.0]])
+        np.testing.assert_array_equal(
+            result.data, [[10.0, 20.0, 0.0], [30.0, 40.0, 0.0]]
+        )
         assert result.to_nifti().shape == (2, 2, 2, 2)
 
     def test_identical_support_keeps_the_values(self):
@@ -528,9 +530,7 @@ class TestSingleVoxelConstruction:
         return nib.Nifti1Image(np.ones((1, 1, 1), dtype=np.uint8), np.eye(4))
 
     def test_three_images_of_one_voxel_stay_three_images(self):
-        brain = BrainData(
-            np.array([[1.0], [2.0], [3.0]]), mask=self._one_voxel_mask()
-        )
+        brain = BrainData(np.array([[1.0], [2.0], [3.0]]), mask=self._one_voxel_mask())
         assert brain.shape == (3, 1)
         assert brain.to_nifti().shape == (1, 1, 1, 3)
 
