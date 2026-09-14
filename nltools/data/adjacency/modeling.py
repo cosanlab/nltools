@@ -174,13 +174,15 @@ def _regress(adj, X, *, tail=2):
     # The shared OLS is the single implementation; it squeezes every output, so
     # restore the (n_regressors, n_targets) and (n_samples, n_targets) shapes the
     # result assembly below indexes by axis.
-    beta, stderr, t, p, _, residual = ols_regress(design, response, tail=tail)
+    beta, stderr, t, p, residual_df, residual = ols_regress(design, response, tail=tail)
     coefficient_shape = (design.shape[1], response.shape[1])
     beta, stderr, t, p = (
         np.reshape(value, coefficient_shape) for value in (beta, stderr, t, p)
     )
     residual = np.reshape(residual, (design.shape[0], response.shape[1]))
-    df = int(design.shape[0] - design.shape[1])
+    # The shared OLS counts residual df by the design's rank, so take the value
+    # it returned rather than recomputing it from the column count.
+    df = int(np.asarray(residual_df).ravel()[0])
     stats = {"df": df}
     for key, values in [("beta", beta), ("sigma", stderr), ("t", t), ("p", p)]:
         if isinstance(X, Adjacency):
