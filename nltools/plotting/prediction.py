@@ -37,7 +37,7 @@ def _plot_predicted_versus_actual(y_true, y_pred, *, r=None, ax=None):
 
 
 def _plot_decision_margin(margins, y_true, *, ax=None):
-    """Plot each observation's signed distance from the decision boundary by class.
+    """Plot each observation's signed `decision_function` score by class.
 
     Args:
         margins (array-like): Out-of-fold `decision_function` values, one per
@@ -58,7 +58,7 @@ def _plot_decision_margin(margins, y_true, *, ax=None):
     )
     axis.axhline(0, color="gray", linestyle="--", linewidth=1)
     axis.set_xlabel("Class", fontsize=16)
-    axis.set_ylabel("Distance from Hyperplane", fontsize=16)
+    axis.set_ylabel("Decision function score", fontsize=16)
     axis.set_title("Classification margin", fontsize=18)
     return axis
 
