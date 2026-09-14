@@ -206,6 +206,9 @@ def _clean(
     # Check each pair of columns
     for i in range(len(cols_to_check)):
         col_i = cols_to_check[i]
+        # A column already marked for removal cannot drop further columns
+        if col_i in remove:
+            continue
         col_i_data = data_array[:, i]
 
         for j in range(i + 1, len(cols_to_check)):
