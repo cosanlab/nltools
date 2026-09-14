@@ -9,6 +9,7 @@ concatenation, and collinearity diagnostics.
 from __future__ import annotations
 
 
+from collections.abc import Iterator
 from copy import deepcopy
 from numbers import Integral
 from pathlib import Path
@@ -1005,6 +1006,11 @@ class DesignMatrix:
                     f"{type(value).__name__}. Pass a polars Expr/Series, "
                     "numpy array, list, or scalar."
                 )
+        # Both the schema probe below and the frame operation consume `exprs`,
+        # so materialize any one-shot iterable (e.g. a generator expression) first.
+        exprs = tuple(
+            list(expr) if isinstance(expr, Iterator) else expr for expr in exprs
+        )
         frame = _effective_frame(self)
         replaced = _replacement_names(frame, exprs, coerced)
         new_data = frame.with_columns(*exprs, **coerced)

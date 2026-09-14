@@ -221,3 +221,13 @@ class TestDesignMatrixWithColumns:
         assert result.sampling_freq == 2
         assert result.convolved == ["a"]
         assert result.confounds == ["poly_0"]
+
+    def test_generator_of_expressions_is_applied(self):
+        """A generator argument is consumed once, so its expressions still run."""
+        dm = DesignMatrix({"a": [1.0, 2.0]}, sampling_freq=1).convolve(
+            kernel=np.array([1.0])
+        )
+        result = dm.with_columns(pl.col(col) * 2 for col in dm.columns)
+        assert result["a_c0"].to_list() == [2.0, 4.0]
+        assert result.convolved == []
+        assert dm["a_c0"].to_list() == [1.0, 2.0]
