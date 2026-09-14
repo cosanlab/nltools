@@ -359,3 +359,26 @@ def test_forced_choice_accuracy_does_not_depend_on_row_order():
         assert roc.accuracy == 0.5
         assert roc.n == 2
         assert roc.accuracy_p.k == 1
+
+
+def test_forced_choice_results_repeat_and_match_pre_centered_scores():
+    """Pair centering is derived per call, not written back over the scores."""
+    scores = [10.0, 11.0, 20.0, 19.0]
+    labels = [True, False, True, False]
+    ids = [0, 0, 1, 1]
+
+    roc = Roc(input_values=scores, binary_outcome=labels, forced_choice=ids)
+    roc.calculate()
+    first = (roc.auc, roc.accuracy)
+    roc.calculate()
+    assert (roc.auc, roc.accuracy) == first
+
+    pre_centered = Roc(
+        input_values=[-0.5, 0.5, 0.5, -0.5],
+        binary_outcome=labels,
+        forced_choice=ids,
+    )
+    pre_centered.calculate()
+    assert (pre_centered.auc, pre_centered.accuracy) == first
+    # The caller's scores are left as they were passed
+    assert roc.input_values.tolist() == scores
