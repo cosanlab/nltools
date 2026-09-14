@@ -134,8 +134,11 @@ def _transform_outliers(data, cutoff, replace_with_cutoff, method):
 
             # If replace_with_cutoff is false, replace with true existing values closest to cutoff
             if method == "winsorize" and not replace_with_cutoff:
-                filtered_lower = series.filter(series > lower_q)
-                filtered_upper = series.filter(series < upper_q)
+                # A value sitting exactly on a cutoff is not an outlier, so it
+                # is itself the closest existing value; excluding it walked both
+                # bounds inward and could flatten the whole column.
+                filtered_lower = series.filter(series >= lower_q)
+                filtered_upper = series.filter(series <= upper_q)
                 if len(filtered_lower) > 0:
                     lower_q = filtered_lower.min()
                 if len(filtered_upper) > 0:
