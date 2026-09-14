@@ -328,3 +328,4 @@ enforcement:
     - {path: "nltools/algorithms/backends.py", function: "ones_like", reason: "mirrors np.ones_like"}
     - {path: "nltools/algorithms/backends.py", function: "full_like", reason: "mirrors np.full_like"}
     - {path: "nltools/data/braindata/prediction.py", function: "get_n_splits", reason: "mirrors the sklearn splitter protocol, which callers invoke positionally"}
+    - {path: "nltools/algorithms/alignment/", function: "align", reason: "v0.5.1 signature: method/n_features/axis are passed positionally by existing code"}
