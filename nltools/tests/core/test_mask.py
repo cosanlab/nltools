@@ -204,3 +204,37 @@ def test_collapse_mask_keeps_its_own_labels_as_int32():
     with warnings.catch_warnings():
         warnings.simplefilter("error")
         collapsed.to_nifti()
+
+
+def _four_voxel_mask():
+    """A 4-voxel all-ones brain mask, so collapse/expand run outside template space."""
+    return nib.Nifti1Image(np.ones((4, 1, 1), dtype=np.float32), np.eye(4))
+
+
+def test_collapse_mask_stays_in_the_input_space():
+    # E-04: collapsing used to rebuild every intermediate against a template
+    # mask, so a custom-space input came back as an all-zero template vector
+    # attached to the original mask, and `to_nifti()` raised.
+    mask_img = _four_voxel_mask()
+    masks = BrainData(np.array([[1.0, 1.0, 0.0, 0.0], [0.0, 0.0, 1.0, 1.0]]), mask=mask_img)
+
+    collapsed = collapse_mask(masks)
+
+    assert collapsed.mask.shape == (4, 1, 1)
+    assert collapsed.data.tolist() == [1, 1, 2, 2]
+    assert collapsed.to_nifti().shape == (4, 1, 1)
+
+
+def test_collapse_mask_drops_every_overlap():
+    # E-03: only voxels shared by *all* masks were dropped, so with 3+ masks a
+    # pairwise overlap kept the sum of its labels (voxel 1 below came back as 3,
+    # indistinguishable from mask 3's own label).
+    mask_img = _four_voxel_mask()
+    masks = BrainData(
+        np.array([[1.0, 1.0, 0.0, 0.0], [0.0, 1.0, 1.0, 0.0], [0.0, 0.0, 0.0, 1.0]]),
+        mask=mask_img,
+    )
+
+    collapsed = collapse_mask(masks)
+
+    assert collapsed.data.tolist() == [1, 0, 2, 3]

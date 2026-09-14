@@ -12,7 +12,6 @@ import os
 import nibabel as nib
 from nltools.templates import get_brainspace
 import numpy as np
-from nilearn.masking import intersect_masks
 
 
 def create_sphere(coordinates, radius=5, mask=None):
@@ -185,33 +184,18 @@ def collapse_mask(mask, auto_label=True, custom_mask=None):
 
     out = mask.create_empty()
 
-    # Create list of masks and find any overlaps
-    m_list = []
-    for x in range(len(mask)):
-        m_list.append(mask[x].to_nifti())
-    intersect = intersect_masks(m_list, threshold=1, connected=False)
-    intersect = BrainData(
-        nib.Nifti1Image(np.abs(intersect.get_fdata() - 1), intersect.affine),
-        mask=custom_mask,
-    )
-
-    merge = []
+    # Collapse on the voxel axis the input already sits on: rebuilding each mask
+    # as an image would resolve a template mask for custom-space data.
+    member = mask.data != 0
+    # A voxel keeps its label only when exactly one mask claims it, so every
+    # overlap is dropped, not just the voxels shared by all masks.
+    unique = member.sum(axis=0) == 1
     if auto_label:
-        # Combine all masks into sequential order
-        # ignoring any areas of overlap
-        for i in range(len(m_list)):
-            merge.append(
-                np.multiply(BrainData(m_list[i], mask=custom_mask).data, intersect.data)
-                * (i + 1)
-            )
-        out.data = np.sum(np.array(merge).T, 1).astype(np.int32)
+        labels = np.arange(1, member.shape[0] + 1)[:, None] * member
     else:
-        # Collapse masks using value as label
-        for i in range(len(m_list)):
-            merge.append(
-                np.multiply(BrainData(m_list[i], mask=custom_mask).data, intersect.data)
-            )
-        out.data = np.sum(np.array(merge).T, 1).astype(np.int32)
+        labels = mask.data
+    # int32, not the platform `int`: NIfTI tooling cannot carry 64-bit ints.
+    out.data = np.sum(np.where(unique, labels, 0), axis=0).astype(np.int32)
     return out
 
 
