@@ -355,9 +355,11 @@ class FitResult:
         The whole "fit, then save" workflow in one call. Each map becomes
         `<prefix>_betas.nii.gz`, `_predicted`, `_residual`, `_r2` and — for
         ridge — `_alpha`; the design becomes `<prefix>_design.csv` (one
-        `_design-<space>.csv` per feature space for a banded ridge); and
-        `<prefix>_fit.json` records the kind of fit and the design's column
-        names. Files with the same names are replaced. Nothing here is BIDS.
+        `_design-<space>.csv` per feature space for a banded ridge, with the
+        space name percent-encoded); and
+        `<prefix>_fit.json` records the kind of fit, the design's column names,
+        and every feature space's real name. Files with the same names are
+        replaced. Nothing here is BIDS.
 
         Args:
             directory (str | Path): Where to write. Created if it does not exist.
