@@ -417,13 +417,20 @@ def _mask_images_fast(mask, imgs):
     return np.vstack([apply_mask_fmri(im, binary_mask) for im in imgs])
 
 
-def _load_from_list(bd, data_list):
+def _load_from_list(bd, data_list, mask=None):
     """Load data from a list of BrainData objects or file paths.
 
     Args:
         bd (BrainData): Instance to populate.
         data_list (list[BrainData] | list[str | Path | Nifti1Image]): Items to load
             and stack.
+        mask (Nifti1Image | str | Path | None): Mask the caller asked for, applied
+            to a list of BrainData objects after they are concatenated.
+
+    Returns:
+        BrainData | None: The concatenated object a list of BrainData produced,
+            whose row metadata the constructor inherits; None for a list of
+            files or images, which carries no metadata of its own.
     """
     import nibabel as nib
     from ..combine import concatenate
@@ -432,10 +439,11 @@ def _load_from_list(bd, data_list):
     list_type = _validate_list_data(data_list)
 
     if list_type == "brain_data":
-        tmp = concatenate(data_list)
-        for item in ["data", "mask"]:
-            setattr(bd, item, getattr(tmp, item))
-        return
+        # Concatenating first and loading from the result gives a list of
+        # BrainData the same mask and metadata handling a single one gets.
+        concatenated = concatenate(data_list)
+        _load_from_brain_data(bd, concatenated, mask)
+        return concatenated
 
     bd.data = []
 
@@ -489,6 +497,7 @@ def _load_from_list(bd, data_list):
     # once (see _mask_images). vstack for nilearn 0.12+ compat (transforms
     # 3D -> 1D instead of 3D -> 2D).
     bd.data = _mask_images(bd.mask, prepared_imgs)
+    return None
 
 
 def _resolve_mask_argument(mask):
