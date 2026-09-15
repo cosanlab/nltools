@@ -225,10 +225,11 @@ def _(data, design):
 def _(mo):
     mo.md(r"""
     One subject is not a result: the map a paper reports is a test across subjects.
-    `n_runs=5` returns five fresh draws of the experiment, each with its own block
-    order and noise, to stand in for five subjects; stack their contrast maps with
-    `concatenate`, `ttest` gives the voxelwise one-sample test, and `threshold`
-    zeroes every voxel whose p-value misses a cutoff:
+    `n_runs=5` returns five fresh draws of the experiment to stand in for five
+    subjects, and `block_order="shared"` gives the five runs one block order, each
+    with its own noise, so later sections can compare them TR by TR. Stack their
+    contrast maps with `concatenate`, `ttest` gives the voxelwise one-sample test,
+    and `threshold` zeroes every voxel whose p-value misses a cutoff:
     """)
     return
 
@@ -237,7 +238,7 @@ def _(mo):
 def _(concatenate, load_haxby_example):
     from nltools.algorithms import threshold
 
-    subjects, subject_designs = load_haxby_example(n_runs=5)
+    subjects, subject_designs = load_haxby_example(n_runs=5, block_order="shared")
     group = concatenate(
         [
             subject.fit(model="glm", X=subject_design).compute_contrasts(
@@ -414,8 +415,7 @@ def _(mo):
     the stimulus drove. `extract_roi` averages each subject's timecourse inside
     every parcel of a 50-region atlas, `isc` takes the median correlation over pairs
     of subjects one parcel at a time and bootstraps subjects for the p-value, and
-    `roi_to_brain` paints it back onto the brain. Each simulated subject saw the
-    blocks in a different order, so line the TRs up by condition first:
+    `roi_to_brain` paints it back onto the brain:
     """)
     return
 
@@ -430,13 +430,8 @@ def _(BrainData, np, subjects):
         fetch_resource("masks/default/3mm-MNI152-2009fsl-k50.nii.gz")
     )
 
-    def time_locked(subject):
-        """Reorder one subject's TRs into the sequence every subject shares."""
-        order = subject.Y.with_row_index().sort(["condition", "index"])["index"]
-        return subject[order.to_numpy()]
-
     parcel_timeseries = np.stack(
-        [time_locked(subject).extract_roi(parcellation).T for subject in subjects],
+        [subject.extract_roi(parcellation).T for subject in subjects],
         axis=1,
     )
     isc_result = isc(parcel_timeseries, n_samples=200, random_state=0, n_jobs=1)
@@ -445,7 +440,7 @@ def _(BrainData, np, subjects):
         f"best parcel: ISC {isc_result['isc'].max():.2f}, "
         f"{(isc_result['p'] < 0.05).sum()} of 50 parcels at p < 0.05 (200 bootstraps)"
     )
-    return expand_mask, isc_result, parcellation, roi_to_brain, time_locked
+    return expand_mask, isc_result, parcellation, roi_to_brain
 
 
 @app.cell
@@ -525,8 +520,8 @@ def _(mo):
 
 
 @app.cell
-def _(BrainData, np, subjects, time_locked, ventral_temporal, voxel_correlation):
-    target = time_locked(subjects[0]).apply_mask(ventral_temporal)
+def _(BrainData, np, subjects, ventral_temporal, voxel_correlation):
+    target = subjects[0].apply_mask(ventral_temporal)
     shuffle = np.random.default_rng(0).permutation(target.shape[1])
     scrambled = BrainData(target.data[:, shuffle], mask=ventral_temporal)
     aligned = scrambled.align(target, method="procrustes")["transformed"]
