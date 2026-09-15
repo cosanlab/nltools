@@ -64,6 +64,19 @@ class TestAlign:
         with pytest.raises(TypeError):
             align(data, method="deterministic_srm", bogus_kwarg=1)
 
+    def test_default_n_features_is_the_smallest_subjects_voxel_count(self):
+        """Ragged subjects resolve `n_features=None` to the smallest voxel count.
+
+        The default read subject 0's voxel count, so a group whose first subject
+        was not the narrowest asked for more features than another subject had.
+        """
+        rng = np.random.default_rng(0)
+        data = [rng.standard_normal((20, n_voxels)) for n_voxels in (6, 4, 5)]
+
+        out = align(data, method="deterministic_srm", n_features=None)
+
+        assert out["common_model"].shape[1] == 4
+
     def test_isc_is_reported_for_a_single_aligned_unit(self):
         """One aligned unit is still a unit, not a scalar.
 
