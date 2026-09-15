@@ -186,7 +186,9 @@ def _simulate_run(dm, rois, n_voxels, rng):
     return data
 
 
-def load_haxby_example(n_runs=1, *, space="mni", random_state=42):
+def load_haxby_example(
+    n_runs=1, *, space="mni", block_order="independent", random_state=42
+):
     """Load a synthetic Haxby-like dataset on the MNI grid, entirely in-memory.
 
     The quickest way to try nltools: nothing is downloaded beyond the MNI
@@ -204,7 +206,10 @@ def load_haxby_example(n_runs=1, *, space="mni", random_state=42):
     fusiform cortex, and scrambled pictures in early visual cortex — with a 3%
     peak response against 1% white noise. A condition also drives its
     category-mates' spheres at a third of that, so the eight response patterns
-    carry an animate / man-made / scene / control similarity structure.
+    carry an animate / man-made / scene / control similarity structure. Each run
+    draws its own block order by default; pass `block_order='shared'` when the
+    runs have to line up TR by TR, as they do for intersubject correlation,
+    alignment and anything else that compares runs timepoint against timepoint.
 
     Args:
         n_runs (int): Number of runs to generate. Default 1.
@@ -213,6 +218,10 @@ def load_haxby_example(n_runs=1, *, space="mni", random_state=42):
             `extract_roi` work on the result. `'grid'` is a 10 x 10 x 5
             synthetic volume with random condition clusters, for tests that need
             construction in milliseconds and never plot.
+        block_order (str): How the condition order varies across runs.
+            `'independent'` (default) draws a fresh order per run; `'shared'`
+            draws one order and gives it to every run, so the runs are
+            comparable TR by TR. Noise differs per run either way.
         random_state (int | None): Seed for reproducible output. Default 42.
 
     Returns:
@@ -223,7 +232,8 @@ def load_haxby_example(n_runs=1, *, space="mni", random_state=42):
             `_c0` (HRF-convolved boxcars).
 
     Raises:
-        ValueError: If `space` is not `'mni'` or `'grid'`.
+        ValueError: If `space` is not `'mni'` or `'grid'`, or `block_order` is not
+            `'independent'` or `'shared'`.
 
     Examples:
         ```python
@@ -258,16 +268,31 @@ def load_haxby_example(n_runs=1, *, space="mni", random_state=42):
 
     if space not in ("mni", "grid"):
         raise ValueError(f"space must be 'mni' or 'grid', got {space!r}")
+    if block_order not in ("independent", "shared"):
+        raise ValueError(
+            f"block_order must be 'independent' or 'shared', got {block_order!r}"
+        )
 
     rng = np.random.default_rng(random_state)
     mask_img = _mask_image(space)
     n_voxels = int((np.asarray(mask_img.dataobj) > 0).sum())
     rois = _condition_rois(space, mask_img, rng)
 
+    # Drawn once so every run gets the same sequence; 'independent' draws inside
+    # the loop instead, leaving the default run's RNG stream untouched.
+    shared_order = (
+        list(rng.permutation(_HAXBY_CONDITIONS)) if block_order == "shared" else None
+    )
+
     brain_data_list = []
     design_matrix_list = []
     for run in range(n_runs):
-        dm, labels = _run_design(list(rng.permutation(_HAXBY_CONDITIONS)))
+        order = (
+            shared_order
+            if shared_order is not None
+            else list(rng.permutation(_HAXBY_CONDITIONS))
+        )
+        dm, labels = _run_design(order)
         data = _simulate_run(dm, rois, n_voxels, rng)
         labels_and_run = pl.DataFrame(
             {

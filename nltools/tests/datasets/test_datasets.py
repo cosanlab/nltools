@@ -175,6 +175,19 @@ class TestLoadHaxbyExample:
             # `.convolve()` always suffixes `_c0`
             assert f"{cond}_c0" in cols, f"missing condition {cond}_c0"
 
+    def test_shared_block_order_repeats_one_order_across_runs(self):
+        """`block_order='shared'` gives every run the same condition sequence."""
+        from nltools.datasets import load_haxby_example
+
+        shared, _ = load_haxby_example(n_runs=2, space="grid", block_order="shared")
+        assert shared[0].Y["condition"].to_list() == shared[1].Y["condition"].to_list()
+
+        independent, _ = load_haxby_example(n_runs=2, space="grid")
+        assert (
+            independent[0].Y["condition"].to_list()
+            != independent[1].Y["condition"].to_list()
+        )
+
     def test_reproducible_with_seed(self):
         import numpy as np
         from nltools.datasets import load_haxby_example
