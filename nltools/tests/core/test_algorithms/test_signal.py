@@ -102,7 +102,7 @@ class TestMakeCosineBasis:
         basis = make_cosine_basis(100, sampling_interval=2, filter_length=128)
         assert basis.shape == (100, 3)
 
-        with pytest.raises(TypeError):
+        with pytest.raises(TypeError, match="sampling_freq"):
             make_cosine_basis(100, sampling_freq=2, filter_length=128)
 
     def test_drop_removes_leading_columns(self):
