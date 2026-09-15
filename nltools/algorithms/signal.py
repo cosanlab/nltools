@@ -214,7 +214,9 @@ def upsample(
     return upsampled_df
 
 
-def make_cosine_basis(nsamples, sampling_freq, filter_length, unit_scale=True, drop=0):
+def make_cosine_basis(
+    nsamples, sampling_interval, filter_length, unit_scale=True, drop=0
+):
     """Create basis functions for a discrete cosine transform.
 
     Based on the implementation in ``spm_filter`` and ``spm_dctmtx`` because
@@ -224,9 +226,9 @@ def make_cosine_basis(nsamples, sampling_freq, filter_length, unit_scale=True, d
 
     Args:
         nsamples (int): Number of observations (e.g. TRs).
-        sampling_freq (float): Sampling *interval* in seconds (the TR), matching
-            SPM's `RT` — not a frequency, despite the name. The number of bases
-            is `trunc(2 * nsamples * sampling_freq / filter_length + 1)`, minus
+        sampling_interval (float): Seconds between observations (the TR), SPM's
+            `RT`. The number of bases is
+            `trunc(2 * nsamples * sampling_interval / filter_length + 1)`, minus
             the constant. `DesignMatrix.add_dct_basis` passes
             `1 / DesignMatrix.sampling_freq` for this reason.
         filter_length (int): Filter length in seconds.
@@ -244,7 +246,7 @@ def make_cosine_basis(nsamples, sampling_freq, filter_length, unit_scale=True, d
     """
 
     # Figure out number of basis functions to create
-    order = int(np.trunc(2 * (nsamples * sampling_freq) / filter_length + 1))
+    order = int(np.trunc(2 * (nsamples * sampling_interval) / filter_length + 1))
 
     n = np.arange(nsamples)
 

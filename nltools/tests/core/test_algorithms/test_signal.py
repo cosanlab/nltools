@@ -92,10 +92,18 @@ class TestMakeCosineBasis:
         """Cosine basis should return correct shape."""
         n_timepoints = 100
         basis = make_cosine_basis(
-            n_timepoints, sampling_freq=1, filter_length=128, drop=0
+            n_timepoints, sampling_interval=1, filter_length=128, drop=0
         )
         assert basis.shape[0] == n_timepoints
         assert basis.shape[1] >= 1
+
+    def test_second_argument_is_the_sampling_interval(self):
+        """100 TRs of 2 s under a 128 s filter give SPM's four bases less the constant."""
+        basis = make_cosine_basis(100, sampling_interval=2, filter_length=128)
+        assert basis.shape == (100, 3)
+
+        with pytest.raises(TypeError):
+            make_cosine_basis(100, sampling_freq=2, filter_length=128)
 
     def test_drop_removes_leading_columns(self):
         """drop=k removes the k lowest-frequency bases, keeping the remainder."""
