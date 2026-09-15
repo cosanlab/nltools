@@ -229,8 +229,9 @@ def make_cosine_basis(
         sampling_interval (float): Seconds between observations (the TR), SPM's
             `RT`. The number of bases is
             `trunc(2 * nsamples * sampling_interval / filter_length + 1)`, minus
-            the constant. `DesignMatrix.add_dct_basis` passes
-            `1 / DesignMatrix.sampling_freq` for this reason.
+            the constant. `DesignMatrix` stores a sampling frequency, so
+            `DesignMatrix.add_dct_basis` inverts it and passes
+            `1 / DesignMatrix.sampling_freq`.
         filter_length (int): Filter length in seconds.
         unit_scale (bool): Scale the basis functions to the range [-1, 1]. Defaults to True.
         drop (int): Number of leading (slowest) bases to drop after the constant is
@@ -241,8 +242,9 @@ def make_cosine_basis(
         np.ndarray: Basis matrix of shape (nsamples, n_bases).
 
     Note:
-        The basis count follows `spm_dctmtx`'s `k = fix(2*(n*RT)/HParam + 1)`, so
-        100 TRs of 2 s with a 128 s filter give the same four bases SPM gives.
+        The basis count follows `spm_dctmtx`'s `k = fix(2*(n*RT)/HParam + 1)` less
+        the constant that `spm_filter` drops, so 100 TRs of 2 s under a 128 s
+        filter give three bases, the same three SPM uses.
     """
 
     # Figure out number of basis functions to create
