@@ -117,6 +117,7 @@ apply `BrainData` methods per subject and stack the results with
 | Statistics | `regress` on an undefined fit (a NaN in `Y`) returned `t=0`, `p=1` next to a NaN coefficient | `t` and `p` are NaN | A perfect fit, whose standard error is finite but near zero, still scores `t=0`, `p=1` |
 | Statistics | `downsample(range(10), sampling_freq=5, target=2, target_type='hz')` returned `[0.5, 2.5, 4.5, 7.5]` | It returns `[1, 3.5, 6, 8.5]` | Rows bin by `floor(row / n_samples)`, the rule `DesignMatrix.downsample` already used; integer ratios are unchanged |
 | Statistics | `upsample` dropped non-numeric columns with a `UserWarning` | The same, naming the dropped columns | The polars rewrite raised `ValueError: could not convert string to float`; a frame with no numeric column now raises instead |
+| Statistics | `make_cosine_basis(nsamples, sampling_freq=…)` | `make_cosine_basis(nsamples, sampling_interval=…)` | The value was always the sampling interval in seconds (SPM's `RT`); the name now says so. Positional calls are unchanged |
 | Plotting | `brain.plot(view=…, threshold_upper=…, axes=…)` | `brain.plot(method=…, upper=…, ax=…)` | `ax` is the matplotlib spelling on every class |
 | Plotting | `adjacency.plot(limit, axes, *args)` | `adjacency.plot(*, limit=3, ax=None)` | Keyword-only; no positional passthrough |
 | Plotting | `plot_brain`, `plot_t_brain`, `plot_interactive_brain` | Removed | `BrainData.plot(method='glass'\|'mni'\|'full')` and `BrainData.iplot` |

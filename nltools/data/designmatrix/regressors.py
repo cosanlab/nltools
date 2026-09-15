@@ -427,7 +427,10 @@ def _add_dct_basis(
 
     # Create DCT basis matrix using stats function
     basis_mat = make_cosine_basis(
-        dm.shape[0], 1.0 / dm.sampling_freq, duration, drop=drop
+        dm.shape[0],
+        sampling_interval=1.0 / dm.sampling_freq,
+        filter_length=duration,
+        drop=drop,
     )
 
     # Generate column names (.nl_cosine_1, .nl_cosine_2, ...)
