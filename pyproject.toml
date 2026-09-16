@@ -193,8 +193,8 @@ too-many-positional-arguments = "ignore" # seaborn deprecated positional args
 [tool.poe.tasks.ok]
 help = "Run the project gate: lint, format, types, API conventions, and tests"
 sequence = [
-    { cmd = "ruff check nltools/" },
-    { cmd = "ruff format --check nltools/" },
+    { cmd = "ruff check nltools/ scripts/" },
+    { cmd = "ruff format --check nltools/ scripts/" },
     { cmd = "ty check nltools/" },
     { ref = "lint-api" },
     { ref = "test" },
@@ -202,7 +202,7 @@ sequence = [
 
 [tool.poe.tasks.lint]
 help = "Fix, format, and type-check (ruff check --fix -> ruff format -> ty check)"
-shell = """ruff check nltools --fix && ruff format nltools && ty check nltools"""
+shell = """ruff check nltools scripts --fix && ruff format nltools scripts && ty check nltools"""
 
 [tool.poe.tasks.lint-api]
 help = "Enforce public API conventions (vocabulary manifest checker + semgrep rules + keyword-only `*` marker check + docs vocab drift check)"
