@@ -275,7 +275,7 @@ def install_cell(rel: str, slug: str, digest: str, cells: int) -> str:
         f"import {FORMATTER_MODULE}\n"
         "import nltools\n"
         "\n"
-        "nltools.set_brainspace(template=\"default\", resolution=2)\n"
+        'nltools.set_brainspace(template="default", resolution=2)\n'
         f'{FORMATTER_MODULE}.install("{rel}", digest="{digest}", cells={cells})'
     )
     return f"```python {SETUP_OPTIONS.format(slug=slug)}\n{code}\n```"
