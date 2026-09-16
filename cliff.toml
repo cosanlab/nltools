@@ -60,6 +60,9 @@ filter_unconventional = false
 filter_commits = true
 sort_commits = "oldest"
 tag_pattern = "v[0-9].*"
+# Dev pre-release tags (v0.6.0.dev3) are not releases: fold their commits into
+# the next real version instead of giving each its own section.
+ignore_tags = "\\.dev[0-9]+$"
 
 # Preprocessors run on raw messages before conventional-commit parsing.
 commit_preprocessors = [
