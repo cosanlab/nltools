@@ -12,8 +12,10 @@ import pytest
 
 from nltools.models import _Ridge
 from nltools.models.ridge import (
+    _batch_sizes,
     _prepare_feature_space_weights,
     _refit_fixed_hyperparameters,
+    _solver_form,
 )
 
 
@@ -109,6 +111,21 @@ def kfold(n_splits=4):
     from sklearn.model_selection import KFold
 
     return KFold(n_splits=n_splits, shuffle=False)
+
+
+def spy_on(monkeypatch, module, name, calls):
+    """Replace `module.<name>` with a wrapper that records each call in `calls`.
+
+    The adapter imports each Himalaya solver inside the method that uses it, so
+    patching the module attribute is enough to see which solver a fit ran.
+    """
+    real = getattr(module, name)
+
+    def wrapper(*args, **kwargs):
+        calls.append(name)
+        return real(*args, **kwargs)
+
+    monkeypatch.setattr(module, name, wrapper)
 
 
 # --------------------------------------------------------------------- signature
@@ -228,6 +245,7 @@ class TestFittedState:
         assert model.n_features_in_ == X.shape[1]
         assert model.is_fitted_ is True
         assert model.backend_.name == "numpy"
+        assert model.solver_form_ == "primal"
 
     def test_ordinary_cv_state(self):
         X, Y = make_data()
@@ -505,3 +523,181 @@ class TestDeviceAndMemory:
         gpu = _Ridge(alpha=ALPHAS, cv=kfold(), device="gpu").fit(X, Y)
         np.testing.assert_array_equal(gpu.alpha_, cpu.alpha_)
         np.testing.assert_allclose(gpu.coef_, cpu.coef_, rtol=1e-2, atol=1e-3)
+
+
+# ------------------------------------------------------------------- solver form
+
+
+class TestSolverFormRule:
+    """Wide designs pick the kernel form; ties and tall designs stay primal."""
+
+    def test_kernel_only_when_features_exceed_samples(self):
+        assert _solver_form(n_samples=80, n_features=12) == "primal"
+        assert _solver_form(n_samples=20, n_features=20) == "primal"
+        assert _solver_form(n_samples=20, n_features=50) == "kernel"
+
+    def test_kernel_form_sizes_batches_from_the_sample_count(self):
+        """With 5000 features and 50 samples, the kernel estimates are 100x smaller."""
+        from nltools.algorithms.backends import _resolve_backend
+
+        backend = _resolve_backend("cpu")
+        shape = {
+            "n_samples": 50,
+            "n_features": 5000,
+            "n_targets": 1000,
+            "n_alphas": 8,
+            "itemsize": 8,
+        }
+        primal = _batch_sizes(backend, 0.01, **shape)
+        kernel = _batch_sizes(backend, 0.01, **shape, solver_form="kernel")
+        assert primal["n_alphas_batch"] == 1
+        assert kernel["n_alphas_batch"] == 8
+        assert kernel["n_targets_batch_refit"] > primal["n_targets_batch_refit"]
+
+
+class TestSolverFormDispatch:
+    """Which Himalaya solver a fit runs, and that both forms agree."""
+
+    def test_wide_ordinary_design_runs_kernel_ridge_with_primal_parity(
+        self, monkeypatch
+    ):
+        import himalaya.kernel_ridge
+        from himalaya.ridge import solve_ridge_cv_svd
+        from himalaya.scoring import l2_neg_loss
+
+        calls = []
+        spy_on(
+            monkeypatch,
+            himalaya.kernel_ridge,
+            "solve_kernel_ridge_cv_eigenvalues",
+            calls,
+        )
+        X, Y = make_data(n_samples=30, n_features=60)
+        model = _Ridge(alpha=ALPHAS, cv=kfold()).fit(X, Y)
+
+        assert model.solver_form_ == "kernel"
+        assert calls == ["solve_kernel_ridge_cv_eigenvalues"]
+        best_alphas, coefs, cv_scores = solve_ridge_cv_svd(
+            X,
+            Y,
+            alphas=np.asarray(ALPHAS),
+            fit_intercept=False,
+            score_func=l2_neg_loss,
+            cv=kfold(),
+            local_alpha=True,
+            warn=False,
+        )
+        np.testing.assert_allclose(model.alpha_, best_alphas, rtol=1e-6)
+        np.testing.assert_allclose(model.coef_, coefs, rtol=1e-6, atol=1e-8)
+        np.testing.assert_allclose(
+            model.cv_scores_, cv_scores.reshape(-1), rtol=1e-6, atol=1e-8
+        )
+
+    def test_wide_float32_design_keeps_float64_coefficients(self):
+        """The dual-to-primal product runs in float32; the stored state is float64."""
+        from himalaya.ridge import solve_ridge_cv_svd
+        from himalaya.scoring import l2_neg_loss
+
+        X, Y = make_data(n_samples=30, n_features=60, dtype=np.float32)
+        model = _Ridge(alpha=ALPHAS, cv=kfold()).fit(X, Y)
+
+        assert model.solver_form_ == "kernel"
+        assert model.coef_.dtype == np.float64
+        best_alphas, coefs, _ = solve_ridge_cv_svd(
+            X,
+            Y,
+            alphas=np.asarray(ALPHAS, dtype=np.float32),
+            fit_intercept=False,
+            score_func=l2_neg_loss,
+            cv=kfold(),
+            local_alpha=True,
+            warn=False,
+        )
+        np.testing.assert_allclose(model.alpha_, best_alphas, rtol=1e-5)
+        np.testing.assert_allclose(model.coef_, coefs, rtol=1e-3, atol=1e-4)
+
+    def test_tall_ordinary_design_stays_primal(self, monkeypatch):
+        import himalaya.ridge
+
+        calls = []
+        spy_on(monkeypatch, himalaya.ridge, "solve_ridge_cv_svd", calls)
+        X, Y = make_data()
+        model = _Ridge(alpha=ALPHAS, cv=kfold()).fit(X, Y)
+        assert model.solver_form_ == "primal"
+        assert calls == ["solve_ridge_cv_svd"]
+
+    def test_fixed_alpha_fit_stays_primal_even_when_wide(self, monkeypatch):
+        import himalaya.ridge
+
+        calls = []
+        spy_on(monkeypatch, himalaya.ridge, "solve_ridge_svd", calls)
+        X, Y = make_data(n_samples=20, n_features=50)
+        model = _Ridge(alpha=1.0).fit(X, Y)
+        assert model.solver_form_ == "primal"
+        assert calls == ["solve_ridge_svd"]
+
+    @requires_torch
+    def test_kernel_path_restores_the_backend_when_the_solver_raises(
+        self, foreign_ambient_backend, monkeypatch
+    ):
+        import himalaya.kernel_ridge
+
+        def explode(*args, **kwargs):
+            raise RuntimeError("solver exploded")
+
+        monkeypatch.setattr(
+            himalaya.kernel_ridge, "solve_kernel_ridge_cv_eigenvalues", explode
+        )
+        X, Y = make_data(n_samples=30, n_features=60)
+        with pytest.raises(RuntimeError, match="solver exploded"):
+            _Ridge(alpha=ALPHAS, cv=kfold()).fit(X, Y)
+        assert current_himalaya_backend() == foreign_ambient_backend
+
+    def test_wide_banded_design_runs_multiple_kernel_ridge_with_primal_parity(
+        self, monkeypatch
+    ):
+        import himalaya.kernel_ridge
+        from himalaya.ridge import solve_group_ridge_random_search
+        from himalaya.scoring import l2_neg_loss
+
+        calls = []
+        spy_on(
+            monkeypatch,
+            himalaya.kernel_ridge,
+            "solve_multiple_kernel_ridge_random_search",
+            calls,
+        )
+        spaces, Y = make_spaces(n_samples=30, sizes=(25, 35))
+        model = _Ridge(
+            alpha=ALPHAS, cv=kfold(), search_iterations=6, random_state=3
+        ).fit(spaces, Y)
+
+        assert model.solver_form_ == "kernel"
+        assert calls == ["solve_multiple_kernel_ridge_random_search"]
+        candidates = model._draw_feature_space_candidates(
+            len(spaces), np.dtype(np.float64)
+        )
+        deltas, coef, cv_scores = solve_group_ridge_random_search(
+            list(spaces.values()),
+            Y,
+            n_iter=candidates,
+            alphas=np.asarray(ALPHAS),
+            fit_intercept=False,
+            score_func=l2_neg_loss,
+            cv=kfold(),
+            return_weights=True,
+            local_alpha=True,
+            random_state=3,
+            progress_bar=False,
+            warn=False,
+        )
+        gammas = np.exp(deltas)
+        np.testing.assert_allclose(
+            model.feature_space_weights_,
+            gammas / gammas.sum(axis=0, keepdims=True),
+            rtol=1e-6,
+            atol=1e-8,
+        )
+        np.testing.assert_allclose(model.alpha_, 1.0 / gammas.sum(axis=0), rtol=1e-6)
+        np.testing.assert_allclose(model.coef_, coef, rtol=1e-5, atol=1e-7)
+        np.testing.assert_allclose(model.cv_scores_, cv_scores, rtol=1e-6, atol=1e-8)

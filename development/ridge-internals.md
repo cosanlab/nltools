@@ -61,11 +61,32 @@ translated for the caller.
 
 ## Which solver runs
 
-| `X` | `alpha` | `cv` | Himalaya entry point |
-|---|---|---|---|
-| 2-D array | scalar | `None` | `solve_ridge_svd` |
-| 2-D array | sequence | int or splitter | `solve_ridge_cv_svd` |
-| name → 2-D mapping | sequence | int or splitter | `solve_group_ridge_random_search` |
+| `X` | `alpha` | `cv` | shape | Himalaya entry point |
+|---|---|---|---|---|
+| 2-D array | scalar | `None` | any | `solve_ridge_svd` |
+| 2-D array | sequence | int or splitter | `n_samples >= n_features` | `solve_ridge_cv_svd` |
+| 2-D array | sequence | int or splitter | `n_samples < n_features` | `solve_kernel_ridge_cv_eigenvalues` |
+| name → 2-D mapping | sequence | int or splitter | `n_samples >= n_features` | `solve_group_ridge_random_search` |
+| name → 2-D mapping | sequence | int or splitter | `n_samples < n_features` | `solve_multiple_kernel_ridge_random_search` |
+
+The shape column is Himalaya's flowchart, applied by `_solver_form` with
+`n_features` summed across spaces. Himalaya itself never switches; its primal
+solvers only warn when a design is wide, and the adapter suppresses that
+warning because it acts on the rule instead. Both forms give the same
+solution. The primal cross-validation loop builds
+`(n_alphas, n_features, n_samples_train)` resolution matrices per fold, the
+kernel loop `(n_alphas, n_samples_test, n_samples_train)`, so a wide encoding
+model would otherwise pay roughly `n_features / n_samples` more per alpha per
+fold. The chosen form is recorded as `solver_form_`.
+
+The kernel methods build one linear kernel per space with `_linear_kernels`
+inside the same scoped backend as the solve, so a kernel lives on the device
+that consumes it. The ordinary kernel fit recovers `coef_ = X.T @ dual` on the
+host, as Himalaya does for its own primal recovery. The banded kernel fit
+passes `return_weights="primal"` and the raw spaces, and Himalaya returns
+`coef_` already scaled back into feature coordinates. Both banded fits share
+`_draw_feature_space_candidates` and `_store_banded_state`, so the candidate
+preparation below and the deltas recovery apply to either form.
 
 `search_iterations` and `dirichlet_concentration` are the banded-only
 arguments: a non-default value of either raises during an ordinary fit rather
@@ -108,9 +129,11 @@ clamped on the host anyway, so they are drawn under an explicit `numpy` scope.
 to be finite and strictly positive and every row to sum to one, converts to the
 feature dtype, and only then raises weights below `np.finfo(dtype).tiny` to
 `tiny`. That floor is a numerical boundary, not a validation relaxation: the
-random search scales each space by `sqrt(gamma)` and divides the same buffer
-back afterwards, and on a float32 device a subnormal weight destroys the buffer
-on the way back. A zero or negative weight is still an error. Upstream
+primal random search scales each space by `sqrt(gamma)` and divides the same
+buffer back afterwards, and on a float32 device a subnormal weight destroys
+the buffer on the way back. The kernel search scales each kernel by `gamma`
+instead and never divides back, so the floor is harmless there and both forms
+share it. A zero or negative weight is still an error. Upstream
 [gallantlab/himalaya#107](https://github.com/gallantlab/himalaya/pull/107)
 proposes the same clamp inside the solver; applying it on the nltools side of
 the call makes a fork unnecessary.
@@ -202,9 +225,11 @@ grouping is an implementation detail and never changes the result — a test
 compares the grouped solve against one call per target. Weights shared by every
 target (the common case) short-circuit to a single group without sorting.
 
-The banded path does not double-refit: `solve_group_ridge_random_search` with
-`return_weights=True` already multiplies its primal weights by `sqrt(gamma)`,
-so `coef_` comes back in original coordinates.
+Neither banded path double-refits. `solve_group_ridge_random_search` with
+`return_weights=True` multiplies its primal weights by `sqrt(gamma)`, and
+`solve_multiple_kernel_ridge_random_search` with `return_weights="primal"`
+multiplies each space by `gamma` before the dual-to-primal product, so `coef_`
+comes back in original coordinates from either solver.
 
 ## Device and memory
 
@@ -244,15 +269,22 @@ dominant allocation depends on whether the targets share an alpha:
 
 | Function | Batch | Dominant allocation |
 |---|---|---|
-| `_batch_sizes` | `n_alphas_batch` | decomposition matrices, `(n_alphas_batch, n_features, n_samples)` |
+| `_batch_sizes` | `n_alphas_batch` | decomposition matrices, `(n_alphas_batch, n_features, n_samples)`; kernel form `(n_alphas_batch, n_samples, n_samples)` |
 | `_batch_sizes` | `n_targets_batch` | fold predictions, `(n_alphas_batch, n_samples, n_targets_batch)` |
-| `_batch_sizes` | `n_targets_batch_refit` | refit weights, `(n_alphas_batch, n_features, n_targets_batch)` |
+| `_batch_sizes` | `n_targets_batch_refit` | refit weights, `(n_alphas_batch, n_features, n_targets_batch)`; kernel form `(n_alphas_batch, n_samples, n_targets_batch)` |
 | `_refit_targets_batch` | `per_target_alpha=True` | `solve_ridge_svd`'s `(n_targets_batch, n_samples, n_samples)` block |
 | `_refit_targets_batch` | `per_target_alpha=False` | one shared shrinkage operator, so `(n_samples + n_features)` per target |
 
 All budget arithmetic, the saturation ceiling, and OOM recovery live in
 `backends.py`. That is a hard invariant: an algorithm may estimate its own
 working set but must never compute a budget.
+
+Neither form models its resident inputs: the primal form holds the
+`(n_samples, n_features)` design, the kernel form `n_spaces` kernels of
+`(n_samples, n_samples)`, and the banded kernel refit additionally Himalaya's
+gamma-scaled concatenation of the spaces, another `(n_samples, n_features)`.
+The estimates cover the per-item working set and `_WORKING_SET_OVERHEAD`
+supplies the headroom.
 
 ## Backend abstraction
 

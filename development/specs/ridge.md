@@ -173,6 +173,34 @@ keyword that both estimators share.
 The banded-only arguments are `search_iterations` and `dirichlet_concentration`.
 For ordinary Ridge, non-default values of those two must raise an error.
 
+## Solver form
+
+Himalaya's primal solvers (`solve_ridge_cv_svd`,
+`solve_group_ridge_random_search`) and its kernel solvers
+(`solve_kernel_ridge_cv_eigenvalues`,
+`solve_multiple_kernel_ridge_random_search` over linear kernels) return the
+same solution. Their cost differs: the primal cross-validation working set
+scales with the feature count, the kernel one with the sample count. Himalaya
+does not switch between them; its flowchart asks the user to.
+
+The adapter switches for the user. When the total feature count across spaces
+exceeds the sample count, a cross-validated or banded fit runs in the kernel
+form; otherwise, and on a tie, it runs in the primal form. The choice is a
+pure function of the design shape, is recorded as `solver_form_`, and is not
+exposed as a keyword.
+
+The kernel form changes nothing the caller can observe apart from
+`solver_form_`: `coef_` is returned in feature coordinates, and every other
+fitted attribute keeps its shape, dtype, and meaning within floating-point
+tolerance of the primal result. Where two candidate alphas tie in
+cross-validation score at working precision, the two forms may snap to
+different grid points; the coefficients and scores still agree to that
+precision.
+
+The fixed-alpha fit and every bootstrap replicate always run the primal
+`solve_ridge_svd`. Its thin SVD costs the same as forming the kernel, and its
+refit block is already sample by sample, so there is nothing to switch.
+
 ## Numerical behavior
 
 The model solves Ridge regression without adding an intercept:
@@ -225,6 +253,8 @@ After `fit`, the model exposes:
 - `feature_space_sizes_`: `None` for ordinary Ridge, otherwise a tuple of
   feature counts aligned with `feature_space_names_`.
 - `backend_`: the resolved execution backend.
+- `solver_form_`: `"primal"` or `"kernel"`, the Himalaya solver family the fit
+  ran. A fixed-alpha fit is always `"primal"`.
 - `n_samples_`: the fitted sample count.
 - `n_features_in_`: the total fitted feature count across all spaces.
 - `is_fitted_`: `True` after a successful fit.
@@ -317,6 +347,9 @@ Tests must cover:
   and dtype-specific underflow protection on NumPy and MPS;
 - deterministic banded search under a fixed `random_state`;
 - CPU and GPU parity within explicit tolerances;
+- kernel-form routing for wide ordinary and wide banded designs, primal
+  routing for tall, square, and fixed-alpha fits, and fitted-state parity
+  between the two forms;
 - unavailable explicit GPU execution;
 - every fitted attribute and its shape;
 - banded prediction with reordered, missing, and additional feature spaces;
