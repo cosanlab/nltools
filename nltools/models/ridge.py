@@ -71,6 +71,25 @@ def _scoped_himalaya_backend(name: str):
         set_backend(previous, on_error="raise")
 
 
+def _solver_form(n_samples: int, n_features: int) -> str:
+    """Return `'kernel'` when the design is wide, otherwise `'primal'`.
+
+    Himalaya's flowchart routes designs with more features than samples to its
+    kernel-form solvers, whose cross-validation working set scales with the
+    sample count instead of the feature count. Both forms return the same
+    solution; only the cost differs. A tie stays primal, which is also the
+    threshold of Himalaya's own "slower than kernel ridge" warning.
+
+    Args:
+        n_samples (int): Rows of the design.
+        n_features (int): Total columns across every feature space.
+
+    Returns:
+        str: `'kernel'` or `'primal'`.
+    """
+    return "kernel" if n_samples < n_features else "primal"
+
+
 def _himalaya_backend_name(backend) -> str:
     """Map a resolved nltools `_Backend` to its Himalaya backend name.
 
@@ -100,15 +119,30 @@ def _batch_sizes(
     n_targets: int,
     n_alphas: int,
     itemsize: int,
+    *,
+    solver_form: str = "primal",
 ) -> dict[str, int]:
     """Size the batches of a whole cross-validated or banded fit.
 
     Only the per-item working-set estimates live here; the budget itself and
     the batch arithmetic come from `nltools.algorithms.backends`. The estimates
-    follow Himalaya's dominant allocations: decomposition matrices of
-    `(n_alphas_batch, n_features, n_samples)`, cross-validated predictions of
-    `(n_alphas_batch, n_samples, n_targets_batch)`, and refit weights of
-    `(n_features, n_targets_batch_refit)`.
+    follow Himalaya's dominant allocations. In the primal form they are
+    decomposition matrices of `(n_alphas_batch, n_features, n_samples)`,
+    cross-validated predictions of `(n_alphas_batch, n_samples,
+    n_targets_batch)`, and refit weights of `(n_features,
+    n_targets_batch_refit)`. In the kernel form every `n_features` above
+    becomes `n_samples`: the decomposition is of the `(n_samples, n_samples)`
+    kernel and the refit weights are dual.
+
+    Args:
+        backend (Backend): Backend returned by `_resolve_backend`.
+        memory_budget_gb (float | None): Explicit budget, or None to measure.
+        n_samples (int): Rows of the design.
+        n_features (int): Total columns across every feature space.
+        n_targets (int): Columns of `y`.
+        n_alphas (int): Candidate alphas.
+        itemsize (int): Bytes per element of the working dtype.
+        solver_form (str): `'primal'` or `'kernel'`, from `_solver_form`.
 
     Returns:
         dict[str, int]: `n_targets_batch`, `n_targets_batch_refit`, and
@@ -117,9 +151,10 @@ def _batch_sizes(
     budget_gb = _device_memory_budget(
         backend, max_gpu_memory_gb=memory_budget_gb, cap_for_batching=True
     )
+    weight_rows = n_samples if solver_form == "kernel" else n_features
     n_alphas_batch, _ = _auto_batch_size(
         n_alphas,
-        n_features * n_samples * itemsize,
+        weight_rows * n_samples * itemsize,
         budget_gb=budget_gb,
         overhead=_WORKING_SET_OVERHEAD,
     )
@@ -131,7 +166,7 @@ def _batch_sizes(
     )
     n_targets_batch_refit, _ = _auto_batch_size(
         n_targets,
-        n_alphas_batch * n_features * itemsize,
+        n_alphas_batch * weight_rows * itemsize,
         budget_gb=budget_gb,
         overhead=_WORKING_SET_OVERHEAD,
     )

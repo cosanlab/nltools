@@ -12,8 +12,10 @@ import pytest
 
 from nltools.models import _Ridge
 from nltools.models.ridge import (
+    _batch_sizes,
     _prepare_feature_space_weights,
     _refit_fixed_hyperparameters,
+    _solver_form,
 )
 
 
@@ -505,3 +507,33 @@ class TestDeviceAndMemory:
         gpu = _Ridge(alpha=ALPHAS, cv=kfold(), device="gpu").fit(X, Y)
         np.testing.assert_array_equal(gpu.alpha_, cpu.alpha_)
         np.testing.assert_allclose(gpu.coef_, cpu.coef_, rtol=1e-2, atol=1e-3)
+
+
+# ------------------------------------------------------------------- solver form
+
+
+class TestSolverFormRule:
+    """Wide designs pick the kernel form; ties and tall designs stay primal."""
+
+    def test_kernel_only_when_features_exceed_samples(self):
+        assert _solver_form(n_samples=80, n_features=12) == "primal"
+        assert _solver_form(n_samples=20, n_features=20) == "primal"
+        assert _solver_form(n_samples=20, n_features=50) == "kernel"
+
+    def test_kernel_form_sizes_batches_from_the_sample_count(self):
+        """With 5000 features and 50 samples, the kernel estimates are 100x smaller."""
+        from nltools.algorithms.backends import _resolve_backend
+
+        backend = _resolve_backend("cpu")
+        shape = {
+            "n_samples": 50,
+            "n_features": 5000,
+            "n_targets": 1000,
+            "n_alphas": 8,
+            "itemsize": 8,
+        }
+        primal = _batch_sizes(backend, 0.01, **shape)
+        kernel = _batch_sizes(backend, 0.01, **shape, solver_form="kernel")
+        assert primal["n_alphas_batch"] == 1
+        assert kernel["n_alphas_batch"] == 8
+        assert kernel["n_targets_batch_refit"] > primal["n_targets_batch_refit"]
