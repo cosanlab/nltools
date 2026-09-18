@@ -629,3 +629,52 @@ class TestSolverFormDispatch:
         with pytest.raises(RuntimeError, match="solver exploded"):
             _Ridge(alpha=ALPHAS, cv=kfold()).fit(X, Y)
         assert current_himalaya_backend() == foreign_ambient_backend
+
+    def test_wide_banded_design_runs_multiple_kernel_ridge_with_primal_parity(
+        self, monkeypatch
+    ):
+        import himalaya.kernel_ridge
+        from himalaya.ridge import solve_group_ridge_random_search
+        from himalaya.scoring import l2_neg_loss
+
+        calls = []
+        spy_on(
+            monkeypatch,
+            himalaya.kernel_ridge,
+            "solve_multiple_kernel_ridge_random_search",
+            calls,
+        )
+        spaces, Y = make_spaces(n_samples=30, sizes=(25, 35))
+        model = _Ridge(
+            alpha=ALPHAS, cv=kfold(), search_iterations=6, random_state=3
+        ).fit(spaces, Y)
+
+        assert model.solver_form_ == "kernel"
+        assert calls == ["solve_multiple_kernel_ridge_random_search"]
+        candidates = model._draw_feature_space_candidates(
+            len(spaces), np.dtype(np.float64)
+        )
+        deltas, coef, cv_scores = solve_group_ridge_random_search(
+            list(spaces.values()),
+            Y,
+            n_iter=candidates,
+            alphas=np.asarray(ALPHAS),
+            fit_intercept=False,
+            score_func=l2_neg_loss,
+            cv=kfold(),
+            return_weights=True,
+            local_alpha=True,
+            random_state=3,
+            progress_bar=False,
+            warn=False,
+        )
+        gammas = np.exp(deltas)
+        np.testing.assert_allclose(
+            model.feature_space_weights_,
+            gammas / gammas.sum(axis=0, keepdims=True),
+            rtol=1e-6,
+            atol=1e-8,
+        )
+        np.testing.assert_allclose(model.alpha_, 1.0 / gammas.sum(axis=0), rtol=1e-6)
+        np.testing.assert_allclose(model.coef_, coef, rtol=1e-5, atol=1e-7)
+        np.testing.assert_allclose(model.cv_scores_, cv_scores, rtol=1e-6, atol=1e-8)
