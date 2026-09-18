@@ -113,6 +113,21 @@ def kfold(n_splits=4):
     return KFold(n_splits=n_splits, shuffle=False)
 
 
+def spy_on(monkeypatch, module, name, calls):
+    """Replace `module.<name>` with a wrapper that records each call in `calls`.
+
+    The adapter imports each Himalaya solver inside the method that uses it, so
+    patching the module attribute is enough to see which solver a fit ran.
+    """
+    real = getattr(module, name)
+
+    def wrapper(*args, **kwargs):
+        calls.append(name)
+        return real(*args, **kwargs)
+
+    monkeypatch.setattr(module, name, wrapper)
+
+
 # --------------------------------------------------------------------- signature
 
 
@@ -230,6 +245,7 @@ class TestFittedState:
         assert model.n_features_in_ == X.shape[1]
         assert model.is_fitted_ is True
         assert model.backend_.name == "numpy"
+        assert model.solver_form_ == "primal"
 
     def test_ordinary_cv_state(self):
         X, Y = make_data()
@@ -537,3 +553,79 @@ class TestSolverFormRule:
         assert primal["n_alphas_batch"] == 1
         assert kernel["n_alphas_batch"] == 8
         assert kernel["n_targets_batch_refit"] > primal["n_targets_batch_refit"]
+
+
+class TestSolverFormDispatch:
+    """Which Himalaya solver a fit runs, and that both forms agree."""
+
+    def test_wide_ordinary_design_runs_kernel_ridge_with_primal_parity(
+        self, monkeypatch
+    ):
+        import himalaya.kernel_ridge
+        from himalaya.ridge import solve_ridge_cv_svd
+        from himalaya.scoring import l2_neg_loss
+
+        calls = []
+        spy_on(
+            monkeypatch,
+            himalaya.kernel_ridge,
+            "solve_kernel_ridge_cv_eigenvalues",
+            calls,
+        )
+        X, Y = make_data(n_samples=30, n_features=60)
+        model = _Ridge(alpha=ALPHAS, cv=kfold()).fit(X, Y)
+
+        assert model.solver_form_ == "kernel"
+        assert calls == ["solve_kernel_ridge_cv_eigenvalues"]
+        best_alphas, coefs, cv_scores = solve_ridge_cv_svd(
+            X,
+            Y,
+            alphas=np.asarray(ALPHAS),
+            fit_intercept=False,
+            score_func=l2_neg_loss,
+            cv=kfold(),
+            local_alpha=True,
+            warn=False,
+        )
+        np.testing.assert_allclose(model.alpha_, best_alphas, rtol=1e-6)
+        np.testing.assert_allclose(model.coef_, coefs, rtol=1e-6, atol=1e-8)
+        np.testing.assert_allclose(
+            model.cv_scores_, cv_scores.reshape(-1), rtol=1e-6, atol=1e-8
+        )
+
+    def test_tall_ordinary_design_stays_primal(self, monkeypatch):
+        import himalaya.ridge
+
+        calls = []
+        spy_on(monkeypatch, himalaya.ridge, "solve_ridge_cv_svd", calls)
+        X, Y = make_data()
+        model = _Ridge(alpha=ALPHAS, cv=kfold()).fit(X, Y)
+        assert model.solver_form_ == "primal"
+        assert calls == ["solve_ridge_cv_svd"]
+
+    def test_fixed_alpha_fit_stays_primal_even_when_wide(self, monkeypatch):
+        import himalaya.ridge
+
+        calls = []
+        spy_on(monkeypatch, himalaya.ridge, "solve_ridge_svd", calls)
+        X, Y = make_data(n_samples=20, n_features=50)
+        model = _Ridge(alpha=1.0).fit(X, Y)
+        assert model.solver_form_ == "primal"
+        assert calls == ["solve_ridge_svd"]
+
+    @requires_torch
+    def test_kernel_path_restores_the_backend_when_the_solver_raises(
+        self, foreign_ambient_backend, monkeypatch
+    ):
+        import himalaya.kernel_ridge
+
+        def explode(*args, **kwargs):
+            raise RuntimeError("solver exploded")
+
+        monkeypatch.setattr(
+            himalaya.kernel_ridge, "solve_kernel_ridge_cv_eigenvalues", explode
+        )
+        X, Y = make_data(n_samples=30, n_features=60)
+        with pytest.raises(RuntimeError, match="solver exploded"):
+            _Ridge(alpha=ALPHAS, cv=kfold()).fit(X, Y)
+        assert current_himalaya_backend() == foreign_ambient_backend

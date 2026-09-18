@@ -551,6 +551,26 @@ def _on_active_backend(*arrays):
     return [backend.asarray(array) for array in arrays]
 
 
+def _linear_kernels(spaces):
+    """Form the linear kernel `X_k @ X_k.T` of each feature space on the active backend.
+
+    Called inside the same `_scoped_himalaya_backend` block as the solver that
+    consumes the kernels, so each one is built on the device and in the dtype
+    the solve runs in and never crosses devices.
+
+    Args:
+        spaces (Sequence): Feature matrices already on the active backend,
+            each `(n_samples, n_features_k)`.
+
+    Returns:
+        Array of shape `(n_spaces, n_samples, n_samples)` on the active backend.
+    """
+    from himalaya.backend import get_backend
+
+    backend = get_backend()
+    return backend.stack([backend.matmul(space, space.T) for space in spaces])
+
+
 def _to_cpu_numpy(array) -> np.ndarray:
     """Return `array` as CPU NumPy, whatever backend produced it.
 
@@ -707,6 +727,9 @@ class _Ridge:
         feature_space_sizes_ (tuple[int, ...] | None): Feature counts aligned
             with `feature_space_names_`; None for ordinary Ridge.
         backend_ (Backend): The resolved execution backend.
+        solver_form_ (str): `'primal'` or `'kernel'`, the Himalaya solver family
+            the fit ran. Chosen from the design shape by `_solver_form`; a
+            fixed-alpha fit is always `'primal'`.
         n_samples_ (int): Fitted sample count.
         n_features_in_ (int): Total fitted feature count across spaces.
         is_fitted_ (bool): True after a successful fit.
@@ -1048,9 +1071,14 @@ class _Ridge:
         self.backend_ = backend
         if scalar_alpha:
             # The fixed-alpha refit sizes its own batch from the same budget; it
-            # never runs the cross-validation or alpha loops the others measure.
+            # never runs the cross-validation or alpha loops the others measure,
+            # and its thin SVD already costs the same as forming the kernel.
+            self.solver_form_ = "primal"
             self._fit_fixed_alpha(spaces, targets, float(alpha))
         else:
+            self.solver_form_ = (
+                "primal" if is_banded else _solver_form(n_samples, n_features)
+            )
             try:
                 batches = _batch_sizes(
                     backend,
@@ -1060,6 +1088,7 @@ class _Ridge:
                     n_targets=n_targets,
                     n_alphas=alphas.size,
                     itemsize=dtype.itemsize,
+                    solver_form=self.solver_form_,
                 )
             except ValueError as error:
                 raise ValueError(
@@ -1069,6 +1098,8 @@ class _Ridge:
                 ) from error
             if is_banded:
                 self._fit_banded(spaces, targets, alphas, dtype, batches)
+            elif self.solver_form_ == "kernel":
+                self._fit_ordinary_cv_kernel(spaces, targets, alphas, dtype, batches)
             else:
                 self._fit_ordinary_cv(spaces, targets, alphas, dtype, batches)
 
@@ -1131,6 +1162,50 @@ class _Ridge:
             )
 
         self.coef_ = np.asarray(_to_cpu_numpy(coefs), dtype=np.float64)
+        selected = _snap_to_grid(_to_cpu_numpy(best_alphas), alphas)
+        self.alpha_ = float(selected[0]) if not self.per_target_alpha else selected
+        self.cv_scores_ = np.asarray(
+            _to_cpu_numpy(cv_scores), dtype=np.float64
+        ).reshape(-1)
+        self.feature_space_weights_ = None
+
+    def _fit_ordinary_cv_kernel(self, spaces, targets, alphas, dtype, batches) -> None:
+        """Select an alpha by cross-validation in the kernel form and store the state.
+
+        The wide-design counterpart of `_fit_ordinary_cv`. Himalaya solves on the
+        `(n_samples, n_samples)` linear kernel and returns dual weights on the
+        host; one product with the design turns them back into `coef_`, which
+        mirrors Himalaya's own primal recovery and avoids a device round trip.
+
+        Args:
+            spaces (list[np.ndarray]): One feature matrix.
+            targets (np.ndarray): `(n_samples, n_targets)` targets.
+            alphas (np.ndarray): Candidate alphas.
+            dtype (np.dtype): Working dtype.
+            batches (dict[str, int]): Himalaya batch sizes.
+        """
+        from himalaya.kernel_ridge import solve_kernel_ridge_cv_eigenvalues
+        from himalaya.scoring import l2_neg_loss
+
+        with _scoped_himalaya_backend(_himalaya_backend_name(self.backend_)):
+            design, y_device, alpha_device = _on_active_backend(
+                spaces[0], targets, alphas.astype(dtype)
+            )
+            kernel = _linear_kernels([design])[0]
+            best_alphas, dual_weights, cv_scores = solve_kernel_ridge_cv_eigenvalues(
+                kernel,
+                y_device,
+                alphas=alpha_device,
+                fit_intercept=False,
+                score_func=l2_neg_loss,
+                cv=self._resolved_cv(),
+                local_alpha=self.per_target_alpha,
+                conservative=self.prefer_conservative_alpha,
+                **batches,
+            )
+
+        dual = np.asarray(_to_cpu_numpy(dual_weights), dtype=np.float64)
+        self.coef_ = np.asarray(spaces[0], dtype=np.float64).T @ dual
         selected = _snap_to_grid(_to_cpu_numpy(best_alphas), alphas)
         self.alpha_ = float(selected[0]) if not self.per_target_alpha else selected
         self.cv_scores_ = np.asarray(
