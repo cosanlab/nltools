@@ -129,9 +129,11 @@ clamped on the host anyway, so they are drawn under an explicit `numpy` scope.
 to be finite and strictly positive and every row to sum to one, converts to the
 feature dtype, and only then raises weights below `np.finfo(dtype).tiny` to
 `tiny`. That floor is a numerical boundary, not a validation relaxation: the
-random search scales each space by `sqrt(gamma)` and divides the same buffer
-back afterwards, and on a float32 device a subnormal weight destroys the buffer
-on the way back. A zero or negative weight is still an error. Upstream
+primal random search scales each space by `sqrt(gamma)` and divides the same
+buffer back afterwards, and on a float32 device a subnormal weight destroys
+the buffer on the way back. The kernel search scales each kernel by `gamma`
+instead and never divides back, so the floor is harmless there and both forms
+share it. A zero or negative weight is still an error. Upstream
 [gallantlab/himalaya#107](https://github.com/gallantlab/himalaya/pull/107)
 proposes the same clamp inside the solver; applying it on the nltools side of
 the call makes a fork unnecessary.
@@ -223,9 +225,11 @@ grouping is an implementation detail and never changes the result — a test
 compares the grouped solve against one call per target. Weights shared by every
 target (the common case) short-circuit to a single group without sorting.
 
-The banded path does not double-refit: `solve_group_ridge_random_search` with
-`return_weights=True` already multiplies its primal weights by `sqrt(gamma)`,
-so `coef_` comes back in original coordinates.
+Neither banded path double-refits. `solve_group_ridge_random_search` with
+`return_weights=True` multiplies its primal weights by `sqrt(gamma)`, and
+`solve_multiple_kernel_ridge_random_search` with `return_weights="primal"`
+multiplies each space by `gamma` before the dual-to-primal product, so `coef_`
+comes back in original coordinates from either solver.
 
 ## Device and memory
 

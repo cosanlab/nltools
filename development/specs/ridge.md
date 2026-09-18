@@ -192,7 +192,10 @@ exposed as a keyword.
 The kernel form changes nothing the caller can observe apart from
 `solver_form_`: `coef_` is returned in feature coordinates, and every other
 fitted attribute keeps its shape, dtype, and meaning within floating-point
-tolerance of the primal result.
+tolerance of the primal result. Where two candidate alphas tie in
+cross-validation score at working precision, the two forms may snap to
+different grid points; the coefficients and scores still agree to that
+precision.
 
 The fixed-alpha fit and every bootstrap replicate always run the primal
 `solve_ridge_svd`. Its thin SVD costs the same as forming the kernel, and its

@@ -1174,8 +1174,9 @@ class _Ridge:
 
         The wide-design counterpart of `_fit_ordinary_cv`. Himalaya solves on the
         `(n_samples, n_samples)` linear kernel and returns dual weights on the
-        host; one product with the design turns them back into `coef_`, which
-        mirrors Himalaya's own primal recovery and avoids a device round trip.
+        host; one product with the working-dtype design turns them back into
+        `coef_`, which mirrors Himalaya's own primal recovery and avoids both a
+        device round trip and a float64 copy of a wide design.
 
         Args:
             spaces (list[np.ndarray]): One feature matrix.
@@ -1204,8 +1205,8 @@ class _Ridge:
                 **batches,
             )
 
-        dual = np.asarray(_to_cpu_numpy(dual_weights), dtype=np.float64)
-        self.coef_ = np.asarray(spaces[0], dtype=np.float64).T @ dual
+        dual = np.asarray(_to_cpu_numpy(dual_weights), dtype=dtype)
+        self.coef_ = np.asarray(spaces[0].T @ dual, dtype=np.float64)
         selected = _snap_to_grid(_to_cpu_numpy(best_alphas), alphas)
         self.alpha_ = float(selected[0]) if not self.per_target_alpha else selected
         self.cv_scores_ = np.asarray(
