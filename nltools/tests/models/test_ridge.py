@@ -593,6 +593,29 @@ class TestSolverFormDispatch:
             model.cv_scores_, cv_scores.reshape(-1), rtol=1e-6, atol=1e-8
         )
 
+    def test_wide_float32_design_keeps_float64_coefficients(self):
+        """The dual-to-primal product runs in float32; the stored state is float64."""
+        from himalaya.ridge import solve_ridge_cv_svd
+        from himalaya.scoring import l2_neg_loss
+
+        X, Y = make_data(n_samples=30, n_features=60, dtype=np.float32)
+        model = _Ridge(alpha=ALPHAS, cv=kfold()).fit(X, Y)
+
+        assert model.solver_form_ == "kernel"
+        assert model.coef_.dtype == np.float64
+        best_alphas, coefs, _ = solve_ridge_cv_svd(
+            X,
+            Y,
+            alphas=np.asarray(ALPHAS, dtype=np.float32),
+            fit_intercept=False,
+            score_func=l2_neg_loss,
+            cv=kfold(),
+            local_alpha=True,
+            warn=False,
+        )
+        np.testing.assert_allclose(model.alpha_, best_alphas, rtol=1e-5)
+        np.testing.assert_allclose(model.coef_, coefs, rtol=1e-3, atol=1e-4)
+
     def test_tall_ordinary_design_stays_primal(self, monkeypatch):
         import himalaya.ridge
 
