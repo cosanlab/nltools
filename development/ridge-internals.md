@@ -280,9 +280,11 @@ All budget arithmetic, the saturation ceiling, and OOM recovery live in
 working set but must never compute a budget.
 
 Neither form models its resident inputs: the primal form holds the
-`(n_samples, n_features)` design and the kernel form `n_spaces` kernels of
-`(n_samples, n_samples)`. The estimates cover the per-item working set and
-`_WORKING_SET_OVERHEAD` supplies the headroom.
+`(n_samples, n_features)` design, the kernel form `n_spaces` kernels of
+`(n_samples, n_samples)`, and the banded kernel refit additionally Himalaya's
+gamma-scaled concatenation of the spaces, another `(n_samples, n_features)`.
+The estimates cover the per-item working set and `_WORKING_SET_OVERHEAD`
+supplies the headroom.
 
 ## Backend abstraction
 

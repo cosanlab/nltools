@@ -12,7 +12,7 @@ import numbers
 from collections.abc import Mapping, Sequence
 from contextlib import contextmanager
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, Literal
 
 import numpy as np
 
@@ -71,7 +71,7 @@ def _scoped_himalaya_backend(name: str):
         set_backend(previous, on_error="raise")
 
 
-def _solver_form(n_samples: int, n_features: int) -> str:
+def _solver_form(n_samples: int, n_features: int) -> Literal["primal", "kernel"]:
     """Return `'kernel'` when the design is wide, otherwise `'primal'`.
 
     Himalaya's flowchart routes designs with more features than samples to its
@@ -129,7 +129,7 @@ def _batch_sizes(
     follow Himalaya's dominant allocations. In the primal form they are
     decomposition matrices of `(n_alphas_batch, n_features, n_samples)`,
     cross-validated predictions of `(n_alphas_batch, n_samples,
-    n_targets_batch)`, and refit weights of `(n_features,
+    n_targets_batch)`, and refit weights of `(n_alphas_batch, n_features,
     n_targets_batch_refit)`. In the kernel form every `n_features` above
     becomes `n_samples`: the decomposition is of the `(n_samples, n_samples)`
     kernel and the refit weights are dual.
@@ -551,24 +551,60 @@ def _on_active_backend(*arrays):
     return [backend.asarray(array) for array in arrays]
 
 
-def _linear_kernels(spaces):
-    """Form the linear kernel `X_k @ X_k.T` of each feature space on the active backend.
+def _to_backend_arrays(spaces, targets, alphas, dtype):
+    """Move a fit's inputs onto Himalaya's active backend in the working dtype.
+
+    The designs come back as a list even when there is one, because Himalaya's
+    banded solvers take a list of spaces: their `check_arrays` converts a list
+    element by element, which is what lets spaces of differing widths through,
+    whereas a tuple would be handed to `asarray` whole and fail as ragged.
+
+    Args:
+        spaces (Sequence[np.ndarray]): Feature matrices in coefficient order,
+            already contiguous in `dtype`.
+        targets (np.ndarray): `(n_samples, n_targets)` targets in `dtype`.
+        alphas (np.ndarray): Candidate alphas, float64.
+        dtype (np.dtype): Working dtype for the alpha grid.
+
+    Returns:
+        tuple: `(designs, targets, alphas)` on the active backend, with
+            `designs` a list holding one entry per space.
+    """
+    converted = _on_active_backend(*spaces, targets, alphas.astype(dtype))
+    return converted[:-2], converted[-2], converted[-1]
+
+
+def _linear_kernel(space):
+    """Form the linear kernel `X @ X.T` of one feature space on the active backend.
 
     Called inside the same `_scoped_himalaya_backend` block as the solver that
-    consumes the kernels, so each one is built on the device and in the dtype
-    the solve runs in and never crosses devices.
+    consumes the kernel, so it is built on the device and in the dtype the
+    solve runs in and never crosses devices.
+
+    Args:
+        space: A `(n_samples, n_features)` matrix already on the active backend.
+
+    Returns:
+        Array: The `(n_samples, n_samples)` kernel on the active backend.
+    """
+    from himalaya.backend import get_backend
+
+    return get_backend().matmul(space, space.T)
+
+
+def _linear_kernels(spaces):
+    """Stack the linear kernels of several feature spaces for the banded solver.
 
     Args:
         spaces (Sequence): Feature matrices already on the active backend,
             each `(n_samples, n_features_k)`.
 
     Returns:
-        Array of shape `(n_spaces, n_samples, n_samples)` on the active backend.
+        Array: Shape `(n_spaces, n_samples, n_samples)` on the active backend.
     """
     from himalaya.backend import get_backend
 
-    backend = get_backend()
-    return backend.stack([backend.matmul(space, space.T) for space in spaces])
+    return get_backend().stack([_linear_kernel(space) for space in spaces])
 
 
 def _to_cpu_numpy(array) -> np.ndarray:
@@ -1131,6 +1167,27 @@ class _Ridge:
         self.cv_scores_ = None
         self.feature_space_weights_ = None
 
+    def _store_ordinary_state(self, coef, best_alphas, cv_scores, alphas) -> None:
+        """Normalize an ordinary cross-validated solve into the fitted state.
+
+        Shared by the primal and kernel forms, whose solvers differ only in how
+        `coef` is obtained. The selected alphas are snapped back onto the
+        candidate grid, and every array is stored as CPU float64.
+
+        Args:
+            coef: `(n_features, n_targets)` coefficients, on any backend.
+            best_alphas: `(n_targets,)` selected alphas, on any backend.
+            cv_scores: Fold-averaged scores at the selected alpha, on any backend.
+            alphas (np.ndarray): Candidate alphas.
+        """
+        self.coef_ = np.asarray(_to_cpu_numpy(coef), dtype=np.float64)
+        selected = _snap_to_grid(_to_cpu_numpy(best_alphas), alphas)
+        self.alpha_ = float(selected[0]) if not self.per_target_alpha else selected
+        self.cv_scores_ = np.asarray(
+            _to_cpu_numpy(cv_scores), dtype=np.float64
+        ).reshape(-1)
+        self.feature_space_weights_ = None
+
     def _fit_ordinary_cv(self, spaces, targets, alphas, dtype, batches) -> None:
         """Select an alpha by cross-validation and store the fitted state.
 
@@ -1145,11 +1202,11 @@ class _Ridge:
         from himalaya.scoring import l2_neg_loss
 
         with _scoped_himalaya_backend(_himalaya_backend_name(self.backend_)):
-            design, y_device, alpha_device = _on_active_backend(
-                spaces[0], targets, alphas.astype(dtype)
+            designs, y_device, alpha_device = _to_backend_arrays(
+                spaces, targets, alphas, dtype
             )
             best_alphas, coefs, cv_scores = solve_ridge_cv_svd(
-                design,
+                designs[0],
                 y_device,
                 alphas=alpha_device,
                 fit_intercept=False,
@@ -1161,13 +1218,7 @@ class _Ridge:
                 **batches,
             )
 
-        self.coef_ = np.asarray(_to_cpu_numpy(coefs), dtype=np.float64)
-        selected = _snap_to_grid(_to_cpu_numpy(best_alphas), alphas)
-        self.alpha_ = float(selected[0]) if not self.per_target_alpha else selected
-        self.cv_scores_ = np.asarray(
-            _to_cpu_numpy(cv_scores), dtype=np.float64
-        ).reshape(-1)
-        self.feature_space_weights_ = None
+        self._store_ordinary_state(coefs, best_alphas, cv_scores, alphas)
 
     def _fit_ordinary_cv_kernel(self, spaces, targets, alphas, dtype, batches) -> None:
         """Select an alpha by cross-validation in the kernel form and store the state.
@@ -1189,12 +1240,11 @@ class _Ridge:
         from himalaya.scoring import l2_neg_loss
 
         with _scoped_himalaya_backend(_himalaya_backend_name(self.backend_)):
-            design, y_device, alpha_device = _on_active_backend(
-                spaces[0], targets, alphas.astype(dtype)
+            designs, y_device, alpha_device = _to_backend_arrays(
+                spaces, targets, alphas, dtype
             )
-            kernel = _linear_kernels([design])[0]
             best_alphas, dual_weights, cv_scores = solve_kernel_ridge_cv_eigenvalues(
-                kernel,
+                _linear_kernel(designs[0]),
                 y_device,
                 alphas=alpha_device,
                 fit_intercept=False,
@@ -1206,13 +1256,7 @@ class _Ridge:
             )
 
         dual = np.asarray(_to_cpu_numpy(dual_weights), dtype=dtype)
-        self.coef_ = np.asarray(spaces[0].T @ dual, dtype=np.float64)
-        selected = _snap_to_grid(_to_cpu_numpy(best_alphas), alphas)
-        self.alpha_ = float(selected[0]) if not self.per_target_alpha else selected
-        self.cv_scores_ = np.asarray(
-            _to_cpu_numpy(cv_scores), dtype=np.float64
-        ).reshape(-1)
-        self.feature_space_weights_ = None
+        self._store_ordinary_state(spaces[0].T @ dual, best_alphas, cv_scores, alphas)
 
     def _draw_feature_space_candidates(self, n_spaces: int, dtype) -> np.ndarray:
         """Draw and condition the Dirichlet candidates for a banded search.
@@ -1243,18 +1287,25 @@ class _Ridge:
             )
         return _prepare_feature_space_weights(candidates, dtype)
 
-    def _store_banded_state(self, deltas: np.ndarray, alphas: np.ndarray) -> None:
-        """Recover `feature_space_weights_` and `alpha_` from Himalaya's deltas.
+    def _store_banded_state(self, deltas, refit_weights, cv_scores, alphas) -> None:
+        """Normalize a banded random search into the fitted state.
 
-        Himalaya reports the banded solution as `deltas = log(gamma / alpha)`
-        with each gamma column summing to one, so the simplex weights and the
-        selected alpha both fall out of a log-sum-exp over the spaces. The
-        recovered alpha is snapped back onto the candidate grid.
+        Shared by the primal and kernel forms. Himalaya reports the banded
+        solution as `deltas = log(gamma / alpha)` with each gamma column summing
+        to one, so the simplex weights and the selected alpha both fall out of a
+        log-sum-exp over the spaces. The recovered alpha is snapped back onto
+        the candidate grid, and every array is stored as CPU float64.
 
         Args:
-            deltas (np.ndarray): `(n_spaces, n_targets)` float64 deltas on the host.
+            deltas: `(n_spaces, n_targets)` deltas, on any backend.
+            refit_weights: `(n_features, n_targets)` coefficients in original
+                feature coordinates, on any backend.
+            cv_scores: `(search_iterations, n_targets)` scores, on any backend.
             alphas (np.ndarray): Candidate alphas.
         """
+        deltas = np.asarray(_to_cpu_numpy(deltas), dtype=np.float64)
+        self.coef_ = np.asarray(_to_cpu_numpy(refit_weights), dtype=np.float64)
+        self.cv_scores_ = np.asarray(_to_cpu_numpy(cv_scores), dtype=np.float64)
         shifted = deltas - deltas.max(axis=0, keepdims=True)
         weights = np.exp(shifted)
         self.feature_space_weights_ = weights / weights.sum(axis=0, keepdims=True)
@@ -1278,11 +1329,8 @@ class _Ridge:
         candidates = self._draw_feature_space_candidates(len(spaces), dtype)
 
         with _scoped_himalaya_backend(_himalaya_backend_name(self.backend_)):
-            converted = _on_active_backend(*spaces, targets, alphas.astype(dtype))
-            designs, y_device, alpha_device = (
-                converted[:-2],
-                converted[-2],
-                converted[-1],
+            designs, y_device, alpha_device = _to_backend_arrays(
+                spaces, targets, alphas, dtype
             )
             deltas, refit_weights, cv_scores = solve_group_ridge_random_search(
                 designs,
@@ -1301,10 +1349,7 @@ class _Ridge:
                 **batches,
             )
 
-        deltas = np.asarray(_to_cpu_numpy(deltas), dtype=np.float64)
-        self.coef_ = np.asarray(_to_cpu_numpy(refit_weights), dtype=np.float64)
-        self.cv_scores_ = np.asarray(_to_cpu_numpy(cv_scores), dtype=np.float64)
-        self._store_banded_state(deltas, alphas)
+        self._store_banded_state(deltas, refit_weights, cv_scores, alphas)
 
     def _fit_banded_kernel(self, spaces, targets, alphas, dtype, batches) -> None:
         """Run the banded random search in the kernel form and store the fitted state.
@@ -1328,11 +1373,8 @@ class _Ridge:
         candidates = self._draw_feature_space_candidates(len(spaces), dtype)
 
         with _scoped_himalaya_backend(_himalaya_backend_name(self.backend_)):
-            converted = _on_active_backend(*spaces, targets, alphas.astype(dtype))
-            designs, y_device, alpha_device = (
-                converted[:-2],
-                converted[-2],
-                converted[-1],
+            designs, y_device, alpha_device = _to_backend_arrays(
+                spaces, targets, alphas, dtype
             )
             kernels = _linear_kernels(designs)
             deltas, refit_weights, cv_scores = (
@@ -1354,10 +1396,7 @@ class _Ridge:
                 )
             )
 
-        deltas = np.asarray(_to_cpu_numpy(deltas), dtype=np.float64)
-        self.coef_ = np.asarray(_to_cpu_numpy(refit_weights), dtype=np.float64)
-        self.cv_scores_ = np.asarray(_to_cpu_numpy(cv_scores), dtype=np.float64)
-        self._store_banded_state(deltas, alphas)
+        self._store_banded_state(deltas, refit_weights, cv_scores, alphas)
 
     def _concentration_for_himalaya(self):
         """Return `dirichlet_concentration` in the form Himalaya's sampler takes.
