@@ -96,3 +96,6 @@ docs/tutorials/workflows/[0-9]*_*.md
 # page outputs docs_show replays (pages/). Deliberately not under .cache/, which
 # is zensical's and which `zensical build -c` wipes whole.
 /.tutorial-cache/
+
+# Local planning artifacts (specs, plans, SDD workspaces)
+.superpowers/

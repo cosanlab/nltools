@@ -173,6 +173,42 @@ keyword that both estimators share.
 The banded-only arguments are `search_iterations` and `dirichlet_concentration`.
 For ordinary Ridge, non-default values of those two must raise an error.
 
+## Solver form
+
+Himalaya's primal solvers (`solve_ridge_cv_svd`,
+`solve_group_ridge_random_search`) and its kernel solvers
+(`solve_kernel_ridge_cv_eigenvalues`,
+`solve_multiple_kernel_ridge_random_search` over linear kernels) solve the
+same problem. Their cost differs: the primal cross-validation working set
+scales with the feature count, the kernel one with the sample count. Himalaya
+does not switch between them; its flowchart asks the user to.
+
+The adapter switches for the user. When the total feature count across spaces
+exceeds the sample count times the number of spaces, a cross-validated or
+banded fit runs in the kernel form; otherwise, and on a tie, it runs in the
+primal form. The choice is a pure function of the design shape, is recorded as
+`solver_form_`, and is not exposed as a keyword.
+
+The kernel form changes nothing the caller can observe apart from
+`solver_form_`: `coef_` is returned in feature coordinates, and every other
+fitted attribute keeps its shape, dtype, and meaning. In float64 the fitted
+values agree with the primal result to floating-point tolerance. In float32
+the kernel form squares the design's condition number, so on a rank-deficient
+or near-singular design it refuses candidate alphas below the Gram matrix's
+rounding floor and may select a different grid point within a few decades
+above it; with candidates clear of that floor the two forms select the same
+grid points and agree to working precision. Where two candidates tie in
+cross-validation score at working precision, the two forms may snap to
+different grid points; the coefficients and scores still agree to that
+precision.
+
+The fixed-alpha fit and every bootstrap replicate go through the same
+fixed-hyperparameter refit, which applies the same rule to its one scaled
+design: `solve_ridge_svd` when the design is tall or square,
+`solve_kernel_ridge_eigenvalues` followed by Himalaya's host-side primal
+recovery when it is wide. A wide fit therefore selects its hyperparameters and
+refits its bootstrap replicates in the same solver family.
+
 ## Numerical behavior
 
 The model solves Ridge regression without adding an intercept:
@@ -211,7 +247,10 @@ After `fit`, the model exposes:
   order.
 - `alpha_`: a scalar for a fixed or shared alpha, otherwise shape
   `(n_targets,)`.
-- `cv_scores_`: `None` for a fixed-alpha fit. For ordinary Ridge it is the
+- `cv_scores_`: `None` for a fixed-alpha fit. Scores are stored as Himalaya
+  reports them; in the kernel form a candidate alpha below the float32
+  rounding floor of the linear kernel scores `-1e5`, and a target whose every
+  candidate scored that way keeps the first. For ordinary Ridge it is the
   fold-averaged negative-MSE score at the selected alpha: a `float` for
   one-dimensional `y`, otherwise shape `(n_targets,)`. For banded Ridge its
   shape is `(search_iterations,)` for one-dimensional `y`, otherwise
@@ -225,6 +264,8 @@ After `fit`, the model exposes:
 - `feature_space_sizes_`: `None` for ordinary Ridge, otherwise a tuple of
   feature counts aligned with `feature_space_names_`.
 - `backend_`: the resolved execution backend.
+- `solver_form_`: `"primal"` or `"kernel"`, the Himalaya solver family the fit
+  ran.
 - `n_samples_`: the fitted sample count.
 - `n_features_in_`: the total fitted feature count across all spaces.
 - `is_fitted_`: `True` after a successful fit.
@@ -317,6 +358,9 @@ Tests must cover:
   and dtype-specific underflow protection on NumPy and MPS;
 - deterministic banded search under a fixed `random_state`;
 - CPU and GPU parity within explicit tolerances;
+- kernel-form routing for wide ordinary, wide banded, and wide fixed-alpha
+  fits, primal routing for tall and square ones, and fitted-state parity
+  between the two forms;
 - unavailable explicit GPU execution;
 - every fitted attribute and its shape;
 - banded prediction with reordered, missing, and additional feature spaces;

@@ -369,6 +369,49 @@ class TestRidgeBootstrapContract:
         )
         np.testing.assert_allclose(result.samples[0], expected, atol=1e-8)
 
+    def test_kernel_form_fit_bootstraps_through_the_shared_refit(self, masked):
+        """A wide banded fit picks the kernel form; each replicate still runs the one refit."""
+        from nltools.algorithms.inference.bootstrap import (
+            _bootstrap_design,
+            _refit_resample,
+        )
+        from nltools.algorithms.inference.random import _generate_bootstrap_indices
+
+        rng = np.random.default_rng(2)
+        n_obs = len(masked)
+        spaces = {
+            "a": rng.standard_normal((n_obs, n_obs // 2 + 3)),
+            "b": rng.standard_normal((n_obs, n_obs // 2 + 4)),
+        }
+        masked.fit(
+            model="ridge",
+            X=spaces,
+            ridge_alpha=[1.0, 10.0],
+            ridge_cv=3,
+            ridge_search_iterations=4,
+            random_state=0,
+        )
+        estimator = masked.model._estimator
+        assert estimator.solver_form_ == "kernel"
+
+        result = masked.bootstrap(
+            "weights",
+            X=spaces,
+            n_samples=3,
+            return_samples=True,
+            random_state=11,
+            n_jobs=1,
+        )
+
+        indices = _generate_bootstrap_indices(n_obs, 3, random_state=11)
+        expected = _refit_resample(
+            _bootstrap_design([spaces["a"], spaces["b"]], masked.data),
+            indices[0],
+            estimator.alpha_,
+            estimator.feature_space_weights_,
+        )
+        np.testing.assert_allclose(result.samples[0], expected, atol=1e-8)
+
 
 class TestRidgeBootstrapOnGpu:
     """Explicit `device='gpu'` runs the refits on the accelerator, or raises."""
