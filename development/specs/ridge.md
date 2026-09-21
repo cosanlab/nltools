@@ -202,9 +202,12 @@ cross-validation score at working precision, the two forms may snap to
 different grid points; the coefficients and scores still agree to that
 precision.
 
-The fixed-alpha fit and every bootstrap replicate always run the primal
-`solve_ridge_svd`. Its thin SVD costs the same as forming the kernel, and its
-refit block is already sample by sample, so there is nothing to switch.
+The fixed-alpha fit and every bootstrap replicate go through the same
+fixed-hyperparameter refit, which applies the same rule to its one scaled
+design: `solve_ridge_svd` when the design is tall or square,
+`solve_kernel_ridge_eigenvalues` followed by Himalaya's host-side primal
+recovery when it is wide. A wide fit therefore selects its hyperparameters and
+refits its bootstrap replicates in the same solver family.
 
 ## Numerical behavior
 
@@ -244,7 +247,10 @@ After `fit`, the model exposes:
   order.
 - `alpha_`: a scalar for a fixed or shared alpha, otherwise shape
   `(n_targets,)`.
-- `cv_scores_`: `None` for a fixed-alpha fit. For ordinary Ridge it is the
+- `cv_scores_`: `None` for a fixed-alpha fit. Scores are stored as Himalaya
+  reports them; in the kernel form a candidate alpha below the float32
+  rounding floor of the linear kernel scores `-1e5`, and a target whose every
+  candidate scored that way keeps the first. For ordinary Ridge it is the
   fold-averaged negative-MSE score at the selected alpha: a `float` for
   one-dimensional `y`, otherwise shape `(n_targets,)`. For banded Ridge its
   shape is `(search_iterations,)` for one-dimensional `y`, otherwise
@@ -259,7 +265,7 @@ After `fit`, the model exposes:
   feature counts aligned with `feature_space_names_`.
 - `backend_`: the resolved execution backend.
 - `solver_form_`: `"primal"` or `"kernel"`, the Himalaya solver family the fit
-  ran. A fixed-alpha fit is always `"primal"`.
+  ran.
 - `n_samples_`: the fitted sample count.
 - `n_features_in_`: the total fitted feature count across all spaces.
 - `is_fitted_`: `True` after a successful fit.
@@ -352,8 +358,8 @@ Tests must cover:
   and dtype-specific underflow protection on NumPy and MPS;
 - deterministic banded search under a fixed `random_state`;
 - CPU and GPU parity within explicit tolerances;
-- kernel-form routing for wide ordinary and wide banded designs, primal
-  routing for tall, square, and fixed-alpha fits, and fitted-state parity
+- kernel-form routing for wide ordinary, wide banded, and wide fixed-alpha
+  fits, primal routing for tall and square ones, and fitted-state parity
   between the two forms;
 - unavailable explicit GPU execution;
 - every fitted attribute and its shape;

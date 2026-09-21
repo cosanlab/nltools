@@ -29,7 +29,7 @@ Code: `nltools/models/ridge.py`, with the device and memory layer in
 | SVD, resolution matrices, alpha and target batching | Himalaya |
 | Negative-MSE fold scores, conservative rule, tie-breaking | Himalaya |
 | Dirichlet search over feature-space weights | Himalaya |
-| Coefficient refitting at fixed hyperparameters | Himalaya (`solve_ridge_svd`) |
+| Coefficient refitting at fixed hyperparameters | Himalaya (`solve_ridge_svd`, or `solve_kernel_ridge_eigenvalues` when wide) |
 | Public argument names, defaults, and validation | nltools |
 | Named feature spaces and prediction-time alignment | nltools |
 | Candidate-weight validation and the underflow floor | nltools |
@@ -63,7 +63,8 @@ translated for the caller.
 
 | `X` | `alpha` | `cv` | shape | Himalaya entry point |
 |---|---|---|---|---|
-| 2-D array | scalar | `None` | any | `solve_ridge_svd` |
+| 2-D array | scalar | `None` | `n_samples >= n_features` | `solve_ridge_svd` |
+| 2-D array | scalar | `None` | `n_samples < n_features` | `solve_kernel_ridge_eigenvalues` |
 | 2-D array | sequence | int or splitter | `n_samples >= n_features` | `solve_ridge_cv_svd` |
 | 2-D array | sequence | int or splitter | `n_samples < n_features` | `solve_kernel_ridge_cv_eigenvalues` |
 | name → 2-D mapping | sequence | int or splitter | `n_spaces * n_samples >= n_features` | `solve_group_ridge_random_search` |
@@ -98,10 +99,16 @@ primal form less closely than `eigh` does.
 
 The kernel methods build one linear kernel per space with `_linear_kernels`
 inside the same scoped backend as the solve, so a kernel lives on the device
-that consumes it. The ordinary kernel fit recovers `coef_ = X.T @ dual` on the
-host, as Himalaya does for its own primal recovery. The banded kernel fit
-passes `return_weights="primal"` and the raw spaces, and Himalaya returns
-`coef_` already scaled back into feature coordinates. Both banded fits share
+that consumes it; the ordinary kernel fit releases its device copy of the
+design once the kernel exists. Both kernel fits ask Himalaya for dual weights
+and recover `coef_` once on the host with Himalaya's own functions, which is
+where Himalaya keeps primal weights because they can be large:
+`primal_weights_kernel_ridge` for the ordinary fit and
+`primal_weights_weighted_kernel_ridge` for the banded one, exactly as
+`KernelRidgeCV.get_primal_coef` and `MultipleKernelRidgeCV.get_primal_coef`
+do. The banded solver's own `return_weights="primal"` option is not used: it
+rebuilds the gamma-scaled design on the device and copies it to the host for
+every candidate that improves any target. Both banded fits share
 `_draw_feature_space_candidates` and `_store_banded_state`, so the candidate
 preparation below and the deltas recovery apply to either form.
 
@@ -225,8 +232,14 @@ remains correct and is retained for CUDA hosts and larger designs.
 
 It accepts a scalar or per-target `alpha` and optional shared or per-target
 feature-space weights, promotes the inputs to a floating working dtype, scales
-space `k` by `sqrt(gamma[k])`, delegates the solve to `solve_ridge_svd`, and
-scales the coefficients back into the original feature coordinates. The dtype
+space `k` by `sqrt(gamma[k])`, delegates the solve to Himalaya, and scales the
+coefficients back into the original feature coordinates. The scaled design is
+one ordinary ridge system, so the solve follows Himalaya's flowchart with one
+space: `solve_ridge_svd` when the design is tall or square, and when it is
+wide the linear kernel, `solve_kernel_ridge_eigenvalues` with the same scalar
+or per-target alpha, and `primal_weights_kernel_ridge` on the host. A wide fit
+therefore selects its hyperparameters and refits its bootstrap replicates in
+the same solver family. The dtype
 promotion is load-bearing rather than cosmetic: Himalaya solves in the dtype it
 is handed, so an integer design matrix — one-hot or binary event regressors, an
 ordinary thing in this domain — would truncate the shrinkage arithmetic and
@@ -243,10 +256,11 @@ compares the grouped solve against one call per target. Weights shared by every
 target (the common case) short-circuit to a single group without sorting.
 
 Neither banded path double-refits. `solve_group_ridge_random_search` with
-`return_weights=True` multiplies its primal weights by `sqrt(gamma)`, and
-`solve_multiple_kernel_ridge_random_search` with `return_weights="primal"`
-multiplies each space by `gamma` before the dual-to-primal product, so `coef_`
-comes back in original coordinates from either solver.
+`return_weights=True` multiplies its primal weights by `sqrt(gamma)`. The
+kernel search returns dual weights scaled by the selected alpha together with
+`deltas = log(gamma / alpha)`, and `primal_weights_weighted_kernel_ridge`
+multiplies each space's product by `exp(deltas)`, so `coef_` comes back in
+original coordinates from either solver.
 
 ## Device and memory
 
@@ -289,7 +303,7 @@ dominant allocation depends on whether the targets share an alpha:
 | `_batch_sizes` | `n_alphas_batch` | decomposition matrices, `(n_alphas_batch, n_features, n_samples)`; kernel form `(n_alphas_batch, n_samples, n_samples)` |
 | `_batch_sizes` | `n_targets_batch` | fold predictions, `(n_alphas_batch, n_samples, n_targets_batch)` |
 | `_batch_sizes` | `n_targets_batch_refit` | refit weights, `(n_alphas_batch, n_features, n_targets_batch)`; kernel form `(n_alphas_batch, n_samples, n_targets_batch)` |
-| `_refit_targets_batch` | `per_target_alpha=True` | `solve_ridge_svd`'s `(n_targets_batch, n_samples, n_samples)` block |
+| `_refit_targets_batch` | `per_target_alpha=True` | one square matrix per target: `(n_targets_batch, n_samples, n_samples)` in the kernel form, `(n_targets_batch, n_features, n_samples)` with `n_features <= n_samples` in the primal form |
 | `_refit_targets_batch` | `per_target_alpha=False` | one shared shrinkage operator, so `(n_samples + n_features)` per target |
 
 All budget arithmetic, the saturation ceiling, and OOM recovery live in
@@ -301,9 +315,7 @@ sizing any batch from what remains: the `(n_samples, n_features)` design and
 the targets in both forms, plus in the kernel form `n_spaces` kernels of
 `(n_samples, n_samples)` and one more of that size for the kernel Himalaya
 sums or slices per fold. When the residents alone exceed the budget the fit
-raises before allocating anything. The banded kernel refit's gamma-scaled
-concatenation of the spaces, another `(n_samples, n_features)`, is not yet
-charged.
+raises before allocating anything.
 The estimates cover the per-item working set and `_WORKING_SET_OVERHEAD`
 supplies the headroom.
 

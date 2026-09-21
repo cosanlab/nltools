@@ -113,6 +113,17 @@ def kfold(n_splits=4):
     return KFold(n_splits=n_splits, shuffle=False)
 
 
+def spy_kwargs(monkeypatch, module, name, seen):
+    """Replace `module.<name>` with a wrapper that records each call's kwargs."""
+    real = getattr(module, name)
+
+    def wrapper(*args, **kwargs):
+        seen.append(kwargs)
+        return real(*args, **kwargs)
+
+    monkeypatch.setattr(module, name, wrapper)
+
+
 def spy_on(monkeypatch, module, name, calls):
     """Replace `module.<name>` with a wrapper that records each call in `calls`.
 
@@ -423,6 +434,34 @@ class TestFixedHyperparameterRefit:
         expected = self._generalized_ridge(matrices, Y, 3.0, gamma)
         np.testing.assert_allclose(coef, expected, rtol=1e-6, atol=1e-8)
 
+    def test_wide_design_refits_in_the_kernel_form(self, monkeypatch):
+        """Himalaya's flowchart sends a wide fixed-alpha solve to kernel ridge."""
+        import himalaya.kernel_ridge
+
+        calls = []
+        spy_on(
+            monkeypatch, himalaya.kernel_ridge, "solve_kernel_ridge_eigenvalues", calls
+        )
+        X, Y = make_data(n_samples=20, n_features=50, n_targets=3)
+        alphas = np.array([0.5, 5.0, 50.0])
+        coef = _refit_fixed_hyperparameters([X], Y, alphas)
+        assert calls == ["solve_kernel_ridge_eigenvalues"]
+        for index, alpha in enumerate(alphas):
+            expected = np.linalg.solve(
+                X.T @ X + alpha * np.eye(X.shape[1]), X.T @ Y[:, index]
+            )
+            np.testing.assert_allclose(coef[:, index], expected, rtol=1e-6, atol=1e-8)
+
+    def test_wide_shared_gamma_equals_generalized_ridge(self):
+        spaces, Y = make_spaces(n_samples=20, sizes=(15, 25), n_targets=2)
+        matrices = list(spaces.values())
+        gamma = np.array([0.25, 0.75])
+        coef = _refit_fixed_hyperparameters(
+            matrices, Y, 3.0, feature_space_weights=gamma
+        )
+        expected = self._generalized_ridge(matrices, Y, 3.0, gamma)
+        np.testing.assert_allclose(coef, expected, rtol=1e-6, atol=1e-8)
+
     def test_refit_does_not_mutate_the_feature_spaces(self):
         spaces, Y = make_spaces(sizes=(3, 5))
         matrices = list(spaces.values())
@@ -659,6 +698,16 @@ class TestSolverFormDispatch:
         np.testing.assert_allclose(model.alpha_, best_alphas, rtol=1e-5)
         assert np.linalg.norm(model.coef_ - coefs) <= 1e-2 * np.linalg.norm(coefs)
 
+    def test_wide_ordinary_fit_recovers_coefficients_with_himalaya(self, monkeypatch):
+        """`coef_` comes from Himalaya's own host-side dual-to-primal recovery."""
+        import himalaya.kernel_ridge
+
+        calls = []
+        spy_on(monkeypatch, himalaya.kernel_ridge, "primal_weights_kernel_ridge", calls)
+        X, Y = make_data(n_samples=30, n_features=60)
+        _Ridge(alpha=ALPHAS, cv=kfold()).fit(X, Y)
+        assert calls == ["primal_weights_kernel_ridge"]
+
     def test_wide_float32_design_keeps_float64_coefficients(self):
         """The dual-to-primal product runs in float32; the stored state is float64."""
         from himalaya.ridge import solve_ridge_cv_svd
@@ -708,12 +757,26 @@ class TestSolverFormDispatch:
         assert model.solver_form_ == "primal"
         assert calls == ["solve_ridge_cv_svd"]
 
-    def test_fixed_alpha_fit_stays_primal_even_when_wide(self, monkeypatch):
+    def test_fixed_alpha_fit_runs_kernel_ridge_when_wide(self, monkeypatch):
+        import himalaya.kernel_ridge
+
+        calls = []
+        spy_on(
+            monkeypatch, himalaya.kernel_ridge, "solve_kernel_ridge_eigenvalues", calls
+        )
+        X, Y = make_data(n_samples=20, n_features=50)
+        model = _Ridge(alpha=1.0).fit(X, Y)
+        assert model.solver_form_ == "kernel"
+        assert calls == ["solve_kernel_ridge_eigenvalues"]
+        expected = np.linalg.solve(X.T @ X + np.eye(X.shape[1]), X.T @ Y)
+        np.testing.assert_allclose(model.coef_, expected, rtol=1e-6, atol=1e-8)
+
+    def test_fixed_alpha_fit_stays_primal_when_tall(self, monkeypatch):
         import himalaya.ridge
 
         calls = []
         spy_on(monkeypatch, himalaya.ridge, "solve_ridge_svd", calls)
-        X, Y = make_data(n_samples=20, n_features=50)
+        X, Y = make_data(n_samples=50, n_features=20)
         model = _Ridge(alpha=1.0).fit(X, Y)
         assert model.solver_form_ == "primal"
         assert calls == ["solve_ridge_svd"]
@@ -749,6 +812,20 @@ class TestSolverFormDispatch:
             "solve_multiple_kernel_ridge_random_search",
             calls,
         )
+        seen = []
+        spy_kwargs(
+            monkeypatch,
+            himalaya.kernel_ridge,
+            "solve_multiple_kernel_ridge_random_search",
+            seen,
+        )
+        recoveries = []
+        spy_on(
+            monkeypatch,
+            himalaya.kernel_ridge,
+            "primal_weights_weighted_kernel_ridge",
+            recoveries,
+        )
         spaces, Y = make_spaces(n_samples=30, sizes=(30, 40))
         model = _Ridge(
             alpha=ALPHAS, cv=kfold(), search_iterations=6, random_state=3
@@ -756,6 +833,11 @@ class TestSolverFormDispatch:
 
         assert model.solver_form_ == "kernel"
         assert calls == ["solve_multiple_kernel_ridge_random_search"]
+        # Himalaya's own estimator fits dual weights and converts once; the
+        # solver's primal path would rebuild the design per improving candidate.
+        assert seen[0]["return_weights"] == "dual"
+        assert seen[0].get("Xs") is None
+        assert recoveries == ["primal_weights_weighted_kernel_ridge"]
         candidates = model._draw_feature_space_candidates(
             len(spaces), np.dtype(np.float64)
         )
