@@ -66,18 +66,35 @@ translated for the caller.
 | 2-D array | scalar | `None` | any | `solve_ridge_svd` |
 | 2-D array | sequence | int or splitter | `n_samples >= n_features` | `solve_ridge_cv_svd` |
 | 2-D array | sequence | int or splitter | `n_samples < n_features` | `solve_kernel_ridge_cv_eigenvalues` |
-| name → 2-D mapping | sequence | int or splitter | `n_samples >= n_features` | `solve_group_ridge_random_search` |
-| name → 2-D mapping | sequence | int or splitter | `n_samples < n_features` | `solve_multiple_kernel_ridge_random_search` |
+| name → 2-D mapping | sequence | int or splitter | `n_spaces * n_samples >= n_features` | `solve_group_ridge_random_search` |
+| name → 2-D mapping | sequence | int or splitter | `n_spaces * n_samples < n_features` | `solve_multiple_kernel_ridge_random_search` |
 
 The shape column is Himalaya's flowchart, applied by `_solver_form` with
-`n_features` summed across spaces. Himalaya itself never switches; its primal
-solvers only warn when a design is wide, and the adapter suppresses that
-warning because it acts on the rule instead. Both forms give the same
-solution. The primal cross-validation loop builds
-`(n_alphas, n_features, n_samples_train)` resolution matrices per fold, the
-kernel loop `(n_alphas, n_samples_test, n_samples_train)`, so a wide encoding
-model would otherwise pay roughly `n_features / n_samples` more per alpha per
-fold. The chosen form is recorded as `solver_form_`.
+`n_features` summed across spaces. A banded fit holds one `(n_samples,
+n_samples)` kernel per space, so it compares the feature count against
+`n_spaces * n_samples`: the kernel form pays off when the average space is
+wider than the sample count, not when the total is. Himalaya itself never
+switches; its primal solvers only warn when a design is wide, and the adapter
+suppresses that warning because it acts on the rule instead. The primal
+cross-validation loop builds `(n_alphas, n_features, n_samples_train)`
+resolution matrices per fold, the kernel loop `(n_alphas, n_samples_test,
+n_samples_train)`, so a wide encoding model would otherwise pay roughly
+`n_features / n_samples` more per alpha per fold. The chosen form is recorded
+as `solver_form_`, and both it and `backend_` are assigned only after the
+solve succeeds, so a fit that raises leaves the previous fitted state intact.
+
+Both forms give the same solution in float64. In float32 the linear kernel
+squares the design's condition number, so the Gram matrix of a rank-deficient
+or near-singular design carries rounding eigenvalues of either sign. Himalaya's
+kernel solvers diagonalize with `eigh` and refuse every candidate alpha below
+twice the magnitude of the most negative one, where a float32 primal solve is
+itself rounding noise, and their selection stays noise-limited for a few
+decades above that floor. With candidates clear of it the two forms select the
+same grid points and agree to working precision; a grid entirely below it makes
+Himalaya score every candidate at its `-1e5` sentinel and return the first.
+Diagonalizing with `svd` instead does not help: it removes the guard without
+removing the noise, and on well-conditioned float32 designs it agrees with the
+primal form less closely than `eigh` does.
 
 The kernel methods build one linear kernel per space with `_linear_kernels`
 inside the same scoped backend as the solve, so a kernel lives on the device
@@ -279,10 +296,14 @@ All budget arithmetic, the saturation ceiling, and OOM recovery live in
 `backends.py`. That is a hard invariant: an algorithm may estimate its own
 working set but must never compute a budget.
 
-Neither form models its resident inputs: the primal form holds the
-`(n_samples, n_features)` design, the kernel form `n_spaces` kernels of
-`(n_samples, n_samples)`, and the banded kernel refit additionally Himalaya's
-gamma-scaled concatenation of the spaces, another `(n_samples, n_features)`.
+`_batch_sizes` charges the arrays that stay resident for the whole fit before
+sizing any batch from what remains: the `(n_samples, n_features)` design and
+the targets in both forms, plus in the kernel form `n_spaces` kernels of
+`(n_samples, n_samples)` and one more of that size for the kernel Himalaya
+sums or slices per fold. When the residents alone exceed the budget the fit
+raises before allocating anything. The banded kernel refit's gamma-scaled
+concatenation of the spaces, another `(n_samples, n_features)`, is not yet
+charged.
 The estimates cover the per-item working set and `_WORKING_SET_OVERHEAD`
 supplies the headroom.
 

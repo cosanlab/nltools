@@ -71,23 +71,29 @@ def _scoped_himalaya_backend(name: str):
         set_backend(previous, on_error="raise")
 
 
-def _solver_form(n_samples: int, n_features: int) -> Literal["primal", "kernel"]:
+def _solver_form(
+    n_samples: int, n_features: int, n_spaces: int = 1
+) -> Literal["primal", "kernel"]:
     """Return `'kernel'` when the design is wide, otherwise `'primal'`.
 
     Himalaya's flowchart routes designs with more features than samples to its
     kernel-form solvers, whose cross-validation working set scales with the
-    sample count instead of the feature count. Both forms return the same
-    solution; only the cost differs. A tie stays primal, which is also the
-    threshold of Himalaya's own "slower than kernel ridge" warning.
+    sample count instead of the feature count. Both forms solve the same
+    problem; only the cost differs. A banded fit holds one `(n_samples,
+    n_samples)` kernel per space, so it is only cheaper in the kernel form when
+    the average space is wider than the sample count, not when the total is. A
+    tie stays primal, which for one space is also the threshold of Himalaya's
+    own "slower than kernel ridge" warning.
 
     Args:
         n_samples (int): Rows of the design.
         n_features (int): Total columns across every feature space.
+        n_spaces (int): Number of feature spaces. Defaults to 1.
 
     Returns:
         str: `'kernel'` or `'primal'`.
     """
-    return "kernel" if n_samples < n_features else "primal"
+    return "kernel" if n_spaces * n_samples < n_features else "primal"
 
 
 def _himalaya_backend_name(backend) -> str:
@@ -121,6 +127,7 @@ def _batch_sizes(
     itemsize: int,
     *,
     solver_form: str = "primal",
+    n_spaces: int = 1,
 ) -> dict[str, int]:
     """Size the batches of a whole cross-validated or banded fit.
 
@@ -134,6 +141,11 @@ def _batch_sizes(
     becomes `n_samples`: the decomposition is of the `(n_samples, n_samples)`
     kernel and the refit weights are dual.
 
+    The arrays that stay on the device for the whole fit are charged first,
+    and the batches are sized from what remains: the design and targets in
+    both forms, plus in the kernel form one `(n_samples, n_samples)` kernel per
+    space and the same-sized kernel Himalaya sums or slices per fold.
+
     Args:
         backend (Backend): Backend returned by `_resolve_backend`.
         memory_budget_gb (float | None): Explicit budget, or None to measure.
@@ -143,14 +155,28 @@ def _batch_sizes(
         n_alphas (int): Candidate alphas.
         itemsize (int): Bytes per element of the working dtype.
         solver_form (str): `'primal'` or `'kernel'`, from `_solver_form`.
+        n_spaces (int): Number of feature spaces. Defaults to 1.
 
     Returns:
         dict[str, int]: `n_targets_batch`, `n_targets_batch_refit`, and
             `n_alphas_batch`.
+
+    Raises:
+        ValueError: If the resident arrays alone exceed the budget, or one
+            batch item does.
     """
     budget_gb = _device_memory_budget(
         backend, max_gpu_memory_gb=memory_budget_gb, cap_for_batching=True
     )
+    resident_bytes = (n_samples * n_features + n_samples * n_targets) * itemsize
+    if solver_form == "kernel":
+        resident_bytes += (n_spaces + 1) * n_samples * n_samples * itemsize
+    budget_gb -= resident_bytes / 1e9
+    if budget_gb <= 0:
+        raise ValueError(
+            f"the resident design, targets and kernels need "
+            f"{resident_bytes / 1e9:.6g} GB, exceeding the budget"
+        )
     weight_rows = n_samples if solver_form == "kernel" else n_features
     n_alphas_batch, _ = _auto_batch_size(
         n_alphas,
@@ -1104,15 +1130,16 @@ class _Ridge:
         n_targets = targets.shape[1]
         alphas = np.atleast_1d(np.asarray(alpha, dtype=np.float64))
 
-        self.backend_ = backend
+        # Every fitted attribute is assigned only once the solve has succeeded,
+        # so a fit that raises leaves the previous fitted state intact.
         if scalar_alpha:
             # The fixed-alpha refit sizes its own batch from the same budget; it
             # never runs the cross-validation or alpha loops the others measure,
             # and its thin SVD already costs the same as forming the kernel.
-            self.solver_form_ = "primal"
-            self._fit_fixed_alpha(spaces, targets, float(alpha))
+            solver_form = "primal"
+            self._fit_fixed_alpha(backend, spaces, targets, float(alpha))
         else:
-            self.solver_form_ = _solver_form(n_samples, n_features)
+            solver_form = _solver_form(n_samples, n_features, len(spaces))
             try:
                 batches = _batch_sizes(
                     backend,
@@ -1122,7 +1149,8 @@ class _Ridge:
                     n_targets=n_targets,
                     n_alphas=alphas.size,
                     itemsize=dtype.itemsize,
-                    solver_form=self.solver_form_,
+                    solver_form=solver_form,
+                    n_spaces=len(spaces),
                 )
             except ValueError as error:
                 raise ValueError(
@@ -1130,15 +1158,21 @@ class _Ridge:
                     f"fit with n_samples={n_samples}, n_features={n_features}, "
                     f"n_targets={n_targets}, n_alphas={alphas.size} ({error})"
                 ) from error
-            if is_banded and self.solver_form_ == "kernel":
-                self._fit_banded_kernel(spaces, targets, alphas, dtype, batches)
+            if is_banded and solver_form == "kernel":
+                self._fit_banded_kernel(
+                    backend, spaces, targets, alphas, dtype, batches
+                )
             elif is_banded:
-                self._fit_banded(spaces, targets, alphas, dtype, batches)
-            elif self.solver_form_ == "kernel":
-                self._fit_ordinary_cv_kernel(spaces, targets, alphas, dtype, batches)
+                self._fit_banded(backend, spaces, targets, alphas, dtype, batches)
+            elif solver_form == "kernel":
+                self._fit_ordinary_cv_kernel(
+                    backend, spaces, targets, alphas, dtype, batches
+                )
             else:
-                self._fit_ordinary_cv(spaces, targets, alphas, dtype, batches)
+                self._fit_ordinary_cv(backend, spaces, targets, alphas, dtype, batches)
 
+        self.backend_ = backend
+        self.solver_form_ = solver_form
         self.feature_space_names_ = names
         self.feature_space_sizes_ = sizes if is_banded else None
         self.n_samples_ = int(n_samples)
@@ -1148,10 +1182,11 @@ class _Ridge:
         self.is_fitted_ = True
         return self
 
-    def _fit_fixed_alpha(self, spaces, targets, alpha) -> None:
+    def _fit_fixed_alpha(self, backend, spaces, targets, alpha) -> None:
         """Solve a fixed-alpha ordinary Ridge and store the fitted state.
 
         Args:
+            backend (Backend): Resolved execution backend.
             spaces (list[np.ndarray]): One feature matrix.
             targets (np.ndarray): `(n_samples, n_targets)` targets.
             alpha (float): The fixed regularization strength.
@@ -1160,7 +1195,7 @@ class _Ridge:
             spaces,
             targets,
             alpha,
-            backend=self.backend_,
+            backend=backend,
             memory_budget_gb=self.memory_budget_gb,
         )
         self.alpha_ = float(alpha)
@@ -1188,10 +1223,13 @@ class _Ridge:
         ).reshape(-1)
         self.feature_space_weights_ = None
 
-    def _fit_ordinary_cv(self, spaces, targets, alphas, dtype, batches) -> None:
+    def _fit_ordinary_cv(
+        self, backend, spaces, targets, alphas, dtype, batches
+    ) -> None:
         """Select an alpha by cross-validation and store the fitted state.
 
         Args:
+            backend (Backend): Resolved execution backend.
             spaces (list[np.ndarray]): One feature matrix.
             targets (np.ndarray): `(n_samples, n_targets)` targets.
             alphas (np.ndarray): Candidate alphas.
@@ -1201,7 +1239,7 @@ class _Ridge:
         from himalaya.ridge import solve_ridge_cv_svd
         from himalaya.scoring import l2_neg_loss
 
-        with _scoped_himalaya_backend(_himalaya_backend_name(self.backend_)):
+        with _scoped_himalaya_backend(_himalaya_backend_name(backend)):
             designs, y_device, alpha_device = _to_backend_arrays(
                 spaces, targets, alphas, dtype
             )
@@ -1220,7 +1258,9 @@ class _Ridge:
 
         self._store_ordinary_state(coefs, best_alphas, cv_scores, alphas)
 
-    def _fit_ordinary_cv_kernel(self, spaces, targets, alphas, dtype, batches) -> None:
+    def _fit_ordinary_cv_kernel(
+        self, backend, spaces, targets, alphas, dtype, batches
+    ) -> None:
         """Select an alpha by cross-validation in the kernel form and store the state.
 
         The wide-design counterpart of `_fit_ordinary_cv`. Himalaya solves on the
@@ -1230,6 +1270,7 @@ class _Ridge:
         device round trip and a float64 copy of a wide design.
 
         Args:
+            backend (Backend): Resolved execution backend.
             spaces (list[np.ndarray]): One feature matrix.
             targets (np.ndarray): `(n_samples, n_targets)` targets.
             alphas (np.ndarray): Candidate alphas.
@@ -1239,7 +1280,7 @@ class _Ridge:
         from himalaya.kernel_ridge import solve_kernel_ridge_cv_eigenvalues
         from himalaya.scoring import l2_neg_loss
 
-        with _scoped_himalaya_backend(_himalaya_backend_name(self.backend_)):
+        with _scoped_himalaya_backend(_himalaya_backend_name(backend)):
             designs, y_device, alpha_device = _to_backend_arrays(
                 spaces, targets, alphas, dtype
             )
@@ -1313,10 +1354,11 @@ class _Ridge:
         selected = _snap_to_grid(np.exp(-log_total), alphas)
         self.alpha_ = selected if self.per_target_alpha else float(selected[0])
 
-    def _fit_banded(self, spaces, targets, alphas, dtype, batches) -> None:
+    def _fit_banded(self, backend, spaces, targets, alphas, dtype, batches) -> None:
         """Run the banded random search in the primal form and store the fitted state.
 
         Args:
+            backend (Backend): Resolved execution backend.
             spaces (list[np.ndarray]): Feature matrices in coefficient order.
             targets (np.ndarray): `(n_samples, n_targets)` targets.
             alphas (np.ndarray): Candidate alphas.
@@ -1328,7 +1370,7 @@ class _Ridge:
 
         candidates = self._draw_feature_space_candidates(len(spaces), dtype)
 
-        with _scoped_himalaya_backend(_himalaya_backend_name(self.backend_)):
+        with _scoped_himalaya_backend(_himalaya_backend_name(backend)):
             designs, y_device, alpha_device = _to_backend_arrays(
                 spaces, targets, alphas, dtype
             )
@@ -1351,7 +1393,9 @@ class _Ridge:
 
         self._store_banded_state(deltas, refit_weights, cv_scores, alphas)
 
-    def _fit_banded_kernel(self, spaces, targets, alphas, dtype, batches) -> None:
+    def _fit_banded_kernel(
+        self, backend, spaces, targets, alphas, dtype, batches
+    ) -> None:
         """Run the banded random search in the kernel form and store the fitted state.
 
         The wide-design counterpart of `_fit_banded`. Himalaya searches over one
@@ -1361,6 +1405,7 @@ class _Ridge:
         search and go through the same recovery.
 
         Args:
+            backend (Backend): Resolved execution backend.
             spaces (list[np.ndarray]): Feature matrices in coefficient order.
             targets (np.ndarray): `(n_samples, n_targets)` targets.
             alphas (np.ndarray): Candidate alphas.
@@ -1372,7 +1417,7 @@ class _Ridge:
 
         candidates = self._draw_feature_space_candidates(len(spaces), dtype)
 
-        with _scoped_himalaya_backend(_himalaya_backend_name(self.backend_)):
+        with _scoped_himalaya_backend(_himalaya_backend_name(backend)):
             designs, y_device, alpha_device = _to_backend_arrays(
                 spaces, targets, alphas, dtype
             )

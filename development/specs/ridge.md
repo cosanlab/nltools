@@ -178,21 +178,26 @@ For ordinary Ridge, non-default values of those two must raise an error.
 Himalaya's primal solvers (`solve_ridge_cv_svd`,
 `solve_group_ridge_random_search`) and its kernel solvers
 (`solve_kernel_ridge_cv_eigenvalues`,
-`solve_multiple_kernel_ridge_random_search` over linear kernels) return the
-same solution. Their cost differs: the primal cross-validation working set
+`solve_multiple_kernel_ridge_random_search` over linear kernels) solve the
+same problem. Their cost differs: the primal cross-validation working set
 scales with the feature count, the kernel one with the sample count. Himalaya
 does not switch between them; its flowchart asks the user to.
 
 The adapter switches for the user. When the total feature count across spaces
-exceeds the sample count, a cross-validated or banded fit runs in the kernel
-form; otherwise, and on a tie, it runs in the primal form. The choice is a
-pure function of the design shape, is recorded as `solver_form_`, and is not
-exposed as a keyword.
+exceeds the sample count times the number of spaces, a cross-validated or
+banded fit runs in the kernel form; otherwise, and on a tie, it runs in the
+primal form. The choice is a pure function of the design shape, is recorded as
+`solver_form_`, and is not exposed as a keyword.
 
 The kernel form changes nothing the caller can observe apart from
 `solver_form_`: `coef_` is returned in feature coordinates, and every other
-fitted attribute keeps its shape, dtype, and meaning within floating-point
-tolerance of the primal result. Where two candidate alphas tie in
+fitted attribute keeps its shape, dtype, and meaning. In float64 the fitted
+values agree with the primal result to floating-point tolerance. In float32
+the kernel form squares the design's condition number, so on a rank-deficient
+or near-singular design it refuses candidate alphas below the Gram matrix's
+rounding floor and may select a different grid point within a few decades
+above it; with candidates clear of that floor the two forms select the same
+grid points and agree to working precision. Where two candidates tie in
 cross-validation score at working precision, the two forms may snap to
 different grid points; the coefficients and scores still agree to that
 precision.
