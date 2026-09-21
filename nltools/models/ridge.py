@@ -498,6 +498,7 @@ def _refit_fixed_hyperparameters(
             original, unscaled feature coordinates, as CPU NumPy.
     """
     from himalaya.kernel_ridge import (
+        linear_kernel,
         primal_weights_kernel_ridge,
         solve_kernel_ridge_eigenvalues,
     )
@@ -561,7 +562,7 @@ def _refit_fixed_hyperparameters(
             )
             if solver_form == "kernel":
                 dual = solve_kernel_ridge_eigenvalues(
-                    _linear_kernel(design),
+                    linear_kernel(design),
                     targets,
                     alpha=group_alpha,
                     fit_intercept=False,
@@ -627,26 +628,12 @@ def _to_backend_arrays(spaces, targets, alphas, dtype):
     return converted[:-2], converted[-2], converted[-1]
 
 
-def _linear_kernel(space):
-    """Form the linear kernel `X @ X.T` of one feature space on the active backend.
-
-    Called inside the same `_scoped_himalaya_backend` block as the solver that
-    consumes the kernel, so it is built on the device and in the dtype the
-    solve runs in and never crosses devices.
-
-    Args:
-        space: A `(n_samples, n_features)` matrix already on the active backend.
-
-    Returns:
-        Array: The `(n_samples, n_samples)` kernel on the active backend.
-    """
-    from himalaya.backend import get_backend
-
-    return get_backend().matmul(space, space.T)
-
-
 def _linear_kernels(spaces):
     """Stack the linear kernels of several feature spaces for the banded solver.
+
+    Each kernel is Himalaya's own `linear_kernel`, called inside the same
+    `_scoped_himalaya_backend` block as the solver that consumes it, so it is
+    built on the device and in the dtype the solve runs in.
 
     Args:
         spaces (Sequence): Feature matrices already on the active backend,
@@ -656,8 +643,9 @@ def _linear_kernels(spaces):
         Array: Shape `(n_spaces, n_samples, n_samples)` on the active backend.
     """
     from himalaya.backend import get_backend
+    from himalaya.kernel_ridge import linear_kernel
 
-    return get_backend().stack([_linear_kernel(space) for space in spaces])
+    return get_backend().stack([linear_kernel(space) for space in spaces])
 
 
 def _to_cpu_numpy(array) -> np.ndarray:
@@ -1245,7 +1233,7 @@ class _Ridge:
         """
         self.coef_ = np.asarray(_to_cpu_numpy(coef), dtype=np.float64)
         selected = _snap_to_grid(_to_cpu_numpy(best_alphas), alphas)
-        self.alpha_ = float(selected[0]) if not self.per_target_alpha else selected
+        self.alpha_ = selected if self.per_target_alpha else float(selected[0])
         self.cv_scores_ = np.asarray(
             _to_cpu_numpy(cv_scores), dtype=np.float64
         ).reshape(-1)
@@ -1307,6 +1295,7 @@ class _Ridge:
             batches (dict[str, int]): Himalaya batch sizes.
         """
         from himalaya.kernel_ridge import (
+            linear_kernel,
             primal_weights_kernel_ridge,
             solve_kernel_ridge_cv_eigenvalues,
         )
@@ -1316,7 +1305,7 @@ class _Ridge:
             designs, y_device, alpha_device = _to_backend_arrays(
                 spaces, targets, alphas, dtype
             )
-            kernel = _linear_kernel(designs[0])
+            kernel = linear_kernel(designs[0])
             del designs
             best_alphas, dual_weights, cv_scores = solve_kernel_ridge_cv_eigenvalues(
                 kernel,
@@ -1380,14 +1369,13 @@ class _Ridge:
             cv_scores: `(search_iterations, n_targets)` scores, on any backend.
             alphas (np.ndarray): Candidate alphas.
         """
+        from scipy.special import logsumexp, softmax
+
         deltas = np.asarray(_to_cpu_numpy(deltas), dtype=np.float64)
         self.coef_ = np.asarray(_to_cpu_numpy(refit_weights), dtype=np.float64)
         self.cv_scores_ = np.asarray(_to_cpu_numpy(cv_scores), dtype=np.float64)
-        shifted = deltas - deltas.max(axis=0, keepdims=True)
-        weights = np.exp(shifted)
-        self.feature_space_weights_ = weights / weights.sum(axis=0, keepdims=True)
-        log_total = deltas.max(axis=0) + np.log(np.exp(shifted).sum(axis=0))
-        selected = _snap_to_grid(np.exp(-log_total), alphas)
+        self.feature_space_weights_ = softmax(deltas, axis=0)
+        selected = _snap_to_grid(np.exp(-logsumexp(deltas, axis=0)), alphas)
         self.alpha_ = selected if self.per_target_alpha else float(selected[0])
 
     def _fit_banded(self, backend, spaces, targets, alphas, dtype, batches) -> None:
