@@ -34,11 +34,11 @@ Preview the site with live reload: `uv run poe docs-serve`
 
 Build the site cold, as CI does: `uv run poe docs-build-fresh` — the same build with the tutorials' fit caches dropped first
 
-Remove the build outputs: `uv run poe docs-clean` — drops `site/`, zensical's page cache and the generated tutorial pages
+Remove the build outputs: `uv run poe docs-clean` — drops `site/`, zensical's page cache, the generated changelog and the generated tutorial pages
 
 Edit a tutorial notebook: `uv run marimo edit docs/tutorials/<group>/<notebook>.py`. The tutorial pages are out of the site until #503 restores them
 
-Generate changelog: `uv run poe changelog`
+Generate the changelog on its own: `uv run poe changelog` — `docs-generate` already runs it, writing `docs/changelog.md` from git history; the file is not committed, and a release tag is what turns its Unreleased section into a version heading
 
 Add or remove dependencies: `uv add/remove packagename`
 

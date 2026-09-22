@@ -273,6 +273,7 @@ set -eu
 rm -r site 2>/dev/null || true
 rm -r .cache 2>/dev/null || true
 rm docs/quickstart.md 2>/dev/null || true
+rm docs/changelog.md 2>/dev/null || true
 rm docs/tutorials/*/[0-9]*_*.md 2>/dev/null || true
 """ },
   { ref = "docs-prune" },
@@ -282,12 +283,15 @@ rm docs/tutorials/*/[0-9]*_*.md 2>/dev/null || true
 # converts the notebooks its NOTEBOOK_GLOBS names, which are the ones the nav
 # holds. The generated `.md` pages are build artifacts and are never committed.
 [tool.poe.tasks.docs-generate]
-help = "Generate the API vocabulary tables and the quickstart and tutorial pages from their marimo notebooks"
-shell = """
+help = "Generate the changelog from git history, the API vocabulary tables, and the quickstart and tutorial pages from their marimo notebooks"
+sequence = [
+  { ref = "changelog" },
+  { shell = """
 set -eu
 python scripts/build_api_vocabulary.py
 python scripts/marimo_to_zensical.py --all
-"""
+""" },
+]
 
 # Zensical builds every file under `docs_dir` into the site and offers no way to
 # exclude one, so whatever else lands there ships with the site: marimo's editor
@@ -366,12 +370,15 @@ sequence = [
   { ref = "tutorials-run" },
 ]
 
+# The changelog is a build artifact, not a source file: docs-generate writes it
+# from git history on every build, so the site is current without a commit, and
+# a release tag is what turns the Unreleased section into a version heading.
 [tool.poe.tasks.changelog]
-help = "Regenerate docs/changelog.md from git history via git-cliff"
+help = "Generate docs/changelog.md from git history via git-cliff (docs-generate runs this; the file is not committed)"
 shell = "git-cliff --output docs/changelog.md"
 
 [tool.poe.tasks.release]
-help = "Full release: bump version, build, smoke-test, changelog, tag, publish"
+help = "Full release: bump version, build, smoke-test, tag, publish"
 cmd = "python scripts/release.py --target ${target}"
 args = [
     { name = "target", options = ["--target"], choices = ["pypi", "testpypi"], default = "pypi" },

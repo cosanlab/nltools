@@ -87,6 +87,8 @@ docs/_static/wheels/
 # match the notebooks (scripts/marimo_to_zensical.py NOTEBOOK_GLOBS), so a
 # hand-written page in any of these directories is still tracked.
 docs/quickstart.md
+# Generated from git history by `poe docs-generate`; the release tag names its version.
+docs/changelog.md
 docs/tutorials/basics/[0-9]*_*.md
 docs/tutorials/data-operations/[0-9]*_*.md
 docs/tutorials/analysis/[0-9]*_*.md

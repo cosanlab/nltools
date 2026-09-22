@@ -2,8 +2,9 @@
 """Interactive nltools release orchestrator.
 
 The workflow reviews the latest pytest log, bumps the project version, builds
-and smoke-tests distributions, regenerates the changelog, and creates a release
-commit and tag.
+and smoke-tests distributions, and creates a release commit and tag. The
+changelog is not part of the release commit: the docs build generates it from
+git history, and the release tag is what gives it its version heading.
 
 Publishing to PyPI is handled by GitHub, not this script: for the default
 `--target pypi`, the final step pushes the release commit and tag, which
@@ -43,7 +44,6 @@ from rich.table import Table
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 PYPROJECT = PROJECT_ROOT / "pyproject.toml"
-CHANGELOG = PROJECT_ROOT / "docs" / "changelog.md"
 DIST_DIR = PROJECT_ROOT / "dist"
 TEST_LOG = PROJECT_ROOT / "pytest.log"
 UV_LOCK = PROJECT_ROOT / "uv.lock"
@@ -382,23 +382,6 @@ def step_smoke_test(expected_version: str) -> None:
         shutil.rmtree(temp_dir, ignore_errors=True)
 
 
-def step_changelog(new_version: str) -> None:
-    """Regenerate the changelog and finalize its synthetic release heading."""
-    console.print(Panel("[bold]Step 6: Regenerate Changelog[/]", style="blue"))
-
-    result = run(["uv", "run", "poe", "changelog"])
-    if result.returncode != 0:
-        abort("Changelog generation failed")
-
-    text = CHANGELOG.read_text()
-    heading = f"## {new_version} ({datetime.now(tz=UTC):%Y-%m-%d})"
-    if "## Unreleased" in text:
-        CHANGELOG.write_text(text.replace("## Unreleased", heading, 1))
-    elif heading not in text:
-        abort("Generated changelog has no Unreleased heading to finalize")
-    console.print(f"  [green]Changelog finalized as {heading}[/]")
-
-
 def step_confirm(
     old_version: str,
     new_version: str,
@@ -407,7 +390,7 @@ def step_confirm(
     test_status: str,
 ) -> None:
     """Show the final release plan and require explicit approval."""
-    console.print(Panel("[bold]Step 7: Release Summary[/]", style="blue"))
+    console.print(Panel("[bold]Step 6: Release Summary[/]", style="blue"))
 
     table = Table(show_header=False, box=None, padding=(0, 2))
     table.add_column(style="bold cyan")
@@ -428,16 +411,16 @@ def step_confirm(
 
     if not confirm("Create the release commit/tag and publish these artifacts?"):
         console.print(
-            "[yellow]Release cancelled; generated version/changelog edits remain.[/]"
+            "[yellow]Release cancelled; the version bump remains in the worktree.[/]"
         )
         raise SystemExit(0)
 
 
 def step_git_commit_and_tag(new_version: str) -> None:
-    """Commit release metadata/changelog and tag that exact commit."""
-    console.print(Panel("[bold]Step 8: Git Commit & Tag[/]", style="blue"))
+    """Commit the version bump and tag that exact commit."""
+    console.print(Panel("[bold]Step 7: Git Commit & Tag[/]", style="blue"))
 
-    paths = ["pyproject.toml", "docs/changelog.md"]
+    paths = ["pyproject.toml"]
     if UV_LOCK.exists():
         paths.append("uv.lock")
     result = run(["git", "add", *paths])
@@ -473,23 +456,20 @@ def load_publish_env(target: str) -> dict[str, str]:
 
 def step_publish(target: str, new_version: str) -> None:
     """Publish the release: push the tag (PyPI via GitHub) or upload to TestPyPI."""
-    console.print(Panel("[bold]Step 9: Publish[/]", style="blue"))
+    console.print(Panel("[bold]Step 8: Publish[/]", style="blue"))
 
     if target == "pypi":
         # PyPI publishing is owned by the GitHub `Release` workflow, triggered by
-        # the pushed tag. Push the commit first, then the tag.
+        # the pushed tag. The commit and the tag go in one push so the docs
+        # build the branch push triggers already sees the tag when it generates
+        # the changelog.
         tag = f"v{new_version}"
-        result = run(["git", "push", "origin", "HEAD"])
+        result = run(["git", "push", "origin", "HEAD", tag])
         if result.returncode != 0:
             abort(
-                "Failed to push the release commit. The commit and tag remain "
-                "local; push them manually to trigger the release workflow."
-            )
-        result = run(["git", "push", "origin", tag])
-        if result.returncode != 0:
-            abort(
-                f"Failed to push tag {tag}. Push it manually (`git push origin "
-                f"{tag}`) to trigger the release workflow."
+                f"Failed to push the release commit and tag {tag}. Both remain "
+                f"local; push them manually (`git push origin HEAD {tag}`) to "
+                "trigger the release workflow."
             )
         console.print(f"[bold green]Pushed release commit and tag {tag}.[/]")
         console.print(
@@ -529,7 +509,6 @@ def main() -> None:
     step_bump_version(old_version, new_version)
     artifacts = step_build()
     step_smoke_test(new_version)
-    step_changelog(new_version)
     step_confirm(old_version, new_version, args.target, artifacts, test_status)
     step_git_commit_and_tag(new_version)
     step_publish(args.target, new_version)
