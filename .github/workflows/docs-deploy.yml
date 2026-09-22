@@ -1,11 +1,13 @@
 name: Docs
 
 # Build the docs site and deploy it to https://nltools.org on every push to
-# master, on every `v*` release tag (same trigger as release.yml), and on a
-# manual run. The site tracks master deliberately — docs run ahead of the PyPI
-# release so the merged API can be dogfooded (e.g. a GitHub install) and patched
-# before `poe release`. Each tutorial page in the nav executes its cells as it
-# renders, so this build is also a test layer.
+# master and on a manual run. The site tracks master deliberately — docs run
+# ahead of the PyPI release so the merged API can be dogfooded (e.g. a GitHub
+# install) and patched before `poe release`. A `v*` release tag is not a
+# trigger: it always sits on a master commit whose push already deployed, and
+# Pages rejects a second deployment of the same commit, so a tag run only ever
+# failed. Each tutorial page in the nav executes its cells as it renders, so
+# this build is also a test layer.
 #
 # nltools.org is a custom domain served from the site root, which is what
 # `site_url` in zensical.toml names. A fork deploying to a project page points
@@ -14,8 +16,6 @@ on:
   push:
     branches:
       - master
-    tags:
-      - "v*"
   workflow_dispatch:
 
 # Pages source must be "GitHub Actions" (Settings -> Pages -> Build and deployment),
