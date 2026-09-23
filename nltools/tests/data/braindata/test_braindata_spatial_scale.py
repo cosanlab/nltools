@@ -184,3 +184,18 @@ class TestRadiusKeyword:
         parameters = inspect.signature(BrainData.distance).parameters
         assert "radius" in parameters
         assert "radius_mm" not in parameters
+
+
+def test_roi_labels_with_float_noise_are_rounded_not_truncated(minimal_brain_data):
+    # Float atlases store integer labels with noise (the k50 parcellation has
+    # 6.99999994 for 7). Truncating folded parcel k into k-1, so a 3-parcel atlas
+    # came back as 2 RDMs and roi_to_brain then saw too few rows.
+    atlas = _atlas_for(minimal_brain_data, n_rois=3)
+    noisy = atlas.get_fdata().astype(np.float64)
+    noisy[noisy == 2] = 1.9999999
+    noisy[noisy == 3] = 2.9999999
+    noisy_atlas = nib.Nifti1Image(noisy, atlas.affine)
+    result = minimal_brain_data.distance(
+        metric="correlation", spatial_scale="roi", roi_mask=noisy_atlas
+    )
+    assert len(result) == 3

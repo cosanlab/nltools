@@ -74,3 +74,36 @@ def test_label_coords_probabilistic_threshold_filters():
     n_low = df_low["harvard_oxford"][0].count("%")
     n_high = df_high["harvard_oxford"][0].count("%")
     assert n_high <= n_low
+
+
+def _noisy_det_atlas():
+    """A deterministic atlas whose labels carry float noise: 0.9999999 is 1, 1.9999999 is 2."""
+    import nibabel as nib
+
+    from nltools.data.atlases.loading import _Atlas
+
+    arr = np.zeros((4, 1, 1), dtype=np.float64)
+    arr[:, 0, 0] = [0.0, 0.9999999, 1.9999999, 2.0]
+    return _Atlas(
+        name="noisy",
+        image=nib.Nifti1Image(arr, np.eye(4)),
+        labels=pl.DataFrame({"index": [1, 2], "name": ["A", "B"]}),
+        kind="deterministic",
+        citation="synthetic",
+    )
+
+
+def test_deterministic_labels_round_float_noise():
+    from nltools.data.atlases.labeling import _label_deterministic
+
+    ijk = np.array([[1, 0, 0], [2, 0, 0], [3, 0, 0]])
+    assert _label_deterministic(_noisy_det_atlas(), ijk) == ["A", "B", "B"]
+
+
+def test_cluster_label_string_rounds_float_noise():
+    from nltools.data.atlases.reporting import _cluster_label_string
+
+    ijk = np.array([[1, 0, 0], [2, 0, 0], [3, 0, 0]])
+    assert _cluster_label_string(_noisy_det_atlas(), ijk, prob_threshold=0.0) == (
+        "66.7% B; 33.3% A"
+    )

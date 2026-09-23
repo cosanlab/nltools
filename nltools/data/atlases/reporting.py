@@ -206,7 +206,7 @@ def _cluster_label_string(
         return ""
 
     if atlas.kind == "deterministic":
-        ids = data[ijk[:, 0], ijk[:, 1], ijk[:, 2]].astype(int)
+        ids = np.rint(data[ijk[:, 0], ijk[:, 1], ijk[:, 2]]).astype(int)
         names = [lut.get(int(i), "no_label") for i in ids]
     else:  # probabilistic
         probs = data[ijk[:, 0], ijk[:, 1], ijk[:, 2]]  # (M, K)

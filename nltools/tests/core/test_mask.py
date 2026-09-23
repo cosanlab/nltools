@@ -284,3 +284,16 @@ def test_roi_to_brain_from_atlas_rejects_a_zero_roi_label():
             roi_labels=[0, 1],
             fill=-1.0,
         )
+
+
+def test_roi_to_brain_from_atlas_rounds_float_noise_labels():
+    # 0.9999999 is label 1 and 1.9999999 is label 2; truncation made the first
+    # background (painted with `fill`) and merged the second into label 1.
+    mask_img = _four_voxel_mask()
+    atlas = nib.Nifti1Image(
+        np.array([0.0, 0.9999999, 2.0000001, 1.9999999]).reshape(4, 1, 1), np.eye(4)
+    )
+    out = roi_to_brain_from_atlas(np.array([10.0, 20.0]), atlas, mask_img, fill=-1.0)
+    np.testing.assert_array_equal(
+        np.asarray(out.data).ravel(), [-1.0, 10.0, 20.0, 20.0]
+    )
