@@ -82,6 +82,11 @@ scratch/
 # install from, when testing a version that is not on PyPI yet.
 docs/_static/wheels/
 
+# Output of the retired mystmd toolchain. Zensical builds every file under
+# docs/, and these pages carry MyST directives (`:::{grid}`) that its strict
+# build cannot parse, so a stray copy must never be committed.
+docs/_build/
+
 # Generated pages: build artifacts written from the marimo notebooks beside them
 # by scripts/marimo_to_zensical.py (`uv run poe docs-generate`). The patterns
 # match the notebooks (scripts/marimo_to_zensical.py NOTEBOOK_GLOBS), so a
