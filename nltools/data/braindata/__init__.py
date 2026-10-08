@@ -1011,6 +1011,9 @@ class BrainData:
     ):
         """Identify spikes from Time Series Data.
 
+        Each voxel is linearly detrended before detection, so slow scanner drift
+        does not inflate the standard deviation the cutoffs are scaled by.
+
         Args:
             global_spike_cutoff (int or None): cutoff to identify spikes in global signal
                 in standard deviations, or None to skip.

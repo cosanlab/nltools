@@ -337,3 +337,74 @@ class TestFindSpikesRank:
 
         assert dm.shape[0] == 10
         np.testing.assert_array_equal(np.flatnonzero(dm.to_numpy()[:, 0]), [9])
+
+
+class TestFindSpikesDetrend:
+    """#559: scanner drift must not inflate the SD the cutoffs are scaled by.
+
+    Without detrending, a slow drift dominates the variance of the global
+    signal, so a cutoff in "standard deviations" measures the drift rather than
+    the TR-to-TR noise and real spikes go undetected.
+    """
+
+    N_TR = 100
+    SPIKE_TR = 50
+
+    @classmethod
+    def _drift_array(cls, *, spike=True):
+        rng = np.random.default_rng(0)
+        data = rng.standard_normal((4, 4, 4, cls.N_TR))
+        data += np.linspace(0, 100, cls.N_TR)  # drift ≫ spike ≫ global noise
+        if spike:
+            data[..., cls.SPIKE_TR] += 10
+        return data
+
+    @staticmethod
+    def _flagged(dm):
+        return sorted(int(np.flatnonzero(col)[0]) for col in dm.to_numpy().T)
+
+    def test_spike_on_drift_is_detected(self):
+        import nibabel as nib
+
+        img = nib.Nifti1Image(self._drift_array(), affine=np.eye(4))
+        dm = find_spikes(img, global_spike_cutoff=3, diff_spike_cutoff=None)
+        assert self._flagged(dm) == [self.SPIKE_TR]
+
+    def test_drift_alone_flags_nothing(self):
+        """No spike in, nothing flagged.
+
+        The cutoff is 5 rather than 3 because pure noise crosses 3 SD by
+        chance in about a third of random draws.
+        """
+        import nibabel as nib
+
+        img = nib.Nifti1Image(self._drift_array(spike=False), affine=np.eye(4))
+        dm = find_spikes(img, global_spike_cutoff=5, diff_spike_cutoff=5)
+        assert dm.is_empty
+
+    def test_already_detrended_input_gives_same_result(self):
+        """Linear detrending is idempotent, so pre-detrended data is safe."""
+        import nibabel as nib
+        from scipy.signal import detrend
+
+        raw = self._drift_array()
+        pre = detrend(raw, axis=3, type="linear")
+        dm_raw = find_spikes(nib.Nifti1Image(raw, affine=np.eye(4)))
+        dm_pre = find_spikes(nib.Nifti1Image(pre, affine=np.eye(4)))
+        assert dm_raw.columns == dm_pre.columns
+        np.testing.assert_array_equal(dm_raw.to_numpy(), dm_pre.to_numpy())
+
+    def test_brain_data_input_is_detrended(self, minimal_brain_data):
+        """The BrainData branch (time on axis 0) detrends along time too."""
+        bd = minimal_brain_data.copy()
+        n_tr = bd.shape[0]
+        rng = np.random.default_rng(0)
+        bd.data = rng.standard_normal(bd.shape) + np.linspace(0, 100, n_tr)[:, None]
+        bd.data[n_tr // 2] += 10
+        dm = find_spikes(bd, global_spike_cutoff=3, diff_spike_cutoff=None)
+        assert self._flagged(dm) == [n_tr // 2]
+
+    def test_input_is_not_modified(self, minimal_brain_data):
+        before = minimal_brain_data.data.copy()
+        find_spikes(minimal_brain_data)
+        np.testing.assert_array_equal(minimal_brain_data.data, before)
