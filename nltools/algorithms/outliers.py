@@ -200,6 +200,19 @@ def _transform_outliers(data, cutoff, replace_with_cutoff, method):
     return result_df
 
 
+def _detrend_time(data_array, axis):
+    """Remove each voxel's linear trend along the time axis, in place.
+
+    Scanner drift otherwise dominates the variance of the global signal, so a
+    cutoff in standard deviations would measure the drift rather than the
+    TR-to-TR noise. Linear detrending is idempotent, so data the user already
+    detrended passes through unchanged.
+    """
+    from scipy.signal import detrend
+
+    return detrend(data_array, axis=axis, type="linear", overwrite_data=True)
+
+
 def find_spikes(
     data,
     global_spike_cutoff=3,
@@ -209,6 +222,10 @@ def find_spikes(
     sampling_freq: float | None = None,
 ):
     """Identify spikes (motion artifacts, intensity outliers) in 4D fMRI data.
+
+    Each voxel's linear trend is removed before either detector runs, so slow
+    scanner drift does not inflate the standard deviation the cutoffs are
+    scaled by. Already-detrended data gives the same result.
 
     Args:
         data (BrainData | nib.Nifti1Image): 4D functional data.
@@ -248,7 +265,7 @@ def find_spikes(
 
     if isinstance(data, BrainData):
         # Avoid deepcopy overhead - just copy the data array
-        data_array = data.data.copy()
+        data_array = _detrend_time(data.data.copy(), axis=0)
         global_mn = np.mean(data_array, axis=1)
         frame_diff = np.mean(np.abs(np.diff(data_array, axis=0)), axis=1)
     elif isinstance(data, nib.Nifti1Image):
@@ -265,6 +282,7 @@ def find_spikes(
                 "find_spikes requires 4D data (x, y, z, time); got shape "
                 f"{data_array.shape}"
             )
+        data_array = _detrend_time(data_array, axis=3)
         global_mn = np.mean(data_array, axis=(0, 1, 2))
         frame_diff = np.mean(np.abs(np.diff(data_array, axis=3)), axis=(0, 1, 2))
     else:
