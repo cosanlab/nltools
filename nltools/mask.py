@@ -362,7 +362,9 @@ def roi_to_brain_from_atlas(
         )
 
     # Per-mask-voxel atlas labels — same length as the BrainData voxel axis.
-    label_vec = nilearn_apply_mask(atlas_img, mask_img).astype(np.int64)
+    # Round, don't truncate: float atlases store labels with noise (6.99999994
+    # for 7), and astype alone would fold parcel 7 into parcel 6.
+    label_vec = np.rint(nilearn_apply_mask(atlas_img, mask_img)).astype(np.int64)
 
     if roi_labels is None:
         unique_labels = np.unique(label_vec)

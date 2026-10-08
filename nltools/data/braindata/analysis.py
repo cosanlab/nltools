@@ -229,7 +229,9 @@ def _resolve_atlas_label_vec(bd, roi_mask):
             copy_header=True,
         )
 
-    label_vec = apply_mask(roi_img, bd.mask).astype(np.int64)
+    # Round, don't truncate: float atlases store labels with noise (6.99999994
+    # for 7), and astype alone would fold parcel 7 into parcel 6.
+    label_vec = np.rint(apply_mask(roi_img, bd.mask)).astype(np.int64)
     unique_labels = np.unique(label_vec)
     unique_labels = unique_labels[unique_labels != 0]
     if unique_labels.size == 0:

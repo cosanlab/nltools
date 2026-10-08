@@ -68,7 +68,7 @@ def _label_deterministic(atlas: _Atlas, ijk: np.ndarray) -> list[str]:
     lut = _label_lookup(atlas)
     out: list[str] = []
     for v in ijk:
-        idx = int(data[v[0], v[1], v[2]])
+        idx = int(np.rint(data[v[0], v[1], v[2]]))
         out.append(lut.get(idx, "no_label"))
     return out
 
